@@ -1,16 +1,16 @@
 function meshSetup(nel,L,instr;ghost::Bool=false)
     @info "init Eulerian mesh geometry"
     # geometry                                               
-    L,h,nD       = mesh_info(L,nel)
+    L,h,nD       = getinfo(L,nel)
     if instr[:basis] == "gimpm" && ghost
         buffer = 2.0.*h
     else
         buffer = 0.0.*h
     end
     # mesh 
-    xn,xe,t,nn,nel,nno = mesh_coord(nD,L,h;ghosts=buffer)
+    xn,xe,t,nn,nel,nno = getcoords(nD,L,h;ghosts=buffer)
     # boundary conditions
-    bc,xB        = mesh_bc(xn,h,nno,nD;ghosts=buffer)
+    bc,xB        = getbc(xn,h,nno,nD;ghosts=buffer)
     if nD>1
         x₀ = minimum(xn,dims=1)
     else

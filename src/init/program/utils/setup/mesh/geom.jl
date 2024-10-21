@@ -1,4 +1,4 @@
-function mesh_info(L,nel)
+function getinfo(L,nel)
     nD = length(L)
     if nD == 1
         L   = L
@@ -15,7 +15,7 @@ function mesh_info(L,nel)
     end
     return L,h,nD
 end
-function mesh_coord(nD,L,h;ghosts=0.0)
+function getcoords(nD,L,h;ghosts::Vector=[0.0])
     nn = 4^nD
     if nD == 1
         x0 = [0.0-ghosts[1],L[1]+ghosts[1]]

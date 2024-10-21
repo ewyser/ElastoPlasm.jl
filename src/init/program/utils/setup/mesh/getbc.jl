@@ -1,4 +1,4 @@
-function mesh_bc(xn,h,nno,nD;ghosts=0.0)
+function getbc(xn,h,nno,nD;ghosts=0.0)
     l = minimum(xn,dims=1).+ghosts
     L = maximum(xn,dims=1).-ghosts
     if nD == 1
