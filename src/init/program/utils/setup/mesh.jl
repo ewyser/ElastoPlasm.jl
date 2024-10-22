@@ -1,21 +1,15 @@
 function meshSetup(nel,L,instr;ghost::Bool=false)
     @info "init Eulerian mesh geometry"
     # geometry                                               
-    L,h,nD       = getinfo(L,nel)
+    L,h,nD,nn    = getinfo(L,nel)
+    buffer       = 0.0.*h
     if instr[:basis] == "gimpm" && ghost
         buffer = 2.0.*h
-    else
-        buffer = 0.0.*h
     end
     # mesh 
-    xn,xe,t,nn,nel,nno = getcoords(nD,L,h;ghosts=buffer)
+    xn,tn,nel,nno = getcoords(nD,nn,L,h;ghosts=buffer)
     # boundary conditions
-    bc,xB        = getbc(xn,h,nno,nD;ghosts=buffer)
-    if nD>1
-        x₀ = minimum(xn,dims=1)
-    else
-        x₀ = minimum(xn)
-    end
+    bc,xB         = getbc(xn,h,nno,nD;ghosts=buffer)
     # constructor 
     meD = (
         nD   = nD,
@@ -25,10 +19,9 @@ function meshSetup(nel,L,instr;ghost::Bool=false)
         L    = L,
         h    = h,
         # nodal quantities
-        x₀   = x₀,
+        x₀   = minimum(xn,dims=1),
         xn   = xn,
-        xe   = xe,
-        tn   = Int64.(t),
+        tn   = Int64.(tn),
         mn   = zeros(nno[end]            ), # lumped mass vector
         Mn   = zeros(nno[end],nno[end]   ), # consistent mass matrix
         oobf = zeros(nno[end],nD         ),

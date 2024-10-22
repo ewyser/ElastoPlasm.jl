@@ -1,5 +1,6 @@
 function getinfo(L,nel)
     nD = length(L)
+    nn = 4^nD
     if nD == 1
         L   = L
         h   = L/nel
@@ -13,48 +14,26 @@ function getinfo(L,nel)
         err_msg = "dim(L = ($(L)))>3: unsupported mesh geometry"
         throw(error(err_msg))
     end
-    return L,h,nD
+    return L,h,nD,nn
 end
-function getcoords(nD,L,h;ghosts::Vector=[0.0])
-    nn = 4^nD
+function getcoords(nD,nn,L,h;ghosts::Vector=[0.0])
     if nD == 1
-        x0 = [0.0-ghosts[1],L[1]+ghosts[1]]
-        xn = collect(first(x0):h[1]:last(x0))
-        xe = xn[1:end-1].+h[1]/2.0
-        xt = repeat([3],length(xn))
-        xt[1]     = 1
-        xt[2]     = 2
-        xt[end-1] = 4
-        xt[end  ] = 1
-
+        x0  = [0.0-ghosts[1],L[1]+ghosts[1]]
+        xn  = collect(first(x0):h[1]:last(x0))
         nno = [length(xn),length(xn)] 
         nel = [nno[1]-1,nno[1]-1    ]
-        return xn,xe,xt,nn,nel,nno
+        xt  = vcat([1],[2],3*ones(Int32,nno[1]-4),[4],[1])
+        return xn,xt,nel,nno
     elseif nD == 2
         x0,z0 = [0.0-ghosts[1],L[1]+ghosts[1]],[0.0-ghosts[2],L[2]+2.0*h[2]+ghosts[2]]
         xn,zn = collect(first(x0):h[1]:last(x0)),collect(first(z0):h[2]:last(z0))
-        xe,ze = xn[1:end-1].+h[1]/2.0,zn[1:end-1].+.+h[2]/2.0
-
-        xt,zt = repeat([3],length(xn)),repeat([3],length(zn))
-        xt[1] = zt[1] = 1
-        xt[2] = zt[2] = 2
-        xt[end-1] = zt[end-1] = 4
-        xt[end  ] = zt[end  ] = 1
-
-        nno = [length(xn),length(zn),length(xn)*length(zn)] 
-        nel = [nno[1]-1,nno[2]-1,(nno[1]-1)*(nno[2]-1)]
-
-        xn  = repeat(xn         ,1,nno[2])'
-        zn  = repeat(reverse(zn),1,nno[1])
-        xe  = repeat(xe         ,1,nel[2])'
-        ze  = repeat(reverse(ze),1,nel[1])
-        xt  = repeat(xt         ,1,nno[2])'
-        zt  = repeat(reverse(zt),1,nno[1])
-        
-        xn  = hcat(vec(xn),vec(zn))
-        xe  = hcat(vec(xe),vec(ze))
-        xt  = hcat(vec(xt),vec(zt))
-        return xn,xe,xt,nn,nel,nno
+        nno   = [length(xn),length(zn),length(xn)*length(zn)] 
+        nel   = [nno[1]-1  ,nno[2]-1  ,(nno[1]-1)*(nno[2]-1)]
+        xt    = vcat([1],[2],3*ones(Int32,nno[1]-4),[4],[1])
+        zt    = vcat([1],[2],3*ones(Int32,nno[2]-4),[4],[1])
+        xn    = hcat(vec(repeat(xn',nno[2],1)),vec(repeat(zn,1,nno[1])))
+        xt    = hcat(vec(repeat(xt',nno[2],1)),vec(repeat(zt,1,nno[1])))
+        return xn,xt,nel,nno
     elseif nD == 3
         x0 = [0.0-ghosts[1],L[1]+ghosts[1]]
         y0 = [0.0-ghosts[2],L[2]+ghosts[2]]
@@ -79,6 +58,6 @@ function getcoords(nD,L,h;ghosts::Vector=[0.0])
         zt  = (     ones(Int64,nno[1],1     )'.*zt).*ones(Int64,1,1,nno[2])
         yt  = (     ones(Int64,nno[3],nno[1]))     .*reshape(yt,1,1,nno[2])
         xt  = hcat(vec(xt),vec(yt),vec(zt))
-        return xn,xe,xt,nn,nel,nno
+        return xn,xt,nel,nno
     end
 end

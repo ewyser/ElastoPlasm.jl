@@ -15,7 +15,7 @@ function e2n(nD,nno,nel,nn)
             iel        = iel+1
         end
     elseif nD == 2
-        gnum = reverse(reshape(1:(nno[end]),nno[2],nno[1]),dims=1)
+        gnum = reshape(1:(nno[end]),nno[2],nno[1])
         for i0 ∈ 1:nel[1]#nelx
             for j0 ∈ 1:nel[2]#nelz
                 nno = []
@@ -33,7 +33,7 @@ function e2n(nD,nno,nel,nn)
             end
         end
     elseif nD == 3
-        gnum = reverse(reshape(1:(nno[end]),nno[3],nno[1],nno[2]),dims=1)
+        gnum = reshape(1:(nno[end]),nno[3],nno[1],nno[2])
         for k0 ∈ 1:nel[2]#nely
             for i0 ∈ 1:nel[1]#nelx
                 for j0 ∈ 1:nel[3]#nelz gnum[j0-1,i0-1,k0-1]
