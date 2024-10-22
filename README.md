@@ -29,22 +29,7 @@ This package is an evolution of the non-trivial-to-use [`ep2-3De v1.0`](https://
 
 The solver relies on random gaussian fields to generate initial fields $f(\boldsymbol{x})$, *e.g.,* the cohesion $c(\boldsymbol{x}_p)$ or the internal friction angle $\varphi(\boldsymbol{x}_p)$, with $\boldsymbol{x}_p$ the material point's coordinates.
 
-## Performance Hierarchy
-Understanding the computational hierarchy is key when working with `ϵlastσPlasm.jl`, as it scales from standard to high-performance computing environments:
-
-- **Standard**: Single-core CPU usage, suitable for basic tasks such as light simulations or data processing.
-- **Moderate**: Utilizes **multi-core CPUs** and a **single GPU** for medium-scale simulations and machine learning tasks.
-- **High Performance**: Employs **multi-node systems** with multiple CPUs and GPUs, enabling large-scale simulations and deep learning applications.
-
-The stylized term $_s\mathrm{m}^\mathbf{H}\mathrm{PC}$ represents this performance hierarchy:
-- $_s$ for **Standard** performance.
-- $\mathrm{m}^\mathbf{H}$ for transitioning to **Moderate** and **High** performance.
-- $\mathrm{PC}$ for **High-Performance Computing**.
-
-This notation emphasizes the package’s ability to adapt across various computational environments.
-
-
-### How to ```plasmazing``` ?  
+## How to ```plasming``` ?  
 
 0. (opt.) Get Julia [here](https://julialang.org/downloads/) and follow instructions for installation
 
