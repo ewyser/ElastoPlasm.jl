@@ -25,15 +25,15 @@ function e2eTest(L::Vector{Float64},nel::Int64; kwargs...)
     gr(size=fSize,legend=true,markersize=2.25,markerstrokecolor=:auto)
     xn = reshape(meD.xn[:,1],meD.nno[2],meD.nno[1])
     yn = reshape(meD.xn[:,2],meD.nno[2],meD.nno[1])
-    xe = reshape(meD.xe[:,1],meD.nno[2]-1,meD.nno[1]-1)
-    ye = reshape(meD.xe[:,2],meD.nno[2]-1,meD.nno[1]-1)
+    xe = xn[1:end-1,1:end-1].+0.5*meD.h[1]
+    ye = yn[1:end-1,1:end-1].+0.5*meD.h[2]
     for p ∈ 1:mpD.nmp
         ps = findall(!iszero,mpD.e2p[:,mpD.p2e[p]])
         
         plot(xn  ,yn ,seriestype=:path,linestyle=:solid,linecolor=:black,linewidth=0.25)
         plot!(xn',yn',seriestype=:path,linestyle=:solid,linecolor=:black,linewidth=0.25)
 
-        plot!(xe  ,ye ,seriestype=:scatter,shape=:cross,color=:black)
+        plot!(xe  ,ye ,seriestype=:scatter,shape=:cross,color=:black,markersize=2.5)
 
         scatter!(mpD.x[:,1],mpD.x[:,2]  ,c=:black,alpha=0.1,markersize=mSize    ,)
         scatter!(mpD.x[ps,1],mpD.x[ps,2],c=:black,alpha=0.2,markersize=mSize    ,)
