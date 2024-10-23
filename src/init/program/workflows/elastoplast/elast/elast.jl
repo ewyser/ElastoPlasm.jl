@@ -23,9 +23,9 @@ end
     if instr[:fwrk] == "finite"
         if p ≤ mpD.nmp 
             # update left cauchy-green tensor
-            mpD.bᵢⱼ[:,:,p].= mpD.ΔFᵢⱼ[:,:,p]*mpD.bᵢⱼ[:,:,p]*mpD.ΔFᵢⱼ[:,:,p]'
+            mpD.Bᵢⱼ[:,:,p].= mpD.ΔFᵢⱼ[:,:,p]*mpD.Bᵢⱼ[:,:,p]*mpD.ΔFᵢⱼ[:,:,p]'
             # compute logarithmic strain tensor
-            λ,n            = eigen(mpD.bᵢⱼ[:,:,p],sortby=nothing)
+            λ,n            = eigen(mpD.Bᵢⱼ[:,:,p],sortby=nothing)
             mpD.ϵᵢⱼ[:,:,p].= 0.5.*(n*diagm(log.(λ))*n')
             # krichhoff stress tensor
             mpD.τᵢ[:,p]    = Del*mutate(mpD.ϵᵢⱼ[:,:,p],2.0,:voigt)
@@ -52,9 +52,9 @@ end
     if instr[:fwrk] == "finite"
         if p ≤ mpD.nmp 
             # update left cauchy-green tensor
-            mpD.bᵢⱼ[:,:,p].= mpD.ΔFᵢⱼ[:,:,p]*mpD.bᵢⱼ[:,:,p]*mpD.ΔFᵢⱼ[:,:,p]'
+            mpD.Bᵢⱼ[:,:,p].= mpD.ΔFᵢⱼ[:,:,p]*mpD.Bᵢⱼ[:,:,p]*mpD.ΔFᵢⱼ[:,:,p]'
             # compute logarithmic strain tensor
-            λ,n            = eigen(mpD.bᵢⱼ[:,:,p],sortby=nothing)
+            λ,n            = eigen(mpD.Bᵢⱼ[:,:,p],sortby=nothing)
             mpD.ϵᵢⱼ[:,:,p].= 0.5.*(n*diagm(log.(λ))*n')
             # krichhoff stress tensor
             mpD.τᵢ[:,p]    = Del*mutate(mpD.ϵᵢⱼ[:,:,p],2.0,:voigt)

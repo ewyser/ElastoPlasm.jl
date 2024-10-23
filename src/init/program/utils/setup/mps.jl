@@ -48,7 +48,7 @@ function pointSetup(meD,cmParam,instr;define::Tuple=(nothing,nothing))
         ϵᵢⱼ  = zeros(typeD,meD.nD,meD.nD,nmp),
         ωᵢⱼ  = zeros(typeD,meD.nD,meD.nD,nmp),
         σJᵢⱼ = zeros(typeD,meD.nD,meD.nD,nmp),
-        bᵢⱼ  = repeat(Matrix(1.0I,meD.nD,meD.nD),1,1,nmp),
+        Bᵢⱼ  = repeat(Matrix(1.0I,meD.nD,meD.nD),1,1,nmp),
         # tensor in voigt notation
         σᵢ   = zeros(typeD,nstr,nmp),
         τᵢ   = zeros(typeD,nstr,nmp),

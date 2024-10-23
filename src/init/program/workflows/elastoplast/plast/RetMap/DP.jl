@@ -63,7 +63,7 @@ end
                 mpD.ϵᵢⱼ[:,:,p].= mutate(cmParam.Del\σ[:,p],0.5,:tensor)
                 # update left cauchy green tensor
                 λ,n            = eigen(mpD.ϵᵢⱼ[:,:,p],sortby=nothing)
-                mpD.bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
+                mpD.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
             end
             mpD.ϵpII[p,1]+= Δλ*sqrt(1/3+2/9*ηB^2)
         end
@@ -76,7 +76,7 @@ end
                 mpD.ϵᵢⱼ[:,:,p].= mutate(cmParam.Del\σ[:,p],0.5,:tensor)
                 # update left cauchy green tensor
                 λ,n            = eigen(mpD.ϵᵢⱼ[:,:,p],sortby=nothing)
-                mpD.bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
+                mpD.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
             end
             mpD.ϵpII[p,1]+= sqrt(2.0)*Δλ/3.0
         end
