@@ -3,7 +3,8 @@ function meshSetup(nel,L,instr;ghost::Bool=false)
     # geometry                                               
     L,h,nD,nn    = getinfo(L,nel)
     buffer       = 0.0.*h
-    if instr[:basis] == "gimpm" && ghost
+    if instr[:basis][:which] == "gimpm" || ghost
+        @info "adding ghost nodes to satisfy PoU (basis = $(instr[:basis][:which]))"
         buffer = 2.0.*h
     end
     # mesh 
