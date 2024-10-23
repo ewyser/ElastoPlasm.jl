@@ -40,7 +40,9 @@ function require(in::Symbol=:instr)
     if in == :instr
         instr = Dict(
             :bits    => 64,
-            :basis   => "bsmpm",
+            :basis   => (;which="bsmpm",
+                        how=nothing,
+                        ),
             :fwrk    => "finite",
             :trsfr   => "mUSL",
             :vollock => true,
