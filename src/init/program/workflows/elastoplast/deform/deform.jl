@@ -34,17 +34,16 @@ end
         mpD.Ω[p]        = mpD.J[p]*mpD.Ω₀[p]
     end
 end
-function deformation!(mpD,meD,Δt,instr)
-    if @isdefined(deform!) 
-        nothing 
+function init_deformation(instr)
+    if instr[:perf]
+        deform! = MEASURE(CPU())
     else
-        if instr[:perf]
-            deform! = MEASURE(CPU())
-        else
-            deform! = measure(CPU())
-        end
+        deform! = measure(CPU())
     end
-    deform!(mpD,meD,Δt; ndrange=mpD.nmp);sync(CPU())
+    return deform!
+end
+function deformation!(mpD,meD,Δt,instr)
+    instr[:cairn].deform!(mpD,meD,Δt; ndrange=mpD.nmp);sync(CPU())
     return nothing
 end
 

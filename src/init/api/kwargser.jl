@@ -33,6 +33,10 @@ function kwargser(type::Symbol,kwargs::Any;dim::Number = 2)
             n2p!    = init_mapsto(dim,instr[:trsfr];what="n2p!"  ),
             augm!   = init_double(instr[:trsfr]),
             solveEuler! = init_solve(),
+            deform! = init_deformation(instr),
+            ΔJn!    = init_volumetric(;what="ΔJn!"),
+            ΔJs!    = init_volumetric(;what="ΔJs!"),
+            ΔJp!    = init_volumetric(;what="ΔJp!"),
             update! = init_domain(dim,instr[:basis]),
         )
         return instr

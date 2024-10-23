@@ -25,21 +25,27 @@ end
         @views mpD.ΔFᵢⱼ[:,:,p].*= ΔJ^dim
     end
 end
+function init_volumetric(;what="ΔJn!")
+    if what == "ΔJn!"
+        return ΔJn! = ΔJn(CPU())
+    elseif what == "ΔJs!"
+        return ΔJs! = ΔJs(CPU())
+    elseif what == "ΔJp!"
+        return ΔJp! = ΔJp(CPU())
+    end
+end
 function volumetric!(mpD,meD,instr)
     if instr[:vollock]
-        @isdefined(ΔJn!) ? nothing : ΔJn! = ΔJn(CPU())
-        @isdefined(ΔJs!) ? nothing : ΔJs! = ΔJs(CPU())
-        @isdefined(ΔJp!) ? nothing : ΔJp! = ΔJp(CPU())
         # init mesh quantities to zero
         meD.ΔJn.= 0.0
         # calculate dimensional cst.
         dim     = 1.0/meD.nD
         # mapping to mesh
-        ΔJn!(mpD,meD; ndrange=mpD.nmp);sync(CPU())
+        instr[:cairn].ΔJn!(mpD,meD; ndrange=mpD.nmp);sync(CPU())
         # compute nodal determinant of incremental deformation 
-        ΔJs!(mpD,meD; ndrange=meD.nno[end]);sync(CPU())
+        instr[:cairn].ΔJs!(mpD,meD; ndrange=meD.nno[end]);sync(CPU())
         # compute determinant Jbar 
-        ΔJp!(mpD,meD,dim; ndrange=mpD.nmp);sync(CPU())
+        instr[:cairn].ΔJp!(mpD,meD,dim; ndrange=mpD.nmp);sync(CPU())
     end
     return nothing
 end
