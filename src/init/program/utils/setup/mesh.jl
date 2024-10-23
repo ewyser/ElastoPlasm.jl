@@ -1,11 +1,12 @@
-function meshSetup(nel,L,instr;ghost::Bool=false)
-    @info "init Eulerian mesh geometry"
+function meshSetup(nel,L,instr)
     # geometry                                               
-    L,h,nD,nn    = getinfo(L,nel)
-    buffer       = 0.0.*h
-    if instr[:basis][:which] == "gimpm" || ghost
-        @info "adding ghost nodes to satisfy PoU (basis = $(instr[:basis][:which]))"
+    L,h,nD,nn = getinfo(L,nel)
+    if instr[:basis][:which] == "gimpm" && instr[:basis][:ghost]
+        @info "init Eulerian mesh and adding ghosts"
         buffer = 2.0.*h
+    else
+        @info "init Eulerian mesh"
+        buffer = 0.0.*h
     end
     # mesh 
     xn,tn,nel,nno = getcoords(nD,nn,L,h;ghosts=buffer)

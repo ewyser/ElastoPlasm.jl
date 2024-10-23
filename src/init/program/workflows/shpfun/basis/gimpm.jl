@@ -1,4 +1,5 @@
 function S∂S(δx,h,lp)                                                         
+    S,∂S = 0.0,0.0
     if abs(δx) < lp                       
         S  = 1.0-((4.0*δx^2+(2.0*lp)^2)/(8.0*h*lp))                                   
         ∂S = -((8.0*δx)/(8.0*h*lp))                                     
@@ -8,9 +9,6 @@ function S∂S(δx,h,lp)
     elseif (abs(δx)>=(h-lp)) && (abs(δx)< (h+lp))
         S  = ((h+lp-abs(δx))^2)/(4.0*h*lp)                                       
         ∂S = -sign(δx)*(h+lp-abs(δx))/(2.0*h*lp)
-    else
-        S  = 0.0                                                                 
-        ∂S = 0.0                                  
     end
     return S,∂S    
 end

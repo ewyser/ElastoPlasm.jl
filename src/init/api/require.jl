@@ -42,6 +42,7 @@ function require(in::Symbol=:instr)
             :bits    => 64,
             :basis   => (;which="bsmpm",
                         how=nothing,
+                        ghost=false,
                         ),
             :fwrk    => "finite",
             :trsfr   => "mUSL",
