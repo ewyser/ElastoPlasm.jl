@@ -9,7 +9,7 @@
             end
         end
         # compute incremental deformation and update
-        mpD.ΔFᵢⱼ[:,:,p].= mpD.I.+(Δt.*mpD.∇vᵢⱼ[:,:,p])
+        mpD.ΔFᵢⱼ[:,:,p].= mpD.δᵢⱼ+(Δt.*mpD.∇vᵢⱼ[:,:,p])
         mpD.Fᵢⱼ[:,:,p] .= mpD.ΔFᵢⱼ[:,:,p]*mpD.Fᵢⱼ[:,:,p]
         # update material point's volume
         mpD.ΔJ[p]       = det(mpD.ΔFᵢⱼ[:,:,p])
@@ -25,7 +25,7 @@ end
         mpD.∇vᵢⱼ[:,:,p].= (permutedims(mpD.ϕ∂ϕ[nn,p,2:end],(2,1))*meD.vn[meD.e2n[nn,mpD.p2e[p]],:])'
         mpD.∇uᵢⱼ[:,:,p].= Δt.*mpD.∇vᵢⱼ[:,:,p]
         # compute incremental deformation gradient
-        mpD.ΔFᵢⱼ[:,:,p].= mpD.I.+mpD.∇uᵢⱼ[:,:,p]
+        mpD.ΔFᵢⱼ[:,:,p].= mpD.δᵢⱼ.+mpD.∇uᵢⱼ[:,:,p]
         mpD.ΔJ[p]       = det(mpD.ΔFᵢⱼ[:,:,p])
         # update deformation gradient
         mpD.Fᵢⱼ[:,:,p] .= mpD.ΔFᵢⱼ[:,:,p]*mpD.Fᵢⱼ[:,:,p]
