@@ -1,22 +1,31 @@
-function init_mapsto(dim::Number,trsfr::String) 
+function init_mapsto(dim::Number,trsfr::String;what::String="p2n!") 
     if trsfr == "mUSL"
-        if dim == 2
-            p2n! = flip2Dp2n(CPU())
-        elseif dim == 3
-            p2n! = flip3Dp2n(CPU())
+        if what == "p2n!"
+            if dim == 2
+                p2n! = flip2Dp2n(CPU())
+            elseif dim == 3
+                p2n! = flip3Dp2n(CPU())
+            end
+            return p2n!
+        elseif what == "n2p!"
+            n2p! = flip23Dn2p(CPU())
+            return n2p!
         end
-        n2p! = flip23Dn2p(CPU())
     elseif trsfr == "tpicUSL"
-        if dim == 2
-            p2n! = tpic2Dp2n(CPU())
-        elseif dim == 3
-            p2n! = tpic3Dp2n(CPU())
+        if what == "p2n!"
+            if dim == 2
+                p2n! = tpic2Dp2n(CPU())
+            elseif dim == 3
+                p2n! = tpic3Dp2n(CPU())
+            end
+            return p2n!
+        elseif what == "n2p!"
+            n2p! = pic23Dn2p(CPU())
+            return n2p!
         end
-        n2p! = pic23Dn2p(CPU())
     else
         return throw(ArgumentError("$(trsfr) is not a supported|valid mapping"))
     end    
-    return p2n!,n2p!
 end
 function mapsto!(mpD,meD,g,Δt,instr,whereto) 
     if whereto == "p>n"

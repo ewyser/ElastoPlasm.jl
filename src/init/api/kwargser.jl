@@ -21,18 +21,19 @@ function kwargser(type::Symbol,kwargs::Any;dim::Number = 2)
         instr = Dict(zip(k,v))
         bits  = pop!(instr,:bits); delete!(instr,:bits)
         if bits == 64
-            instr[:type] = (;T1=Int64,T2=Float64,bits=64,precision="double")
+            instr[:dtype] = (;T0=(Int64,Float64),bits=64,precision="double")
         elseif bits == 32
-            instr[:type] = (;T1=Int32,T2=Float32,bits=32,precision="single")
+            instr[:dtype] = (;T0=(Int32,Float32),bits=32,precision="single")
         end
         # add cairns (abstract kernels) to instr set
         instr[:cairn] = (;
-            tplgy! = init_shpfun(dim,instr[:basis];what="tplgy!"),
-            ϕ∂ϕ!   = init_shpfun(dim,instr[:basis];what="ϕ∂ϕ!"),
-            p2n!   = init_mapsto(dim,instr[:trsfr])[1],
-            n2p!   = init_mapsto(dim,instr[:trsfr])[2],
-            augm!  = init_DM(instr[:trsfr]),
+            tplgy!  = init_shpfun(dim,instr[:basis];what="tplgy!"),
+            ϕ∂ϕ!    = init_shpfun(dim,instr[:basis];what="ϕ∂ϕ!"  ),
+            p2n!    = init_mapsto(dim,instr[:trsfr];what="p2n!"  ),
+            n2p!    = init_mapsto(dim,instr[:trsfr];what="n2p!"  ),
+            augm!   = init_double(instr[:trsfr]),
             solveEuler! = init_solve(),
+            update! = init_domain(dim,instr[:basis]),
         )
         return instr
     else

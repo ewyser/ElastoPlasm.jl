@@ -1,4 +1,4 @@
-function init_shpfun(dim::Number,basis::String;what::String="nothing")
+function init_shpfun(dim::Number,basis::NamedTuple;what::String="nothing")
     if what == "tplgy!"
         if dim == 1
             tplgy! = p2e2n1D!(CPU())
@@ -9,7 +9,7 @@ function init_shpfun(dim::Number,basis::String;what::String="nothing")
         end
         return tplgy!
     elseif what == "ϕ∂ϕ!"
-        if basis == "bsmpm"
+        if basis[:which] == "bsmpm"
             if dim == 1
                 ϕ∂ϕ! = bsmpm1D(CPU())    
             elseif dim == 2
@@ -17,7 +17,7 @@ function init_shpfun(dim::Number,basis::String;what::String="nothing")
             elseif dim == 3
                 ϕ∂ϕ! = bsmpm3D(CPU())
             end
-        elseif basis == "gimpm"
+        elseif basis[:which] == "gimpm"
             if dim == 1
                 ϕ∂ϕ! = gimpm1D(CPU())    
             elseif dim == 2
@@ -25,7 +25,7 @@ function init_shpfun(dim::Number,basis::String;what::String="nothing")
             elseif dim == 3
                 ϕ∂ϕ! = gimpm3D(CPU())
             end
-        elseif basis == "smpm"
+        elseif basis[:which] == "smpm"
             if dim == 1
                 ϕ∂ϕ! = smpm1D(CPU())    
             elseif dim == 2
@@ -34,7 +34,7 @@ function init_shpfun(dim::Number,basis::String;what::String="nothing")
                 ϕ∂ϕ! = smpm3D(CPU())
             end
         else
-            return throw(ArgumentError("$(basis) is not a supported shape function basis"))
+            return throw(ArgumentError("$(basis[:which]) is not a supported shape function basis"))
         end
         return ϕ∂ϕ!
     else

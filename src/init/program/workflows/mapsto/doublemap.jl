@@ -31,7 +31,7 @@ end
     end
 
 end
-function init_DM(trsfr)
+function init_double(trsfr)
     if trsfr=="mUSL"
         p2n!   = kernel_momentum(CPU())
         solve! = kernel_velocity(CPU())
