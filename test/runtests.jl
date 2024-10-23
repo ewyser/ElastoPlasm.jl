@@ -5,6 +5,6 @@ using ElastoPlasm
 
 @testset "ElastoPlasm.jl" verbose = true begin
     @testset "└ shpTest.jl" verbose = true begin
-        shpTest()
+        shpTest(;ghost=true)
     end
 end

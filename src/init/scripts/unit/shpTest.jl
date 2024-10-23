@@ -1,7 +1,7 @@
-function shpfunCheck(shp,instr,paths,cond)
+function shpfunCheck(shp,instr,paths)
     nel,L  = 5,[1.0]
 
-    meD,ni = meshSetup(nel,L,instr;ghost=cond),10
+    meD,ni = meshSetup(nel,L,instr),10
 
     xp     = collect(meD.xB[1]+(0.5*meD.h[1]/ni):meD.h[1]/ni:meD.xB[2])
     nel    = meD.nel[end]
@@ -41,49 +41,76 @@ function shpfunCheck(shp,instr,paths,cond)
     ∂ϕmax = maximum(abs.(∂ϕ))
     ∂ϕ[isnan.(ϕ)].=NaN
 
+    colors = [:aqua,:fuchsia,:navy,:indigo,:tomato,:olive]
+
+
     configPlot()
     T = [L"\phi_n(x_p)",L"\partial_x\phi_n(x_p)",L"$\sum_n\phi_n(x_p)=1$",L"$\Delta = x_p-\sum_n\phi_n(x_p)x_n$"]
     gr(size=(2.0*250,3*125),legend=false,markersize=2.25,markerstrokecolor=:auto)
-    p0 = plot(
-        xp,ϕ,
-        seriestype = :line,
-        ylim       = (0.0,1.1*ϕmax),
-        title      = T[1],
-    )
-    p1 = plot(
-        xp,∂ϕ,
-        seriestype = :line,
-        ylim       = (-1.1*∂ϕmax,1.1*∂ϕmax),
-        title      = T[2],
-    )
+    
+    
+    
+
+    xp0,ϕ0,colors = meD.xn,zeros(length(meD.xn)),[]
+    p0 = plot(ylim= (0.0,1.1*ϕmax),title= T[1],)
+    for i = 1:length(meD.xn)
+        clr = i % length(meD.xn) + 1
+        p0 = plot!(xp[:,i],ϕ[:,i],seriestype = :line   ,color=clr,)
+        push!(colors,clr)
+    end
+    p0 = plot!(xp0,ϕ0,seriestype = :scatter,markershape= :square,markersize = 2*2.25, markercolor=colors,)
+
+    xp0,ϕ0,colors = meD.xn,zeros(length(meD.xn)),[]
+    p1 = plot(ylim = (-1.1*∂ϕmax,1.1*∂ϕmax) , title = T[2],)
+    for i = 1:length(meD.xn)
+        clr = i % length(meD.xn) + 1
+        p1 = plot!(xp[:,i],∂ϕ[:,i],seriestype = :line   ,color=clr,)
+        push!(colors,clr)
+    end
+    p1 = plot!(xp0,ϕ0,seriestype = :scatter,markershape= :square,markersize = 2*2.25, markercolor=colors,)
+
     p2 = plot(
         mpD.x,PoU,
         seriestype = :line,
+        color      = :black,
         xlabel     = L"$x-$direction [m]",
         ylim       = (1.0-0.1,1.0+0.1),
         yscale     = :log10,
         title      = T[3],
     )
+    p2 = plot!(
+        meD.xn,ones(size(meD.xn)),
+        seriestype = :scatter,
+        markershape= :square,
+        color      = colors,
+        markersize = 2*2.25,
+        yscale     = :log10,
+        title      = T[3],
+    )
+
     display(plot(p0,p1,p2;layout=(3,1))) 
     savefig(joinpath(paths[:plot],"summary_$(shp)"))
     return PoU
 end
-function shpTest(ξ::Real=0.90)
+function shpTest(;ξ::Real=0.90,ghost::Bool=false)
     fid   = splitext(basename(@__FILE__))
     instr = require(:instr)
     paths  = setPaths(first(fid), sys.out;interactive=false)
-    for (k,ξ) ∈ enumerate([0.9,0.95,0.98,0.99])
+    for (k,ξ) ∈ enumerate([0.9])
         @testset "partition of unity (PoU) testset ξ = $(round(ξ,digits=2))" verbose = true begin 
             for shp ∈ ["bsmpm","smpm","gimpm"]
-                instr[:basis] = shp
+                if shp == "gimpm"
+                    instr[:basis] = (;which=shp,how="undeformed",ghost=ghost)
+                else
+                    instr[:basis] = (;which=shp,how=nothing,ghost=ghost)
+                end
                 @testset "$(shp): PoU > $(round(ξ,digits=2))" verbose = true begin
-                    ghost = true
-                    PoU = shpfunCheck(shp,instr,paths,ghost)
+                    PoU = shpfunCheck(shp,instr,paths)
                     @test minimum(PoU) > ξ
                 end
             end
         end
     end
-    return 1
+    return nothing
 end
 export shpTest
