@@ -3,7 +3,7 @@ function ϵp23De!(mpD,meD,cmParam,g,T,te,tg,instr)
     launch ϵp$(meD.nD)De v$(getVersion()):
     - $(nthreads()) active thread(s) 
     - $(instr[:fwrk]) strain formulation
-    - $(instr[:basis]) calculation cycle
+    - $(instr[:basis][:which]) calculation cycle
     - $(if instr[:vollock] "F-bar locking mitigation" else "no locking mitigation" end)
     - $(if first(instr[:nonloc]) "non-local plastic regularization" else nonlocal = "local plastic formulation" end)
     """
