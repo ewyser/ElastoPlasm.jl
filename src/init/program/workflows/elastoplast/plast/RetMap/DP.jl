@@ -54,7 +54,7 @@ end
         σm,τP    = ξ/η,ξ-η*(ξ/η)
         fs,ft    = τII+η*P-ξ,P-σm         
         αP,h     = sqrt(1.0+η^2)-η,τII-τP-(sqrt(1.0+η^2))*(P-σm)  
-        if fs>0.0 && P<σm || h>0.0 && P>=σm
+        if fs>0.0 && P<σm || h>0.0 && P≥σm 
             Δλ        = fs/(cmParam.Gc+cmParam.Kc*η*ηB)
             mpD.Δλ[p] = Δλ
             Pn,τn     = P-cmParam.Kc*ηB*Δλ,ξ-η*(P-cmParam.Kc*ηB*Δλ)
@@ -67,7 +67,7 @@ end
             end
             mpD.ϵpII[p,1]+= Δλ*sqrt(1/3+2/9*ηB^2)
         end
-        if h<=0.0 && P>=σm
+        if h≤0.0 && P≥σm
             Δλ        = (P-σm)/cmParam.Kc
             mpD.Δλ[p] = Δλ
             Pn        = σm-P
