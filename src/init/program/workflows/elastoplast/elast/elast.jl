@@ -78,23 +78,24 @@ end
         mpD.σᵢ[:,p] .= mpD.τᵢ[:,p]./mpD.J[p]
     end   
 end
+
+function init_stress(instr;what="τorσ!")
+    if what == "τorσ!"
+        if instr[:perf]
+            return ELAST!(CPU())
+        else
+            return elast!(CPU())
+        end
+    elseif what == "cauchy!"
+        return transform!(CPU())
+    end
+    return nothing
+end
 function stress!(mpD,cmParam,instr,type)
     if type == :update
-        if @isdefined(stresses!) 
-            nothing 
-        else
-            if instr[:perf]
-                stresses! = ELAST!(CPU())
-            else
-                stresses! = elast!(CPU())
-            end
-        end
-        stresses!(mpD,cmParam.Del,instr; ndrange=mpD.nmp)
-        sync(CPU())
+        instr[:cairn].τorσ!(mpD,cmParam.Del,instr; ndrange=mpD.nmp);sync(CPU())
     elseif type == :cauchy
-        @isdefined(cauchy!) ? nothing : cauchy! = transform!(CPU())
-        cauchy!(mpD; ndrange=mpD.nmp)
-        sync(CPU())
+        instr[:cairn].cauchy!(mpD; ndrange=mpD.nmp);sync(CPU())
     end
     return nothing
 end

@@ -36,11 +36,11 @@ end
 end
 function init_deformation(instr)
     if instr[:perf]
-        deform! = MEASURE(CPU())
+        return MEASURE(CPU())
     else
-        deform! = measure(CPU())
+        return measure(CPU())
     end
-    return deform!
+    return nothing
 end
 function deformation!(mpD,meD,Δt,instr)
     instr[:cairn].deform!(mpD,meD,Δt; ndrange=mpD.nmp);sync(CPU())

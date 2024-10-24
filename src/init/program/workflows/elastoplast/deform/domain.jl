@@ -30,18 +30,18 @@ end
 function init_domain(dim::Number,basis::NamedTuple)
     if basis[:which] == "gimpm"
         if basis[:how] == "undeformed"
-            update! = undeformed(CPU())
+            return undeformed(CPU())
         elseif basis[:how] == "detFii"
-            update! = detFᵢᵢ(CPU())
+            return detFᵢᵢ(CPU())
         elseif basis[:how] == "Fii"
-            update! = Fᵢᵢ(CPU())
+            return Fᵢᵢ(CPU())
         elseif basis[:how] == "Uii"
-            update! = Uᵢᵢ(CPU())
+            return Uᵢᵢ(CPU())
         end
     else
-        update! = nothing
+        return nothing
     end
-    return update! 
+    return nothing
 end
 function domain!(mpD,instr)
     if instr[:basis][:which] == "gimpm"
