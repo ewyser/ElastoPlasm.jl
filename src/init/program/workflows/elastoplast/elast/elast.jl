@@ -90,9 +90,9 @@ function init_stress(instr;what="τorσ!")
 end
 function stress!(mpD,cmParam,instr,type)
     if type == :update
-        instr[:cairn][:stress!].τorσ!(mpD,cmParam.Del,instr; ndrange=mpD.nmp);sync(CPU())
+        instr[:cairn][:elastoplast][:stress].τorσ!(mpD,cmParam.Del,instr; ndrange=mpD.nmp);sync(CPU())
     elseif type == :cauchy
-        instr[:cairn][:stress!].cauchy!(mpD; ndrange=mpD.nmp);sync(CPU())
+        instr[:cairn][:elastoplast][:stress].cauchy!(mpD; ndrange=mpD.nmp);sync(CPU())
     end
     return nothing
 end

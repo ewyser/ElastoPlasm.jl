@@ -11,8 +11,8 @@ function init_mapsto(dim::Number,trsfr::String)
         kernel3a = kernel_momentum(CPU())
         kernel3b = kernel_velocity(CPU())
         kernel3c = kernel_displacement(CPU())
-        return Dict(:map!  => (;p2n! = kernel1 ,solve! = kernel2 ,n2p! = kernel3, ),
-                    :augm! => (;p2n! = kernel3a,solve! = kernel3b,Δu!  = kernel3c,),)
+        return Dict(:map  => (;p2n! = kernel1 ,solve! = kernel2 ,n2p! = kernel3, ),
+                    :augm => (;p2n! = kernel3a,solve! = kernel3b,Δu!  = kernel3c,),)
     elseif trsfr == "tpicUSL"
         if dim == 2
             kernel1 = tpic2Dp2n(CPU())
@@ -26,41 +26,56 @@ function init_mapsto(dim::Number,trsfr::String)
         return throw(ArgumentError("$(trsfr) is not a supported|valid mapping"))
     end    
 end
+function p2n(mpD,meD,g,Δt,instr)
+    # initialize nodal quantities
+    meD.mn  .= 0.0
+    meD.pn  .= 0.0
+    meD.oobf.= 0.0
+    # mapping to mesh
+    instr[:cairn][:mapsto][:map].p2n!(mpD,meD,g; ndrange=mpD.nmp);sync(CPU())
+    return nothing
+end
+@views function solve(meD,Δt,instr)
+    # viscous damping
+    η      = 0.1
+    # initialize
+    meD.fn.= 0.0
+    meD.an.= 0.0
+    meD.vn.= 0.0
+    # solve momentum equation on the mesh using backend-agnostic kernel
+    instr[:cairn][:mapsto][:map].solve!(meD,Δt,η; ndrange=meD.nno[end]);sync(CPU())
+    return nothing
+end
+function n2p(mpD,meD,Δt,instr)
+    # mapping to material point
+    instr[:cairn][:mapsto][:map].n2p!(mpD,meD,Δt; ndrange=mpD.nmp);sync(CPU())
+    return nothing
+end
+function augm(mpD,meD,Δt,instr)
+    # initialize for DM
+    meD.pn.= 0.0
+    meD.vn.= 0.0
+    # accumulate material point contributions
+    instr[:cairn][:mapsto][:augm].p2n!(mpD,meD; ndrange=mpD.nmp);sync(CPU())
+    # solve for nodal incremental displacement
+    instr[:cairn][:mapsto][:augm].solve!(meD; ndrange=meD.nno[end]);sync(CPU())
+    # update material point's displacement
+    instr[:cairn][:mapsto][:augm].Δu!(mpD,meD,Δt; ndrange=mpD.nmp);sync(CPU())
+    return nothing
+end
 function mapsto!(mpD,meD,g,Δt,instr,whereto) 
     if whereto == "p-->n"
-        # initialize nodal quantities
-        meD.mn  .= 0.0
-        meD.pn  .= 0.0
-        meD.oobf.= 0.0
-        # mapping to mesh
-        instr[:cairn][:mapsto!][:map!].p2n!(mpD,meD,g; ndrange=mpD.nmp);sync(CPU())
+        p2n(mpD,meD,g,Δt,instr)
     elseif whereto == "solve"
-        # viscous damping
-        η      = 0.1
-        # initialize
-        meD.fn.= 0.0
-        meD.an.= 0.0
-        meD.vn.= 0.0
-        # solve momentum equation on the mesh using backend-agnostic kernel
-        instr[:cairn][:mapsto!][:map!].solve!(meD,Δt,η; ndrange=meD.nno[end]);sync(CPU())
+        solve(meD,Δt,instr)
     elseif whereto == "p<--n"
-        instr[:cairn][:mapsto!][:map!].n2p!(mpD,meD,Δt; ndrange=mpD.nmp);sync(CPU())
+        n2p(mpD,meD,Δt,instr)
         if instr[:trsfr] == "mUSL"
-            # initialize for DM
-            meD.pn.= 0.0
-            meD.vn.= 0.0
-            # accumulate material point contributions
-            instr[:cairn][:mapsto!][:augm!].p2n!(mpD,meD; ndrange=mpD.nmp);sync(CPU())
-            # solve for nodal incremental displacement
-            instr[:cairn][:mapsto!][:augm!].solve!(meD; ndrange=meD.nno[end]);sync(CPU())
-            # update material point's displacement
-            instr[:cairn][:mapsto!][:augm!].Δu!(mpD,meD,Δt; ndrange=mpD.nmp);sync(CPU())
+            augm(mpD,meD,Δt,instr)
         end
     end
     return nothing
 end
-
-
 
 
 

@@ -39,10 +39,10 @@ function init_shpfun(dim::Number,basis::NamedTuple;what::String="nothing")
 end
 function shpfun!(mpD,meD,instr)
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
-    instr[:cairn][:shpfun!].tplgy!(mpD,meD; ndrange=(mpD.nmp));sync(CPU())
+    instr[:cairn][:shpfun].tplgy!(mpD,meD; ndrange=(mpD.nmp));sync(CPU())
     # initialize shapefunctions
     mpD.ϕ∂ϕ .= 0.0
     # calculate shape functions
-    instr[:cairn][:shpfun!].ϕ∂ϕ!(mpD,meD; ndrange=(mpD.nmp));sync(CPU())
+    instr[:cairn][:shpfun].ϕ∂ϕ!(mpD,meD; ndrange=(mpD.nmp));sync(CPU())
     return nothing
 end

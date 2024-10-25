@@ -35,11 +35,11 @@ function volumetric!(mpD,meD,instr)
         # calculate dimensional cst.
         dim     = 1.0/meD.nD
         # mapping to mesh 
-        instr[:cairn][:Fbar!].ΔJn!(mpD,meD; ndrange=mpD.nmp);sync(CPU())
+        instr[:cairn][:elastoplast][:Fbar].ΔJn!(mpD,meD; ndrange=mpD.nmp);sync(CPU())
         # compute nodal determinant of incremental deformation 
-        instr[:cairn][:Fbar!].ΔJs!(mpD,meD; ndrange=meD.nno[end]);sync(CPU())
+        instr[:cairn][:elastoplast][:Fbar].ΔJs!(mpD,meD; ndrange=meD.nno[end]);sync(CPU())
         # compute determinant Jbar 
-        instr[:cairn][:Fbar!].ΔJp!(mpD,meD,dim; ndrange=mpD.nmp);sync(CPU())
+        instr[:cairn][:elastoplast][:Fbar].ΔJp!(mpD,meD,dim; ndrange=mpD.nmp);sync(CPU())
     end
     return nothing
 end
