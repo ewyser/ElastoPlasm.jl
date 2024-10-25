@@ -20,7 +20,7 @@ function shpfunCheck(shp,instr,paths)
     )
     instr[:cairn] = (;shpfun = init_shpfun(meD.nD,instr[:basis]),)
     # calculate tplgy and shpfun
-    shpfun!(mpD,meD,instr)
+    shpfun(mpD,meD,instr)
     # extract and store value of mpD.ϕ∂ϕ
     xp,ϕ,∂ϕ = zeros(nmp,nel+1),zeros(nmp,nel+1),zeros(nmp,nel+1)  
     PoU = zeros(Float64,nmp)
