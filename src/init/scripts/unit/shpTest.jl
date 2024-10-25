@@ -102,9 +102,9 @@ function shpTest(;ξ::Real=0.90,ghost::Bool=false)
                 else
                     instr[:basis] = (;which=shp,how=nothing,ghost=ghost)
                 end
-                @testset "$(shp): PoU > $(round(ξ,digits=2))" verbose = true begin
+                @testset "$(shp): $(round(ξ,digits=2)) < PoU < $(round(1.0+(1.0-ξ),digits=2))" verbose = true begin
                     PoU = shpfunCheck(shp,instr,paths)
-                    @test minimum(PoU) > ξ
+                    @test ξ < minimum(PoU) < 1.0+(1.0-ξ)
                 end
             end
         end

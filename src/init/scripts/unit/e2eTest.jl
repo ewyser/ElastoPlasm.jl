@@ -8,12 +8,13 @@ function e2eTest(L::Vector{Float64},nel::Int64; kwargs...)
     # constitutive model
     cmParam = cm(length(L),instr)
     # mesh & mp setup
-    meD     = meshSetup(nel,L,instr;ghost=true)
+    meD     = meshSetup(nel,L,instr)
     setgeom = inislump(meD,cmParam,ni,instr)                       
     mpD     = pointSetup(meD,cmParam,instr;define=setgeom)
 
-    instr[:cairn] = (;tplgy! = init_shpfun(meD.nD,instr[:basis];what="tplgy!"),)
-    instr[:cairn].tplgy!(mpD,meD; ndrange=(mpD.nmp));sync(CPU())
+
+    instr[:cairn] = (;shpfun = init_shpfun(meD.nD,instr[:basis]),)
+    instr[:cairn][:shpfun].tplgy!(mpD,meD; ndrange=(mpD.nmp));sync(CPU())
     for p ∈ 1:mpD.nmp
         for el ∈ findall(!iszero,meD.e2e[:,mpD.p2e[p]])
             mpD.e2p[p,el] = p       
