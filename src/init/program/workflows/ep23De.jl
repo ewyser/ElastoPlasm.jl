@@ -20,11 +20,9 @@ function ϵp23De!(mpD,meD,cmParam,g,T,te,tg,instr)
             # adaptative Δt & linear increase in gravity
             Δt,g  = get_Δt(mpD.v,meD.h,cmParam[:c],t,T),get_g(t,tg,meD.nD)
             # mpm cycle
-            shpfun!(mpD,meD,instr)
-            mapsto!(mpD,meD,g,Δt,instr,"p-->n")    
-            mapsto!(mpD,meD,g,Δt,instr,"solve")
-            mapsto!(mpD,meD,g,Δt,instr,"p<--n")
-            ηmax = elastoplast!(mpD,meD,cmParam,Δt,instr)
+            shpfun(mpD,meD,instr)
+            mapsto(mpD,meD,g,Δt,instr)    
+            ηmax = elastoplast(mpD,meD,cmParam,Δt,instr)
             # update sim time
             t,it,toc,ηtot = t+Δt,it+1,((time_ns()-tic)),max(ηmax,ηtot)
             # update progress bas

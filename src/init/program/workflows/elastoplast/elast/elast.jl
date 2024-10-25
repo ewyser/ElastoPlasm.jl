@@ -34,7 +34,7 @@ end
         if p ≤ mpD.nmp 
             # calculate elastic strains & spins
             for i ∈ 1:mpD.nD , j ∈ 1:mpD.nD
-                mpD.ϵᵢⱼ[i,j,p] = 0.5*(mpD.ΔFᵢⱼ[i,j,p]+mpD.ΔFᵢⱼ[j,i,p])-mpD.I[i,j]
+                mpD.ϵᵢⱼ[i,j,p] = 0.5*(mpD.ΔFᵢⱼ[i,j,p]+mpD.ΔFᵢⱼ[j,i,p])-mpD.δᵢⱼ[i,j] 
                 mpD.ωᵢⱼ[i,j,p] = 0.5*(mpD.ΔFᵢⱼ[i,j,p]-mpD.ΔFᵢⱼ[j,i,p])
             end
             Δϵ = mutate(mpD.ϵᵢⱼ[:,:,p],2.0,:voigt)
@@ -62,7 +62,7 @@ end
     elseif instr[:fwrk] == "infinitesimal"
         if p ≤ mpD.nmp 
             # calculate elastic strains & spins
-            mpD.ϵᵢⱼ[:,:,p] .= 0.5.*(mpD.ΔFᵢⱼ[:,:,p]+mpD.ΔFᵢⱼ[:,:,p]').-mpD.I
+            mpD.ϵᵢⱼ[:,:,p] .= 0.5.*(mpD.ΔFᵢⱼ[:,:,p]+mpD.ΔFᵢⱼ[:,:,p]').-mpD.δᵢⱼ[i,j] 
             mpD.ωᵢⱼ[:,:,p] .= 0.5.*(mpD.ΔFᵢⱼ[:,:,p]-mpD.ΔFᵢⱼ[:,:,p]')
             # update cauchy stress tensor
             mpD.σJᵢⱼ[:,:,p].= mutate(mpD.σᵢ[:,p],1.0,:tensor)
@@ -88,7 +88,7 @@ function init_stress(instr;what="τorσ!")
     kernel2 = transform!(CPU())
     return (;τorσ! = kernel1, cauchy! = kernel2,)
 end
-function stress!(mpD,cmParam,instr,type)
+function stress(mpD,cmParam,instr,type)
     if type == :update
         instr[:cairn][:elastoplast][:stress].τorσ!(mpD,cmParam.Del,instr; ndrange=mpD.nmp);sync(CPU())
     elseif type == :cauchy

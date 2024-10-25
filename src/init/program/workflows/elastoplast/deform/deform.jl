@@ -42,7 +42,7 @@ function init_deformation(instr)
     end
     return nothing
 end
-function deformation!(mpD,meD,Δt,instr)
+function deform(mpD,meD,Δt,instr)
     instr[:cairn][:elastoplast].deform!(mpD,meD,Δt; ndrange=mpD.nmp);sync(CPU())
     return nothing
 end

@@ -63,17 +63,16 @@ function augm(mpD,meD,Δt,instr)
     instr[:cairn][:mapsto][:augm].Δu!(mpD,meD,Δt; ndrange=mpD.nmp);sync(CPU())
     return nothing
 end
-function mapsto!(mpD,meD,g,Δt,instr,whereto) 
-    if whereto == "p-->n"
+function mapsto(mpD,meD,g,Δt,instr) 
+    # maps material point to node
         p2n(mpD,meD,g,Δt,instr)
-    elseif whereto == "solve"
+    # solve Eulerian momentum equation
         solve(meD,Δt,instr)
-    elseif whereto == "p<--n"
+    # maps back solution to material point
         n2p(mpD,meD,Δt,instr)
         if instr[:trsfr] == "mUSL"
             augm(mpD,meD,Δt,instr)
         end
-    end
     return nothing
 end
 

@@ -27,7 +27,7 @@ end
         mpD.ℓ[p,:].= mpD.ℓ₀[p,:].*diag(mpD.Fᵢⱼ[:,:,p])
     end
 end
-function init_domain(dim::Number,basis::NamedTuple)
+function init_domain(basis::NamedTuple)
     if basis[:which] == "gimpm"
         if basis[:how] == "undeformed"
             return undeformed(CPU())
@@ -43,7 +43,7 @@ function init_domain(dim::Number,basis::NamedTuple)
     end
     return nothing
 end
-function domain!(mpD,instr)
+function domain(mpD,instr)
     if instr[:basis][:which] == "gimpm"
         instr[:cairn].update!(mpD; ndrange=mpD.nmp);sync(CPU())
     end

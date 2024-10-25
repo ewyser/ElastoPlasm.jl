@@ -28,7 +28,7 @@ end
 function init_volumetric()
     return (;ΔJn! = ΔJn(CPU()),ΔJs! = ΔJs(CPU()),ΔJp! = ΔJp(CPU()),)
 end
-function volumetric!(mpD,meD,instr)
+function volumetric(mpD,meD,instr)
     if instr[:vollock]
         # init mesh quantities to zero
         meD.ΔJn.= 0.0

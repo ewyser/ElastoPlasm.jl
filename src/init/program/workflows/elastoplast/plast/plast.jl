@@ -1,3 +1,19 @@
+function init_plast(instr)
+    kernel1 = nonlocal(CPU())
+    if last(instr[:plast]) == "MC"
+        #ηmax = MCRetMap!(mpD,ϵpII,cmParam,instr[:fwrk])
+    elseif last(instr[:plast]) == "DP"        
+        kernel2 = DP!(CPU())
+    elseif last(instr[:plast]) == "J2"
+        kernel2 = J2!(CPU())
+    elseif last(instr[:plast]) == "camC"
+        #ηmax = camCRetMap!(mpD,cmParam,instr[:fwrk])
+    else
+        err_msg = "$(cmParam[:cmType]): invalid return mapping for plastic correction"
+        throw(error(err_msg))
+    end 
+    return (;nonloc! = kernel1, retmap! = kernel2,) 
+end
 function plast!(mpD,meD,cmParam,instr)
     # nonlocal regularization
     if cmParam[:nonlocal][:cond]
@@ -5,27 +21,12 @@ function plast!(mpD,meD,cmParam,instr)
         mpD.e2p.= Int(0)
         mpD.p2p.= Int(0)
         W,w     = spzeros(mpD.nmp),spzeros(mpD.nmp,mpD.nmp)
-        @isdefined(nonloc!) ? nothing : nonloc! = nonlocal(CPU())
         for proc ∈ ["p->q","p<-q"]
-            nonloc!(W,w,mpD,meD,ls,proc; ndrange=mpD.nmp);sync(CPU())
+            instr[:cairn][:elastoplast][:plast].nonloc!(W,w,mpD,meD,ls,proc; ndrange=mpD.nmp);sync(CPU())
         end
     end
     # plastic return-mapping dispatcher
-    if cmParam[:cmType] == "MC"
-        ηmax = MCRetMap!(mpD,ϵpII,cmParam,instr[:fwrk])
-    elseif cmParam[:cmType] == "DP"        
-        @isdefined(DPcorr!) ? nothing : DPcorr! = DP!(CPU())
-        DPcorr!(mpD,cmParam,instr; ndrange=mpD.nmp);sync(CPU())
-        ηmax = 0
-    elseif cmParam[:cmType] == "J2"
-        @isdefined(J2corr!) ? nothing : J2corr! = J2!(CPU())
-        J2corr!(mpD,cmParam,instr; ndrange=mpD.nmp);sync(CPU())
-        ηmax = 0
-    elseif cmParam[:cmType] == "camC"
-        ηmax = camCRetMap!(mpD,cmParam,instr[:fwrk])
-    else
-        err_msg = "$(cmParam[:cmType]): invalid return mapping for plastic correction"
-        throw(error(err_msg))
-    end
+    instr[:cairn][:elastoplast][:plast].retmap!(mpD,cmParam,instr; ndrange=mpD.nmp);sync(CPU())
+    ηmax = 0
     return ηmax::Int64
 end
