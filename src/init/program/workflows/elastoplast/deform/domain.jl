@@ -45,7 +45,7 @@ function init_domain(basis::NamedTuple)
 end
 function domain(mpD,instr)
     if instr[:basis][:which] == "gimpm"
-        instr[:cairn].update!(mpD; ndrange=mpD.nmp);sync(CPU())
+        instr[:cairn][:elastoplast].update!(mpD; ndrange=mpD.nmp);sync(CPU())
     end
     return nothing
 end 

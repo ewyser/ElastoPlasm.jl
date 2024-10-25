@@ -32,7 +32,7 @@ function kwargser(type::Symbol,kwargs::Any;dim::Number = 2)
             elastoplast = (;
                 deform! = init_deformation(instr),
                 Fbar    = init_volumetric(),
-                update  = init_domain(instr[:basis]),
+                update! = init_domain(instr[:basis]),
                 stress  = init_stress(instr),
                 plast   = init_plast(instr),
             )

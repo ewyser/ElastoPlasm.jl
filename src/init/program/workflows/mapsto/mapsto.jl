@@ -1,4 +1,5 @@
 function init_mapsto(dim::Number,trsfr::String) 
+    kernel2 = forwardEuler(CPU())
     if trsfr == "mUSL"
         if dim == 2
             kernel1 = flip2Dp2n(CPU())
@@ -7,7 +8,6 @@ function init_mapsto(dim::Number,trsfr::String)
             kernel1 = flip2Dp2n(CPU())
             kernel3 = flip23Dn2p(CPU())
         end
-        kernel2 = forwardEuler(CPU())
         kernel3a = kernel_momentum(CPU())
         kernel3b = kernel_velocity(CPU())
         kernel3c = kernel_displacement(CPU())
@@ -16,12 +16,12 @@ function init_mapsto(dim::Number,trsfr::String)
     elseif trsfr == "tpicUSL"
         if dim == 2
             kernel1 = tpic2Dp2n(CPU())
-            kernel2 = pic23Dn2p(CPU())
+            kernel3 = pic23Dn2p(CPU())
         elseif dim == 3
             kernel1 = tpic3Dp2n(CPU())
-            kernel2 = pic23Dn2p(CPU())
+            kernel3 = pic23Dn2p(CPU())
         end
-        return (;p2n! = kernel1, n2p! = kernel2,)
+        return Dict(:map  => (;p2n! = kernel1 ,solve! = kernel2 ,n2p! = kernel3, ),)
     else
         return throw(ArgumentError("$(trsfr) is not a supported|valid mapping"))
     end    
