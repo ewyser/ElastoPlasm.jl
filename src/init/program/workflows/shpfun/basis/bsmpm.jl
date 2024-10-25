@@ -1,20 +1,20 @@
 function which(xn,xB,Δx)
     if xn==xB[1] ||  xn==xB[2] 
         type = 1::Int64
-    elseif xn<(xB[1]+1.1*Δx) && xn>(xB[1]+0.9*Δx) 
+    elseif xn==(xB[1]+Δx)
         type = 2::Int64
-    elseif xn>(xB[1]+1.5*Δx) && xn<(xB[2]-1.5*Δx) 
+    elseif (xB[1]+Δx)<xn<(xB[2]-Δx) 
         type = 3::Int64
-    elseif xn<(xB[2]-0.9*Δx) && xn>(xB[2]-1.1*Δx)
+    elseif xn==(xB[2]-Δx)
         type = 4::Int64
     else
         type = 0::Int64
     end
     return type::Int64
 end
-function ϕ∂ϕ(ξ,xn,type,Δx)
+function ϕ∂ϕ(ξ,xn,xB,Δx)
     ϕ,∂ϕ = 0.0,0.0
-    if type == 1
+    if which(xn,xB,Δx) == 1
         if -2.0<=ξ<=-1.0 
             ϕ = 1.0/6.0     *ξ^3+     ξ^2   +2.0*ξ    +4.0/3.0
             ∂ϕ= 3.0/6.0     *ξ^2+2.0 *ξ     +2.0
@@ -28,7 +28,7 @@ function ϕ∂ϕ(ξ,xn,type,Δx)
             ϕ = -1.0/6.0     *ξ^3+     ξ^2  -2.0*ξ    +4.0/3.0
             ∂ϕ= -3.0/6.0     *ξ^2+2.0 *ξ    -2.0
         end    
-    elseif type == 2
+    elseif which(xn,xB,Δx) == 2
         if -1.0<=ξ<=0.0 
             ϕ = -1.0/3.0     *ξ^3-     ξ^2    +2.0/3.0
             ∂ϕ= -3.0/3.0     *ξ^2-2.0 *ξ
@@ -39,7 +39,7 @@ function ϕ∂ϕ(ξ,xn,type,Δx)
             ϕ = -1.0/6.0     *ξ^3+     ξ^2-2.0*ξ+4.0/3.0
             ∂ϕ= -3.0/6.0     *ξ^2+2.0 *ξ  -2.0
         end
-    elseif type == 3
+    elseif which(xn,xB,Δx) == 3
         if -2.0<=ξ<=-1.0 
             ϕ =  1.0/6.0     *ξ^3+     ξ^2+2.0*ξ+4.0/3.0
             ∂ϕ=  3.0/6.0     *ξ^2+2.0 *ξ  +2.0
@@ -53,7 +53,7 @@ function ϕ∂ϕ(ξ,xn,type,Δx)
             ϕ = -1.0/6.0     *ξ^3+     ξ^2-2.0*ξ+4.0/3.0
             ∂ϕ= -3.0/6.0     *ξ^2+2.0 *ξ  -2.0
         end
-    elseif type == 4
+    elseif which(xn,xB,Δx) == 4
         if -2.0<=ξ<=-1.0
             ϕ =  1.0/6.0     *ξ^3+     ξ^2+2.0*ξ+4.0/3.0
             ∂ϕ=  3.0/6.0     *ξ^2+2.0 *ξ  +2.0 
@@ -75,7 +75,7 @@ end
         for (nn,no) ∈ enumerate(mpD.p2n[:,p]) if no<1 continue end
             # compute basis functions
             ξ      = (mpD.x[p,1]-meD.xn[no,1]) 
-            ϕx,dϕx = ϕ∂ϕ(ξ/meD.h[1],meD.xn[no,1],meD.tn[no,1],meD.h[1])
+            ϕx,dϕx = ϕ∂ϕ(ξ/meD.h[1],meD.xn[no,1],meD.xB[1:2],meD.h[1])
             # convolution of basis function
             mpD.ϕ∂ϕ[nn,p,1] =  ϕx
             mpD.ϕ∂ϕ[nn,p,2] = dϕx
@@ -91,8 +91,8 @@ end
             # compute basis functions
             ξ      = (mpD.x[p,1]-meD.xn[no,1]) 
             η      = (mpD.x[p,2]-meD.xn[no,2])
-            ϕx,dϕx = ϕ∂ϕ(ξ/meD.h[1],meD.xn[no,1],meD.tn[no,1],meD.h[1])
-            ϕz,dϕz = ϕ∂ϕ(η/meD.h[2],meD.xn[no,2],meD.tn[no,2],meD.h[2])
+            ϕx,dϕx = ϕ∂ϕ(ξ/meD.h[1],meD.xn[no,1],meD.xB[1:2],meD.h[1])
+            ϕz,dϕz = ϕ∂ϕ(η/meD.h[2],meD.xn[no,2],meD.xB[3:4],meD.h[2])
             # convolution of basis function
             mpD.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
             mpD.ϕ∂ϕ[nn,p,2] = dϕx*  ϕz                                        

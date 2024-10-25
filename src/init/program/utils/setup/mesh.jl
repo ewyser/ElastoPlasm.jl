@@ -9,9 +9,9 @@ function meshSetup(nel,L,instr)
         buffer = 0.0.*h
     end
     # mesh 
-    xn,tn,nel,nno = getcoords(nD,nn,L,h;ghosts=buffer)
+    xn,nel,nno = getcoords(nD,nn,L,h;ghosts=buffer)
     # boundary conditions
-    bc,xB         = getbc(xn,h,nno,nD;ghosts=buffer)
+    bc,xB      = getbc(xn,h,nno,nD;ghosts=buffer)
     # constructor 
     meD = (
         nD   = nD,
@@ -23,7 +23,6 @@ function meshSetup(nel,L,instr)
         # nodal quantities
         x₀   = minimum(xn,dims=1),
         xn   = xn,
-        tn   = Int64.(tn),
         mn   = zeros(nno[end]            ), # lumped mass vector
         Mn   = zeros(nno[end],nno[end]   ), # consistent mass matrix
         oobf = zeros(nno[end],nD         ),

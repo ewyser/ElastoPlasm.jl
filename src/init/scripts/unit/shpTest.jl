@@ -1,5 +1,5 @@
 function shpfunCheck(shp,instr,paths)
-    nel,L  = 5,[1.0]
+    nel,L  = 2,[1.0]
 
     meD,ni = meshSetup(nel,L,instr),10
 

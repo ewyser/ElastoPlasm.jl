@@ -22,8 +22,8 @@ function getcoords(nD,nn,L,h;ghosts::Vector=[0.0])
         xn  = collect(first(x0):h[1]:last(x0))
         nno = [length(xn),length(xn)] 
         nel = [nno[1]-1,nno[1]-1    ]
-        xt  = vcat([1],[2],3*ones(Int32,nno[1]-4),[4],[1])
-        return xn,xt,nel,nno
+        #xt  = vcat([1],[2],3*ones(Int32,nno[1]-4),[4],[1])
+        return xn,nel,nno
     elseif nD == 2
         x0,z0 = [0.0-ghosts[1],L[1]+ghosts[1]],[0.0-ghosts[2],L[2]+2.0*h[2]+ghosts[2]]
         xn,zn = collect(first(x0):h[1]:last(x0)),collect(first(z0):h[2]:last(z0))
@@ -33,7 +33,7 @@ function getcoords(nD,nn,L,h;ghosts::Vector=[0.0])
         zt    = vcat([1],[2],3*ones(Int32,nno[2]-4),[4],[1])
         xn    = hcat(vec(repeat(xn',nno[2],1)),vec(repeat(zn,1,nno[1])))
         xt    = hcat(vec(repeat(xt',nno[2],1)),vec(repeat(zt,1,nno[1])))
-        return xn,xt,nel,nno
+        return xn,nel,nno
     elseif nD == 3
         x0 = [0.0-ghosts[1],L[1]+ghosts[1]]
         y0 = [0.0-ghosts[2],L[2]+ghosts[2]]
@@ -58,6 +58,6 @@ function getcoords(nD,nn,L,h;ghosts::Vector=[0.0])
         zt  = (     ones(Int64,nno[1],1     )'.*zt).*ones(Int64,1,1,nno[2])
         yt  = (     ones(Int64,nno[3],nno[1]))     .*reshape(yt,1,1,nno[2])
         xt  = hcat(vec(xt),vec(yt),vec(zt))
-        return xn,xt,nel,nno
+        return xn,nel,nno
     end
 end
