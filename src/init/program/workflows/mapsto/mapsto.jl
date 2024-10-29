@@ -1,29 +1,29 @@
 function init_mapsto(dim::Number,trsfr::String) 
-    kernel2 = forwardEuler(CPU())
+    kernel2 = euler(CPU())
     if trsfr == "mUSL"
         if dim == 2
-            kernel1 = flip2Dp2n(CPU())
-            kernel3 = flip23Dn2p(CPU())
+            kernel1 = flip_2d_p2n(CPU())
+            kernel3 = flip_nd_n2p(CPU())
         elseif dim == 3
-            kernel1 = flip2Dp2n(CPU())
-            kernel3 = flip23Dn2p(CPU())
+            kernel1 = flip_3d_p2n(CPU())
+            kernel3 = flip_nd_n2p(CPU())
         end
-        kernel3a = kernel_momentum(CPU())
-        kernel3b = kernel_velocity(CPU())
-        kernel3c = kernel_displacement(CPU())
+        kernel3a = augm_momentum(CPU())
+        kernel3b = augm_velocity(CPU())
+        kernel3c = augm_displacement(CPU())
         return Dict(:map  => (;p2n! = kernel1 ,solve! = kernel2 ,n2p! = kernel3, ),
                     :augm => (;p2n! = kernel3a,solve! = kernel3b,Δu!  = kernel3c,),)
     elseif trsfr == "tpicUSL"
         if dim == 2
-            kernel1 = tpic2Dp2n(CPU())
-            kernel3 = pic23Dn2p(CPU())
+            kernel1 = tpic_2d_p2n(CPU())
+            kernel3 = pic_nd_n2p(CPU())
         elseif dim == 3
-            kernel1 = tpic3Dp2n(CPU())
-            kernel3 = pic23Dn2p(CPU())
+            kernel1 = tpic_3d_p2n(CPU())
+            kernel3 = pic_nd_n2p(CPU())
         end
         return Dict(:map  => (;p2n! = kernel1 ,solve! = kernel2 ,n2p! = kernel3, ),)
     else
-        return throw(ArgumentError("$(trsfr) is not a supported|valid mapping"))
+        return throw(ArgumentError("$(trsfr) is not a supported|valid mapping scheme"))
     end    
 end
 function p2n(mpD,meD,g,Δt,instr)
@@ -32,7 +32,7 @@ function p2n(mpD,meD,g,Δt,instr)
     meD.pn  .= 0.0
     meD.oobf.= 0.0
     # mapping to mesh
-    instr[:cairn][:mapsto][:map].p2n!(mpD,meD,g; ndrange=mpD.nmp);sync(CPU())
+    instr[:cairn][:mapsto][:map].p2n!(ndrange=mpD.nmp,mpD,meD,g);sync(CPU())
     return nothing
 end
 @views function solve(meD,Δt,instr)
@@ -43,12 +43,12 @@ end
     meD.an.= 0.0
     meD.vn.= 0.0
     # solve momentum equation on the mesh using backend-agnostic kernel
-    instr[:cairn][:mapsto][:map].solve!(meD,Δt,η; ndrange=meD.nno[end]);sync(CPU())
+    instr[:cairn][:mapsto][:map].solve!(ndrange=meD.nno[end],meD,Δt,η);sync(CPU())
     return nothing
 end
 function n2p(mpD,meD,Δt,instr)
     # mapping to material point
-    instr[:cairn][:mapsto][:map].n2p!(mpD,meD,Δt; ndrange=mpD.nmp);sync(CPU())
+    instr[:cairn][:mapsto][:map].n2p!(ndrange=mpD.nmp,mpD,meD,Δt);sync(CPU())
     return nothing
 end
 function augm(mpD,meD,Δt,instr)
@@ -56,11 +56,11 @@ function augm(mpD,meD,Δt,instr)
     meD.pn.= 0.0
     meD.vn.= 0.0
     # accumulate material point contributions
-    instr[:cairn][:mapsto][:augm].p2n!(mpD,meD; ndrange=mpD.nmp);sync(CPU())
+    instr[:cairn][:mapsto][:augm].p2n!(ndrange=mpD.nmp,mpD,meD);sync(CPU())
     # solve for nodal incremental displacement
-    instr[:cairn][:mapsto][:augm].solve!(meD; ndrange=meD.nno[end]);sync(CPU())
+    instr[:cairn][:mapsto][:augm].solve!(ndrange=meD.nno[end],meD);sync(CPU())
     # update material point's displacement
-    instr[:cairn][:mapsto][:augm].Δu!(mpD,meD,Δt; ndrange=mpD.nmp);sync(CPU())
+    instr[:cairn][:mapsto][:augm].Δu!(ndrange=mpD.nmp,mpD,meD,Δt);sync(CPU())
     return nothing
 end
 function mapsto(mpD,meD,g,Δt,instr) 
@@ -70,7 +70,7 @@ function mapsto(mpD,meD,g,Δt,instr)
         solve(meD,Δt,instr)
     # maps back solution to material point
         n2p(mpD,meD,Δt,instr)
-        if instr[:trsfr] == "mUSL"
+        if instr[:fwrk][:trsfr] == "mUSL"
             augm(mpD,meD,Δt,instr)
         end
     return nothing

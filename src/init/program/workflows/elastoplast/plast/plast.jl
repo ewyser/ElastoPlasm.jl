@@ -20,8 +20,9 @@ function plast!(mpD,meD,cmParam,instr)
         ls      = cmParam[:nonlocal][:ls]
         mpD.e2p.= Int(0)
         mpD.p2p.= Int(0)
+        mpD.ϵpII[:,2].= 0.0
         W,w     = spzeros(mpD.nmp),spzeros(mpD.nmp,mpD.nmp)
-        for proc ∈ ["p->q","p<-q"]
+        for proc ∈ ["tplgy","p->q","p<-q"]
             instr[:cairn][:elastoplast][:plast].nonloc!(W,w,mpD,meD,ls,proc; ndrange=mpD.nmp);sync(CPU())
         end
     end

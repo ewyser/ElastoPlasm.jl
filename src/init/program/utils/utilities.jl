@@ -1,7 +1,7 @@
 function getVersion()
     return string(Pkg.project().version)
 end
-function getVals(meD,mpD,it,ηmax,ηtot,cmpl,symb)
+function getvals(meD,mpD,it,ηmax,ηtot,cmpl,symb)
     # completion [%]
     cmpl = round(100.0*cmpl,digits=1)
     # save vals
@@ -12,7 +12,7 @@ function getVals(meD,mpD,it,ηmax,ηtot,cmpl,symb)
     return vals
 end
 function msg(message)
-    message = "│\n└ "*message
+    message = "└ "*message
     try
         return printstyled(message,color=:red,bold=true,blink=true)
     catch

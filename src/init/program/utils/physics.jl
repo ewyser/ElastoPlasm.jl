@@ -9,7 +9,7 @@
     elseif length(h)==3
         Δx   = h[1]
         Δy   = h[2]
-        Δz   = h[2]
+        Δz   = h[3]
         vmax = [abs.(vp[:,1]) abs.(vp[:,2]) abs.(vp[:,3])]
         cmax = [maximum(vmax[:,1]) maximum(vmax[:,2]) maximum(vmax[:,3])]
         cmax = [Δx/(cmax[1]+yd) Δy/(cmax[2]+yd) Δz/(cmax[3]+yd)]
@@ -26,5 +26,5 @@ function get_g(tw::Float64,tg::Float64,nD::Int64)
     else
         g = 9.81
     end
-    return if nD == 2 g = [0.0 -g] elseif nD == 3 g = [0.0 0.0 -g] end
+    return if nD == 1 g = [-g] elseif nD == 2 g = [0.0 -g] elseif nD == 3 g = [0.0 0.0 -g] end
 end

@@ -1,4 +1,4 @@
-@views @kernel inbounds = true function MEASURE(mpD,meD,Δt)
+@views @kernel inbounds = true function measure(mpD,meD,Δt)
     p = @index(Global)
     if p≤mpD.nmp 
         # compute velocity & displacement gradients
@@ -17,33 +17,11 @@
         mpD.Ω[p]        = mpD.J[p]*mpD.Ω₀[p]
     end
 end
-@views @kernel inbounds = true function measure(mpD,meD,Δt)
-    p = @index(Global)
-    if p≤mpD.nmp 
-        # compute velocity & displacement gradients
-        nn              = findall(x->x!=0,mpD.p2n[:,p])
-        mpD.∇vᵢⱼ[:,:,p].= (permutedims(mpD.ϕ∂ϕ[nn,p,2:end],(2,1))*meD.vn[meD.e2n[nn,mpD.p2e[p]],:])'
-        mpD.∇uᵢⱼ[:,:,p].= Δt.*mpD.∇vᵢⱼ[:,:,p]
-        # compute incremental deformation gradient
-        mpD.ΔFᵢⱼ[:,:,p].= mpD.δᵢⱼ.+mpD.∇uᵢⱼ[:,:,p]
-        mpD.ΔJ[p]       = det(mpD.ΔFᵢⱼ[:,:,p])
-        # update deformation gradient
-        mpD.Fᵢⱼ[:,:,p] .= mpD.ΔFᵢⱼ[:,:,p]*mpD.Fᵢⱼ[:,:,p]
-        # update material point's volume
-        mpD.J[p]        = det(mpD.Fᵢⱼ[:,:,p])
-        mpD.Ω[p]        = mpD.J[p]*mpD.Ω₀[p]
-    end
-end
 function init_deformation(instr)
-    if instr[:perf]
-        return MEASURE(CPU())
-    else
-        return measure(CPU())
-    end
-    return nothing
+    return measure(CPU())
 end
 function deform(mpD,meD,Δt,instr)
-    instr[:cairn][:elastoplast].deform!(mpD,meD,Δt; ndrange=mpD.nmp);sync(CPU())
+    instr[:cairn][:elastoplast].deform!(ndrange=mpD.nmp,mpD,meD,Δt);sync(CPU())
     return nothing
 end
 

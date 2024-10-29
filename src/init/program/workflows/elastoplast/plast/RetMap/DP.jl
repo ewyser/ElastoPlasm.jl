@@ -36,9 +36,9 @@ end
         mpD.Δλ[p] = 0.0
         ψ,nstr   = 0.0*π/180.0,size(mpD.σᵢ,1)
         # create an alias for stress tensor
-        if instr[:fwrk] == "finite"
+        if instr[:fwrk][:deform] == "finite"
             σ = mpD.τᵢ
-        elseif instr[:fwrk] == "infinitesimal"
+        elseif instr[:fwrk][:deform] == "infinitesimal"
             σ = mpD.σᵢ
         end
         if first(instr[:nonloc])
@@ -59,7 +59,7 @@ end
             mpD.Δλ[p] = Δλ
             Pn,τn     = P-cmParam.Kc*ηB*Δλ,ξ-η*(P-cmParam.Kc*ηB*Δλ)
             σ[:,p]   .= σn(Pn,τ0,τn,τII,nstr)
-            if instr[:fwrk] == "finite"
+            if instr[:fwrk][:deform] == "finite"
                 mpD.ϵᵢⱼ[:,:,p].= mutate(cmParam.Del\σ[:,p],0.5,:tensor)
                 # update left cauchy green tensor
                 λ,n            = eigen(mpD.ϵᵢⱼ[:,:,p],sortby=nothing)
@@ -72,7 +72,7 @@ end
             mpD.Δλ[p] = Δλ
             Pn        = σm-P
             σ[:,p]   .= σn(Pn,τ0,0.0,τII,nstr)
-            if instr[:fwrk] == "finite"
+            if instr[:fwrk][:deform] == "finite"
                 mpD.ϵᵢⱼ[:,:,p].= mutate(cmParam.Del\σ[:,p],0.5,:tensor)
                 # update left cauchy green tensor
                 λ,n            = eigen(mpD.ϵᵢⱼ[:,:,p],sortby=nothing)

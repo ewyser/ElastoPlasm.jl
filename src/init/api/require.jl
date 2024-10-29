@@ -39,24 +39,25 @@ Admissible keywords, by-default value and purpose are presented below when ```in
 function require(in::Symbol=:instr)
     if in == :instr
         instr = Dict(
-            :bits    => 64,
+            :dtype   => Int64(64),
             :basis   => (;which="bsmpm",
                         how=nothing,
                         ghost=false,
                         ),
-            :fwrk    => "finite",
-            :trsfr   => "mUSL",
-            :vollock => true,
+            :fwrk    => (;deform = "finite",
+                        trsfr = "mUSL",
+                        locking = true
+                        ),
             :GRF     => false,
             :plast   => (false,"DP"),
-            :nonloc  => (;cond=true,
+            :nonloc  => (;cond=false,
                         ls=0.5,),
             :plot    => (;cond=true,
                         freq=1.0,
                         what=["epII"],
                         dims=(500.0,250.0),
                         ),
-            :perf    => true,
+            :perf    => false,
         )
         return instr
     else

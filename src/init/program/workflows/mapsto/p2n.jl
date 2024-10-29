@@ -1,4 +1,4 @@
-@kernel inbounds = true function flip1Dp2n(mpD,meD,g)
+@kernel inbounds = true function flip_1d_p2n(mpD,meD,g)
     p = @index(Global)
     if p≤mpD.nmp 
         # accumulation
@@ -13,7 +13,7 @@
         end
     end
 end
-@kernel inbounds = true function flip2Dp2n(mpD,meD,g)
+@kernel inbounds = true function flip_2d_p2n(mpD,meD,g)
     p = @index(Global)
     for dim ∈ 1:meD.nD
         if p≤mpD.nmp 
@@ -34,7 +34,7 @@ end
         end
     end
 end
-@kernel inbounds = true function flip3Dp2n(mpD,meD,g)
+@kernel inbounds = true function flip_3d_p2n(mpD,meD,g)
     p = @index(Global)
     for dim ∈ 1:meD.nD
         if p≤mpD.nmp 
@@ -53,7 +53,7 @@ end
         end
     end
 end
-@kernel inbounds = true function tpic2Dp2n(mpD,meD,g)
+@kernel inbounds = true function tpic_2d_p2n(mpD,meD,g)
     p = @index(Global)
     for dim ∈ 1:meD.nD
         if p≤mpD.nmp 
@@ -71,7 +71,7 @@ end
     end
 
 end
-@kernel inbounds = true function tpic3Dp2n(mpD,meD,g)
+@kernel inbounds = true function tpic_3d_p2n(mpD,meD,g)
     p = @index(Global)
     for dim ∈ 1:meD.nD
         if p≤mpD.nmp 

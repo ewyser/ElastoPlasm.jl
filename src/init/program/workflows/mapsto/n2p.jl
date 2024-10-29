@@ -1,4 +1,4 @@
-@kernel inbounds = true function flip23Dn2p(mpD,meD,Δt)
+@kernel inbounds = true function flip_nd_n2p(mpD,meD,Δt)
     p = @index(Global)
     if p≤mpD.nmp    
         # flip update
@@ -13,7 +13,7 @@
         end
     end  
 end
-@kernel inbounds = true function pic23Dn2p(mpD,meD,Δt)
+@kernel inbounds = true function pic_nd_n2p(mpD,meD,Δt)
     p = @index(Global)
     if p≤mpD.nmp    
         for dim ∈ 1:meD.nD

@@ -9,7 +9,7 @@ function inislump(meD,cmParam,ni,instr)
         zL          = meD.xB[3]+(0.5*meD.h[2]/ni):meD.h[2]/ni:lz-0.5*meD.h[2]/ni
         npx,npz     = length(xL),length(zL)
         xp,zp       = ((xL'.*ones(npz,1  )      )),((     ones(npx,1  )'.*zL ))         
-        if instr[:GRF] coh = clt 
+        if instr[:GRF]
             c = GRFS_gauss(xp,coh0,cohr,ni,meD.h[1])
         else 
             c = ones(size(xp)).*coh0 
@@ -47,7 +47,7 @@ function inislump(meD,cmParam,ni,instr)
         xp          = (xL'.*ones(npz,1  )      ).*ones(1,1,npy)
         yp          = (     ones(npz,npx)      ).*reshape(yL,1,1,npy)
         zp          = (     ones(npx,1  )'.*zL ).*ones(1,1,npy)
-        if instr[:GRF] coh = clt 
+        if instr[:GRF]
             c = GRFS_gauss(xp,coh0,cohr,ni,meD.h[1])
         else 
             c = ones(size(xp)).*coh0 
