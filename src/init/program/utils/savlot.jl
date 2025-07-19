@@ -82,10 +82,10 @@
 end
 
 @views function savlot(mpD,meD,t,instr) 
-    if !first(instr[:plast]) 
+    if !instr[:plast][:status]
         mpD.z₀ .= mpD.x[:,end] 
     end
-    if instr[:plot][:cond]
+    if instr[:plot][:status]
         P,tit = [],L"$t = $"*string(round(t,digits=1))*" [s]"
         for (k,what) ∈ enumerate(instr[:plot][:what])
             p0 = whichplot(what,tit,mpD,meD,instr)

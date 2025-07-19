@@ -131,7 +131,7 @@ end
     return H,error
 end
 
-#ElastoPlasm.compacTest(2,"mUSL")
+#ElastoPlasm.compacTest(2,"musl")
 
 
 #=
@@ -167,7 +167,7 @@ end
 =#
 export compacTest
 
-#compacTest(2,"mUSL")
+#compacTest(2,"musl")
 
 
 

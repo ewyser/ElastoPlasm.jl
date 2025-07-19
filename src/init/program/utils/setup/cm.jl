@@ -30,7 +30,7 @@ function cm(dim,instr; E::Real=1.0e6,ν::Real=0.3,ρ0::Real= 2700.0)
     Hp      = -30.0e3                                                           # softening modulus
     # constitutive model param.
     cmParam = (;
-        cmType   = last(instr[:plast]), 
+        cmType   = instr[:plast][:constitutive], 
         nonlocal = instr[:nonloc],
         E   = E, 
         ν   = ν, 

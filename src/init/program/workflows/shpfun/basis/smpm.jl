@@ -8,7 +8,7 @@ function N∂N(δx,h)
     end
     return N,∂N    
 end
-@views @kernel inbounds = true function smpm1D(mpD,meD)
+@views @kernel inbounds = true function smpm_1d(mpD,meD)
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpD.nmp
@@ -19,11 +19,10 @@ end
             # convolution of basis function
             mpD.ϕ∂ϕ[nn,p,1] =  ϕx
             mpD.ϕ∂ϕ[nn,p,2] = dϕx
-            mpD.δnp[nn,1,p] = -ξ
         end        
     end
 end
-@views @kernel inbounds = true function smpm2D(mpD,meD)
+@views @kernel inbounds = true function smpm_2d(mpD,meD)
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpD.nmp
@@ -37,12 +36,10 @@ end
             mpD.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
             mpD.ϕ∂ϕ[nn,p,2] = dϕx*  ϕz                                        
             mpD.ϕ∂ϕ[nn,p,3] =  ϕx* dϕz
-            mpD.δnp[nn,1,p] = -ξ
-            mpD.δnp[nn,2,p] = -η
         end
     end
 end
-@views @kernel inbounds = true function smpm3D(mpD,meD)
+@views @kernel inbounds = true function smpm_3d(mpD,meD)
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpD.nmp
@@ -59,9 +56,6 @@ end
             mpD.ϕ∂ϕ[nn,p,2] = dϕx*  ϕy*  ϕz                                                                                
             mpD.ϕ∂ϕ[nn,p,3] =  ϕx* dϕy*  ϕz                                   
             mpD.ϕ∂ϕ[nn,p,4] =  ϕx*  ϕy* dϕz  
-            mpD.δnp[nn,1,p]  = -ξ
-            mpD.δnp[nn,2,p]  = -η
-            mpD.δnp[nn,3,p]  = -ζ
         end
     end
 end
