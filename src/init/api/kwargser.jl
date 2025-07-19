@@ -19,16 +19,15 @@ function kwargser(type::Symbol,kwargs::Any;dim::Number = 2)
         end
         # zip & set precision
         instr = Dict(zip(k,v))
-        bits  = pop!(instr,:bits); delete!(instr,:bits)
-        if bits == 64
-            instr[:dtype] = (;T0=(Int64,Float64),bits=64,precision="double")
-        elseif bits == 32
-            instr[:dtype] = (;T0=(Int32,Float32),bits=32,precision="single")
+        if instr[:dtype] == 64
+            instr[:dtype] = (;T0=(Int64,Float64),bits=Int64(64),precision="FP64")
+        elseif instr[:dtype] == 32
+            instr[:dtype] = (;T0=(Int32,Float32),bits=Int32(32),precision="FP32")
         end
         # add cairns (abstract kernels) to instr set
         instr[:cairn] = (;
             shpfun = init_shpfun(dim,instr[:basis]),
-            mapsto = init_mapsto(dim,instr[:trsfr]),
+            mapsto = init_mapsto(dim,instr[:fwrk][:trsfr]),
             elastoplast = (;
                 deform! = init_deformation(instr),
                 Fbar    = init_volumetric(),

@@ -1,4 +1,4 @@
-@kernel inbounds = true function kernel_momentum(mpD,meD)
+@kernel inbounds = true function augm_momentum(mpD,meD)
     p = @index(Global)
     for dim ∈ 1:meD.nD
         if p≤mpD.nmp 
@@ -9,7 +9,7 @@
         end
     end
 end
-@kernel inbounds = true function kernel_velocity(meD)
+@kernel inbounds = true function augm_velocity(meD)
     n = @index(Global)
     for dim ∈ 1:meD.nD
         if n≤meD.nno[end] 
@@ -19,7 +19,7 @@ end
         end
     end
 end
-@views @kernel inbounds = true function kernel_displacement(mpD,meD,Δt)
+@views @kernel inbounds = true function augm_displacement(mpD,meD,Δt)
     p = @index(Global)
     # flip update
     for dim ∈ 1:meD.nD

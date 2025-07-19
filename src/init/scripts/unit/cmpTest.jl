@@ -83,22 +83,27 @@ function compactTest(dim,nel,varPlot,ν,E,ρ0,l0; kwargs...)
 
     return (xN,yN,xA,yA),meD.h,err 
 end
-@views function compacTest(dim,trsfrAp)
-    ϕ∂ϕType    = "gimpm"
-    fwrkDeform = "finite"
+@views function compacTest(dim,mapping)
+    basistype = "gimpm"
+    framework = "finite"
     store,H,error = [],[],[]
     try
-        @testset "convergence using $(ϕ∂ϕType), $(fwrkDeform) deformation, $(trsfrAp) mapping" begin
+        @testset "convergence using $(basistype), $(framework) deformation, $(mapping) mapping" begin
             # geometry
-            n         = [0,1,2]#[0,1,2,3,4,5,6]
+            n         = [0,1,2,]#[0,1,2,3,4,5,6]
             nel       = 2.0.^n
             # initial parameters 
             l0,ν,E,ρ0 = 50.0,0.0,1.0e4,80.0
             # init error
             ϵ         = 1.0
-            for (it,nel) in enumerate(nel)
+            for (it,nel) in enumerate(nel) 
                 #action
-                DAT,h,err = compactTest(dim,nel,"P",ν,E,ρ0,l0;basis=ϕ∂ϕType,fwrk=fwrkDeform,trsfr=trsfrAp,vollock=false)
+                DAT,h,err = compactTest(dim,nel,"P",ν,E,ρ0,l0;
+                                                            basis=(;which=basistype,how="Uii",ghost=true,),
+                                                            plot=(;cond=false,freq=1.0,what=["epII"],dims=(500.0,250.0),),
+                                                            fwrk=framework,
+                                                            trsfr=mapping,
+                                                            vollock=false,)
                 push!(store,DAT )
                 push!(H ,h[end])
                 push!(error,err)
@@ -116,15 +121,18 @@ end
     paths  = setPaths(first(fid), sys.out;interactive=false)
 
 
-
+    configPlot()
     gr(size=(2.0*250,2*125),legend=true,markersize=2.25,markerstrokecolor=:auto)
-    p1 = plot(xN.*1e-3,yN,seriestype=:scatter, label="$(dim)D $(ϕ∂ϕType), $(trsfrAp) mapping")
+    p1 = plot(xN.*1e-3,yN,seriestype=:scatter, label="$(dim)D $(basistype), $(mapping) mapping")
     p1 = plot!(xA.*1e-3,yA,label=L"\sum_{p}\dfrac{||\sigma_{yy}^p-\sigma_{yy}^a(x_p)||V_0^p}{(g\rho_0l_0)V_0}",xlabel=L"$\sigma_{yy}$ [kPa]",ylabel=L"$y-$position [m]") 
     display(plot(p1; layout=(1,1), size=(450,250)))
-    savefig(paths[:plot]*"$(dim)D_numericVsAnalytic_compacTest_$(ϕ∂ϕType)_$(fwrkDeform)_$(trsfrAp).png")
+    savefig(paths[:plot]*"$(dim)D_numericVsAnalytic_compacTest_$(basistype)_$(framework)_$(mapping).png")
 
     return H,error
 end
+
+#ElastoPlasm.compacTest(2,"mUSL")
+
 
 #=
 @views function runCompacTest(DIM,TSF)

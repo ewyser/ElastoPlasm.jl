@@ -11,7 +11,7 @@ function getinfo(L,nel)
         L   = [L[1],L[2],ceil(L[3])]
         h   = [L[1]/nel[1],L[1]/nel[1],L[1]/nel[1]]
     else 
-        err_msg = "dim(L = ($(L)))>3: unsupported mesh geometry"
+        err_msg = "dim(L = ($(L))) > 3: unsupported mesh geometry"
         throw(error(err_msg))
     end
     return L,h,nD,nn
@@ -22,42 +22,43 @@ function getcoords(nD,nn,L,h;ghosts::Vector=[0.0])
         xn  = collect(first(x0):h[1]:last(x0))
         nno = [length(xn),length(xn)] 
         nel = [nno[1]-1,nno[1]-1    ]
-        #xt  = vcat([1],[2],3*ones(Int32,nno[1]-4),[4],[1])
-        return xn,nel,nno
     elseif nD == 2
-        x0,z0 = [0.0-ghosts[1],L[1]+ghosts[1]],[0.0-ghosts[2],L[2]+2.0*h[2]+ghosts[2]]
-        xn,zn = collect(first(x0):h[1]:last(x0)),collect(first(z0):h[2]:last(z0))
-        nno   = [length(xn),length(zn),length(xn)*length(zn)] 
+        x0    = [0.0-ghosts[1],L[1]+ghosts[1]]
+        z0    = [0.0-ghosts[2],L[2]+2.0*h[2]+ghosts[2]]
+        x,z   = collect(first(x0):h[1]:last(x0)),collect(first(z0):h[2]:last(z0))
+        nno   = [length(x),length(z),length(x)*length(z)] 
         nel   = [nno[1]-1  ,nno[2]-1  ,(nno[1]-1)*(nno[2]-1)]
-        #xt    = vcat([1],[2],3*ones(Int32,nno[1]-4),[4],[1])
-        zt    = vcat([1],[2],3*ones(Int32,nno[2]-4),[4],[1])
-        xn    = hcat(vec(repeat(xn',nno[2],1)),vec(repeat(zn,1,nno[1])))
-        #xt    = hcat(vec(repeat(xt',nno[2],1)),vec(repeat(zt,1,nno[1])))
-        return xn,nel,nno
+
+        x     = reshape(x,1        ,length(x))
+        z     = reshape(z,length(z),1        )
+        xn    =  repeat(x,length(z),1        )
+        zn    =  repeat(z,        1,length(x))
     elseif nD == 3
         x0 = [0.0-ghosts[1],L[1]+ghosts[1]]
         y0 = [0.0-ghosts[2],L[2]+ghosts[2]]
         z0 = [0.0-ghosts[3],L[3]+2.0*h[3]+ghosts[3]]
-        xn  = collect(first(x0): h[1]:last(x0) ) 
-        yn  = collect(first(y0): h[2]:last(y0) ) 
-        zn  = collect(last(z0) :-h[3]:first(z0))
-        #xt  = repeat([3],length(xn))
-        #yt  = repeat([3],length(yn))
-        #zt  = repeat([3],length(zn))
-        #xt[1]     = yt[1]     = zt[1]     = 1
-        #xt[2]     = yt[2]     = zt[2]     = 2
-        #xt[end-1] = yt[end-1] = zt[end-1] = 4
-        #xt[end  ] = yt[end  ] = zt[end  ] = 1      
-        nno = [length(xn),length(yn),length(zn),length(xn)*length(yn)*length(zn)] 
+        x   = collect(first(x0):h[1]:last(x0)) 
+        y   = collect(first(y0):h[2]:last(y0)) 
+        z   = collect(first(z0):h[3]:last(z0))   
+        nno = [length(x),length(y),length(z),length(x)*length(y)*length(z)] 
         nel = [nno[1]-1,nno[2]-1,nno[3]-1,(nno[1]-1)*(nno[2]-1)*(nno[3]-1)]
-        xn  = (xn'.*ones(typeD,nno[3],1     ))     .*ones(typeD,1,1,nno[2])
-        zn  = (     ones(typeD,nno[1],1     )'.*zn).*ones(typeD,1,1,nno[2])
-        yn  = (     ones(typeD,nno[3],nno[1]))     .*reshape(yn,1,1,nno[2])
-        x   = hcat(vec(xn),vec(yn),vec(zn))
-        #xt  = (xt'.*ones(Int64,nno[3],1     ))     .*ones(Int64,1,1,nno[2])
-        #zt  = (     ones(Int64,nno[1],1     )'.*zt).*ones(Int64,1,1,nno[2])
-        #yt  = (     ones(Int64,nno[3],nno[1]))     .*reshape(yt,1,1,nno[2])
-        #xt  = hcat(vec(xt),vec(yt),vec(zt))
-        return xn,nel,nno
+
+        x  = reshape(x,1         ,length(x),1        )
+        y  = reshape(y,1        ,1         ,length(y))
+        z  = reshape(z,length(z),1         ,1        )
+
+        xn = repeat(x,length(z),1        ,length(y))
+        yn = repeat(y,length(z),length(x),1        )
+        zn = repeat(z,        1,length(x),length(y)) 
     end
+
+    if nD == 1
+        xn = hcat(vec(xn))
+    elseif nD == 2
+        xn = hcat(vec(xn),vec(zn))
+    elseif nD == 3
+        xn = hcat(vec(xn),vec(yn),vec(zn))
+    end
+
+    return xn,nel,nno
 end

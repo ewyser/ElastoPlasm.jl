@@ -11,7 +11,11 @@ end
     no = @index(Global)
     if no≤meD.nno[end] 
         # solve
-        meD.mn[no]>0.0 ? meD.ΔJn[no]/= meD.mn[no] : meD.ΔJn[no] = 0.0
+        if iszero(meD.mn[no])
+            meD.ΔJn[no] = 0.0
+        else
+            meD.ΔJn[no]/= meD.mn[no]
+        end
     end
 end
 @kernel inbounds = true function ΔJp(mpD,meD,dim)
@@ -29,17 +33,17 @@ function init_volumetric()
     return (;ΔJn! = ΔJn(CPU()),ΔJs! = ΔJs(CPU()),ΔJp! = ΔJp(CPU()),)
 end
 function volumetric(mpD,meD,instr)
-    if instr[:vollock]
+    if instr[:fwrk][:locking]
         # init mesh quantities to zero
         meD.ΔJn.= 0.0
         # calculate dimensional cst.
-        dim     = 1.0/meD.nD
+        dim     = 1/meD.nD
         # mapping to mesh 
-        instr[:cairn][:elastoplast][:Fbar].ΔJn!(mpD,meD; ndrange=mpD.nmp);sync(CPU())
+        instr[:cairn][:elastoplast][:Fbar].ΔJn!(ndrange=mpD.nmp,mpD,meD);sync(CPU())
         # compute nodal determinant of incremental deformation 
-        instr[:cairn][:elastoplast][:Fbar].ΔJs!(mpD,meD; ndrange=meD.nno[end]);sync(CPU())
+        instr[:cairn][:elastoplast][:Fbar].ΔJs!(ndrange=meD.nno[end],mpD,meD);sync(CPU())
         # compute determinant Jbar 
-        instr[:cairn][:elastoplast][:Fbar].ΔJp!(mpD,meD,dim; ndrange=mpD.nmp);sync(CPU())
+        instr[:cairn][:elastoplast][:Fbar].ΔJp!(ndrange=mpD.nmp,mpD,meD,dim);sync(CPU())
     end
     return nothing
 end

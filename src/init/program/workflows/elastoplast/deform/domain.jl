@@ -31,7 +31,7 @@ function init_domain(basis::NamedTuple)
     if basis[:which] == "gimpm"
         if basis[:how] == "undeformed"
             return undeformed(CPU())
-        elseif basis[:how] == "detFii"
+        elseif basis[:how] == "detFij"
             return detFᵢᵢ(CPU())
         elseif basis[:how] == "Fii"
             return Fᵢᵢ(CPU())
@@ -45,7 +45,7 @@ function init_domain(basis::NamedTuple)
 end
 function domain(mpD,instr)
     if instr[:basis][:which] == "gimpm"
-        instr[:cairn][:elastoplast].update!(mpD; ndrange=mpD.nmp);sync(CPU())
+        instr[:cairn][:elastoplast].update!(ndrange=mpD.nmp,mpD);sync(CPU())
     end
     return nothing
 end 

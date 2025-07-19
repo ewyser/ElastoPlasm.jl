@@ -14,7 +14,7 @@ function elastoplast(mpD,meD,cmParam,Δt,instr)
         ηmax = 0 
     end
     # get cauchy stresses
-    if instr[:fwrk] == "finite"
+    if instr[:fwrk][:deform] == "finite"
         stress(mpD,cmParam,instr,:cauchy)
     end
     return ηmax::Int64

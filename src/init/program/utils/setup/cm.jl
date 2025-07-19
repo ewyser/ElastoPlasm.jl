@@ -27,7 +27,7 @@ function cm(dim,instr; E::Real=1.0e6,ν::Real=0.3,ρ0::Real= 2700.0)
     c       = sqrt((K+4.0/3.0*G)/ρ0)                                            # elastic wave speed [m/s]
     c0,cr   = 20.0e3,4.0e3                                                      # cohesion [Pa]
     ϕ0,ϕr,ψ0= 20.0*π/180,7.5*π/180,0.0                                          # friction angle [Rad], dilation angle [Rad]                                                              
-    Hp      = -60.0e3                                                           # softening modulus
+    Hp      = -30.0e3                                                           # softening modulus
     # constitutive model param.
     cmParam = (;
         cmType   = last(instr[:plast]), 

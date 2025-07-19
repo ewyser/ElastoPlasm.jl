@@ -17,7 +17,7 @@
     end
     return ϵmut
 end
-@views @kernel inbounds = true function ELAST!(mpD,Del,instr)
+@views @kernel inbounds = true function ELAST(mpD,Del,instr)
     p = @index(Global)
     # deformation framework dispatcher
     if instr[:fwrk] == "finite"
@@ -46,53 +46,59 @@ end
         end   
     end
 end
-@views @kernel inbounds = true function elast!(mpD,Del,instr)
+@views @kernel inbounds = true function finite_elast(mpD,Del,instr)
     p = @index(Global)
-    # deformation framework dispatcher
-    if instr[:fwrk] == "finite"
-        if p ≤ mpD.nmp 
-            # update left cauchy-green tensor
-            mpD.Bᵢⱼ[:,:,p].= mpD.ΔFᵢⱼ[:,:,p]*mpD.Bᵢⱼ[:,:,p]*mpD.ΔFᵢⱼ[:,:,p]'
-            # compute logarithmic strain tensor
-            λ,n            = eigen(mpD.Bᵢⱼ[:,:,p],sortby=nothing)
-            mpD.ϵᵢⱼ[:,:,p].= 0.5.*(n*diagm(log.(λ))*n')
-            # krichhoff stress tensor
-            mpD.τᵢ[:,p]    = Del*mutate(mpD.ϵᵢⱼ[:,:,p],2.0,:voigt)
-        end
-    elseif instr[:fwrk] == "infinitesimal"
-        if p ≤ mpD.nmp 
-            # calculate elastic strains & spins
-            mpD.ϵᵢⱼ[:,:,p] .= 0.5.*(mpD.ΔFᵢⱼ[:,:,p]+mpD.ΔFᵢⱼ[:,:,p]').-mpD.δᵢⱼ[i,j] 
-            mpD.ωᵢⱼ[:,:,p] .= 0.5.*(mpD.ΔFᵢⱼ[:,:,p]-mpD.ΔFᵢⱼ[:,:,p]')
-            # update cauchy stress tensor
-            mpD.σJᵢⱼ[:,:,p].= mutate(mpD.σᵢ[:,p],1.0,:tensor)
-            mpD.σJᵢⱼ[:,:,p].= mpD.σJᵢⱼ[:,:,p]*mpD.ωᵢⱼ[:,:,p]'+mpD.σJᵢⱼ[:,:,p]'*mpD.ωᵢⱼ[:,:,p]
-            mpD.σᵢ[:,p]   .+= Del*mutate(mpD.ϵᵢⱼ[:,:,p],2.0,:voigt).+mutate(mpD.σJᵢⱼ[:,:,p],1.0,:voigt)
-        end   
+    if p ≤ mpD.nmp 
+        # update left cauchy-green tensor
+        mpD.Bᵢⱼ[:,:,p].= mpD.ΔFᵢⱼ[:,:,p]*mpD.Bᵢⱼ[:,:,p]*mpD.ΔFᵢⱼ[:,:,p]'
+        # compute logarithmic strain tensor
+        λ,n            = eigen(mpD.Bᵢⱼ[:,:,p],sortby=nothing)
+        mpD.ϵᵢⱼ[:,:,p].= 0.5.*(n*diagm(log.(λ))*n')
+        # krichhoff stress tensor
+        mpD.τᵢ[:,p]    = Del*mutate(mpD.ϵᵢⱼ[:,:,p],2.0,:voigt)
     end
 end
-@views @kernel inbounds = true function transform!(mpD)
+@views @kernel inbounds = true function infinitesimal_elast(mpD,Del,instr)
+    p = @index(Global)
+    if p ≤ mpD.nmp 
+        # calculate elastic strains & spins
+        mpD.ϵᵢⱼ[:,:,p] .= 0.5.*(mpD.ΔFᵢⱼ[:,:,p]+mpD.ΔFᵢⱼ[:,:,p]').-mpD.δᵢⱼ[:,:] 
+        mpD.ωᵢⱼ[:,:,p] .= 0.5.*(mpD.ΔFᵢⱼ[:,:,p]-mpD.ΔFᵢⱼ[:,:,p]')
+        # update cauchy stress tensor
+        mpD.σJᵢⱼ[:,:,p].= mutate(mpD.σᵢ[:,p],1.0,:tensor)
+        mpD.σJᵢⱼ[:,:,p].= mpD.σJᵢⱼ[:,:,p]*mpD.ωᵢⱼ[:,:,p]'+mpD.σJᵢⱼ[:,:,p]'*mpD.ωᵢⱼ[:,:,p]
+        mpD.σᵢ[:,p]   .+= Del*mutate(mpD.ϵᵢⱼ[:,:,p],2.0,:voigt).+mutate(mpD.σJᵢⱼ[:,:,p],1.0,:voigt)
+    end  
+end
+@views @kernel inbounds = true function transform(mpD)
     p = @index(Global)
     # deformation framework dispatcher
     if p ≤ mpD.nmp 
-        mpD.σᵢ[:,p] .= mpD.τᵢ[:,p]./mpD.J[p]
+        mpD.σᵢ[:,p].= mpD.τᵢ[:,p]./mpD.J[p]
     end   
 end
 
-function init_stress(instr;what="τorσ!")
+function init_stress(instr)
     if instr[:perf]
-        kernel1 = ELAST!(CPU())
+        kernel1 = ELAST(CPU())
     else
-        kernel1 = elast!(CPU())
+        # deformation framework dispatcher
+        if instr[:fwrk][:deform] == "finite"
+            kernel1 = finite_elast(CPU())
+        elseif instr[:fwrk][:deform] == "infinitesimal"
+            kernel1 = infinitesimal_elast(CPU())
+        end
     end
-    kernel2 = transform!(CPU())
+    kernel2 = transform(CPU())
     return (;τorσ! = kernel1, cauchy! = kernel2,)
 end
+
+
 function stress(mpD,cmParam,instr,type)
     if type == :update
-        instr[:cairn][:elastoplast][:stress].τorσ!(mpD,cmParam.Del,instr; ndrange=mpD.nmp);sync(CPU())
+        instr[:cairn][:elastoplast][:stress].τorσ!(ndrange=mpD.nmp,mpD,cmParam.Del,instr);sync(CPU())
     elseif type == :cauchy
-        instr[:cairn][:elastoplast][:stress].cauchy!(mpD; ndrange=mpD.nmp);sync(CPU())
+        instr[:cairn][:elastoplast][:stress].cauchy!(ndrange=mpD.nmp,mpD);sync(CPU())
     end
     return nothing
 end
