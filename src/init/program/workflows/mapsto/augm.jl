@@ -29,5 +29,16 @@ end
         end
         mpD.u[p,dim]+= Δu
     end
-
+end
+function augm(mpD,meD,Δt,instr)
+    # initialize for DM
+    meD.pn.= 0.0
+    meD.vn.= 0.0
+    # accumulate material point contributions
+    instr[:cairn][:mapsto][:augm].p2n!(ndrange=mpD.nmp,mpD,meD);sync(CPU())
+    # solve for nodal incremental displacement
+    instr[:cairn][:mapsto][:augm].solve!(ndrange=meD.nno[end],meD);sync(CPU())
+    # update material point's displacement
+    instr[:cairn][:mapsto][:augm].Δu!(ndrange=mpD.nmp,mpD,meD,Δt);sync(CPU())
+    return nothing
 end

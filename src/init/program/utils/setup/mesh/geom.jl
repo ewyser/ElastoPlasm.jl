@@ -29,10 +29,8 @@ function getcoords(nD,nn,L,h;ghosts::Vector=[0.0])
         nno   = [length(x),length(z),length(x)*length(z)] 
         nel   = [nno[1]-1  ,nno[2]-1  ,(nno[1]-1)*(nno[2]-1)]
 
-        x     = reshape(x,1        ,length(x))
-        z     = reshape(z,length(z),1        )
-        xn    =  repeat(x,length(z),1        )
-        zn    =  repeat(z,        1,length(x))
+        xn    = repeat(reshape(x,1        ,length(x)),length(z),1        )
+        zn    = repeat(reshape(z,length(z),1        ),        1,length(x))
     elseif nD == 3
         x0 = [0.0-ghosts[1],L[1]+ghosts[1]]
         y0 = [0.0-ghosts[2],L[2]+ghosts[2]]

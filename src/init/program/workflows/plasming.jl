@@ -1,17 +1,20 @@
-function ϵp23De!(mpD,meD,cmParam,g,T,te,tg,instr)
+function plasming!(mpD,meD,cmParam,g,T,te,tg,instr)
     @info """
-    launch ϵp$(meD.nD)De v$(getVersion()):
+    launching ϵlastσPlasm 👻 v$(getVersion()):
     - $(nthreads()) active thread(s) 
     - $(instr[:fwrk][:deform]) strain formulation
     - $(instr[:basis][:which]) calculation cycle
     - $(if instr[:fwrk][:locking] "F-bar locking mitigation" else "no locking mitigation" end)
-    - $(if first(instr[:nonloc]) "non-local plastic regularization" else nonlocal = "local plastic formulation" end)
+    - $(if instr[:nonloc][:status] "non-local plastic regularization" else nonlocal = "local plastic formulation" end)
     """
     t,tC,it,ηmax,ηtot = 0.0,instr[:plot][:freq],0,0,0
     # action
-    prog = ProgressUnknown("ϵp23De! working:", spinner=true,showspeed=true)
+    
+    prog = ProgressUnknown("plasming...", spinner=true,showspeed=true)
     for (k,time) ∈ enumerate(sort(unique([collect(t+tC:tC:T);te;T])))
-        if t > te instr[:plast] = (true,last(instr[:plast])) end
+        if t > te 
+            instr[:plast][:status] = true 
+        end
         # plot/save
         savlot(mpD,meD,t,instr)
         while t<time
@@ -32,4 +35,4 @@ function ϵp23De!(mpD,meD,cmParam,g,T,te,tg,instr)
     ProgressMeter.finish!(prog, spinner = '✓',showvalues = getvals(meD,mpD,it,ηmax,ηtot,1.0,"(✓)"))
     return savlot(mpD,meD,t,instr)
 end
-export ϵp23De!
+export plasming!

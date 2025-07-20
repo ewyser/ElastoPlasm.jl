@@ -1,12 +1,12 @@
 function init_plast(instr)
     kernel1 = nonlocal(CPU())
-    if last(instr[:plast]) == "MC"
+    if instr[:plast][:constitutive] == "MC"
         #ηmax = MCRetMap!(mpD,ϵpII,cmParam,instr[:fwrk])
-    elseif last(instr[:plast]) == "DP"        
+    elseif instr[:plast][:constitutive] == "DP"        
         kernel2 = DP!(CPU())
-    elseif last(instr[:plast]) == "J2"
+    elseif instr[:plast][:constitutive] == "J2"
         kernel2 = J2!(CPU())
-    elseif last(instr[:plast]) == "camC"
+    elseif instr[:plast][:constitutive] == "camC"
         #ηmax = camCRetMap!(mpD,cmParam,instr[:fwrk])
     else
         err_msg = "$(cmParam[:cmType]): invalid return mapping for plastic correction"
@@ -16,7 +16,7 @@ function init_plast(instr)
 end
 function plast!(mpD,meD,cmParam,instr)
     # nonlocal regularization
-    if cmParam[:nonlocal][:cond]
+    if cmParam[:nonlocal][:status]
         ls      = cmParam[:nonlocal][:ls]
         mpD.e2p.= Int(0)
         mpD.p2p.= Int(0)

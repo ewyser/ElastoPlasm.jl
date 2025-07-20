@@ -53,6 +53,9 @@ end
         end
     end
 end
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# TPIC transfer scheme, see Nakamura etal, 2023, https://doi.org/10.1016/j.cma.2022.115720
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 @kernel inbounds = true function tpic_2d_p2n(mpD,meD,g)
     p = @index(Global)
     for dim ∈ 1:meD.nD
@@ -89,4 +92,13 @@ end
             end
         end
     end
+end
+function p2n(mpD,meD,g,Δt,instr)
+    # initialize nodal quantities
+    meD.mn  .= 0.0
+    meD.pn  .= 0.0
+    meD.oobf.= 0.0
+    # mapping to mesh
+    instr[:cairn][:mapsto][:map].p2n!(ndrange=mpD.nmp,mpD,meD,g);sync(CPU())
+    return nothing
 end

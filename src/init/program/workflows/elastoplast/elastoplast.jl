@@ -8,7 +8,7 @@ function elastoplast(mpD,meD,cmParam,Δt,instr)
     # update {kirchoff|cauchy} stresses
     stress(mpD,cmParam,instr,:update)
     # plastic corrector
-    if first(instr[:plast]) 
+    if instr[:plast][:status] 
         ηmax = plast!(mpD,meD,cmParam,instr) 
     else 
         ηmax = 0 

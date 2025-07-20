@@ -40,22 +40,32 @@ function require(in::Symbol=:instr)
     if in == :instr
         instr = Dict(
             :dtype   => Int64(64),
-            :basis   => (;which="bsmpm",
-                        how=nothing,
-                        ghost=false,
+            :basis   => (;
+                            which="bsmpm",
+                            how=nothing,
+                            ghost=false,
                         ),
-            :fwrk    => (;deform = "finite",
-                        trsfr = "mUSL",
-                        locking = true
+            :fwrk    => (;
+                            deform = "finite",
+                            trsfr = "musl",
+                            locking = true,
                         ),
-            :GRF     => false,
-            :plast   => (false,"DP"),
-            :nonloc  => (;cond=false,
-                        ls=0.5,),
-            :plot    => (;cond=true,
-                        freq=1.0,
-                        what=["epII"],
-                        dims=(500.0,250.0),
+            :GRF     => (;
+                            status = false,
+                        ),
+            :plast   => Dict(
+                            :status=>false,
+                            :constitutive=>"DP",
+                        ),
+            :nonloc  => (;
+                            status=true,
+                            ls=0.5,
+                        ),
+            :plot    => (;
+                            status=true,
+                            freq=1.0,
+                            what=["epII"],
+                            dims=(500.0,250.0),
                         ),
             :perf    => false,
         )

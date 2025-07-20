@@ -14,3 +14,14 @@
         end
     end
 end
+@views function solve(meD,Δt,instr)
+    # viscous damping
+    η      = 0.1
+    # initialize
+    meD.fn.= 0.0
+    meD.an.= 0.0
+    meD.vn.= 0.0
+    # solve momentum equation on the mesh using backend-agnostic kernel
+    instr[:cairn][:mapsto][:map].solve!(ndrange=meD.nno[end],meD,Δt,η);sync(CPU())
+    return nothing
+end

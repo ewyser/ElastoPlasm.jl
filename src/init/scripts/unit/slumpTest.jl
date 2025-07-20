@@ -11,7 +11,7 @@ function slumpTest()
     @testset "slump()" verbose = true begin
         for shp ∈ ["bsmpm","gimpm"]#["bsmpm","smpm","gimpm"]
             for fwrk ∈ ["finite","infinitesimal"]
-                for scheme ∈ ["mUSL","tpicUSL"]
+                for scheme ∈ ["musl","tpic"]
                     @testset "$(scheme), $(fwrk), $(shp)" verbose = true begin
                         @test isa(slumpCheck(scheme,fwrk,shp),Dict) 
                     end

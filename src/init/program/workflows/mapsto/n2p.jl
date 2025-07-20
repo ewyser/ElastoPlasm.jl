@@ -27,3 +27,8 @@ end
         end
     end  
 end
+function n2p(mpD,meD,Δt,instr)
+    # mapping to material point
+    instr[:cairn][:mapsto][:map].n2p!(ndrange=mpD.nmp,mpD,meD,Δt);sync(CPU())
+    return nothing
+end
