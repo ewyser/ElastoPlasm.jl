@@ -19,12 +19,12 @@
     end
     return min(Δt,t-tw)
 end
-function get_g(tw::Float64,tg::Float64,nD::Int64)
+function get_g(tw::Float64,tg::Float64,ndim::Int64)
     g = 0.0
     if tw<=tg 
         g = 9.81*tw/tg 
     else
         g = 9.81
     end
-    return if nD == 1 g = [-g] elseif nD == 2 g = [0.0 -g] elseif nD == 3 g = [0.0 0.0 -g] end
+    return if ndim == 1 g = [-g] elseif ndim == 2 g = [0.0 -g] elseif ndim == 3 g = [0.0 0.0 -g] end
 end

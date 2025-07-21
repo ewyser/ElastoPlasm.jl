@@ -1,6 +1,6 @@
-function e2n(nD,nno,nel,nn)
+function e2n(ndim,nno,nel,nn)
 	iel,e2n =1,zeros(Int64,nn,nel[end])
-    if nD == 1
+    if ndim == 1
         gnum = collect(1:nno[end])
         for i0 ∈ 1:nel[1]#nelx
             nno = []
@@ -14,7 +14,7 @@ function e2n(nD,nno,nel,nn)
             e2n[:,iel].= nno
             iel        = iel+1
         end
-    elseif nD == 2
+    elseif ndim == 2
         gnum = reshape(1:(nno[end]),nno[2],nno[1])
         for i0 ∈ 1:nel[1]#nelx
             for j0 ∈ 1:nel[2]#nelz
@@ -32,7 +32,7 @@ function e2n(nD,nno,nel,nn)
                 iel        = iel+1
             end
         end
-    elseif nD == 3
+    elseif ndim == 3
         gnum = reshape(1:(nno[end]),nno[3],nno[1],nno[2])
         for k0 ∈ 1:nel[2]#nely
             for i0 ∈ 1:nel[1]#nelx

@@ -51,7 +51,7 @@ function require(in::Symbol=:instr)
                             locking = true,
                         ),
             :GRF     => (;
-                            status = false,
+                            status = true,
                         ),
             :plast   => Dict(
                             :status=>false,
@@ -64,7 +64,7 @@ function require(in::Symbol=:instr)
             :plot    => (;
                             status=true,
                             freq=1.0,
-                            what=["epII"],
+                            what=["epII","coh0"],
                             dims=(500.0,250.0),
                         ),
             :perf    => false,

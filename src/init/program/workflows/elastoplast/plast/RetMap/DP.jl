@@ -30,55 +30,55 @@ end
     end
     return σn 
 end
-@views @kernel inbounds = true function DP!(mpD,cmParam,instr)
+@views @kernel inbounds = true function DP!(mp,cmParam,instr)
     p = @index(Global)
-    if p≤mpD.nmp 
-        mpD.Δλ[p] = 0.0
-        ψ,nstr   = 0.0*π/180.0,size(mpD.σᵢ,1)
+    if p≤mp.nmp 
+        mp.Δλ[p] = 0.0
+        ψ,nstr   = 0.0*π/180.0,size(mp.σᵢ,1)
         # create an alias for stress tensor
         if instr[:fwrk][:deform] == "finite"
-            σ = mpD.τᵢ
+            σ = mp.τᵢ
         elseif instr[:fwrk][:deform] == "infinitesimal"
-            σ = mpD.σᵢ
+            σ = mp.σᵢ
         end
         if first(instr[:nonloc])
-            ϵII0 = mpD.ϵpII[:,2]
+            ϵII0 = mp.ϵpII[2,:]
         else
-            ϵII0 = mpD.ϵpII[:,1]
+            ϵII0 = mp.ϵpII[1,:]
         end
         # closed-form solution return-mapping for D-P
-        c   = mpD.c₀[p]+cmParam.Hp*ϵII0[p]
-        if c<mpD.cᵣ[p] c = mpD.cᵣ[p] end
+        c   = mp.c₀[p]+cmParam.Hp*ϵII0[p]
+        if c<mp.cᵣ[p] c = mp.cᵣ[p] end
         P,τ0,τII = σTr(σ[:,p],nstr)
-        η,ηB,ξ   = materialParam(mpD.ϕ[p],ψ,c,nstr)
+        η,ηB,ξ   = materialParam(mp.ϕ[p],ψ,c,nstr)
         σm,τP    = ξ/η,ξ-η*(ξ/η)
         fs,ft    = τII+η*P-ξ,P-σm         
         αP,h     = sqrt(1.0+η^2)-η,τII-τP-(sqrt(1.0+η^2))*(P-σm)  
         if fs>0.0 && P<σm || h>0.0 && P≥σm 
             Δλ        = fs/(cmParam.Gc+cmParam.Kc*η*ηB)
-            mpD.Δλ[p] = Δλ
+            mp.Δλ[p] = Δλ
             Pn,τn     = P-cmParam.Kc*ηB*Δλ,ξ-η*(P-cmParam.Kc*ηB*Δλ)
             σ[:,p]   .= σn(Pn,τ0,τn,τII,nstr)
             if instr[:fwrk][:deform] == "finite"
-                mpD.ϵᵢⱼ[:,:,p].= mutate(cmParam.Del\σ[:,p],0.5,:tensor)
+                mp.ϵᵢⱼ[:,:,p].= mutate(cmParam.Del\σ[:,p],0.5,:tensor)
                 # update left cauchy green tensor
-                λ,n            = eigen(mpD.ϵᵢⱼ[:,:,p],sortby=nothing)
-                mpD.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
+                λ,n            = eigen(mp.ϵᵢⱼ[:,:,p],sortby=nothing)
+                mp.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
             end
-            mpD.ϵpII[p,1]+= Δλ*sqrt(1/3+2/9*ηB^2)
+            mp.ϵpII[1,p]+= Δλ*sqrt(1/3+2/9*ηB^2)
         end
         if h≤0.0 && P≥σm
             Δλ        = (P-σm)/cmParam.Kc
-            mpD.Δλ[p] = Δλ
+            mp.Δλ[p] = Δλ
             Pn        = σm-P
             σ[:,p]   .= σn(Pn,τ0,0.0,τII,nstr)
             if instr[:fwrk][:deform] == "finite"
-                mpD.ϵᵢⱼ[:,:,p].= mutate(cmParam.Del\σ[:,p],0.5,:tensor)
+                mp.ϵᵢⱼ[:,:,p].= mutate(cmParam.Del\σ[:,p],0.5,:tensor)
                 # update left cauchy green tensor
-                λ,n            = eigen(mpD.ϵᵢⱼ[:,:,p],sortby=nothing)
-                mpD.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
+                λ,n            = eigen(mp.ϵᵢⱼ[:,:,p],sortby=nothing)
+                mp.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
             end
-            mpD.ϵpII[p,1]+= sqrt(2.0)*Δλ/3.0
+            mp.ϵpII[1,p]+= sqrt(2.0)*Δλ/3.0
         end
     end
 end

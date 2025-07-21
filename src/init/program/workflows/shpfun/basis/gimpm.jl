@@ -12,54 +12,54 @@ function S∂S(δx,h,lp)
     end
     return S,∂S    
 end
-@views @kernel inbounds = true function gimpm_1d(mpD,meD)
+@views @kernel inbounds = true function gimpm_1d(mp,mesh)
     p = @index(Global)
     # calculate shape functions
-    if p ≤ mpD.nmp
-        for (nn,no) ∈ enumerate(mpD.p2n[:,p]) if no<1 continue end
+    if p ≤ mp.nmp
+        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             # compute basis functions
-            ξ      = (mpD.x[p,1]-meD.xn[no,1])
-            ϕx,dϕx = S∂S(ξ,meD.h[1],mpD.ℓ[p,1]) 
+            ξ      = (mp.x[p]-mesh.xn[no]) 
+            ϕx,dϕx = S∂S(ξ,mesh.h[1],mp.ℓ[p]) 
             # convolution of basis function
-            mpD.ϕ∂ϕ[nn,p,1] =  ϕx
-            mpD.ϕ∂ϕ[nn,p,2] = dϕx
+            mp.ϕ∂ϕ[nn,p,1] =  ϕx
+            mp.ϕ∂ϕ[nn,p,2] = dϕx
         end
     end
 end
-@views @kernel inbounds = true function gimpm_2d(mpD,meD)
+@views @kernel inbounds = true function gimpm_2d(mp,mesh)
     p = @index(Global)
     # calculate shape functions
-    if p ≤ mpD.nmp
-        for (nn,no) ∈ enumerate(mpD.p2n[:,p]) if no<1 continue end
+    if p ≤ mp.nmp
+        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             # compute basis functions
-            ξ      = (mpD.x[p,1]-meD.xn[no,1])
-            η      = (mpD.x[p,2]-meD.xn[no,2])
-            ϕx,dϕx = S∂S(ξ,meD.h[1],mpD.ℓ[p,1]) 
-            ϕz,dϕz = S∂S(η,meD.h[2],mpD.ℓ[p,2])
+            ξ      = (mp.x[1,p]-mesh.xn[1,no]) 
+            η      = (mp.x[2,p]-mesh.xn[2,no])
+            ϕx,dϕx = S∂S(ξ,mesh.h[1],mp.ℓ[1,p]) 
+            ϕz,dϕz = S∂S(η,mesh.h[2],mp.ℓ[2,p])
             # convolution of basis function
-            mpD.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
-            mpD.ϕ∂ϕ[nn,p,2] = dϕx*  ϕz                                        
-            mpD.ϕ∂ϕ[nn,p,3] =  ϕx* dϕz
+            mp.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
+            mp.ϕ∂ϕ[nn,p,2] = dϕx*  ϕz                                        
+            mp.ϕ∂ϕ[nn,p,3] =  ϕx* dϕz
         end
     end
 end
-@views @kernel inbounds = true function gimpm_3d(mpD,meD)
+@views @kernel inbounds = true function gimpm_3d(mp,mesh)
     p = @index(Global)
     # calculate shape functions
-    if p ≤ mpD.nmp
-        for (nn,no) ∈ enumerate(mpD.p2n[:,p]) if no<1 continue end
+    if p ≤ mp.nmp
+        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             # compute basis functions
-            ξ      = (mpD.x[p,1]-meD.xn[no,1])
-            η      = (mpD.x[p,2]-meD.xn[no,2])
-            ζ      = (mpD.x[p,3]-meD.xn[no,3])
-            ϕx,dϕx = S∂S(ξ,meD.h[1],mpD.ℓ[p,1])
-            ϕy,dϕy = S∂S(η,meD.h[2],mpD.ℓ[p,2])
-            ϕz,dϕz = S∂S(ζ,meD.h[3],mpD.ℓ[p,3])
+            ξ      = (mp.x[1,p]-mesh.xn[1,no]) 
+            η      = (mp.x[2,p]-mesh.xn[2,no])
+            ζ      = (mp.x[3,p]-mesh.xn[3,no])
+            ϕx,dϕx = S∂S(ξ,mesh.h[1],mp.ℓ[1,p])
+            ϕy,dϕy = S∂S(η,mesh.h[2],mp.ℓ[2,p])
+            ϕz,dϕz = S∂S(ζ,mesh.h[3],mp.ℓ[3,p])
             # convolution of basis function
-            mpD.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕy*  ϕz                                                                                
-            mpD.ϕ∂ϕ[nn,p,2] = dϕx*  ϕy*  ϕz                                                                                
-            mpD.ϕ∂ϕ[nn,p,3] =  ϕx* dϕy*  ϕz                                   
-            mpD.ϕ∂ϕ[nn,p,4] =  ϕx*  ϕy* dϕz    
+            mp.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕy*  ϕz                                                                                
+            mp.ϕ∂ϕ[nn,p,2] = dϕx*  ϕy*  ϕz                                                                                
+            mp.ϕ∂ϕ[nn,p,3] =  ϕx* dϕy*  ϕz                                   
+            mp.ϕ∂ϕ[nn,p,4] =  ϕx*  ϕy* dϕz    
         end
     end
 end

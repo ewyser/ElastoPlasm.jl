@@ -1,24 +1,24 @@
-function inicmp(meD,cmParam,instr,ni;ℓ₀=0.0)
+function inicmp(mesh,cmParam,instr,ni;ℓ₀=0.0)
     coh0,cohr,phi0= cmParam[:c0],cmParam[:cr],cmParam[:ϕ0]
-    if meD.nD == 2
-        xL          = meD.xB[1]+(0.5*meD.h[1]/ni):meD.h[1]/ni:meD.xB[2]
-        zL          = meD.xB[3]+(0.5*meD.h[2]/ni):meD.h[2]/ni:ℓ₀-0.5*meD.h[2]/ni
+    if mesh.dim == 2
+        xL          = mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2]
+        zL          = mesh.xB[3]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:ℓ₀-0.5*mesh.h[2]/ni
         npx,npz     = length(xL),length(zL)
         xp,zp       = ((xL'.*ones(npz,1  )      )),((     ones(npx,1  )'.*zL )) 
         xp,zp       = vec(xp),vec(zp)
-    elseif meD.nD == 3
-        xL          = meD.xB[1]+(0.5*meD.h[1]/ni):meD.h[1]/ni:meD.xB[2]
-        yL          = meD.xB[3]+(0.5*meD.h[2]/ni):meD.h[2]/ni:meD.xB[4]
-        zL          = meD.xB[5]+(0.5*meD.h[3]/ni):meD.h[3]/ni:ℓ₀-0.5*meD.h[3]/ni
+    elseif mesh.dim == 3
+        xL          = mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2]
+        yL          = mesh.xB[3]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:mesh.xB[4]
+        zL          = mesh.xB[5]+(0.5*mesh.h[3]/ni):mesh.h[3]/ni:ℓ₀-0.5*mesh.h[3]/ni
         npx,npy,npz = length(xL),length(yL),length(zL)
         xp          = (xL'.*ones(npz,1  )      ).*ones(1,1,npy)
         yp          = (     ones(npz,npx)      ).*reshape(yL,1,1,npy)
         zp          = (     ones(npx,1  )'.*zL ).*ones(1,1,npy)
         xp,yp,zp    = vec(xp),vec(yp),vec(zp)
     end
-    if meD.nD == 2 
+    if mesh.dim == 2 
         xp = hcat(xp,zp) 
-    elseif meD.nD == 3 
+    elseif mesh.dim == 3 
         xp = hcat(xp,yp,zp) 
     end
     id   = shuffle(collect(1:size(xp,1)))
@@ -28,13 +28,13 @@ function inicmp(meD,cmParam,instr,ni;ℓ₀=0.0)
     return ni,size(xp,1),(;xp=xp,coh0=coh0,cohr=cohr,phi=phi,)
 end
 
-@views function plotStuff(mpD,t,type,ctr,title)
+@views function plotStuff(mp,t,type,ctr,title)
     xlab,ylab = L"$x-$direction",L"$z-$direction"
     gr(size=(2*250,2*125),legend=true,markersize=2.5,markershape=:circle,markerstrokewidth=0.0,markerstrokecolor=:match,)
     temp = title
     if type == "P"
-        p = -mpD.σ[end,:]/1e3
-        scatter(mpD.x[:,1],mpD.x[:,2],zcolor=p,
+        p = -mp.σ[end,:]/1e3
+        scatter(mp.x[:,1],mp.x[:,2],zcolor=p,
             xlabel = xlab,
             ylabel = ylab,
             label=L"$\sigma_{zz}$",
@@ -66,22 +66,22 @@ function compactTest(dim,nel,varPlot,ν,E,ρ0,l0; kwargs...)
     tg      = ceil((1.0/cmParam.c)*(2.0*l0)*40.0)
     T,te    = 1.25*tg,1.25*tg   
     # mesh & mp setup
-    meD     = meshSetup(nel,L,instr)    
-    setgeom = inicmp(meD,cmParam,instr,ni;ℓ₀=l0) 
-    mpD     = pointSetup(meD,cmParam,instr;define=setgeom)                                        
-    z0      = copy(mpD.x[:,end])
+    mesh     = meshSetup(nel,L,instr)    
+    setgeom = inicmp(mesh,cmParam,instr,ni;ℓ₀=l0) 
+    mp     = pointSetup(mesh,cmParam,instr;define=setgeom)                                        
+    z0      = copy(mp.x[:,end])
     # action
-    out = ϵp23De!(mpD,meD,cmParam,g,T,te,tg,instr)    
+    out = ϵp23De!(mp,mesh,cmParam,g,T,te,tg,instr)    
     # analytics
-    if meD.nD==2
-        xN,yN = abs.(mpD.σᵢ[2,:]),z0
-    elseif meD.nD==3
-        xN,yN = abs.(mpD.σᵢ[3,:]),z0
+    if mesh.dim==2
+        xN,yN = abs.(mp.σᵢ[2,:]),z0
+    elseif mesh.dim==3
+        xN,yN = abs.(mp.σᵢ[3,:]),z0
     end
     xA,yA = abs.(cmParam.ρ0.*g.*(l0.-z0)),z0
-    err   = sum(sqrt.((xN.-xA).^2).*mpD.Ω₀)/(abs(g[end])*cmParam.ρ0*l0*sum(mpD.Ω₀)) 
+    err   = sum(sqrt.((xN.-xA).^2).*mp.Ω₀)/(abs(g[end])*cmParam.ρ0*l0*sum(mp.Ω₀)) 
 
-    return (xN,yN,xA,yA),meD.h,err 
+    return (xN,yN,xA,yA),mesh.h,err 
 end
 @views function compacTest(dim,mapping)
     basistype = "gimpm"

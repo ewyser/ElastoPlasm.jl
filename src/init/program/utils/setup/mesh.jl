@@ -1,6 +1,6 @@
 function meshSetup(nel,L,instr)
     # geometry                                               
-    L,h,nD,nn = getinfo(L,nel)
+    L,h,ndim,nn = getinfo(L,nel)
     if instr[:basis][:ghost]
         @info "init Eulerian mesh and adding ghosts"
         buffer = 2.0.*h
@@ -9,37 +9,37 @@ function meshSetup(nel,L,instr)
         buffer = 0.0.*h            
     end
     # mesh 
-    xn,nel,nno = getcoords(nD,nn,L,h;ghosts=buffer)
+    xn,nel,nno = get_coords(ndim,nn,L,h;ghosts=buffer)
     # boundary conditions
-    bc,xB      = getbc(xn,h,nno,nD;ghosts=buffer)
+    bc,xB      = get_bc(xn,h,nno,ndim;ghosts=buffer)
     # constructor 
-    meD = (
-        nD   = nD,
+    mesh = (
+        dim  = ndim,
         nel  = nel,
         nno  = nno,
         nn   = nn,
         L    = L,
         h    = h,
         # nodal quantities
-        x₀   = minimum(xn,dims=1),
+        x₀   = vec(minimum(xn,dims=2)),
         xn   = xn,
-        mn   = zeros(nno[end]            ), # lumped mass vector
-        Mn   = zeros(nno[end],nno[end]   ), # consistent mass matrix
-        oobf = zeros(nno[end],nD         ),
-        Dn   = zeros(nno[end],nD         ),
-        fn   = zeros(nno[end],nD         ),
-        an   = zeros(nno[end],nD         ),
-        pn   = zeros(nno[end],nD         ),
-        vn   = zeros(nno[end],nD         ),
-        Δun  = zeros(nno[end],nD         ),
-        ΔJn  = zeros(nno[end],nD         ),
-        bijn = zeros(nD      ,nD,nno[end]),
+        mn   = zeros(nno[end]              ), # lumped mass vector
+        Mn   = zeros(nno[end],nno[end]     ), # consistent mass matrix
+        oobf = zeros(ndim,nno[end]         ),
+        Dn   = zeros(ndim,nno[end]         ),
+        fn   = zeros(ndim,nno[end]         ),
+        an   = zeros(ndim,nno[end]         ),
+        pn   = zeros(ndim,nno[end]         ),
+        vn   = zeros(ndim,nno[end]         ),
+        Δun  = zeros(ndim,nno[end]         ),
+        ΔJn  = zeros(ndim,nno[end]         ),
+        bijn = zeros(ndim,ndim,nno[end]    ),
         # mesh-to-node topology
-        e2n  = e2n(nD,nno,nel,nn),
-        e2e  = e2e(nD,nno,nel,nn,h,instr),
+        e2n  = e2n(ndim,nno,nel,nn),
+        e2e  = e2e(ndim,nno,nel,nn,h,instr),
         xB   = xB,
         # mesh boundary conditions
         bc   = bc,
     )
-    return meD
+    return mesh
 end

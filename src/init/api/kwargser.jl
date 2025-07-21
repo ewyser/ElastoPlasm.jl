@@ -27,13 +27,11 @@ function kwargser(type::Symbol,kwargs::Any;dim::Number = 2)
         # add cairns (abstract kernels) to instr set
         instr[:cairn] = (;
             shpfun = init_shpfun(dim,instr),
-            mapsto = init_mapsto(dim,instr[:fwrk][:trsfr]),
+            mapsto = init_mapsto(dim,instr),
             elastoplast = (;
-                deform! = init_deformation(instr),
-                Fbar    = init_volumetric(),
-                update! = init_domain(instr[:basis]),
-                stress  = init_stress(instr),
-                plast   = init_plast(instr),
+                update = init_update(instr),
+                elast  = init_elast(instr),
+                plast  = init_plast(instr),
             )
         )
         return instr

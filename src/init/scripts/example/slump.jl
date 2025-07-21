@@ -13,13 +13,13 @@ function slump(L::Vector{Float64},nel::Int64; kwargs...)
     cmParam = cm(length(L),instr)
     T,te,tg = 15.0,10.0,15.0/1.5                                 
     # mesh & mp setup
-    meD     = meshSetup(nel,L,instr)      
-    setgeom = inislump(meD,cmParam,ni,instr)                       
-    mpD     = pointSetup(meD,cmParam,instr;define=setgeom)
+    mesh     = meshSetup(nel,L,instr)      
+    setgeom = inislump(mesh,cmParam,ni,instr)                       
+    mp     = pointSetup(mesh,cmParam,instr;define=setgeom)
     # plot initial cohesion field
-    plotcoh(mpD,cmParam,paths)
+    plotcoh(mp,cmParam,paths)
     # action
-    out     = plasming!(mpD,meD,cmParam,g,T,te,tg,instr)
+    out     = plasming!(mp,mesh,cmParam,g,T,te,tg,instr)
     # postprocessing
     sleep(2.5)
     @info "fig(s) saved at $(paths[:plot])"

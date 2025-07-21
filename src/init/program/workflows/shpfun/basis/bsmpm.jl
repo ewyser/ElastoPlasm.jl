@@ -68,54 +68,54 @@ function ϕ∂ϕ(ξ,xn,xB,Δx)
         return ϕ,∂ϕ/Δx
     end    
 end
-@views @kernel inbounds = true function bsmpm_1d(mpD,meD)
+@views @kernel inbounds = true function bsmpm_1d(mp,mesh)
     p = @index(Global)
     # calculate shape functions
-    if p ≤ mpD.nmp
-        for (nn,no) ∈ enumerate(mpD.p2n[:,p]) if no<1 continue end
+    if p ≤ mp.nmp
+        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             # compute basis functions
-            ξ      = (mpD.x[p,1]-meD.xn[no,1]) 
-            ϕx,dϕx = ϕ∂ϕ(ξ/meD.h[1],meD.xn[no,1],meD.xB[1:2],meD.h[1])
+            ξ      = (mp.x[p]-mesh.xn[no]) 
+            ϕx,dϕx = ϕ∂ϕ(ξ/mesh.h[1],mesh.xn[no],mesh.xB[1:2],mesh.h[1])
             # convolution of basis function
-            mpD.ϕ∂ϕ[nn,p,1] =  ϕx
-            mpD.ϕ∂ϕ[nn,p,2] = dϕx
+            mp.ϕ∂ϕ[nn,p,1] =  ϕx
+            mp.ϕ∂ϕ[nn,p,2] = dϕx
         end
     end
 end
-@views @kernel inbounds = true function bsmpm_2d(mpD,meD)
+@views @kernel inbounds = true function bsmpm_2d(mp,mesh)
     p = @index(Global)
     # calculate shape functions
-    if p ≤ mpD.nmp
-        for (nn,no) ∈ enumerate(mpD.p2n[:,p]) if no<1 continue end
+    if p ≤ mp.nmp
+        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             # compute basis functions
-            ξ      = (mpD.x[p,1]-meD.xn[no,1]) 
-            η      = (mpD.x[p,2]-meD.xn[no,2])
-            ϕx,dϕx = ϕ∂ϕ(ξ/meD.h[1],meD.xn[no,1],meD.xB[1:2],meD.h[1])
-            ϕz,dϕz = ϕ∂ϕ(η/meD.h[2],meD.xn[no,2],meD.xB[3:4],meD.h[2])
+            ξ      = (mp.x[1,p]-mesh.xn[1,no]) 
+            η      = (mp.x[2,p]-mesh.xn[2,no])
+            ϕx,dϕx = ϕ∂ϕ(ξ/mesh.h[1],mesh.xn[1,no],mesh.xB[1:2],mesh.h[1])
+            ϕz,dϕz = ϕ∂ϕ(η/mesh.h[2],mesh.xn[2,no],mesh.xB[3:4],mesh.h[2])
             # convolution of basis function
-            mpD.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
-            mpD.ϕ∂ϕ[nn,p,2] = dϕx*  ϕz                                        
-            mpD.ϕ∂ϕ[nn,p,3] =  ϕx* dϕz   
+            mp.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
+            mp.ϕ∂ϕ[nn,p,2] = dϕx*  ϕz                                        
+            mp.ϕ∂ϕ[nn,p,3] =  ϕx* dϕz   
         end
     end
 end
-@views @kernel inbounds = true function bsmpm_3d(mpD,meD)
+@views @kernel inbounds = true function bsmpm_3d(mp,mesh)
     p = @index(Global)
     # calculate shape functions
-    if p ≤ mpD.nmp
-        for (nn,no) ∈ enumerate(mpD.p2n[:,p]) if no<1 continue end
+    if p ≤ mp.nmp
+        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             # compute basis functions
-            ξ      = (mpD.x[p,1]-meD.xn[no,1])
-            η      = (mpD.x[p,2]-meD.xn[no,2])
-            ζ      = (mpD.x[p,3]-meD.xn[no,3])
-            ϕx,dϕx = ϕ∂ϕ(ξ/meD.h[1],meD.xn[no,1],meD.xB[1:2],meD.h[1])
-            ϕy,dϕy = ϕ∂ϕ(η/meD.h[2],meD.xn[no,2],meD.xB[3:4],meD.h[2])
-            ϕz,dϕz = ϕ∂ϕ(ζ/meD.h[3],meD.xn[no,3],meD.xB[5:6],meD.h[3])
+            ξ      = (mp.x[1,p]-mesh.xn[1,no]) 
+            η      = (mp.x[2,p]-mesh.xn[2,no])
+            ζ      = (mp.x[3,p]-mesh.xn[3,no])
+            ϕx,dϕx = ϕ∂ϕ(ξ/mesh.h[1],mesh.xn[1,no],mesh.xB[1:2],mesh.h[1])
+            ϕy,dϕy = ϕ∂ϕ(η/mesh.h[2],mesh.xn[2,no],mesh.xB[3:4],mesh.h[2])
+            ϕz,dϕz = ϕ∂ϕ(ζ/mesh.h[3],mesh.xn[3,no],mesh.xB[5:6],mesh.h[3])
             # convolution of basis function
-            mpD.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕy*  ϕz                                                                                
-            mpD.ϕ∂ϕ[nn,p,2] = dϕx*  ϕy*  ϕz                                                                                
-            mpD.ϕ∂ϕ[nn,p,3] =  ϕx* dϕy*  ϕz                                   
-            mpD.ϕ∂ϕ[nn,p,4] =  ϕx*  ϕy* dϕz
+            mp.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕy*  ϕz                                                                                
+            mp.ϕ∂ϕ[nn,p,2] = dϕx*  ϕy*  ϕz                                                                                
+            mp.ϕ∂ϕ[nn,p,3] =  ϕx* dϕy*  ϕz                                   
+            mp.ϕ∂ϕ[nn,p,4] =  ϕx*  ϕy* dϕz
         end
     end
 end

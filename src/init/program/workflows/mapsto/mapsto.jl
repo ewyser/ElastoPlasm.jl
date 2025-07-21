@@ -1,6 +1,11 @@
-function init_mapsto(dim::Number,trsfr::String) 
+function init_mapsto(dim::Number,instr::Dict) 
+    if instr[:fwrk][:deform] == "finite"
+        kernel0 = transform(CPU())
+    else
+        kernel0 = nothing
+    end
     kernel2 = euler(CPU())
-    if trsfr == "musl"
+    if instr[:fwrk][:trsfr] == "musl"
         if dim == 2
             kernel1 = flip_2d_p2n(CPU())
             kernel3 = flip_nd_n2p(CPU())
@@ -11,9 +16,9 @@ function init_mapsto(dim::Number,trsfr::String)
         kernel3a = augm_momentum(CPU())
         kernel3b = augm_velocity(CPU())
         kernel3c = augm_displacement(CPU())
-        return Dict(:map  => (;p2n! = kernel1 ,solve! = kernel2 ,n2p! = kernel3, ),
-                    :augm => (;p2n! = kernel3a,solve! = kernel3b,Δu!  = kernel3c,),)
-    elseif trsfr == "tpic"
+        return Dict(:map  => (;σᵢ! = kernel0, p2n! = kernel1 , solve! = kernel2 , n2p! = kernel3, ), 
+                    :augm => (;p2n! = kernel3a, solve! = kernel3b, Δu!  = kernel3c,),)
+    elseif instr[:fwrk][:trsfr] == "tpic"
         if dim == 2
             kernel1 = tpic_2d_p2n(CPU())
             kernel3 = pic_nd_n2p(CPU())
@@ -21,21 +26,21 @@ function init_mapsto(dim::Number,trsfr::String)
             kernel1 = tpic_3d_p2n(CPU())
             kernel3 = pic_nd_n2p(CPU())
         end
-        return Dict(:map  => (;p2n! = kernel1 ,solve! = kernel2 ,n2p! = kernel3, ),)
+        return Dict(:map  => (;σᵢ! = kernel0, p2n! = kernel1, solve! = kernel2, n2p! = kernel3, ),)
     else
-        return throw(ArgumentError("$(trsfr) is not a supported|valid mapping scheme"))
+        return throw(ArgumentError("$(instr[:fwrk][:trsfr]) is an unsupported transfer scheme"))
     end    
 end
-function mapsto(mpD,meD,g,Δt,instr) 
+function mapsto(mp,mesh,g,Δt,instr) 
     # maps material point to node
-        p2n(mpD,meD,g,Δt,instr)
+    p2n(mp,mesh,g,Δt,instr)
     # solve Eulerian momentum equation
-        solve(meD,Δt,instr)
+    solve(mesh,Δt,instr)
     # maps back solution to material point
-        n2p(mpD,meD,Δt,instr)
-        if instr[:fwrk][:trsfr] == "musl"
-            augm(mpD,meD,Δt,instr)
-        end
+    n2p(mp,mesh,Δt,instr)
+    if instr[:fwrk][:trsfr] == "musl"
+        augm(mp,mesh,Δt,instr)
+    end
     return nothing
 end
 
@@ -58,23 +63,23 @@ end
 
 
 #=
-@views function mapstoN!(mpD,meD,g)
+@views function mapstoN!(mp,mesh,g)
     # initialize nodal quantities
-    meD.mn  .= 0.0
-    meD.pn  .= 0.0
-    meD.oobf.= 0.0
+    mesh.mn  .= 0.0
+    mesh.pn  .= 0.0
+    mesh.oobf.= 0.0
     # mapping back to mesh
-    for dim ∈ 1:meD.nD
+    for dim ∈ 1:mesh.dim
         lk = ReentrantLock()
-        @threads for p ∈ 1:mpD.nmp
+        @threads for p ∈ 1:mp.nmp
             # accumulation
             lock(lk) do 
                 if dim == 1 
-                    meD.mn[mpD.p2n[:,p]].+= mpD.ϕ∂ϕ[:,p,1].*mpD.m[p] 
+                    mesh.mn[mp.p2n[:,p]].+= mp.ϕ∂ϕ[:,p,1].*mp.m[p] 
                 end
-                meD.pn[  mpD.p2n[:,p],dim].+= mpD.ϕ∂ϕ[:,p,1].*(mpD.m[p]*mpD.v[p,dim])
-                meD.oobf[mpD.p2n[:,p],dim].+= mpD.ϕ∂ϕ[:,p,1].*(mpD.m[p]*g[dim]      )
-                meD.oobf[mpD.p2n[:,p],dim].-= mpD.V[p].*(mpD.B[dim:meD.nD:end,:,p]*mpD.σ[:,p]) 
+                mesh.pn[  mp.p2n[:,p],dim].+= mp.ϕ∂ϕ[:,p,1].*(mp.m[p]*mp.v[p,dim])
+                mesh.oobf[mp.p2n[:,p],dim].+= mp.ϕ∂ϕ[:,p,1].*(mp.m[p]*g[dim]      )
+                mesh.oobf[mp.p2n[:,p],dim].-= mp.V[p].*(mp.B[dim:mesh.dim:end,:,p]*mp.σ[:,p]) 
             end
         end
     end
