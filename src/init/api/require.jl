@@ -51,7 +51,7 @@ function require(in::Symbol=:instr)
                             locking = true,
                         ),
             :GRF     => (;
-                            status = true,
+                            status = false,
                         ),
             :plast   => Dict(
                             :status=>false,
@@ -64,14 +64,14 @@ function require(in::Symbol=:instr)
             :plot    => (;
                             status=true,
                             freq=1.0,
-                            what=["epII","coh0"],
+                            what=["epII"],
                             dims=(500.0,250.0),
                         ),
             :perf    => false,
         )
         return instr
     else
-        error("$(in) is an unsupported symbol")
+        throw(error("UnsupportedSymbol: $(in)"))
         return nothing
     end
 end

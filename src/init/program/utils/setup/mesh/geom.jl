@@ -11,7 +11,7 @@ function getinfo(L,nel)
         L   = [L[1],L[2],ceil(L[3])]
         h   = [L[1]/nel[1],L[1]/nel[1],L[1]/nel[1]]
     else 
-        throw("UnsupportedMeshGeometry: dim > 3")
+        throw(error("UnsupportedMeshGeometry: dim > 3"))
     end
     return L,h,ndim,nn
 end

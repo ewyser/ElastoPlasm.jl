@@ -60,8 +60,7 @@
         coh0  = sum(d)/length(d)
         cblim = (coh0-coh0/2,coh0+coh0/2)
     else
-        err_msg = "$(type): plot option undefined"
-        throw(error(err_msg))
+        throw(error("UndefinedPlotOption: $(type)"))
     end
     # plot option
     ms = 2.25
