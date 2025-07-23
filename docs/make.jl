@@ -16,7 +16,7 @@ makedocs(;
     format=Documenter.HTML(;
         repolink="github.com/ewyser/ElastoPlasm.jl",
         canonical="https://ewyser.github.io/ElastoPlasm.jl/",
-        edit_link="misc",
+        edit_link="main",
         assets=String[],
     ),
     pages=[
@@ -39,5 +39,5 @@ end
 deploydocs(
     repo = "https://github.com/ewyser/ElastoPlasm.jl.git",
     branch = "gh-pages",
-    target = ""#"misc",
+    target = "main"#"misc",
 )
