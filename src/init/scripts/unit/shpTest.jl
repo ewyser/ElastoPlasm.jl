@@ -1,33 +1,33 @@
 function shpfunCheck(shp,instr,paths)
     nel,L  = 2,[1.0]
 
-    meD,ni = meshSetup(nel,L,instr),10
+    mesh,ni = meshSetup(nel,L,instr),10
 
-    xp     = collect(meD.xB[1]+(0.5*meD.h[1]/ni):meD.h[1]/ni:meD.xB[2])
-    nel    = meD.nel[end]
+    xp     = collect(mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2])
+    nel    = mesh.nel[end]
     nmp    = length(xp)
     # constructor
-    mpD = (
-        nD   = meD.nD,
+    mp = (
+        ndim   = mesh.dim,
         nmp  = nmp,
         x    = xp,
         ℓ    = ones(nmp).*3.0.*L./nmp,
-        ϕ∂ϕ  = zeros(meD.nn,nmp ,meD.nD+1   ),
-        δnp  = zeros(meD.nn,meD.nD,nmp      ),
+        ϕ∂ϕ  = zeros(mesh.nn,nmp ,mesh.dim+1   ),
+        δnp  = zeros(mesh.nn,mesh.dim,nmp      ),
         # connectivity
         p2e  = zeros(Int64,nmp),
-        p2n  = zeros(Int64,meD.nn,nmp),
+        p2n  = zeros(Int64,mesh.nn,nmp),
     )
-    instr[:cairn] = (;shpfun = init_shpfun(meD.nD,instr[:basis]),)
+    instr[:cairn] = (;shpfun = init_shpfun(mesh.dim,instr[:basis]),)
     # calculate tplgy and shpfun
-    shpfun(mpD,meD,instr)
-    # extract and store value of mpD.ϕ∂ϕ
+    shpfun(mp,mesh,instr)
+    # extract and store value of mp.ϕ∂ϕ
     xp,ϕ,∂ϕ = zeros(nmp,nel+1),zeros(nmp,nel+1),zeros(nmp,nel+1)  
     PoU = zeros(Float64,nmp)
     for mp ∈ 1:nmp
-        ϕ∂ϕ = mpD.ϕ∂ϕ[:,mp,:]
-        for (k,nn) ∈ enumerate(mpD.p2n[:,mp]) if nn<0 continue end
-            xp[mp,nn] = mpD.x[mp]  
+        ϕ∂ϕ = mp.ϕ∂ϕ[:,mp,:]
+        for (k,nn) ∈ enumerate(mp.p2n[:,mp]) if nn<0 continue end
+            xp[mp,nn] = mp.x[mp]  
             ϕ[mp,nn]  = ϕ∂ϕ[k,1]  
             ∂ϕ[mp,nn] = ϕ∂ϕ[k,2]  
             PoU[mp]  +=ϕ∂ϕ[k,1]
@@ -49,26 +49,26 @@ function shpfunCheck(shp,instr,paths)
     
     
 
-    xp0,ϕ0,colors = meD.xn,zeros(length(meD.xn)),[]
+    xp0,ϕ0,colors = mesh.xn,zeros(length(mesh.xn)),[]
     p0 = plot(ylim= (0.0,1.1*ϕmax),title= T[1],)
-    for i = 1:length(meD.xn)
-        clr = i % length(meD.xn) + 1
+    for i = 1:length(mesh.xn)
+        clr = i % length(mesh.xn) + 1
         p0 = plot!(xp[:,i],ϕ[:,i],seriestype = :line   ,color=clr,)
         push!(colors,clr)
     end
     p0 = plot!(xp0,ϕ0,seriestype = :scatter,markershape= :square,markersize = 2*2.25, markercolor=colors,)
 
-    xp0,ϕ0,colors = meD.xn,zeros(length(meD.xn)),[]
+    xp0,ϕ0,colors = mesh.xn,zeros(length(mesh.xn)),[]
     p1 = plot(ylim = (-1.1*∂ϕmax,1.1*∂ϕmax) , title = T[2],)
-    for i = 1:length(meD.xn)
-        clr = i % length(meD.xn) + 1
+    for i = 1:length(mesh.xn)
+        clr = i % length(mesh.xn) + 1
         p1 = plot!(xp[:,i],∂ϕ[:,i],seriestype = :line   ,color=clr,)
         push!(colors,clr)
     end
     p1 = plot!(xp0,ϕ0,seriestype = :scatter,markershape= :square,markersize = 2*2.25, markercolor=colors,)
 
     p2 = plot(
-        mpD.x,PoU,
+        mp.x,PoU,
         seriestype = :line,
         color      = :black,
         xlabel     = L"$x-$direction [m]",
@@ -77,7 +77,7 @@ function shpfunCheck(shp,instr,paths)
         title      = T[3],
     )
     p2 = plot!(
-        meD.xn,ones(size(meD.xn)),
+        mesh.xn,ones(size(mesh.xn)),
         seriestype = :scatter,
         markershape= :square,
         color      = colors,

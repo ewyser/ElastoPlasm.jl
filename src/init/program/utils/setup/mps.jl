@@ -1,29 +1,30 @@
-function pointSetup(meD,cmParam,instr;define::Tuple=(nothing,nothing))
+function pointSetup(mesh,cmParam,instr;define::Tuple=(nothing,nothing))
     # non-dimensional constant                                                   
-    if meD.nD == 2 
+    if mesh.dim == 2 
         nstr = 3 
-    elseif meD.nD == 3 
+    elseif mesh.dim == 3 
         nstr = 6 
     end
     # material geometry
     ni,nmp,geom = define
+    xp = geom.xp 
     # scalars & vectors
-    if meD.nD == 2
-        l0 = ones(typeD,nmp,meD.nD).*0.5.*(meD.h[1]./ni)  
-        v0 = ones(typeD,nmp).*(2.0.*l0[:,1].*2.0.*l0[:,2])
-    elseif meD.nD == 3
-        l0 = ones(typeD,nmp,meD.nD).*0.5.*(meD.h[1]./ni)                
-        v0 = ones(typeD,nmp).*(2.0.*l0[:,1].*2.0.*l0[:,2].*2.0.*l0[:,3])
+    if mesh.dim == 2
+        l0 = ones(size(xp)).*0.5.*(mesh.h[1]./ni)  
+        v0 = ones(nmp).*(2.0.*l0[1,:].*2.0.*l0[2,:])
+    elseif mesh.dim == 3
+        l0 = ones(size(xp)).*0.5.*(mesh.h[1]./ni)                
+        v0 = ones(nmp).*(2.0.*l0[1,:].*2.0.*l0[2,:].*2.0.*l0[3,:])
     end
     m = cmParam[:ρ0].*v0
     # constructor
-    mpD = (
-        nD   = meD.nD,
+    mp = (
+        ndim   = mesh.dim,
         nmp  = nmp,
-        x    = copy(geom.xp),
-        u    = zeros(typeD,nmp,meD.nD), 
-        v    = zeros(typeD,nmp,meD.nD),
-        p    = zeros(typeD,nmp,meD.nD),
+        x    = copy(xp),
+        u    = zeros(size(xp)), 
+        v    = zeros(size(xp)),
+        p    = zeros(size(xp)),
         ℓ₀   = copy(l0), 
         ℓ    = copy(l0),
         Ω₀   = copy(v0),
@@ -32,34 +33,34 @@ function pointSetup(meD,cmParam,instr;define::Tuple=(nothing,nothing))
         c₀   = copy(geom.coh0),
         cᵣ   = copy(geom.cohr),
         ϕ    = copy(geom.phi),            
-        Δλ   = zeros(typeD,nmp  ),
-        ϵpII = zeros(typeD,nmp,2),
-        ϵpV  = zeros(typeD,nmp), 
-        ΔJ   = ones(typeD,nmp),
-        J    = ones(typeD,nmp),
+        Δλ   = zeros(nmp),
+        ϵpII = zeros(size(xp)),
+        ϵpV  = zeros(nmp), 
+        ΔJ   = ones(nmp),
+        J    = ones(nmp),
         # plot quantity
-        z₀   = copy(geom.xp[:,end]),
+        z₀   = copy(xp[end,:]),
         # tensor in matrix notation
-        δᵢⱼ  = Matrix(1.0I,meD.nD,meD.nD    ), 
-        ∇vᵢⱼ = zeros(typeD,meD.nD,meD.nD,nmp),
-        ∇uᵢⱼ = zeros(typeD,meD.nD,meD.nD,nmp),
-        ΔFᵢⱼ = zeros(typeD,meD.nD,meD.nD,nmp),
-        Fᵢⱼ  = repeat(Matrix(1.0I,meD.nD,meD.nD),1,1,nmp),
-        Bᵢⱼ  = repeat(Matrix(1.0I,meD.nD,meD.nD),1,1,nmp),
-        ϵᵢⱼ  = zeros(typeD,meD.nD,meD.nD,nmp),
-        ωᵢⱼ  = zeros(typeD,meD.nD,meD.nD,nmp),
-        σJᵢⱼ = zeros(typeD,meD.nD,meD.nD,nmp),
+        δᵢⱼ  = Matrix(1.0I,mesh.dim,mesh.dim    ), 
+        ∇vᵢⱼ = zeros(typeD,mesh.dim,mesh.dim,nmp),
+        ∇uᵢⱼ = zeros(typeD,mesh.dim,mesh.dim,nmp),
+        ΔFᵢⱼ = zeros(typeD,mesh.dim,mesh.dim,nmp),
+        Fᵢⱼ  = repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp),
+        Bᵢⱼ  = repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp),
+        ϵᵢⱼ  = zeros(typeD,mesh.dim,mesh.dim,nmp),
+        ωᵢⱼ  = zeros(typeD,mesh.dim,mesh.dim,nmp),
+        σJᵢⱼ = zeros(typeD,mesh.dim,mesh.dim,nmp),
         # tensor in voigt notation
         σᵢ   = zeros(typeD,nstr,nmp),
         τᵢ   = zeros(typeD,nstr,nmp),
         # additional quantities
-        ϕ∂ϕ  = zeros(typeD,meD.nn,nmp ,meD.nD+1   ),
-        δnp  = zeros(typeD,meD.nn,meD.nD,nmp      ),
+        ϕ∂ϕ  = zeros(typeD,mesh.nn,nmp ,mesh.dim+1   ),
+        δnp  = zeros(typeD,mesh.nn,mesh.dim,nmp      ),
         # connectivity
-        e2p  = spzeros(Int64,nmp,meD.nel[end]),
+        e2p  = spzeros(Int64,nmp,mesh.nel[end]),
         p2p  = spzeros(Int64,nmp,nmp),
         p2e  = zeros(Int64,nmp),
-        p2n  = zeros(Int64,meD.nn,nmp),
+        p2n  = zeros(Int64,mesh.nn,nmp),
     )
-    return mpD 
+    return mp 
 end

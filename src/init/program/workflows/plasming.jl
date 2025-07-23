@@ -1,4 +1,4 @@
-function plasming!(mpD,meD,cmParam,g,T,te,tg,instr)
+function plasming!(mp,mesh,cmParam,g,T,te,tg,instr)
     @info """
     launching ϵlastσPlasm 👻 v$(getVersion()):
     - $(nthreads()) active thread(s) 
@@ -16,23 +16,23 @@ function plasming!(mpD,meD,cmParam,g,T,te,tg,instr)
             instr[:plast][:status] = true 
         end
         # plot/save
-        savlot(mpD,meD,t,instr)
+        savlot(mp,mesh,t,instr)
         while t<time
             # set clock on/off
             tic = time_ns()
             # adaptative Δt & linear increase of gravity
-            Δt,g  = get_Δt(mpD.v,meD.h,cmParam[:c],t,T),get_g(t,tg,meD.nD)
+            Δt,g  = get_Δt(mp.v,mesh.h,cmParam[:c],t,T),get_g(t,tg,mesh.dim)
             # mpm cycle
-            shpfun(mpD,meD,instr)
-            mapsto(mpD,meD,g,Δt,instr)    
-            ηmax = elastoplast(mpD,meD,cmParam,Δt,instr)
+            shpfun(mp,mesh,instr)
+            mapsto(mp,mesh,g,Δt,instr)    
+            ηmax = elastoplast(mp,mesh,cmParam,Δt,instr)
             # update sim time
             t,it,toc,ηtot = t+Δt,it+1,((time_ns()-tic)),max(ηmax,ηtot)
             # update progress bas
-            next!(prog;showvalues = getvals(meD,mpD,it,ηmax,ηtot,t/T,"(✗)"))
+            next!(prog;showvalues = getvals(mesh,mp,it,ηmax,ηtot,t/T,"(✗)"))
         end
     end
-    ProgressMeter.finish!(prog, spinner = '✓',showvalues = getvals(meD,mpD,it,ηmax,ηtot,1.0,"(✓)"))
-    return savlot(mpD,meD,t,instr)
+    ProgressMeter.finish!(prog, spinner = '✓',showvalues = getvals(mesh,mp,it,ηmax,ηtot,1.0,"(✓)"))
+    return savlot(mp,mesh,t,instr)
 end
 export plasming!

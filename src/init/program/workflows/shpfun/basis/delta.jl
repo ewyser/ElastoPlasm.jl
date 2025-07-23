@@ -1,33 +1,33 @@
-@views @kernel inbounds = true function δ_1d(mpD,meD)
+@views @kernel inbounds = true function δ_1d(mp,mesh)
     p = @index(Global)
     # calculate delta functions for tpic
-    if p ≤ mpD.nmp
-        for (nn,no) ∈ enumerate(mpD.p2n[:,p]) if no<1 continue end
+    if p ≤ mp.nmp
+        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             # compute delta functions
-            mpD.δnp[nn,1,p] = -(mpD.x[p,1]-meD.xn[no,1])
+            mp.δnp[nn,1,p] = -(mp.x[p]-mesh.xn[no])
         end
     end
 end
-@views @kernel inbounds = true function δ_2d(mpD,meD)
+@views @kernel inbounds = true function δ_2d(mp,mesh)
     p = @index(Global)
     # calculate delta functions for tpic
-    if p ≤ mpD.nmp
-        for (nn,no) ∈ enumerate(mpD.p2n[:,p]) if no<1 continue end
+    if p ≤ mp.nmp
+        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             # compute delta functions
-            mpD.δnp[nn,1,p] = -(mpD.x[p,1]-meD.xn[no,1])
-            mpD.δnp[nn,2,p] = -(mpD.x[p,2]-meD.xn[no,2])
+            mp.δnp[nn,1,p] = -(mp.x[1,p]-mesh.xn[1,no])
+            mp.δnp[nn,2,p] = -(mp.x[2,p]-mesh.xn[2,no])
         end
     end
 end
-@views @kernel inbounds = true function δ_3d(mpD,meD)
+@views @kernel inbounds = true function δ_3d(mp,mesh)
     p = @index(Global)
     # calculate delta functions for tpic
-    if p ≤ mpD.nmp
-        for (nn,no) ∈ enumerate(mpD.p2n[:,p]) if no<1 continue end
+    if p ≤ mp.nmp
+        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             # compute delta functions
-            mpD.δnp[nn,1,p] = -(mpD.x[p,1]-meD.xn[no,1])
-            mpD.δnp[nn,2,p] = -(mpD.x[p,2]-meD.xn[no,2])
-            mpD.δnp[nn,3,p] = -(mpD.x[p,3]-meD.xn[no,3])
+            mp.δnp[nn,1,p] = -(mp.x[1,p]-mesh.xn[1,no])
+            mp.δnp[nn,2,p] = -(mp.x[2,p]-mesh.xn[2,no])
+            mp.δnp[nn,3,p] = -(mp.x[3,p]-mesh.xn[3,no])
         end
     end
 end

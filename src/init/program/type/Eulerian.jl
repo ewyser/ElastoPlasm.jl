@@ -14,7 +14,7 @@ struct Mesh{T1,T2,
     T6 <: AbstractMatrix{T2}, 
     T8 <: AbstractArray{T2}, 
 } <: UniformCartesian{T1,T2}
-    nD   ::T1
+    ndim   ::T1
     nel  ::T3
     nno  ::T3
     nn   ::T1

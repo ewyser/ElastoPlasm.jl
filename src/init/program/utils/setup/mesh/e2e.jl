@@ -1,7 +1,7 @@
-function e2e(nD,nno,nel,nn,h,instr)
+function e2e(ndim,nno,nel,nn,h,instr)
     e2e  = spzeros(Int64,nel[end],nel[end])
     nnel = ceil.(Int,instr[:nonloc][:ls]./h)
-    if nD == 1
+    if ndim == 1
         gnum = collect(1:nel[end])
         iel  = 0
         for i ∈ 1:nel[1]#nelx
@@ -10,7 +10,7 @@ function e2e(nD,nno,nel,nn,h,instr)
             els = vec(gnum[I])         
             e2e[iel,els] = els
         end
-    elseif nD == 2
+    elseif ndim == 2
         gnum = reshape(1:nel[end],nel[2],nel[1])
         iel  = 0
         for i ∈ 1:nel[1]#nelx
@@ -22,7 +22,7 @@ function e2e(nD,nno,nel,nn,h,instr)
                 e2e[els,iel] = els
             end
         end
-    elseif nD == 3
+    elseif ndim == 3
         gnum = reshape(1:(nel[end]),nel[3],nel[1],nel[2])
         iel  = 0
         for k ∈ 1:nel[2] #nely

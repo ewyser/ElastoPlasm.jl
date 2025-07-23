@@ -1,12 +1,12 @@
-@views function plotcoh(mpD,cmParam,paths)
-    xp,coh,phi = mpD.x,mpD.c₀,mpD.ϕ
+@views function plotcoh(mp,cmParam,paths)
+    xp,coh,phi = mp.x,mp.c₀,mp.ϕ
     coh0,ϕ0    = cmParam[:c0],cmParam[:ϕ0]
 
 
     coh0 = coh0/1e3
-    if size(xp,2)==2
+    if size(xp,1)==2
         gr(size=(2.0*250,2*125),legend=true,markersize=2.25,markerstrokecolor=:auto)
-        scatter(xp[:,1],xp[:,2],zcolor=coh./1e3,
+        scatter(xp[1,:],xp[2,:],zcolor=coh./1e3,
         markershape=:circle,
         label="",
         xlabel = L"$x-$direction [m]",
@@ -19,9 +19,9 @@
         markerstrokewidth=0,
         ylim=(-10,20),
         )
-    elseif size(xp,2)==3
+    elseif size(xp,1)==3
         gr(size=(2.0*250,4*125),legend=true,markersize=2.25,markerstrokecolor=:auto)
-        scatter(xp[:,1],xp[:,2],xp[:,3],zcolor=coh./1e3,
+        scatter(xp[1,:],xp[2,:],xp[3,:],zcolor=coh./1e3,
         markershape=:circle,
         label="",
         xlabel = L"$x-$direction",
@@ -36,7 +36,7 @@
     end
     savefig(joinpath(paths[:plot],"coh0.png"))
     gr(size=(2.0*250,2*125),legend=true,markersize=2.25,markerstrokecolor=:auto)
-    scatter(xp[:,1],xp[:,2],zcolor=phi,
+    scatter(xp[1,:],xp[2,:],zcolor=phi,
     markershape=:circle,
     label="",
     xlabel = L"$x-$direction",

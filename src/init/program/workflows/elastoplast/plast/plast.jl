@@ -1,33 +1,37 @@
 function init_plast(instr)
     kernel1 = nonlocal(CPU())
     if instr[:plast][:constitutive] == "MC"
-        #ηmax = MCRetMap!(mpD,ϵpII,cmParam,instr[:fwrk])
+        #ηmax = MCRetMap!(mp,ϵpII,cmParam,instr[:fwrk])
     elseif instr[:plast][:constitutive] == "DP"        
         kernel2 = DP!(CPU())
     elseif instr[:plast][:constitutive] == "J2"
         kernel2 = J2!(CPU())
     elseif instr[:plast][:constitutive] == "camC"
-        #ηmax = camCRetMap!(mpD,cmParam,instr[:fwrk])
+        #ηmax = camCRetMap!(mp,cmParam,instr[:fwrk])
     else
-        err_msg = "$(cmParam[:cmType]): invalid return mapping for plastic correction"
-        throw(error(err_msg))
+        throw(error("InvalidReturnMapping: $(cmParam[:cmType])"))
     end 
     return (;nonloc! = kernel1, retmap! = kernel2,) 
 end
-function plast!(mpD,meD,cmParam,instr)
-    # nonlocal regularization
-    if cmParam[:nonlocal][:status]
-        ls      = cmParam[:nonlocal][:ls]
-        mpD.e2p.= Int(0)
-        mpD.p2p.= Int(0)
-        mpD.ϵpII[:,2].= 0.0
-        W,w     = spzeros(mpD.nmp),spzeros(mpD.nmp,mpD.nmp)
-        for proc ∈ ["tplgy","p->q","p<-q"]
-            instr[:cairn][:elastoplast][:plast].nonloc!(W,w,mpD,meD,ls,proc; ndrange=mpD.nmp);sync(CPU())
+function plast(mp,mesh,cmParam,instr)
+    if instr[:plast][:status] 
+        # nonlocal regularization
+        if cmParam[:nonlocal][:status]
+            ls      = cmParam[:nonlocal][:ls]
+            mp.e2p.= Int(0)
+            mp.p2p.= Int(0)
+            mp.ϵpII[2,:].= 0.0
+            W,w     = spzeros(mp.nmp),spzeros(mp.nmp,mp.nmp)
+            for proc ∈ ["tplgy","p->q","p<-q"]
+                instr[:cairn][:elastoplast][:plast].nonloc!(W,w,mp,mesh,ls,proc; ndrange=mp.nmp);sync(CPU())
+            end
         end
+        # plastic return-mapping dispatcher
+        instr[:cairn][:elastoplast][:plast].retmap!(mp,cmParam,instr; ndrange=mp.nmp);sync(CPU())
+        ηmax = 0
+    else 
+        ηmax = 0 
     end
-    # plastic return-mapping dispatcher
-    instr[:cairn][:elastoplast][:plast].retmap!(mpD,cmParam,instr; ndrange=mpD.nmp);sync(CPU())
-    ηmax = 0
+
     return ηmax::Int64
 end

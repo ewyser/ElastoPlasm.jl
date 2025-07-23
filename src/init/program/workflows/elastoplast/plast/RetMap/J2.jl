@@ -21,45 +21,45 @@ end
     P,q,n,ξn = getJ2(σ,χ,nstr)
     return f = ξn-κ
 end
-@views @kernel inbounds = true function J2!(mpD,ϵIIp,cmParam,instr; ftol::Real= 1e-9,ηmax::Int= 20) # Borja (1990); De Souza Neto (2008)
+@views @kernel inbounds = true function J2!(mp,ϵIIp,cmParam,instr; ftol::Real= 1e-9,ηmax::Int= 20) # Borja (1990); De Souza Neto (2008)
     p = @index(Global)
-    if p≤mpD.nmp 
+    if p≤mp.nmp 
         Hp = 0.35*cmParam.Hp
         # create aliases
         if instr[:fwrk] == "finite"
-            σ = mpD.τᵢ
+            σ = mp.τᵢ
         elseif instr[:fwrk] == "infinitesimal"
-            σ = mpD.σᵢ
+            σ = mp.σᵢ
         end
         if first(instr[:nonloc])
-            ϵII0 = mpD.ϵpII[:,2]
+            ϵII0 = mp.ϵpII[:,2]
         else
-            ϵII0 = mpD.ϵpII[:,1]
+            ϵII0 = mp.ϵpII[:,1]
         end
         # calculate yield function
-        κ = max(mpD.cr[p],2.5*mpD.c0[p]+cmParam.Hp*ϵpII[p,1])
+        κ = max(mp.cr[p],2.5*mp.c0[p]+cmParam.Hp*ϵpII[p,1])
         f = hasyield(σ[:,p],κ)
         # return mapping using CPA (non-quadratic convergence)
         if f>0.0 
-            γ0,σ0,ηit = copy(mpD.ϵpII[p]),copy(σ[:,p]),1
+            γ0,σ0,ηit = copy(mp.ϵpII[p]),copy(σ[:,p]),1
             while abs(f)>ftol && ηit<ηmax
                 ∂f∂σ = n
                 Δλ   = f/(∂f∂σ'*cmParam.Del*∂f∂σ)
                 Δσ   = (Δλ*cmParam.Del*∂f∂σ)        
                 σ0 .-= Δσ 
                 γ0  += Δλ
-                κ    = max(mpD.cr[p],2.5*mpD.c0[p]+cmParam.Hp*ϵpII[p,1])
+                κ    = max(mp.cr[p],2.5*mp.c0[p]+cmParam.Hp*ϵpII[p,1])
                 f    = hasyield(σ[:,p],κ)
                 ηit +=1
             end
-            mpD.ϵpII[p,1] = γ0
+            mp.ϵpII[p,1] = γ0
             σ[:,p]       .= σ0
             if instr[:fwrk] == "finite"
                 # update strain tensor
-                mpD.ϵᵢⱼ[:,:,p].= mutate(cmParam.Del\σ[:,p],0.5,:tensor)
+                mp.ϵᵢⱼ[:,:,p].= mutate(cmParam.Del\σ[:,p],0.5,:tensor)
                 # update left cauchy green deformation tensor
-                λ,n            = eigen(mpD.ϵᵢⱼ[:,:,p],sortby=nothing)
-                mpD.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
+                λ,n            = eigen(mp.ϵᵢⱼ[:,:,p],sortby=nothing)
+                mp.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
             end
             ηmax = max(ηit,ηmax)
         end        

@@ -14,8 +14,8 @@ using BenchmarkTools
     cmParam = cm(length(L),instr)
     T,te,tg = 15.0,10.0,15.0/1.5                                                # simulation time [s], elastic loading [s], gravity load
     # mesh & mp setup
-    meD     = meshSetup(nel,L,instr)                                            # mesh geometry setup
-    mpD     = pointSetup(meD,L,cmParam,instr[:GRF],typeD)                      # material point geometry setup
+    mesh     = meshSetup(nel,L,instr)                                            # mesh geometry setup
+    mp     = pointSetup(mesh,L,cmParam,instr[:GRF],typeD)                      # material point geometry setup
     @info "mesh & mp feature(s):" instr[:shpfun] instr[:fwrk] instr[:trsfr] instr[:vollock] nel nthreads()
     # plot & time stepping parameters
     tw,tC,it,ctr,toc,flag,ηmax,ηtot,Δt = 0.0,1.0/1.0,0,0,0.0,0,0,0,1.0e-4    
@@ -28,29 +28,29 @@ using BenchmarkTools
     suite["plast" ] = BenchmarkGroup(["string", "unicode"])
     
 
-    suite["shpfun"]["shpfun!"] = @benchmarkable shpfun!($mpD,$meD,$instr)
-    suite["mapsto"]["p->n"   ] = @benchmarkable mapsto!($mpD,$meD,$g,$Δt,$instr,"p->n")
-    suite["solve" ]["solve!" ] = @benchmarkable solve!($meD,$Δt)
-    #suite["mapsto"]["p<-p"   ] = @benchmarkable mapsto!($mpD,$meD,$g,$Δt,$instr,"p<-n")
-    suite["elasto"]["-------"] = @benchmarkable ηmax = elastoplast!($mpD,$meD,$cmParam,$Δt,$instr)
-    suite["elasto"]["strain!"] = @benchmarkable strain!($mpD,$meD,$Δt,$instr)
-    suite["elasto"]["ΔFbar! "] = @benchmarkable ΔFbar!($mpD,$meD)
-    suite["elasto"]["stress!"] = @benchmarkable stress!($mpD,$cmParam,$instr,:update)
+    suite["shpfun"]["shpfun!"] = @benchmarkable shpfun!($mp,$mesh,$instr)
+    suite["mapsto"]["p->n"   ] = @benchmarkable mapsto!($mp,$mesh,$g,$Δt,$instr,"p->n")
+    suite["solve" ]["solve!" ] = @benchmarkable solve!($mesh,$Δt)
+    #suite["mapsto"]["p<-p"   ] = @benchmarkable mapsto!($mp,$mesh,$g,$Δt,$instr,"p<-n")
+    suite["elasto"]["-------"] = @benchmarkable ηmax = elastoplast!($mp,$mesh,$cmParam,$Δt,$instr)
+    suite["elasto"]["strain!"] = @benchmarkable strain!($mp,$mesh,$Δt,$instr)
+    suite["elasto"]["ΔFbar! "] = @benchmarkable ΔFbar!($mp,$mesh)
+    suite["elasto"]["stress!"] = @benchmarkable stress!($mp,$cmParam,$instr,:update)
     
 #=
-    mpD.Δλ[:] .= 1.0
+    mp.Δλ[:] .= 1.0
 
     ls      = cmParam[:nonlocal][:ls]
-    mpD.e2p.= Int(0)
-    mpD.p2p.= Int(0)
-    W,w     = spzeros(mpD.nmp),spzeros(mpD.nmp,mpD.nmp)
+    mp.e2p.= Int(0)
+    mp.p2p.= Int(0)
+    W,w     = spzeros(mp.nmp),spzeros(mp.nmp,mp.nmp)
     @isdefined(nonloc!) ? nothing : nonloc! = nonlocal(CPU())
     for proc ∈ ["p->q","p<-q"]
-        nonloc!(W,w,mpD,meD,ls,proc; ndrange=mpD.nmp);sync(CPU())
+        nonloc!(W,w,mp,mesh,ls,proc; ndrange=mp.nmp);sync(CPU())
     end
 
-    suite["plast" ]["ϵII0p2q"] = @benchmarkable $ϵII0!($ϵpII,$W,$w,$mpD,$meD,$cmParam[:nonlocal][:ls],"p->q"; ndrange=$mpD.nmp);sync(CPU())
-    suite["plast" ]["ϵII0q2p"] = @benchmarkable $ϵII0!($ϵpII,$W,$w,$mpD,$meD,$cmParam[:nonlocal][:ls],"p<-q"; ndrange=$mpD.nmp);sync(CPU())
+    suite["plast" ]["ϵII0p2q"] = @benchmarkable $ϵII0!($ϵpII,$W,$w,$mp,$mesh,$cmParam[:nonlocal][:ls],"p->q"; ndrange=$mp.nmp);sync(CPU())
+    suite["plast" ]["ϵII0q2p"] = @benchmarkable $ϵII0!($ϵpII,$W,$w,$mp,$mesh,$cmParam[:nonlocal][:ls],"p<-q"; ndrange=$mp.nmp);sync(CPU())
 =#
     @info "run benchmarks..."
     benchmark = mean(run(suite))

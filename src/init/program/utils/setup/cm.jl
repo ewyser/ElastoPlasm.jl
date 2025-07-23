@@ -1,16 +1,16 @@
-function D(E,ν,nD)
+function D(E,ν,ndim)
     Kc,Gc = E/(3.0*(1.0-2.0*ν)),E/(2.0*(1.0+ν))                                # bulk & shear modulus               [Pa]
-    if nD == 1
+    if ndim == 1
         D  = [ 
             Kc+4/3*Gc 0.0;
             0.0       Gc ;
             0.0       0.0]
-    elseif nD == 2
+    elseif ndim == 2
         D  = [ 
             Kc+4/3*Gc Kc-2/3*Gc 0.0 ;
             Kc-2/3*Gc Kc+4/3*Gc 0.0 ;
             0.0       0.0       Gc  ]
-    elseif nD == 3
+    elseif ndim == 3
         D  = [ 
             Kc+4/3*Gc Kc-2/3*Gc Kc-2/3*Gc 0.0 0.0 0.0;
             Kc-2/3*Gc Kc+4/3*Gc Kc-2/3*Gc 0.0 0.0 0.0;

@@ -1,11 +1,11 @@
 function init_shpfun(dim::Number,instr::Dict;what::String="nothing")
     # topology function
     if dim == 1
-        kernel1 = p2e2n1D!(CPU())
+        kernel1 = p2e2n_1d(CPU())
     elseif dim == 2
-        kernel1 = p2e2n2D!(CPU())
+        kernel1 = p2e2n_2d(CPU())
     elseif dim == 3
-        kernel1 = p2e2n3D!(CPU())
+        kernel1 = p2e2n_3d(CPU())
     end
     # shape function
     if instr[:basis][:which] == "bsmpm"
@@ -48,16 +48,16 @@ function init_shpfun(dim::Number,instr::Dict;what::String="nothing")
     end
     return (;tplgy! = kernel1, ϕ∂ϕ! = kernel2, δ! = kernel3)
 end
-function shpfun(mpD,meD,instr)
+function shpfun(mp,mesh,instr)
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
-    instr[:cairn][:shpfun].tplgy!(mpD,meD; ndrange=(mpD.nmp));sync(CPU())
+    instr[:cairn][:shpfun].tplgy!(mp,mesh; ndrange=(mp.nmp));sync(CPU())
     # initialize shapefunctions
-    mpD.ϕ∂ϕ .= 0.0
+    mp.ϕ∂ϕ .= 0.0
     # calculate shape functions
-    instr[:cairn][:shpfun].ϕ∂ϕ!(mpD,meD; ndrange=(mpD.nmp));sync(CPU())
+    instr[:cairn][:shpfun].ϕ∂ϕ!(mp,mesh; ndrange=(mp.nmp));sync(CPU())
     # calculate identity shape functions
     if instr[:fwrk][:trsfr] == "tpic"
-        instr[:cairn][:shpfun].δ!(mpD,meD; ndrange=(mpD.nmp));sync(CPU())
+        instr[:cairn][:shpfun].δ!(mp,mesh; ndrange=(mp.nmp));sync(CPU())
     end
     return nothing
 end

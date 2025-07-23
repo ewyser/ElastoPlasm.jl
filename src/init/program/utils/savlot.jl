@@ -1,12 +1,12 @@
-@views function whichplot(what,temp,mpD,meD,instr)
+@views function whichplot(what,temp,mp,mesh,instr)
     type = what
     
     if type == "P"
-        if size(mpD.σᵢ,1) == 3
-            d   = -(mpD.σᵢ[1,:]+mpD.σᵢ[2,:])/2/1e3
+        if size(mp.σᵢ,1) == 3
+            d   = -(mp.σᵢ[1,:]+mp.σᵢ[2,:])/2/1e3
             lab = L"$p=-\left(\sigma_{xx,p}+\sigma_{yy,p}\right)/2$"
-        elseif size(mpD.σᵢ,1) == 6
-            d   = -(mpD.σᵢ[1,:]+mpD.σᵢ[2,:]+mpD.σᵢ[3,:])/3/1e3
+        elseif size(mp.σᵢ,1) == 6
+            d   = -(mp.σᵢ[1,:]+mp.σᵢ[2,:]+mp.σᵢ[3,:])/3/1e3
             lab = L"$p=-\left(\sigma_{xx,p}+\sigma_{yy,p}+\sigma_{zz,p}\right)/3$"
         end            
         tit   = "pressure, "*temp
@@ -17,7 +17,7 @@
             cblim = (minimum(d),maximum(d))
         end
     elseif type == "epII"
-        d     = mpD.ϵpII
+        d     = mp.ϵpII[1,:]
         lab   = L"$\epsilon_{\mathrm{II}}^{\mathrm{acc}}$"
         tit   = "plastic strain, "*temp
         cb    = :viridis
@@ -27,7 +27,7 @@
             cblim = (0.0,maximum(d))
         end
     elseif type == "epV"
-        d     = mpD.ϵpV
+        d     = mp.ϵpV
         lab   = L"$\epsilon_{p}^{\mathrm{vol}}$"
         tit   = "volumetric plastic strain, "*temp
         cb    = :seismic
@@ -37,7 +37,7 @@
             cblim = (-maximum(abs.(d)),maximum(abs.(d)))
         end
     elseif type == "du"
-        d     = sqrt.(mpD.u[:,1].^2+mpD.u[:,2].^2)
+        d     = sqrt.(mp.u[1,:].^2+mp.u[2,:].^2)
         lab   = L"$\Delta u$"
         tit   = "displacement, "*temp
         cb    = :viridis
@@ -47,25 +47,31 @@
             cblim = (0.0,maximum(d))
         end
     elseif type == "z0"
-        d     = mpD.z₀
+        d     = mp.z₀
         lab   = L"$z_p(t_0)$"
         tit   = "initial vertical position, "*temp
         cb    = palette(:grayC,5) 
         cblim = (0.0,maximum(d))
+    elseif type == "coh0"
+        d     = mp.c₀./1e3
+        lab   = L"c_0(x_p) [kPa]"
+        tit   = "initial cohesion field, "*temp
+        cb    = :vik
+        coh0  = sum(d)/length(d)
+        cblim = (coh0-coh0/2,coh0+coh0/2)
     else
-        err_msg = "$(type): plot option undefined"
-        throw(error(err_msg))
+        throw(error("UndefinedPlotOption: $(type)"))
     end
     # plot option
     ms = 2.25
-    ms = 0.4*instr[:plot][:dims][1]/meD.nel[1]
+    ms = 0.4*instr[:plot][:dims][1]/mesh.nel[1]
     # plotting
     gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,)
     p0 = plot(
-        if meD.nD == 2
-            mpD.x[:,1],mpD.x[:,2]
-        elseif meD.nD == 3
-            mpD.x[:,1],mpD.x[:,3]
+        if mesh.dim == 2
+            mp.x[1,:],mp.x[2,:]
+        elseif mesh.dim == 3
+            mp.x[1,:],mp.x[3,:]
         end,
         seriestype  = :scatter,
         marker_z    = d,
@@ -81,14 +87,14 @@
     return p0
 end
 
-@views function savlot(mpD,meD,t,instr) 
+@views function savlot(mp,mesh,t,instr) 
     if !instr[:plast][:status]
-        mpD.z₀ .= mpD.x[:,end] 
+        mp.z₀.= mp.x[end,:] 
     end
     if instr[:plot][:status]
         P,tit = [],L"$t = $"*string(round(t,digits=1))*" [s]"
         for (k,what) ∈ enumerate(instr[:plot][:what])
-            p0 = whichplot(what,tit,mpD,meD,instr)
+            p0 = whichplot(what,tit,mp,mesh,instr)
             push!(P,p0)
         end
         scale = length(P) 

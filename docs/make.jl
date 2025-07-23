@@ -24,8 +24,20 @@ makedocs(;
     ],
     checkdocs= :none,
 )
+
 @info "Deploying documentation..."
+
+allowed_branches = ["refs/heads/main", "refs/heads/misc"]
+
+current_ref = get(ENV, "GITHUB_REF", "")
+
+if !(current_ref ∈ allowed_branches)
+    @info "Current branch $current_ref is not in allowed branches $allowed_branches, skipping deploydocs."
+    return
+end
+
 deploydocs(
-    repo="github.com/ewyser/ElastoPlasm.jl",
-    devbranch="main",
+    repo = "https://github.com/ewyser/ElastoPlasm.jl.git",
+    branch = "gh-pages",
+    target = "main"#"misc",
 )

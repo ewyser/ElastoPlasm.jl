@@ -71,7 +71,7 @@ function require(in::Symbol=:instr)
         )
         return instr
     else
-        error("$(in) is an unsupported symbol")
+        throw(error("UnsupportedSymbol: $(in)"))
         return nothing
     end
 end
