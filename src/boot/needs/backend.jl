@@ -16,8 +16,8 @@ function add_backend!(::Val{:x86_64},info::Self)
     String.([split(string(Sys.cpu_info()[k]),":")[1] for k ∈ 1:length(Sys.cpu_info())])
 	arch = Sys.ARCH
 	availables::Dict{Symbol, Dict{Symbol, Any}} = Dict( 
-		:x86_64  => Dict(:host => "cpu",:Backend => CPU(),:brand => ["Intel(R)","AMD"],:wrapper => Array,:devices => nothing,:name => nothing,:handle => Val{:Host},:functional => arch==:x86_64 ,),
-		:aarch64 => Dict(:host => "cpu",:Backend => CPU(),:brand => ["Apple","AMD"]   ,:wrapper => Array,:devices => nothing,:name => nothing,:handle => Val{:Host},:functional => arch==:aarch64,),
+		:x86_64  => Dict(:host => "cpu",:Backend => CPU(),:brand => ["Intel(R)","AMD","Apple"],:wrapper => Array,:devices => nothing,:name => nothing,:handle => Val{:Host},:functional => arch==:x86_64 ,),
+		:aarch64 => Dict(:host => "cpu",:Backend => CPU(),:brand => ["AMD","Apple"]           ,:wrapper => Array,:devices => nothing,:name => nothing,:handle => Val{:Host},:functional => arch==:aarch64,),
 	)
 	for (k,(platform,backend)) ∈ enumerate(availables)
 		if backend[:functional]
