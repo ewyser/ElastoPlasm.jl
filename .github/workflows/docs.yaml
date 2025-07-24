@@ -8,12 +8,13 @@ on:
 jobs:
   build:
     permissions:
+      actions: write
       contents: write
       pull-requests: read
       statuses: write
-    
+
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,6 +27,9 @@ jobs:
 
       - name: Cache dependencies
         uses: julia-actions/cache@v1
+        with:
+          path: ~/.julia
+          key: ${{ runner.os }}-julia-${{ hashFiles('**/Project.toml') }}
 
       - name: Install dependencies
         run: julia --project=docs -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
