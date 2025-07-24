@@ -8,14 +8,17 @@ manual = [
     "Getting Started" => "getting_started.md",
     #"Functions" => mdGenerate(),
 ]
+
+repo = "https://github.com/ewyser/ElastoPlasm.jl.git"
+
 @info "Making documentation..."
 makedocs(;
     modules=[ElastoPlasm],
     authors="madmax",
     sitename="ϵlastσPlasm.jl 👻",
     format=Documenter.HTML(;
-        repolink="github.com/ewyser/ElastoPlasm.jl",
-        canonical="https://ewyser.github.io/ElastoPlasm.jl/",
+        repolink = repo,
+        canonical = "https://ewyser.github.io/ElastoPlasm.jl/",
         edit_link="main",
         assets=String[],
     ),
@@ -28,16 +31,32 @@ makedocs(;
 @info "Deploying documentation..."
 
 allowed_branches = ["refs/heads/main", "refs/heads/misc"]
-
 current_ref = get(ENV, "GITHUB_REF", "")
 
-if !(current_ref ∈ allowed_branches)
+if current_ref ∈ allowed_branches
+    deploydocs(;repo = repo,
+                devbranch = "main",
+                branch = "gh-pages",
+                versions = ["stable" => "v^", "dev" => "dev"],
+                forcepush = true,
+                push_preview = true,
+            )
+else
     @info "Current branch $current_ref is not in allowed branches $allowed_branches, skipping deploydocs."
-    return
 end
+#=
+@info "Deploying documentation..."
+if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
 
-deploydocs(
-    repo = "https://github.com/ewyser/ElastoPlasm.jl.git",
-    branch = "gh-pages",
-    target = "main"#"misc",
-)
+else
+    withenv("GITHUB_REPOSITORY" => repo) do
+        deploydocs(;repo = repo,
+                    devbranch = "main",
+                    branch = "gh-pages",
+                    versions = nothing,#["stable" => "v^", "dev" => "dev", "v#.#.#"],
+                    forcepush = true,
+                    push_preview = true,
+                )
+    end
+end
+=#
