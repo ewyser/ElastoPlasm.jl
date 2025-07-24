@@ -1,31 +1,31 @@
 name: CI
+
 on:
   push:
     branches:
       - dev
+  pull_request:
+    branches:
       - main
+
 env:
-  JULIA_NUM_THREADS: 2
+  JULIA_NUM_THREADS: 1
   cache-name: cache-artifacts
+
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    name: Julia ${{ matrix.version }} on ${{ matrix.os }} (${{ github.event_name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
-    permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
+    permissions:
       actions: write
       contents: read
     strategy:
       fail-fast: false
       matrix:
-        version:
-          - '1.10'
-        os:
-          - ubuntu-latest
-          - macOS-latest
-          - windows-latest
-        arch:
-          - x64
+        version: ['1.10']
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        arch: [x64]
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
@@ -35,7 +35,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.julia/artifacts
-          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
+          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml', '**/Manifest.toml') }}
           restore-keys: |
             ${{ runner.os }}-test-${{ env.cache-name }}-
             ${{ runner.os }}-test-
@@ -45,6 +45,6 @@ jobs:
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v4
         with:
-          files: lcov.info
+          files: coverage/lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
