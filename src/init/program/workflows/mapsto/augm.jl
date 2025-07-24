@@ -19,18 +19,18 @@ end
         end
     end
 end
-@views @kernel inbounds = true function augm_displacement(mp,mesh,Δt)
+@views @kernel inbounds = true function augm_displacement(mp,mesh,dt)
     p = @index(Global)
     # flip update
     for dim ∈ 1:mesh.dim
         Δu = 0.0
         for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
-            Δu += Δt*(mp.ϕ∂ϕ[nn,p,1]*mesh.vn[dim,no])
+            Δu += dt*(mp.ϕ∂ϕ[nn,p,1]*mesh.vn[dim,no])
         end
         mp.u[dim,p]+= Δu
     end
 end
-function augm(mp,mesh,Δt,instr)
+function augm(mp,mesh,dt,instr)
     # initialize for DM
     mesh.pn.= 0.0
     mesh.vn.= 0.0
@@ -39,6 +39,6 @@ function augm(mp,mesh,Δt,instr)
     # solve for nodal incremental displacement
     instr[:cairn][:mapsto][:augm].solve!(ndrange=mesh.nno[end],mesh);sync(CPU())
     # update material point's displacement
-    instr[:cairn][:mapsto][:augm].Δu!(ndrange=mp.nmp,mp,mesh,Δt);sync(CPU())
+    instr[:cairn][:mapsto][:augm].Δu!(ndrange=mp.nmp,mp,mesh,dt);sync(CPU())
     return nothing
 end

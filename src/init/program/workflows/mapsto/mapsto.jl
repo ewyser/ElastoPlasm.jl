@@ -31,15 +31,15 @@ function init_mapsto(dim::Number,instr::Dict)
         return throw(ArgumentError("$(instr[:fwrk][:trsfr]) is an unsupported transfer scheme"))
     end    
 end
-function mapsto(mp,mesh,g,Δt,instr) 
+function mapsto(mp,mesh,g,dt,instr) 
     # maps material point to node
-    p2n(mp,mesh,g,Δt,instr)
+    p2n(mp,mesh,g,dt,instr)
     # solve Eulerian momentum equation
-    solve(mesh,Δt,instr)
+    solve(mesh,dt,instr)
     # maps back solution to material point
-    n2p(mp,mesh,Δt,instr)
+    n2p(mp,mesh,dt,instr)
     if instr[:fwrk][:trsfr] == "musl"
-        augm(mp,mesh,Δt,instr)
+        augm(mp,mesh,dt,instr)
     end
     return nothing
 end

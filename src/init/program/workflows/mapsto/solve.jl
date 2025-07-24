@@ -1,4 +1,4 @@
-@views @kernel inbounds = true function euler(mesh,Δt,η)
+@views @kernel inbounds = true function euler(mesh,dt,η)
     no = @index(Global)
     for dim ∈ 1:mesh.dim
         if no≤mesh.nno[end] 
@@ -10,11 +10,11 @@
             mesh.Dn[dim,no] = η*norm(mesh.oobf[:,no])*sign(mesh.pn[dim,no]*m)    #(2,)
             mesh.fn[dim,no] = mesh.oobf[dim,no]-mesh.Dn[dim,no]                  #(2,)
             mesh.an[dim,no] = mesh.fn[dim,no]*m                                  #(2,)
-            mesh.vn[dim,no] = (mesh.pn[dim,no]+Δt*mesh.fn[dim,no])*m             #(2,)   
+            mesh.vn[dim,no] = (mesh.pn[dim,no]+dt*mesh.fn[dim,no])*m             #(2,)   
         end
     end
 end
-@views function solve(mesh,Δt,instr)
+@views function solve(mesh,dt,instr)
     # viscous damping
     η      = 0.1
     # initialize
@@ -22,6 +22,6 @@ end
     mesh.an.= 0.0
     mesh.vn.= 0.0
     # solve momentum equation on the mesh using backend-agnostic kernel
-    instr[:cairn][:mapsto][:map].solve!(ndrange=mesh.nno[end],mesh,Δt,η);sync(CPU())
+    instr[:cairn][:mapsto][:map].solve!(ndrange=mesh.nno[end],mesh,dt,η);sync(CPU())
     return nothing
 end

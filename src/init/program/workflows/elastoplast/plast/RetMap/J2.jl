@@ -21,10 +21,10 @@ end
     P,q,n,ξn = getJ2(σ,χ,nstr)
     return f = ξn-κ
 end
-@views @kernel inbounds = true function J2!(mp,ϵIIp,cmParam,instr; ftol::Real= 1e-9,ηmax::Int= 20) # Borja (1990); De Souza Neto (2008)
+@views @kernel inbounds = true function J2!(mp,ϵIIp,cmp,instr; ftol::Real= 1e-9,ηmax::Int= 20) # Borja (1990); De Souza Neto (2008)
     p = @index(Global)
     if p≤mp.nmp 
-        Hp = 0.35*cmParam.Hp
+        Hp = 0.35*cmp.Hp
         # create aliases
         if instr[:fwrk] == "finite"
             σ = mp.τᵢ
@@ -37,18 +37,18 @@ end
             ϵII0 = mp.ϵpII[:,1]
         end
         # calculate yield function
-        κ = max(mp.cr[p],2.5*mp.c0[p]+cmParam.Hp*ϵpII[p,1])
+        κ = max(mp.cr[p],2.5*mp.c0[p]+cmp.Hp*ϵpII[p,1])
         f = hasyield(σ[:,p],κ)
         # return mapping using CPA (non-quadratic convergence)
         if f>0.0 
             γ0,σ0,ηit = copy(mp.ϵpII[p]),copy(σ[:,p]),1
             while abs(f)>ftol && ηit<ηmax
                 ∂f∂σ = n
-                Δλ   = f/(∂f∂σ'*cmParam.Del*∂f∂σ)
-                Δσ   = (Δλ*cmParam.Del*∂f∂σ)        
+                Δλ   = f/(∂f∂σ'*cmp.Del*∂f∂σ)
+                Δσ   = (Δλ*cmp.Del*∂f∂σ)        
                 σ0 .-= Δσ 
                 γ0  += Δλ
-                κ    = max(mp.cr[p],2.5*mp.c0[p]+cmParam.Hp*ϵpII[p,1])
+                κ    = max(mp.cr[p],2.5*mp.c0[p]+cmp.Hp*ϵpII[p,1])
                 f    = hasyield(σ[:,p],κ)
                 ηit +=1
             end
@@ -56,7 +56,7 @@ end
             σ[:,p]       .= σ0
             if instr[:fwrk] == "finite"
                 # update strain tensor
-                mp.ϵᵢⱼ[:,:,p].= mutate(cmParam.Del\σ[:,p],0.5,:tensor)
+                mp.ϵᵢⱼ[:,:,p].= mutate(cmp.Del\σ[:,p],0.5,:tensor)
                 # update left cauchy green deformation tensor
                 λ,n            = eigen(mp.ϵᵢⱼ[:,:,p],sortby=nothing)
                 mp.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'

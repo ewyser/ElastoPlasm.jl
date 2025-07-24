@@ -1,5 +1,5 @@
-function inicmp(mesh,cmParam,instr,ni;ℓ₀=0.0)
-    coh0,cohr,phi0= cmParam[:c0],cmParam[:cr],cmParam[:ϕ0]
+function inicmp(mesh,cmp,instr,ni;ℓ₀=0.0)
+    coh0,cohr,phi0= cmp[:c0],cmp[:cr],cmp[:ϕ0]
     if mesh.dim == 2
         xL          = mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2]
         zL          = mesh.xB[3]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:ℓ₀-0.5*mesh.h[2]/ni
@@ -62,24 +62,24 @@ function compactTest(dim,nel,varPlot,ν,E,ρ0,l0; kwargs...)
     ni      = 2                         
     # constitutive model
     cm(dim,instr; E=E,ν=ν,ρ0=ρ0)
-    cmParam = cm(length(L),instr)
-    tg      = ceil((1.0/cmParam.c)*(2.0*l0)*40.0)
+    cmp = cm(length(L),instr)
+    tg      = ceil((1.0/cmp.c)*(2.0*l0)*40.0)
     T,te    = 1.25*tg,1.25*tg   
     # mesh & mp setup
     mesh     = meshSetup(nel,L,instr)    
-    setgeom = inicmp(mesh,cmParam,instr,ni;ℓ₀=l0) 
-    mp     = pointSetup(mesh,cmParam,instr;define=setgeom)                                        
+    setgeom = inicmp(mesh,cmp,instr,ni;ℓ₀=l0) 
+    mp     = pointSetup(mesh,cmp,instr;define=setgeom)                                        
     z0      = copy(mp.x[:,end])
     # action
-    out = ϵp23De!(mp,mesh,cmParam,g,T,te,tg,instr)    
+    out = ϵp23De!(mp,mesh,cmp,g,T,te,tg,instr)    
     # analytics
     if mesh.dim==2
         xN,yN = abs.(mp.σᵢ[2,:]),z0
     elseif mesh.dim==3
         xN,yN = abs.(mp.σᵢ[3,:]),z0
     end
-    xA,yA = abs.(cmParam.ρ0.*g.*(l0.-z0)),z0
-    err   = sum(sqrt.((xN.-xA).^2).*mp.Ω₀)/(abs(g[end])*cmParam.ρ0*l0*sum(mp.Ω₀)) 
+    xA,yA = abs.(cmp.ρ0.*g.*(l0.-z0)),z0
+    err   = sum(sqrt.((xN.-xA).^2).*mp.Ω₀)/(abs(g[end])*cmp.ρ0*l0*sum(mp.Ω₀)) 
 
     return (xN,yN,xA,yA),mesh.h,err 
 end

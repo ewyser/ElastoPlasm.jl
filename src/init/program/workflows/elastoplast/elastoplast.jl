@@ -1,9 +1,9 @@
-function elastoplast(mp,mesh,cmParam,Δt,instr)
+function elastoplast(mp,mesh,cmp,dt,instr)
     # update {logarithmic|infinitesimal} strains
-    update(mp,mesh,Δt,instr)
+    update(mp,mesh,dt,instr)
     # update {kirchoff|cauchy} stresses
-    elast(mp,cmParam,instr,:update)
+    elast(mp,cmp,instr,:update)
     # plastic corrector
-    ηmax = plast(mp,mesh,cmParam,instr)
+    ηmax = plast(mp,mesh,cmp,instr)
     return ηmax::Int64
 end

@@ -11,14 +11,14 @@ using BenchmarkTools
         g = vec([0.0,0.0,9.81])
     end                                                           # gravitationnal acceleration [m/s^2]            
     # constitutive model
-    cmParam = cm(length(L),instr)
+    cmp = cm(length(L),instr)
     T,te,tg = 15.0,10.0,15.0/1.5                                                # simulation time [s], elastic loading [s], gravity load
     # mesh & mp setup
     mesh     = meshSetup(nel,L,instr)                                            # mesh geometry setup
-    mp     = pointSetup(mesh,L,cmParam,instr[:GRF],typeD)                      # material point geometry setup
+    mp     = pointSetup(mesh,L,cmp,instr[:GRF],typeD)                      # material point geometry setup
     @info "mesh & mp feature(s):" instr[:shpfun] instr[:fwrk] instr[:trsfr] instr[:vollock] nel nthreads()
     # plot & time stepping parameters
-    tw,tC,it,ctr,toc,flag,ηmax,ηtot,Δt = 0.0,1.0/1.0,0,0,0.0,0,0,0,1.0e-4    
+    tw,Δt,it,ctr,toc,flag,ηmax,ηtot,dt = 0.0,1.0/1.0,0,0,0.0,0,0,0,1.0e-4    
     # action
     suite = BenchmarkGroup()
     suite["shpfun"] = BenchmarkGroup(["string", "unicode"])
@@ -29,18 +29,18 @@ using BenchmarkTools
     
 
     suite["shpfun"]["shpfun!"] = @benchmarkable shpfun!($mp,$mesh,$instr)
-    suite["mapsto"]["p->n"   ] = @benchmarkable mapsto!($mp,$mesh,$g,$Δt,$instr,"p->n")
-    suite["solve" ]["solve!" ] = @benchmarkable solve!($mesh,$Δt)
-    #suite["mapsto"]["p<-p"   ] = @benchmarkable mapsto!($mp,$mesh,$g,$Δt,$instr,"p<-n")
-    suite["elasto"]["-------"] = @benchmarkable ηmax = elastoplast!($mp,$mesh,$cmParam,$Δt,$instr)
-    suite["elasto"]["strain!"] = @benchmarkable strain!($mp,$mesh,$Δt,$instr)
+    suite["mapsto"]["p->n"   ] = @benchmarkable mapsto!($mp,$mesh,$g,$dt,$instr,"p->n")
+    suite["solve" ]["solve!" ] = @benchmarkable solve!($mesh,$dt)
+    #suite["mapsto"]["p<-p"   ] = @benchmarkable mapsto!($mp,$mesh,$g,$dt,$instr,"p<-n")
+    suite["elasto"]["-------"] = @benchmarkable ηmax = elastoplast!($mp,$mesh,$cmp,$dt,$instr)
+    suite["elasto"]["strain!"] = @benchmarkable strain!($mp,$mesh,$dt,$instr)
     suite["elasto"]["ΔFbar! "] = @benchmarkable ΔFbar!($mp,$mesh)
-    suite["elasto"]["stress!"] = @benchmarkable stress!($mp,$cmParam,$instr,:update)
+    suite["elasto"]["stress!"] = @benchmarkable stress!($mp,$cmp,$instr,:update)
     
 #=
     mp.Δλ[:] .= 1.0
 
-    ls      = cmParam[:nonlocal][:ls]
+    ls      = cmp[:nonlocal][:ls]
     mp.e2p.= Int(0)
     mp.p2p.= Int(0)
     W,w     = spzeros(mp.nmp),spzeros(mp.nmp,mp.nmp)
@@ -49,8 +49,8 @@ using BenchmarkTools
         nonloc!(W,w,mp,mesh,ls,proc; ndrange=mp.nmp);sync(CPU())
     end
 
-    suite["plast" ]["ϵII0p2q"] = @benchmarkable $ϵII0!($ϵpII,$W,$w,$mp,$mesh,$cmParam[:nonlocal][:ls],"p->q"; ndrange=$mp.nmp);sync(CPU())
-    suite["plast" ]["ϵII0q2p"] = @benchmarkable $ϵII0!($ϵpII,$W,$w,$mp,$mesh,$cmParam[:nonlocal][:ls],"p<-q"; ndrange=$mp.nmp);sync(CPU())
+    suite["plast" ]["ϵII0p2q"] = @benchmarkable $ϵII0!($ϵpII,$W,$w,$mp,$mesh,$cmp[:nonlocal][:ls],"p->q"; ndrange=$mp.nmp);sync(CPU())
+    suite["plast" ]["ϵII0q2p"] = @benchmarkable $ϵII0!($ϵpII,$W,$w,$mp,$mesh,$cmp[:nonlocal][:ls],"p<-q"; ndrange=$mp.nmp);sync(CPU())
 =#
     @info "run benchmarks..."
     benchmark = mean(run(suite))

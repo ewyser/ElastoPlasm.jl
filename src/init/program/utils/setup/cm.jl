@@ -29,7 +29,7 @@ function cm(dim,instr; E::Real=1.0e6,ν::Real=0.3,ρ0::Real= 2700.0)
     ϕ0,ϕr,ψ0= 20.0*π/180,7.5*π/180,0.0                                          # friction angle [Rad], dilation angle [Rad]                                                              
     Hp      = -30.0e3                                                           # softening modulus
     # constitutive model param.
-    cmParam = (;
+    cmp = (;
         cmType   = instr[:plast][:constitutive], 
         nonlocal = instr[:nonloc],
         E   = E, 
@@ -45,5 +45,5 @@ function cm(dim,instr; E::Real=1.0e6,ν::Real=0.3,ρ0::Real= 2700.0)
         ρ0  = ρ0,
         c   = c,
     )
-    return cmParam
+    return cmp
 end

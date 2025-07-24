@@ -86,7 +86,7 @@ function init_elast(instr)
 end
 
 
-function elast(mp,cmParam,instr,type)
-    instr[:cairn][:elastoplast][:elast].elast!(ndrange=mp.nmp,mp,cmParam.Del,instr);sync(CPU())
+function elast(mp,cmp,instr,type)
+    instr[:cairn][:elastoplast][:elast].elast!(ndrange=mp.nmp,mp,cmp.Del,instr);sync(CPU())
     return nothing
 end

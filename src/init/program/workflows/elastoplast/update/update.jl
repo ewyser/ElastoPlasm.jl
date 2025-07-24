@@ -36,9 +36,9 @@ function init_update(instr::Dict)
     end
     return (;deform! = kernel1,domain! = kernel2,ΔJn! = kernel3a,ΔJs! = kernel3b,ΔJp! = kernel3c,)
 end
-function update(mp,mesh,Δt,instr)
+function update(mp,mesh,dt,instr)
     # get incremental deformation tensor
-    instr[:cairn][:elastoplast][:update].deform!(ndrange=mp.nmp,mp,mesh,Δt);sync(CPU())
+    instr[:cairn][:elastoplast][:update].deform!(ndrange=mp.nmp,mp,mesh,dt);sync(CPU())
     # update material point's domain
     if instr[:basis][:which] == "gimpm"
         instr[:cairn][:elastoplast][:update].domain!(ndrange=mp.nmp,mp);sync(CPU())

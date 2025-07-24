@@ -1,4 +1,4 @@
-function pointSetup(mesh,cmParam,instr;define::Tuple=(nothing,nothing))
+function pointSetup(mesh,cmp,instr;define::Tuple=(nothing,nothing))
     # non-dimensional constant                                                   
     if mesh.dim == 2 
         nstr = 3 
@@ -16,11 +16,12 @@ function pointSetup(mesh,cmParam,instr;define::Tuple=(nothing,nothing))
         l0 = ones(size(xp)).*0.5.*(mesh.h[1]./ni)                
         v0 = ones(nmp).*(2.0.*l0[1,:].*2.0.*l0[2,:].*2.0.*l0[3,:])
     end
-    m = cmParam[:ρ0].*v0
+    m = cmp[:ρ0].*v0
     # constructor
     mp = (
-        ndim   = mesh.dim,
+        ndim = mesh.dim,
         nmp  = nmp,
+        vmax = zeros(mesh.dim),
         x    = copy(xp),
         u    = zeros(size(xp)), 
         v    = zeros(size(xp)),
@@ -34,7 +35,7 @@ function pointSetup(mesh,cmParam,instr;define::Tuple=(nothing,nothing))
         cᵣ   = copy(geom.cohr),
         ϕ    = copy(geom.phi),            
         Δλ   = zeros(nmp),
-        ϵpII = zeros(size(xp)),
+        ϵpII = zeros(2,nmp),
         ϵpV  = zeros(nmp), 
         ΔJ   = ones(nmp),
         J    = ones(nmp),

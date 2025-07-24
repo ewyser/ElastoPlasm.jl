@@ -1,6 +1,6 @@
-@views function plotcoh(mp,cmParam,paths)
+@views function plotcoh(mp,cmp,paths)
     xp,coh,phi = mp.x,mp.c₀,mp.ϕ
-    coh0,ϕ0    = cmParam[:c0],cmParam[:ϕ0]
+    coh0,ϕ0    = cmp[:c0],cmp[:ϕ0]
 
 
     coh0 = coh0/1e3

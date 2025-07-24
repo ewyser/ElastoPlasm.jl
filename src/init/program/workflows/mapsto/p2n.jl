@@ -100,7 +100,7 @@ end
         end
     end
 end
-function p2n(mp,mesh,g,Δt,instr)
+function p2n(mp,mesh,g,dt,instr)
     # get cauchy stress 
     if instr[:fwrk][:deform] == "finite"
         instr[:cairn][:mapsto][:map].σᵢ!(ndrange=mp.nmp,mp);sync(CPU())

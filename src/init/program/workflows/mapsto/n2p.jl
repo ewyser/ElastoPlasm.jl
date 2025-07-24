@@ -1,4 +1,4 @@
-@kernel inbounds = true function flip_nd_n2p(mp,mesh,Δt)
+@kernel inbounds = true function flip_nd_n2p(mp,mesh,dt)
     p = @index(Global)
     if p≤mp.nmp    
         # flip update
@@ -8,12 +8,14 @@
                 δa += (mp.ϕ∂ϕ[nn,p,1]*mesh.an[dim,no])
                 δv += (mp.ϕ∂ϕ[nn,p,1]*mesh.vn[dim,no])
             end
-            mp.v[dim,p]+= Δt*δa 
-            mp.x[dim,p]+= Δt*δv
+            mp.v[dim,p]+= dt*δa 
+            mp.x[dim,p]+= dt*δv
+            # find maximum velocity component over mps
+            @atom mp.vmax[dim] = max(mp.vmax[dim],abs(mp.v[dim,p]))
         end
     end  
 end
-@kernel inbounds = true function pic_nd_n2p(mp,mesh,Δt)
+@kernel inbounds = true function pic_nd_n2p(mp,mesh,dt)
     p = @index(Global)
     if p≤mp.nmp    
         for dim ∈ 1:mesh.dim
@@ -23,12 +25,14 @@ end
                 δv += mp.ϕ∂ϕ[nn,p,1]*mesh.vn[dim,no]
             end
             mp.v[dim,p] = δv 
-            mp.x[dim,p]+= Δt*δv
+            mp.x[dim,p]+= dt*δv
+            # find maximum velocity component over mps
+            @atom mp.vmax[dim] = max(mp.vmax[dim],abs(mp.v[dim,p]))
         end
     end  
 end
-function n2p(mp,mesh,Δt,instr)
+function n2p(mp,mesh,dt,instr)
     # mapping to material point
-    instr[:cairn][:mapsto][:map].n2p!(ndrange=mp.nmp,mp,mesh,Δt);sync(CPU())
+    instr[:cairn][:mapsto][:map].n2p!(ndrange=mp.nmp,mp,mesh,dt);sync(CPU())
     return nothing
 end

@@ -1,4 +1,4 @@
-@views @kernel inbounds = true function deform(mp,mesh,Δt)
+@views @kernel inbounds = true function deform(mp,mesh,dt)
     p = @index(Global)
     if p≤mp.nmp 
         # compute velocity & displacement gradients
@@ -9,7 +9,7 @@
             end
         end
         # compute incremental deformation and update
-        mp.ΔFᵢⱼ[:,:,p].= mp.δᵢⱼ+(Δt.*mp.∇vᵢⱼ[:,:,p])
+        mp.ΔFᵢⱼ[:,:,p].= mp.δᵢⱼ+(dt.*mp.∇vᵢⱼ[:,:,p])
         mp.Fᵢⱼ[:,:,p] .= mp.ΔFᵢⱼ[:,:,p]*mp.Fᵢⱼ[:,:,p]
         # update material point's volume
         mp.ΔJ[p]       = det(mp.ΔFᵢⱼ[:,:,p])

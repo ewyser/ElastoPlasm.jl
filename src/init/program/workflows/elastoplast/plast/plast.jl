@@ -1,23 +1,23 @@
 function init_plast(instr)
     kernel1 = nonlocal(CPU())
     if instr[:plast][:constitutive] == "MC"
-        #ηmax = MCRetMap!(mp,ϵpII,cmParam,instr[:fwrk])
+        #ηmax = MCRetMap!(mp,ϵpII,cmp,instr[:fwrk])
     elseif instr[:plast][:constitutive] == "DP"        
         kernel2 = DP!(CPU())
     elseif instr[:plast][:constitutive] == "J2"
         kernel2 = J2!(CPU())
     elseif instr[:plast][:constitutive] == "camC"
-        #ηmax = camCRetMap!(mp,cmParam,instr[:fwrk])
+        #ηmax = camCRetMap!(mp,cmp,instr[:fwrk])
     else
-        throw(error("InvalidReturnMapping: $(cmParam[:cmType])"))
+        throw(error("InvalidReturnMapping: $(cmp[:cmType])"))
     end 
     return (;nonloc! = kernel1, retmap! = kernel2,) 
 end
-function plast(mp,mesh,cmParam,instr)
+function plast(mp,mesh,cmp,instr)
     if instr[:plast][:status] 
         # nonlocal regularization
-        if cmParam[:nonlocal][:status]
-            ls      = cmParam[:nonlocal][:ls]
+        if cmp[:nonlocal][:status]
+            ls      = cmp[:nonlocal][:ls]
             mp.e2p.= Int(0)
             mp.p2p.= Int(0)
             mp.ϵpII[2,:].= 0.0
@@ -27,7 +27,7 @@ function plast(mp,mesh,cmParam,instr)
             end
         end
         # plastic return-mapping dispatcher
-        instr[:cairn][:elastoplast][:plast].retmap!(mp,cmParam,instr; ndrange=mp.nmp);sync(CPU())
+        instr[:cairn][:elastoplast][:plast].retmap!(mp,cmp,instr; ndrange=mp.nmp);sync(CPU())
         ηmax = 0
     else 
         ηmax = 0 
