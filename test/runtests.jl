@@ -1,4 +1,4 @@
-push!(LOAD_PATH, "../src") # FIXME: to be removed everywhere?
+push!(LOAD_PATH, "../src")
 
 import ElastoPlasm
 
@@ -21,3 +21,10 @@ function runtests()
     return nfail
 end
 exit(runtests())
+
+
+#=
+│ To reproduce CI.yaml locally, run the following from the same repository state on julia version 1.10.10:
+│
+│ `import Pkg; Pkg.test(;coverage=true, julia_args=["--check-bounds=yes", "--compiled-modules=yes"], force_latest_compatible_version=false, allow_reresolve=true)`
+=#
