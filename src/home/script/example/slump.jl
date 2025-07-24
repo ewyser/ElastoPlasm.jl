@@ -1,11 +1,10 @@
 #L = [64.1584,12.80]
-function slump(L::Vector{Float64},nel::Int64; kwargs...)
-    @info "execution of slump()"
+function slump(L::Vector{Float64},nel::Int64; fid::String=first(splitext(basename(@__FILE__))),kwargs...)
+    @info "Execution of slump()"
     configPlot()
     # init & kwargs
     instr  = kwargser(:instr,kwargs;dim=length(L))
-    fid    = splitext(basename(@__FILE__))
-    paths  = setPaths(first(fid), info.sys.out;interactive=false)
+    paths  = set_paths(fid,info.sys.out;interactive=false)
     # independant physical constant
     g       = 9.81   
     ni      = 2                                            
@@ -21,7 +20,7 @@ function slump(L::Vector{Float64},nel::Int64; kwargs...)
     out     = plasming!(mp,mesh,cmp,g,T,te,tg,instr)
     # postprocessing
     sleep(2.5)
-    @info "fig(s) saved at $(paths[:plot])"
+    @info "Fig(s) saved at $(paths[:plot])"
     path =joinpath(paths[:plot],"$(length(L))D_$(nel)_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmp[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
     savefig(path)
     msg("(✓) Done! exiting...\n")

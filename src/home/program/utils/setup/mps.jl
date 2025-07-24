@@ -9,14 +9,9 @@ function pointSetup(mesh,cmp,instr;define::Tuple=(nothing,nothing))
     ni,nmp,geom = define
     xp = geom.xp 
     # scalars & vectors
-    if mesh.dim == 2
-        l0 = ones(size(xp)).*0.5.*(mesh.h[1]./ni)  
-        v0 = ones(nmp).*(2.0.*l0[1,:].*2.0.*l0[2,:])
-    elseif mesh.dim == 3
-        l0 = ones(size(xp)).*0.5.*(mesh.h[1]./ni)                
-        v0 = ones(nmp).*(2.0.*l0[1,:].*2.0.*l0[2,:].*2.0.*l0[3,:])
-    end
-    m = cmp[:ρ0].*v0
+    l0 = ones(size(xp)).*0.5.*(mesh.h./ni)
+    v0 = prod(2 .* l0; dims=1)
+    m  = cmp[:ρ0].*v0
     # constructor
     mp = (
         ndim = mesh.dim,
@@ -43,25 +38,25 @@ function pointSetup(mesh,cmp,instr;define::Tuple=(nothing,nothing))
         z₀   = copy(xp[end,:]),
         # tensor in matrix notation
         δᵢⱼ  = Matrix(1.0I,mesh.dim,mesh.dim    ), 
-        ∇vᵢⱼ = zeros(typeD,mesh.dim,mesh.dim,nmp),
-        ∇uᵢⱼ = zeros(typeD,mesh.dim,mesh.dim,nmp),
-        ΔFᵢⱼ = zeros(typeD,mesh.dim,mesh.dim,nmp),
+        ∇vᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
+        ∇uᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
+        ΔFᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
         Fᵢⱼ  = repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp),
         Bᵢⱼ  = repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp),
-        ϵᵢⱼ  = zeros(typeD,mesh.dim,mesh.dim,nmp),
-        ωᵢⱼ  = zeros(typeD,mesh.dim,mesh.dim,nmp),
-        σJᵢⱼ = zeros(typeD,mesh.dim,mesh.dim,nmp),
+        ϵᵢⱼ  = zeros(mesh.dim,mesh.dim,nmp),
+        ωᵢⱼ  = zeros(mesh.dim,mesh.dim,nmp),
+        σJᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
         # tensor in voigt notation
-        σᵢ   = zeros(typeD,nstr,nmp),
-        τᵢ   = zeros(typeD,nstr,nmp),
+        σᵢ   = zeros(nstr,nmp),
+        τᵢ   = zeros(nstr,nmp),
         # additional quantities
-        ϕ∂ϕ  = zeros(typeD,mesh.nn,nmp ,mesh.dim+1   ),
-        δnp  = zeros(typeD,mesh.nn,mesh.dim,nmp      ),
+        ϕ∂ϕ  = zeros(mesh.nn,nmp ,mesh.dim+1   ),
+        δnp  = zeros(mesh.nn,mesh.dim,nmp      ),
         # connectivity
-        e2p  = spzeros(Int64,nmp,mesh.nel[end]),
-        p2p  = spzeros(Int64,nmp,nmp),
-        p2e  = zeros(Int64,nmp),
-        p2n  = zeros(Int64,mesh.nn,nmp),
+        e2p  = spzeros(Int,nmp,mesh.nel[end]),
+        p2p  = spzeros(Int,nmp,nmp),
+        p2e  = zeros(Int,nmp),
+        p2n  = zeros(Int,mesh.nn,nmp),
     )
     return mp 
 end

@@ -64,12 +64,12 @@ function get_host(;user_select::Bool=true,mpi::Bool=info.mpi.is_active)
         push!(names,info.bckd.cpu[:dev0][key][:name])
     end
     if mpi
-        for dev ∈ request("select device(s):",MultiSelectMenu(names))
+        for dev ∈ request("Select device(s):",MultiSelectMenu(names))
             cpus[devs[dev]] = info.bckd.cpu[:dev0][devs[dev]]
         end 
         return NamedTuple(cpus)
     elseif info.ui.bckd && user_select
-        for dev ∈ request("select device(s):",RadioMenu(names))
+        for dev ∈ request("Select device(s):",RadioMenu(names))
             cpus[devs[dev]] = info.bckd.cpu[:dev0][devs[dev]]
         end 
         return NamedTuple(cpus)
@@ -92,12 +92,12 @@ function get_device(;user_select::Bool=true,mpi::Bool=info.mpi.is_active)
     end
     gpus = Dict()
     if mpi
-        for dev ∈ request("select device(s):",MultiSelectMenu(names))
+        for dev ∈ request("Select device(s):",MultiSelectMenu(names))
             gpus[devs[dev]] = info.bckd.gpu[devs[dev]]
         end 
         return NamedTuple(gpus)
     elseif info.ui.bckd && user_select
-        for dev ∈ request("select device(s):",RadioMenu(names))
+        for dev ∈ request("Select device(s):",RadioMenu(names))
             gpus[devs[dev]] = info.bckd.gpu[devs[dev]]
         end 
         return NamedTuple(gpus)
@@ -155,12 +155,12 @@ julia>
 """
 function select_execution_backend(select::Bool; user_select::Bool=true,mpi::Bool=info.mpi.is_active)
     if isempty(info.bckd.gpu)
-        @info "unable to select execution device : defaulting host CPU"
+        @info "Unable to select execution device : defaulting host CPU"
         return get_host(; user_select=select,mpi=mpi)
     else
-        @info "select execution device : (✓) host CPU and (✓) device GPU:" 
+        @info "Select execution device : (✓) host CPU and (✓) device GPU:" 
         backends = [:cpu,:gpu]
-        select   = request("please use up/down arrows to choose an option:",RadioMenu(String.(backends)))
+        select   = request("Please use up/down arrows to choose an option:",RadioMenu(String.(backends)))
         if backends[select] == :cpu
             return get_host(; user_select=user_select,mpi=mpi)
         else
@@ -170,14 +170,14 @@ function select_execution_backend(select::Bool; user_select::Bool=true,mpi::Bool
 end
 function select_execution_backend(select::String; user_select::Bool=true,mpi::Bool=info.mpi.is_active)
     if select == "host"
-        @info "select CPU as execution device"
+        @info "Select CPU as execution device"
         return get_host(; user_select=user_select,mpi=mpi)
     elseif select == "device"
         if isempty(info.bckd.gpu)
-            @info "unable to select execution device : defaulting host CPU"
+            @info "Unable to select execution device : defaulting host CPU"
             return get_host(; user_select=user_select,mpi=mpi)
         else
-            @info "select GPU as execution device"
+            @info "Select GPU as execution device"
             return get_device(;user_select=false)
         end
     else

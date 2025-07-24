@@ -1,9 +1,9 @@
 using BenchmarkTools
 @views function allocTest(L::Vector{Float64},nel::Int64; kwargs...)
-    @warn "unit testing"
+    @warn "Unit testing"
     # init & kwargs
     instr  = setKwargs(:instr,kwargs)
-    @info "init test geometry"
+    @info "Init test geometry"
     # independant physical constant
     if length(L) == 2
         g = vec([0.0,9.81])
@@ -16,7 +16,7 @@ using BenchmarkTools
     # mesh & mp setup
     mesh     = meshSetup(nel,L,instr)                                            # mesh geometry setup
     mp     = pointSetup(mesh,L,cmp,instr[:GRF],typeD)                      # material point geometry setup
-    @info "mesh & mp feature(s):" instr[:shpfun] instr[:fwrk] instr[:trsfr] instr[:vollock] nel nthreads()
+    @info "Mesh & mp feature(s):" instr[:shpfun] instr[:fwrk] instr[:trsfr] instr[:vollock] nel nthreads()
     # plot & time stepping parameters
     tw,Δt,it,ctr,toc,flag,ηmax,ηtot,dt = 0.0,1.0/1.0,0,0,0.0,0,0,0,1.0e-4    
     # action

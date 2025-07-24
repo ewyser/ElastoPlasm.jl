@@ -2,10 +2,10 @@ function meshSetup(nel,L,instr)
     # geometry                                               
     L,h,ndim,nn = getinfo(L,nel)
     if instr[:basis][:ghost]
-        @info "init Eulerian mesh and adding ghosts"
+        @info "Init Eulerian mesh & adding ghosts"
         buffer = 2.0.*h
     else
-        @info "init Eulerian mesh"
+        @info "Init Eulerian mesh"
         buffer = 0.0.*h            
     end
     # mesh 

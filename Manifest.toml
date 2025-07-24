@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.5"
+julia_version = "1.10.7"
 manifest_format = "2.0"
-project_hash = "9d446029cee9af57ffc6df9050b2a331cf0b0bce"
+project_hash = "62885549000d491e7047605932b116fe25aa5409"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -895,6 +895,12 @@ version = "0.34.3"
 deps = ["Artifacts", "Libdl", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
 version = "7.2.1+1"
+
+[[deps.Suppressor]]
+deps = ["Logging"]
+git-tree-sha1 = "6dbb5b635c5437c68c28c2ac9e39b87138f37c0a"
+uuid = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
+version = "0.2.8"
 
 [[deps.TOML]]
 deps = ["Dates"]

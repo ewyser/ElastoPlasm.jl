@@ -48,7 +48,7 @@ end
     return ctr+=1
 end
 function compactTest(dim,nel,varPlot,ν,E,ρ0,l0; kwargs...)
-    @info "execution of compactTest()"
+    @info "Execution of compactTest()"
     if dim == 2
         L       = [l0/nel,l0       ]                                           # domain geometry
     elseif dim == 3
@@ -118,7 +118,7 @@ end
     xN,yN,xA,yA = store[end]
 
     fid    = splitext(basename(@__FILE__))
-    paths  = setPaths(first(fid), sys.out;interactive=false)
+    paths  = set_paths(first(fid), sys.out;interactive=false)
 
 
     configPlot()

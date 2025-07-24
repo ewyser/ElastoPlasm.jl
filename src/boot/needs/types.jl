@@ -17,7 +17,7 @@ Base.@kwdef mutable struct Distributed
 end
 
 Base.@kwdef mutable struct Execution
-    functional::Vector{String} = ["functional execution plateform(s):"]
+    functional::Vector{String} = ["Functional execution plateform(s):"]
 	cpu::Dict = Dict()
 	gpu::Dict = Dict()
 end

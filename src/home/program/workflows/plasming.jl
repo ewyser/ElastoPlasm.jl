@@ -1,6 +1,6 @@
 function plasming!(mp,mesh,cmp,g,T,te,tg,instr)
     @info """
-    launching ϵlastσPlasm 👻 v$(getVersion()):
+    Launching ϵlastσPlasm 👻 v$(getVersion()):
     - $(nthreads()) active thread(s) 
     - $(instr[:fwrk][:deform]) strain formulation
     - $(instr[:basis][:which]) calculation cycle
@@ -10,7 +10,7 @@ function plasming!(mp,mesh,cmp,g,T,te,tg,instr)
     t,Δt,it,ηmax,ηtot = 0.0,instr[:plot][:freq],0,0,0
     checks = sort(unique([collect(t+Δt:Δt:T);te;T]))
     # action
-    prog = Progress(length(checks);dt=0.5,desc="plasming...",barlen=10)
+    prog = Progress(length(checks);dt=0.5,desc="Plasming...",barlen=10)
     for (k,time) ∈ enumerate(checks)
         # plot/save
         savlot(mp,mesh,t,instr)

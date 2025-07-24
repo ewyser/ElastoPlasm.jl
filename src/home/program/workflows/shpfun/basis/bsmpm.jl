@@ -12,6 +12,7 @@ function which(xn,xB,Δx)
     end
 end
 function ϕ∂ϕ(ξ,xn,xB,Δx)
+    ϕ,∂ϕ = 0.0,0.0
     if which(xn,xB,Δx) == 1
         if -2.0<=ξ<=-1.0 
             ϕ = 1.0/6.0     *ξ^3+     ξ^2   +2.0*ξ    +4.0/3.0
@@ -26,7 +27,6 @@ function ϕ∂ϕ(ξ,xn,xB,Δx)
             ϕ = -1.0/6.0     *ξ^3+     ξ^2  -2.0*ξ    +4.0/3.0
             ∂ϕ= -3.0/6.0     *ξ^2+2.0 *ξ    -2.0
         end  
-        return ϕ,∂ϕ/Δx  
     elseif which(xn,xB,Δx) == 2
         if -1.0<=ξ<=0.0 
             ϕ = -1.0/3.0     *ξ^3-     ξ^2    +2.0/3.0
@@ -38,7 +38,6 @@ function ϕ∂ϕ(ξ,xn,xB,Δx)
             ϕ = -1.0/6.0     *ξ^3+     ξ^2-2.0*ξ+4.0/3.0
             ∂ϕ= -3.0/6.0     *ξ^2+2.0 *ξ  -2.0
         end
-        return ϕ,∂ϕ/Δx
     elseif which(xn,xB,Δx) == 3
         if -2.0<=ξ<=-1.0 
             ϕ =  1.0/6.0     *ξ^3+     ξ^2+2.0*ξ+4.0/3.0
@@ -53,7 +52,6 @@ function ϕ∂ϕ(ξ,xn,xB,Δx)
             ϕ = -1.0/6.0     *ξ^3+     ξ^2-2.0*ξ+4.0/3.0
             ∂ϕ= -3.0/6.0     *ξ^2+2.0 *ξ  -2.0
         end
-        return ϕ,∂ϕ/Δx
     elseif which(xn,xB,Δx) == 4
         if -2.0<=ξ<=-1.0
             ϕ =  1.0/6.0     *ξ^3+     ξ^2+2.0*ξ+4.0/3.0
@@ -65,8 +63,8 @@ function ϕ∂ϕ(ξ,xn,xB,Δx)
             ϕ =  1.0/3.0     *ξ^3-     ξ^2    +2.0/3.0
             ∂ϕ=  3.0/3.0     *ξ^2-2.0 *ξ      
         end
-        return ϕ,∂ϕ/Δx
-    end    
+    end   
+    return ϕ,∂ϕ/Δx 
 end
 @views @kernel inbounds = true function bsmpm_1d(mp,mesh)
     p = @index(Global)

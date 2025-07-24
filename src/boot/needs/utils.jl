@@ -17,11 +17,11 @@ Note:
 ---
 A note
 """
-function superList(lists::Vector{String}; root::String=info.sys.root)
-	sucess = ["welcome to ϵlastσPlasm 👻 \nsuperInc() jls parser:"]
+function superList(lists::Vector{String}; root::String=info.sys.root, tree::Bool=false,)
+	sucess = ["Welcome to ϵlastσPlasm 👻 \nsuperInc() jls parser:"]
 	for (k,dir) ∈ enumerate(lists)
 		incs = superInc(joinpath(root,dir))
-		if haskey(ENV,"TREE") && ENV["TREE"]=="true"
+		if tree
 			relative = Vector{String}()
 			for path ∈ incs.paths
 				push!(relative,last(split(path,"/ElastoPlasm.jl")))
@@ -57,7 +57,6 @@ function superInc(DIR::String)
 	for (root, dirs, files) ∈ walkdir(DIR)
 		for file ∈ files
 			f = joinpath(root,file)
-			println(f)
 			if last(splitext(f)) == ".jl" 
 				include(f); push!(jls,file); push!(paths,f)
 			end
@@ -117,12 +116,12 @@ A note
 function rootflush(info)
 	root = basename(info.sys.out)
 	if !isdir(info.sys.out)
-		msg = ["creating /dump at:\n\t- $(root)"]
+		msg = ["Creating /dump at:\n\t- $(root)"]
 		mkdir(info.sys.out) 
 	else
-		msg,files = ["nothing to flush at /dump"],readdir(info.sys.out;join=true)
+		msg,files = ["Nothing to flush at /dump"],readdir(info.sys.out;join=true)
 		if !isempty(files)
-			msg = ["flushing /dump:"]
+			msg = ["Flushing /dump:"]
 			for file ∈ files
 				if !occursin(info.mpi.glob,file) 
 					rm(file,recursive=true)  

@@ -1,5 +1,5 @@
 function inislump(mesh,cmp,ni,instr)
-    @info "init slump geometry"
+    @info "Init slump geometry"
     coh0,cohr,phi0,phir,rho0 = cmp[:c0],cmp[:cr],cmp[:ϕ0],cmp[:ϕr],cmp[:ρ0]
 
     lz = 12.80

@@ -5,7 +5,7 @@ const ROOT = @__DIR__
 # include boot file
 include(joinpath(ROOT,"boot/boot.jl"))
 
-@info """new comer ?
+@info """New comer ?
 - copy-paste the followings:
   L,nel = [64.1584,12.80],40
   instr = slump(L,nel);
