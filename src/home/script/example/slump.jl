@@ -5,7 +5,7 @@ function slump(L::Vector{Float64},nel::Int64; kwargs...)
     # init & kwargs
     instr  = kwargser(:instr,kwargs;dim=length(L))
     fid    = splitext(basename(@__FILE__))
-    paths  = setPaths(first(fid), sys.out;interactive=false)
+    paths  = setPaths(first(fid), info.sys.out;interactive=false)
     # independant physical constant
     g       = 9.81   
     ni      = 2                                            
