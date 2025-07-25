@@ -1,7 +1,7 @@
 export slump,ic_slump 
 
 function ic_slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
-    @info "Setting up mesh & material point system for slump problem"
+    @info "Setting up mesh & material point system for $(length(L))d slump problem"
     # init & kwargs
     instr   = kwargser(:instr,kwargs;dim=length(L))
     paths   = set_paths(fid,info.sys.out;interactive=false)      

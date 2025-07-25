@@ -43,26 +43,28 @@ cases = [
             cfg = (;instr = instr, paths = cfg.paths)
 
             @testset "$(basename(@__FILE__)) executes safely with: $(instr[:fwrk].locking), $(instr[:fwrk].trsfr), $(instr[:fwrk].deform), $(instr[:basis].which)" begin
+                status = false
                 try
-                    instr = slump(ic,cfg;)
-                    @test true
+                    @suppress begin
+                        status = slump(ic,cfg;)
+                    end
                 catch e
                     @warn "$(basename(@__FILE__)) failed with error" exception = e
-                    @test false
                 end
+                @test status
             end
             next!(prog)
         end
         finish!(prog)   
     end
     
-    @info "Testing $(basename(@__FILE__)):"
-    @testset "2D geometry" verbose = true begin
-         L,nel = [64.1584,64.1584/4.0],[40,10]
-        iter_slump(L,nel,"Completion for 2D geometry:")
+    @info "Launching ./$(basename(@__FILE__))"
+    @testset "- 2d geometry" verbose = true begin
+         L,nel  = [64.1584,64.1584/4.0],[40,10];
+        iter_slump(L,nel,"Completion for 2d geometry:")
     end
-    @testset "3D geometry" verbose = true begin
-        L,nel = [64.1584,64.1584/4.0,64.1584/4.0],[40,10,10]
-        #iter_slump(L,nel,"Completion for 3D geometry:")
+    @testset "- 3d geometry" verbose = true begin
+        L,nel  = [64.1584,64.1584/4.0,64.1584/4.0],[40,10,10];
+        #iter_slump(L,nel,"Completion for 3d geometry:")
     end
 end
