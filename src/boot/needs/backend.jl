@@ -1,16 +1,20 @@
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- #
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- #
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- #
 export add_backend!, device_wakeup!, device_free!
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- #
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- #
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- #
-"""
-    add_backend!(::Val{:x86_64},info::Self)
 
-Description:
----
-Return Dicts of effective cpu and gpu backend based on hard-coded supported backends. 
+"""
+    add_backend!(::Val{:x86_64}, info::Self)
+
+Detects and registers available CPU backends for x86_64 architecture, populating the `info.bckd` structure with supported devices and brands.
+
+# Arguments
+- `info::Self`: The backend info object to populate.
+
+# Behavior
+- Scans system CPU info and matches against supported brands.
+- Populates `info.bckd.cpu` and updates `info.bckd.functional` with detected devices.
+- Throws an error if CPU model cannot be retrieved.
+
+# Returns
+- `nothing`
 """
 function add_backend!(::Val{:x86_64},info::Self)
     String.([split(string(Sys.cpu_info()[k]),":")[1] for k ∈ 1:length(Sys.cpu_info())])
@@ -52,11 +56,16 @@ function add_backend!(::Val{:x86_64},info::Self)
 end
 
 """
-    get_host(;user_select::Bool=true,mpi::Bool=info.mpi.is_active)
+    get_host(; user_select::Bool=true, mpi::Bool=info.mpi.is_active)
 
-Description:
----
-Return a NamedTuple of effective cpu. 
+Returns a NamedTuple of selected CPU devices, optionally allowing interactive selection.
+
+# Keyword Arguments
+- `user_select::Bool=true`: If true, prompts user to select devices.
+- `mpi::Bool=info.mpi.is_active`: If true, uses MPI selection logic.
+
+# Returns
+- `NamedTuple`: Selected CPU devices.
 """
 function get_host(;user_select::Bool=true,mpi::Bool=info.mpi.is_active)
     cpus,devs,names = Dict(),collect(keys(info.bckd.cpu[:dev0])),Vector{String}()
@@ -79,11 +88,16 @@ function get_host(;user_select::Bool=true,mpi::Bool=info.mpi.is_active)
 end
 
 """
-    get_device(;user_select::Bool=true,mpi::Bool=info.mpi.is_active)
+    get_device(; user_select::Bool=true, mpi::Bool=info.mpi.is_active)
 
-Description:
----
-Return a NamedTuple of gpu(s) based on an interactive selection (when `user_select=true`) of available device(s) on the system. Otherwise, only return the first device found amongst all.
+Returns a NamedTuple of selected GPU devices, optionally allowing interactive selection.
+
+# Keyword Arguments
+- `user_select::Bool=true`: If true, prompts user to select devices.
+- `mpi::Bool=info.mpi.is_active`: If true, uses MPI selection logic.
+
+# Returns
+- `NamedTuple`: Selected GPU devices.
 """
 function get_device(;user_select::Bool=true,mpi::Bool=info.mpi.is_active)
     devs,names = collect(keys(info.bckd.gpu)),Vector{String}()
@@ -109,21 +123,25 @@ end
 """
     device_wakeup!()
 
-Description:
----
-Return Dicts of effective cpu and gpu backend based on hard-coded supported backends. 
+Stub for device backend initialization. Must be overloaded in platform-specific extensions.
 
+# Throws
+- `ErrorException`: Always, indicating the function is a stub.
 """
 function device_wakeup!()
     throw(ErrorException("🚧 `device_wakeup!()` is a stub. It must be overloaded in CUDAExt, ROCmExt or MtlExt."))
 end
 
 """
-    device_free(mesh::Mesh,::Val{:CPU})
+    device_free!(mesh::Mesh, ::Val{:CPU})
 
-Description:
----
-Return Dicts of effective cpu and gpu backend based on hard-coded supported backends. 
+Frees resources associated with a CPU mesh and triggers garbage collection.
+
+# Arguments
+- `mesh::Mesh`: The mesh object to free.
+
+# Returns
+- `nothing`
 """
 function device_free!(mesh::Mesh,::Val{:CPU})
     mesh = nothing
@@ -132,26 +150,19 @@ function device_free!(mesh::Mesh,::Val{:CPU})
 end
 
 """
-    select_execution_backend(select::{Bool|String})
+    select_execution_backend(select::Bool; user_select::Bool=true, mpi::Bool=info.mpi.is_active)
 
-Description:
----
-Call functions `get_host()` and/or `get_device()`, and return a `NamedTuple` of selected backends (if `select=true`) or of predefined backends (if `select={"cpu"|"gpu"}`). 
+Interactively selects and returns a NamedTuple of CPU or GPU backends based on user input or available devices.
 
-Example:
----
-```julia
-julia> cORIUm.select_execution_backend(true)
-[ Info: unable to select execution device : defaulting host CPU
-(dev0 = (host = "cpu", platform = :x86_64, brand = "Intel(R)", name = "Intel(R) Core(TM) i5-1038NG7 CPU @ 2.00GHz", Backend = KernelAbstractions.CPU(false), wrapper = Array, handle = nothing),)
+# Arguments
+- `select::Bool`: If true, prompts user for device selection.
 
-julia> cORIUm.select_execution_backend("cpu")
-[ Info: select CPU as execution device
-(dev0 = (host = "cpu", platform = :x86_64, brand = "Intel(R)", name = "Intel(R) Core(TM) i5-1038NG7 CPU @ 2.00GHz", Backend = KernelAbstractions.CPU(false), wrapper = Array, handle = nothing),)
+# Keyword Arguments
+- `user_select::Bool=true`: If true, enables interactive selection.
+- `mpi::Bool=info.mpi.is_active`: If true, uses MPI selection logic.
 
-julia> 
-
-```
+# Returns
+- `NamedTuple`: Selected backend devices.
 """
 function select_execution_backend(select::Bool; user_select::Bool=true,mpi::Bool=info.mpi.is_active)
     if isempty(info.bckd.gpu)
@@ -168,6 +179,25 @@ function select_execution_backend(select::Bool; user_select::Bool=true,mpi::Bool
         end
     end  
 end
+
+"""
+    select_execution_backend(select::String; user_select::Bool=true, mpi::Bool=info.mpi.is_active)
+
+Selects and returns a NamedTuple of CPU or GPU backends based on the provided string ("host" or "device").
+
+# Arguments
+- `select::String`: "host" for CPU, "device" for GPU.
+
+# Keyword Arguments
+- `user_select::Bool=true`: If true, enables interactive selection.
+- `mpi::Bool=info.mpi.is_active`: If true, uses MPI selection logic.
+
+# Returns
+- `NamedTuple`: Selected backend devices.
+
+# Throws
+- Error if an invalid backend string is provided.
+"""
 function select_execution_backend(select::String; user_select::Bool=true,mpi::Bool=info.mpi.is_active)
     if select == "host"
         @info "Select CPU as execution device"

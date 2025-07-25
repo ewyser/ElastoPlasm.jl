@@ -53,7 +53,7 @@ julia> using elastoPlasm
 julia> names(elastoPlasm)
 6-element Vector{Symbol}:
  :allocCheck
- :configPlot
+ :config_plot
  :e2eTest
  :elastoPlasm
  :slump

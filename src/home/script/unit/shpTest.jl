@@ -42,7 +42,7 @@ function shpfunCheck(shp,instr,paths)
     colors = [:aqua,:fuchsia,:navy,:indigo,:tomato,:olive]
 
 
-    configPlot()
+    config_plot()
     T = [L"\phi_n(x_p)",L"\partial_x\phi_n(x_p)",L"$\sum_n\phi_n(x_p)=1$",L"$\Delta = x_p-\sum_n\phi_n(x_p)x_n$"]
     gr(size=(2.0*250,3*125),legend=false,markersize=2.25,markerstrokecolor=:auto)
     

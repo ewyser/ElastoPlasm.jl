@@ -1,7 +1,7 @@
 # L,nel = [64.1584,12.80],40
 # e2eTest(L,nel;)
 function e2eTest(L::Vector{Float64},nel::Int64; kwargs...)
-    configPlot()
+    config_plot()
     # init & kwargs
     instr  = kwargser(:instr,kwargs;dim=length(L))
     # independant physical constant

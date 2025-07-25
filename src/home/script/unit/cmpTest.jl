@@ -121,7 +121,7 @@ end
     paths  = set_paths(first(fid), sys.out;interactive=false)
 
 
-    configPlot()
+    config_plot()
     gr(size=(2.0*250,2*125),legend=true,markersize=2.25,markerstrokecolor=:auto)
     p1 = plot(xN.*1e-3,yN,seriestype=:scatter, label="$(dim)D $(basistype), $(mapping) mapping")
     p1 = plot!(xA.*1e-3,yA,label=L"\sum_{p}\dfrac{||\sigma_{yy}^p-\sigma_{yy}^a(x_p)||V_0^p}{(g\rho_0l_0)V_0}",xlabel=L"$\sigma_{yy}$ [kPa]",ylabel=L"$y-$position [m]") 

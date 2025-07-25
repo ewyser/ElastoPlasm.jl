@@ -1,21 +1,21 @@
 """
-    superList(lists::Vector{String}; root::String=info.sys.root)
+    superList(lists::Vector{String}; root::String=info.sys.root, tree::Bool=false) -> Vector{String}
 
-Description:
----
-A description
+Loads and parses a list of module directories, optionally displaying a tree structure of included files.
 
-Example:
----
-An example
+# Arguments
+- `lists::Vector{String}`: List of directory names to include.
+- `root::String=info.sys.root`: Root directory for the modules.
+- `tree::Bool=false`: If true, displays a tree structure of included files.
+
+# Returns
+- `Vector{String}`: Messages summarizing the inclusion status for each directory.
+
+# Example
 ```julia
-
-julia> 
+msgs = superList(["src/boot", "src/home"])
+println.(msgs)
 ```
-
-Note:
----
-A note
 """
 function superList(lists::Vector{String}; root::String=info.sys.root, tree::Bool=false,)
 	sucess = ["Welcome to ϵlastσPlasm 👻 \nsuperInc() jls parser:"]
@@ -33,24 +33,23 @@ function superList(lists::Vector{String}; root::String=info.sys.root, tree::Bool
 	end
 	return sucess
 end
+
 """
-    superInc(DIR::String)
+    superInc(DIR::String) -> NamedTuple
 
-Description:
----
-A description
+Recursively includes all `.jl` files in the given directory and its subdirectories.
 
-Example:
----
-An example
+# Arguments
+- `DIR::String`: Directory to search for Julia files.
+
+# Returns
+- `NamedTuple`: Contains `jls` (filenames) and `paths` (absolute paths).
+
+# Example
 ```julia
-
-julia> 
+incs = superInc("src/boot")
+println(incs.jls)
 ```
-
-Note:
----
-A note
 """
 function superInc(DIR::String)
 	jls,paths = Vector{String}(),Vector{String}()
@@ -64,24 +63,25 @@ function superInc(DIR::String)
 	end
 	return incs = (; jls = jls, paths = paths,)
 end
+
 """
-    tree(sucess, prefix="\n\t", level=0, max_level=1)
+    tree(sucess, prefix="\n\t", level=0, max_level=1) -> Vector{String}
 
-Description:
----
-A description
+Formats a list of strings into a tree-like structure for display.
 
-Example:
----
-An example
+# Arguments
+- `sucess`: List of strings to format.
+- `prefix="\n\t"`: String prefix for each line.
+- `level=0`: Current tree depth.
+- `max_level=1`: Maximum tree depth.
+
+# Returns
+- `Vector{String}`: Tree-formatted strings.
+
+# Example
 ```julia
-
-julia> 
+tree(["boot", "home"])
 ```
-
-Note:
----
-A note
 """
 function tree(sucess, prefix="\n\t", level=0, max_level=1)
     if level > max_level
@@ -94,24 +94,23 @@ function tree(sucess, prefix="\n\t", level=0, max_level=1)
     end
 	return printout
 end
+
 """
-    rootflush(info)
+    rootflush(info) -> Vector{String}
 
-Description:
----
-A description
+Creates or flushes the output directory, removing files that do not match a given pattern.
 
-Example:
----
-An example
+# Arguments
+- `info`: Struct containing system and MPI information.
+
+# Returns
+- `Vector{String}`: Messages about created or deleted files.
+
+# Example
 ```julia
-
-julia> 
+msgs = rootflush(info)
+println.(msgs)
 ```
-
-Note:
----
-A note
 """
 function rootflush(info)
 	if !isdir(info.sys.out)
@@ -139,15 +138,16 @@ Returns the subpath of `full_path` starting from the directory name `anchor`.
 
 # Arguments
 - `full_path`: The full absolute or relative path.
-- `anchor`: The folder name from which you want to keep the rest of the path (e.g., "ElastoPlasm.jl").
+- `anchor`: The folder name from which you want to keep the rest of the path.
 
 # Returns
-- A truncated path string like `"ElastoPlasm.jl/dump/slump"`.
+- `String`: Truncated path string.
 
 # Example
 ```julia
-truncate_path_from("C:/Users/lili8/Documents/GitHub/ElastoPlasm.jl/dump/slump", "ElastoPlasm.jl")
+trunc_path("C:/Users/lili8/Documents/GitHub/ElastoPlasm.jl/dump/slump", "ElastoPlasm.jl")
 # => "ElastoPlasm.jl/dump/slump"
+```
 """
 function trunc_path(full_path::AbstractString; anchor::AbstractString="ElastoPlasm.jl")
 	parts = splitpath(full_path)
@@ -164,7 +164,7 @@ Generates a summary log string describing the current simulation configuration f
 - `instr::NamedTuple`: Instruction/configuration named tuple containing simulation options.
 
 # Returns
-- `String`: A multi-line string summarizing the simulation setup, including active threads, strain formulation, calculation cycle, and optional features such as F-bar locking mitigation and non-local plastic regularization.
+- `String`: Multi-line string summarizing the simulation setup.
 
 # Example
 ```julia

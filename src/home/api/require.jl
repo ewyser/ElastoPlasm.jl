@@ -1,40 +1,34 @@
 """
-    require(in::Symbol)
+    require(in::Symbol=:instr) -> Dict
 
-Generates and returns a Dictionnary of reference instruction
+Returns a reference configuration dictionary for simulation instructions or API routines.
 
-# Examples
+# Arguments
+- `in::Symbol`: The configuration type to load defaults for. Only `:instr` is supported.
 
-```jldoc
-julia> require(:instr)
-Dict{Symbol, Any} with 10 entries:
-  :dtype   => Float64
-  :nonloc  => (cond = false, ls = 1.0)
-  :GRF     => false
-  :shpfun  => :bsmpm
-  :trsfr   => :mUSL
-  :vollock => true
-  :plast   => (false, "DP")
-  :plot    => (cond = true, freq = 1.0, what = ["epII"])
-  :perf    => true
-  :fwrk    => :finite
+# Returns
+- `Dict`: A dictionary containing default configuration values for simulation, including precision, basis, deformation framework, mapping scheme, locking mitigation, random field generator, plasticity, non-local regularization, plotting options, and performance mode.
 
-julia> 
+# Behavior
+- If `in == :instr`, returns a dictionary with all default simulation options.
+- Throws an error for unsupported symbols.
+
+# Example
+```julia
+cfg = require(:instr)
 ```
 
-# Further specification
-Admissible keywords, by-default value and purpose are presented below when ```instr = require(:instr)```
-- ```:dtype   ```, # set the arithmetic precision
-- ```:basis   ```, # define shapefunction type
-- ```:fwrk    ```, # set the deformation framework
-- ```:trsfr   ```, # set the mapping scheme
-- ```:vollock ```, # set volumetric locking mitigation strategy
-- ```:GRF     ```, # activate Gaussian Random Field generator
-- ```:plast   ```, # set plasticity onset and plastic flow law
-- ```:nonloc  ```, # set non-local regularization
-- ```:plot    ```, # option for plotting capabilities
-- ```:perf    ```, # set performance mode
-
+# Supported keys and their purpose
+- `:dtype`   — Arithmetic precision
+- `:basis`   — Shape function type
+- `:fwrk`    — Deformation framework
+- `:trsfr`   — Mapping scheme
+- `:vollock` — Volumetric locking mitigation
+- `:GRF`     — Gaussian Random Field generator
+- `:plast`   — Plasticity onset and flow law
+- `:nonloc`  — Non-local regularization
+- `:plot`    — Plotting options
+- `:perf`    — Performance mode
 """
 function require(in::Symbol=:instr)
     if in == :instr
