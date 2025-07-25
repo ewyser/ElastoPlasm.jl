@@ -15,9 +15,10 @@ Initializes the mesh, material points, constitutive model, and simulation config
 # Returns
 - `(ic, cfg)`: Two named tuples containing mesh/material/compression info (`ic`) and instructions/paths (`cfg`).
 """
-function ic_collapse(dim::Int, nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
-    @info "Setting up mesh & material point system for $(dim)d collapse problem"
+function ic_collapse(nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
+    @info "Setting up mesh & material point system for $(length(nel))d collapse problem"
     # Geometry
+    dim = length(nel)
     L = dim == 2 ? [10.0, 1.25*l0] : [10.0, 10.0, 1.25*l0]
     # Simulation instructions
     instr = kwargser(:instr, kwargs; dim=dim)
@@ -57,14 +58,14 @@ function collapse(ic::NamedTuple, cfg::NamedTuple)
     path =joinpath(paths[:plot],"$(mesh.dim)d_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
     savefig(path)
     msg("(✓) Done! exiting...\n")
-    return sucess=true
+    return (;sucess=true,mesh,mp)
 end
 
 #=
     plot = (;status=true,freq=1.0,what=["P"],dims=(500.0,250.0),)
-    dim,nel  = 2,[5,10]
+    nel  = [5,10]
     # initial parameters 
     ν,E,ρ0,l0 = 0.0,1.0e4,80.0,10.0
-    ic, cfg = ic_collapse(2, [5,10], ν, E, ρ0, l0; plot);
-    collapse(ic, cfg);
+    ic, cfg = ic_collapse(nel, ν, E, ρ0, l0; plot);
+    out = collapse(ic, cfg);
 =#

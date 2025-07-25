@@ -7,10 +7,10 @@ function runtests()
     testdir   = joinpath(@__DIR__,"testset")
     istest(f) = endswith(f, ".jl") && startswith(f, "test_")
     testfiles = sort(filter(istest, readdir(testdir)))
-
+    println(testfiles)
     nfail = 0
     printstyled("\nTesting ElastoPlasm.jl\n"; bold=true, color=:white)
-    for f in testfiles
+    for f ∈ testfiles
         try
             include(joinpath(testdir, f))
         catch ex
