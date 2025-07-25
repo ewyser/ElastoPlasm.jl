@@ -66,7 +66,7 @@ cases = [
     @info "Testing $(basename(@__FILE__)):"
     @testset "2D geometry" verbose = true begin
         @info "Considering 2D geometry"
-        L,nel = [64.1584,12.80],40
+         L,nel = [64.1584,64.1584],[40,40]
         iter_slump(L,nel,"Completion:")
     end
     @testset "3D geometry" verbose = true begin
