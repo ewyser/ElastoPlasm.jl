@@ -1,9 +1,9 @@
 function collapse(dim,nel,ν,E,ρ0,l0; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
     @info "Execution of collapse()"
     if dim == 2
-        L       = [l0,1.25*l0      ]                                           # domain geometry
+        L       = [10.0,1.25*l0     ]                                            # domain geometry
     elseif dim == 3
-        L       = [l0/nel,l0/nel,l0]                                            # domain geometry
+        L       = [10.0,10.0,1.25*l0]                                            # domain geometry
     end
     # independant physical constant
     instr   = kwargser(:instr,kwargs;dim=length(L))
@@ -11,7 +11,7 @@ function collapse(dim,nel,ν,E,ρ0,l0; fid::String=first(splitext(basename(@__FI
     # independant physical constant
     g,ni    = 9.81,2                                             
     # constitutive model & time parameters
-    cmp     = setup_cm(length(L),instr)#; E=E,ν=ν,ρ0=ρ0)
+    cmp     = setup_cm(length(L),instr; E=E,ν=ν,ρ0=ρ0)
     tg      = ceil((1.0/cmp.c)*(2.0*l0)*40.0)
     T,te    = 1.25*tg,1.25*tg   
     # mesh & mp setup
@@ -33,7 +33,7 @@ export collapse
 
 #=
 plot = (;status=true,freq=1.0,what=["P"],dims=(500.0,250.0),)
-dim,nel  = 2,10
+dim,nel  = 2,[5,5,10]
 # initial parameters 
 ν,E,ρ0,l0 = 0.0,1.0e4,80.0,10.0
 

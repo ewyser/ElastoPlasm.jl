@@ -1,6 +1,11 @@
 function setup_mesh(nel,L,instr)
     # geometry                                               
-    ndim,nn,h = length(L),4^length(L),L./nel #L,h,ndim,nn = getinfo(L,nel)
+    if instr[:basis][:which] == "bsmpm"
+        ndim,nn,h = length(L),4^length(L),min.(L./nel,L./4)
+    else
+        ndim,nn,h = length(L),4^length(L),L./nel #L,h,ndim,nn = getinfo(L,nel)
+    end
+
     if instr[:basis][:ghost]
         @info "Init Eulerian mesh & adding ghosts"
         buffer = 2.0.*h

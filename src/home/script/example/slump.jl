@@ -1,5 +1,5 @@
 #L = [64.1584,12.80]
-function slump(L::Vector{Float64},nel::Int64; fid::String=first(splitext(basename(@__FILE__))),kwargs...)
+function slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(splitext(basename(@__FILE__))),kwargs...)
     @info "Execution of slump()"
     configPlot()
     # init & kwargs
