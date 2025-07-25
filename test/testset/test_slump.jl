@@ -29,8 +29,8 @@ cases = [
 ]
 
 @testset "+ $(basename(@__FILE__))" verbose = true begin
-    function iter_slump(L,nel,msg)
-        ic,cfg = ic_slump(L,nel; fid = "test/slump");
+    function iter_slump(ic,cfg,msg)
+        
         prog = Progress(length(cases)+1;dt=0.5,desc=msg,barlen=10);
         for case ∈ cases
             kwargs = Dict(
@@ -59,12 +59,15 @@ cases = [
     end
     
     @info "Launching ./$(basename(@__FILE__))"
+    L,nel  = [64.1584,64.1584/4.0],[40,10];
+    ic,cfg = ic_slump(L,nel; fid = "test/slump");
     @testset "- 2d geometry" verbose = true begin
-         L,nel  = [64.1584,64.1584/4.0],[40,10];
-        iter_slump(L,nel,"Completion for 2d geometry:")
+        iter_slump(ic,cfg,"Completion for 2d geometry:")
     end
+    L,nel  = [64.1584,64.1584/4.0,64.1584/4.0],[40,10,10];
+    ic,cfg = ic_slump(L,nel; fid = "test/slump");
+    ic     = merge(ic, (; time = (; T = ic.time.te, te = ic.time.te, tg = ic.time.tg) ))
     @testset "- 3d geometry" verbose = true begin
-        L,nel  = [64.1584,64.1584/4.0,64.1584/4.0],[40,10,10];
-        #iter_slump(L,nel,"Completion for 3d geometry:")
+        iter_slump(ic,cfg,"Completion for 3d geometry:")
     end
 end
