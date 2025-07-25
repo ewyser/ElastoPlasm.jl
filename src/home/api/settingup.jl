@@ -36,33 +36,39 @@ Dict{Symbol, String} with 2 entries:
 
 ````
 """
-function set_paths(new_dir::String,path::String;interactive::Bool=true)
-    mkpath(joinpath(path,new_dir))
-
-    # select subfolder(s) to be created
-    options   = ["plot","dat"]
+function set_paths(new_dir::String, path::String; interactive::Bool=true)
+    paths    = Dict{Symbol,Any}()
+    msg,msg! = ["Generating additional paths:"], ["Deleting at:"]
+    options  = ["plot", "dat"]
+    root     = joinpath(path, new_dir)
     if interactive
-        select = request("Select folder(s) you'd like to generate:",MultiSelectMenu(options))
-    else
-        select = Set([1,2])
-    end
-    paths     = Dict{Symbol,Any}()
-    msg,msg!  = ["Generating additional paths:"],["Deleting at:"]
-    for (k,name) ∈ enumerate(select)
-        paths[Symbol(options[name])] = joinpath(joinpath(path,new_dir),options[name])
-        # creating or doing nothin
-        if !isdir(joinpath(joinpath(path,new_dir),options[name]))
-            mkdir(joinpath(joinpath(path,new_dir),options[name]))
-            push!(msg,"\n+ $(joinpath(basename(path),new_dir,options[name]))")
-        else
-            nothing
+        select = request("Select folder(s) you'd like to generate:", MultiSelectMenu(options))
+        for (k, name) ∈ enumerate(select)
+            subdir = joinpath(root, options[name])
+            paths[Symbol(options[name])] = subdir
+            if !isdir(subdir)
+                mkpath(subdir)
+                push!(msg, "\n+ $(joinpath(basename(path), new_dir, options[name]))")
+            end
         end
-    end 
-    if length(msg)>1
+    else
+        
+        if !isdir(root)
+            mkpath(root)
+            push!(msg, "\n+ $(joinpath(path, new_dir))")
+        end
+        # point all options to the root (but don't create subfolders)
+        for name ∈ options
+            paths[Symbol(name)] = root
+        end
+    end
+
+    if length(msg) > 1
         @info join(msg)
     end
-    if length(msg!)>1
+    if length(msg!) > 1
         @warn join(msg!)
     end
+
     return paths
 end
