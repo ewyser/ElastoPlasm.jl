@@ -1,42 +1,70 @@
-function collapse(dim,nel,ν,E,ρ0,l0; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
+export collapse, ic_collapse
+
+"""
+    ic_collapse(dim::Int, nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=..., kwargs...) -> NamedTuple, NamedTuple
+
+Initializes the mesh, material points, constitutive model, and simulation configuration for a collapse test.
+
+# Arguments
+- `dim::Int`: Number of spatial dimensions (2 or 3).
+- `nel::Vector{Int64}`: Number of elements in each dimension.
+- `ν, E, ρ0, l0`: Physical parameters.
+- `fid::String`: (Optional) File or run identifier.
+- `kwargs...`: Additional keyword arguments for simulation configuration.
+
+# Returns
+- `(ic, cfg)`: Two named tuples containing mesh/material/compression info (`ic`) and instructions/paths (`cfg`).
+"""
+function ic_collapse(dim::Int, nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
+    @info "Setting up mesh & material point system for $(dim)d collapse problem"
+    # Geometry
+    L = dim == 2 ? [10.0, 1.25*l0] : [10.0, 10.0, 1.25*l0]
+    # Simulation instructions
+    instr = kwargser(:instr, kwargs; dim=dim)
+    paths = set_paths(fid, info.sys.out; interactive=false)
+    # mesh & mp initial conditions
+    ni    =  2
+    mesh  = setup_mesh(nel, L, instr)
+    cmpr  = setup_cmpr(dim, instr; E=E, ν=ν, ρ0=ρ0)
+    mp    = setup_mps(mesh, cmpr; define=inicollapse(mesh, cmpr, ni; ℓ₀=l0))
+    # time parameters
+    tg    = ceil((1.0/cmpr.c)*(2.0*l0)*40.0)
+    time  = (; T=1.25*tg, te=1.25*tg, tg=tg)
+    return (;mesh, mp, cmpr, time), (;instr, paths)
+end
+
+"""
+    collapse(ic::NamedTuple, cfg::NamedTuple) -> Bool
+
+Runs the explicit solution workflow for the collapse problem, including simulation and postprocessing.
+
+# Arguments
+- `ic::NamedTuple`: Initial mesh/material/compression/time/gravity configuration.
+- `cfg::NamedTuple`: Simulation instructions and output paths.
+
+# Returns
+- `Bool`: Returns `true` if the simulation and postprocessing complete successfully.
+"""
+function collapse(ic::NamedTuple, cfg::NamedTuple)
     @info "Execution of collapse()"
-    if dim == 2
-        L       = [10.0,1.25*l0     ]                                            # domain geometry
-    elseif dim == 3
-        L       = [10.0,10.0,1.25*l0]                                            # domain geometry
-    end
-    # independant physical constant
-    instr   = kwargser(:instr,kwargs;dim=length(L))
-    paths   = set_paths(fid,info.sys.out;interactive=false)
-    # independant physical constant
-    g,ni    = 9.81,2                                             
-    # constitutive model & time parameters
-    cmp     = setup_cmpr(length(L),instr; E=E,ν=ν,ρ0=ρ0)
-    tg      = ceil((1.0/cmp.c)*(2.0*l0)*40.0)
-    T,te    = 1.25*tg,1.25*tg   
-    # mesh & mp setup
-    mesh    = setup_mesh(nel,L,instr)    
-    setgeom = inicollapse(mesh,cmp,ni;ℓ₀=l0) 
-    mp      = setup_mps(mesh,cmp;define=setgeom)                                        
-    z0      = copy(mp.x[:,end])
+    # extract mesh, mp, cmpr, instr, paths
+    mesh,mp,cmpr = deepcopy(ic[:mesh]  ), deepcopy(ic[:mp]    ), deepcopy(ic[:cmpr])
+    time         = deepcopy(ic[:time]  )
+    instr,paths  = deepcopy(cfg[:instr]), deepcopy(cfg[:paths])                                              
     # action
-    out     = plasming!(mp,mesh,cmp,g,T,te,tg,instr)
-    # postprocessing
-    sleep(2.5)
+    out  = plasming!(mp,mesh,cmpr,time,instr)
     @info "Fig(s) saved at $(paths[:plot])"
-    path =joinpath(paths[:plot],"$(length(L))D_$(nel)_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmp[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
+    path =joinpath(paths[:plot],"$(mesh.dim)d_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
     savefig(path)
     msg("(✓) Done! exiting...\n")
-    return instr
+    return sucess=true
 end
-export collapse
 
 #=
-plot = (;status=true,freq=1.0,what=["P"],dims=(500.0,250.0),)
-dim,nel  = 2,[5,5,10]
-# initial parameters 
-ν,E,ρ0,l0 = 0.0,1.0e4,80.0,10.0
-
-collapse(dim,nel,ν,E,ρ0,l0; plot)
+    plot = (;status=true,freq=1.0,what=["P"],dims=(500.0,250.0),)
+    dim,nel  = 2,[5,10]
+    # initial parameters 
+    ν,E,ρ0,l0 = 0.0,1.0e4,80.0,10.0
+    ic, cfg = ic_collapse(2, [5,10], ν, E, ρ0, l0; plot);
+    collapse(ic, cfg);
 =#
-# collapse(2,10,0.3,1.0e6,2700.0,50.0; plot)

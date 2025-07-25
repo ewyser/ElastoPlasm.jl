@@ -68,3 +68,9 @@ function slump(ic::NamedTuple,cfg::NamedTuple;)
     msg("(✓) Done! exiting...\n")
     return sucess=true
 end
+
+#=
+    L,nel  = [64.1584,64.1584/4.0],[40,10];
+    ic,cfg = ic_slump(L,nel);
+    status = slump(ic,cfg;);
+=#
