@@ -8,11 +8,11 @@ function e2eTest(L::Vector{Float64},nel::Int64; kwargs...)
     g       = 9.81                                                              # gravitationnal acceleration [m/s^2]            
     ni      = 2    
     # constitutive model
-    cmp = cm(length(L),instr)
+    cmp = setup_cm(length(L),instr)
     # mesh & mp setup
-    mesh     = meshSetup(nel,L,instr)
+    mesh     = setup_mesh(nel,L,instr)
     setgeom = inislump(mesh,cmp,ni,instr)                       
-    mp     = pointSetup(mesh,cmp,instr;define=setgeom)
+    mp     = setup_mps(mesh,cmp,instr;define=setgeom)
 
 
     instr[:cairn][:shpfun].tplgy!(mp,mesh; ndrange=(mp.nmp));sync(CPU())

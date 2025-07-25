@@ -116,7 +116,7 @@ A note
 function rootflush(info)
 	root = basename(info.sys.out)
 	if !isdir(info.sys.out)
-		msg = ["Creating /dump at:\n\t- $(root)"]
+		msg = ["Creating /dump at:\n+ $(root)"]
 		mkdir(info.sys.out) 
 	else
 		msg,files = ["Nothing to flush at /dump"],readdir(info.sys.out;join=true)

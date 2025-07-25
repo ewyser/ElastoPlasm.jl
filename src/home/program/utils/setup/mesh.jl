@@ -1,6 +1,6 @@
-function meshSetup(nel,L,instr)
+function setup_mesh(nel,L,instr)
     # geometry                                               
-    L,h,ndim,nn = getinfo(L,nel)
+    ndim,nn,h = length(L),4^length(L),L./nel #L,h,ndim,nn = getinfo(L,nel)
     if instr[:basis][:ghost]
         @info "Init Eulerian mesh & adding ghosts"
         buffer = 2.0.*h
@@ -8,12 +8,11 @@ function meshSetup(nel,L,instr)
         @info "Init Eulerian mesh"
         buffer = 0.0.*h            
     end
-    # mesh 
+    # mesh & boundary conditions
     xn,nel,nno = get_coords(ndim,nn,L,h;ghosts=buffer)
-    # boundary conditions
     bc,xB      = get_bc(xn,h,nno,ndim;ghosts=buffer)
     # constructor 
-    mesh = (
+    mesh = (;
         dim  = ndim,
         nel  = nel,
         nno  = nno,
@@ -21,25 +20,25 @@ function meshSetup(nel,L,instr)
         L    = L,
         h    = h,
         # nodal quantities
-        x₀   = vec(minimum(xn,dims=2)),
-        xn   = xn,
-        mn   = zeros(nno[end]              ), # lumped mass vector
-        Mn   = zeros(nno[end],nno[end]     ), # consistent mass matrix
-        oobf = zeros(ndim,nno[end]         ),
-        Dn   = zeros(ndim,nno[end]         ),
-        fn   = zeros(ndim,nno[end]         ),
-        an   = zeros(ndim,nno[end]         ),
-        pn   = zeros(ndim,nno[end]         ),
-        vn   = zeros(ndim,nno[end]         ),
-        Δun  = zeros(ndim,nno[end]         ),
-        ΔJn  = zeros(ndim,nno[end]         ),
-        bijn = zeros(ndim,ndim,nno[end]    ),
+        x₀   = vec(minimum(xn,dims=2)     ),
+        xn   = xn                          ,
+        mn   = zeros(nno[end]             ), # lumped mass vector
+        Mn   = zeros(nno[end],nno[end]    ), # consistent mass matrix
+        oobf = zeros(ndim,nno[end]        ),
+        Dn   = zeros(ndim,nno[end]        ),
+        fn   = zeros(ndim,nno[end]        ),
+        an   = zeros(ndim,nno[end]        ),
+        pn   = zeros(ndim,nno[end]        ),
+        vn   = zeros(ndim,nno[end]        ),
+        Δun  = zeros(ndim,nno[end]        ),
+        ΔJn  = zeros(ndim,nno[end]        ),
+        bijn = zeros(ndim,ndim,nno[end]   ),
         # mesh-to-node topology
-        e2n  = e2n(ndim,nno,nel,nn),
+        e2n  = e2n(ndim,nno,nel,nn        ),
         e2e  = e2e(ndim,nno,nel,nn,h,instr),
-        xB   = xB,
+        xB   = xB                          ,
         # mesh boundary conditions
-        bc   = bc,
+        bc   = bc                          ,
     )
     return mesh
 end

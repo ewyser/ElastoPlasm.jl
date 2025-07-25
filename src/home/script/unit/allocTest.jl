@@ -11,11 +11,11 @@ using BenchmarkTools
         g = vec([0.0,0.0,9.81])
     end                                                           # gravitationnal acceleration [m/s^2]            
     # constitutive model
-    cmp = cm(length(L),instr)
+    cmp = setup_cm(length(L),instr)
     T,te,tg = 15.0,10.0,15.0/1.5                                                # simulation time [s], elastic loading [s], gravity load
     # mesh & mp setup
-    mesh     = meshSetup(nel,L,instr)                                            # mesh geometry setup
-    mp     = pointSetup(mesh,L,cmp,instr[:GRF],typeD)                      # material point geometry setup
+    mesh     = setup_mesh(nel,L,instr)                                            # mesh geometry setup
+    mp     = setup_mps(mesh,L,cmp,instr[:GRF],typeD)                      # material point geometry setup
     @info "Mesh & mp feature(s):" instr[:shpfun] instr[:fwrk] instr[:trsfr] instr[:vollock] nel nthreads()
     # plot & time stepping parameters
     tw,Δt,it,ctr,toc,flag,ηmax,ηtot,dt = 0.0,1.0/1.0,0,0,0.0,0,0,0,1.0e-4    

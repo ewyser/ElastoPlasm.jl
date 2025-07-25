@@ -1,7 +1,7 @@
 function shpfunCheck(shp,instr,paths)
     nel,L  = 2,[1.0]
 
-    mesh,ni = meshSetup(nel,L,instr),10
+    mesh,ni = setup_mesh(nel,L,instr),10
 
     xp     = collect(mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2])
     nel    = mesh.nel[end]

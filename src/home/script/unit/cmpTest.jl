@@ -61,14 +61,14 @@ function compactTest(dim,nel,varPlot,ν,E,ρ0,l0; kwargs...)
     g       = 9.81                      
     ni      = 2                         
     # constitutive model
-    cm(dim,instr; E=E,ν=ν,ρ0=ρ0)
-    cmp = cm(length(L),instr)
+    setup_cm(dim,instr; E=E,ν=ν,ρ0=ρ0)
+    cmp = setup_cm(length(L),instr)
     tg      = ceil((1.0/cmp.c)*(2.0*l0)*40.0)
     T,te    = 1.25*tg,1.25*tg   
     # mesh & mp setup
-    mesh     = meshSetup(nel,L,instr)    
+    mesh     = setup_mesh(nel,L,instr)    
     setgeom = inicmp(mesh,cmp,instr,ni;ℓ₀=l0) 
-    mp     = pointSetup(mesh,cmp,instr;define=setgeom)                                        
+    mp     = setup_mps(mesh,cmp,instr;define=setgeom)                                        
     z0      = copy(mp.x[:,end])
     # action
     out = ϵp23De!(mp,mesh,cmp,g,T,te,tg,instr)    

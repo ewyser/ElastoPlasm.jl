@@ -1,14 +1,14 @@
-function inislump(mesh,cmp,ni,instr)
+function inislump(mesh,cmp,ni,instr; lz = 12.80)
     @info "Init slump geometry"
     coh0,cohr,phi0,phir,rho0 = cmp[:c0],cmp[:cr],cmp[:ϕ0],cmp[:ϕr],cmp[:ρ0]
 
-    lz = 12.80
     wl = 0.15*lz
     if mesh.dim == 2
-        x           = collect(mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2])
-        z           = collect(mesh.xB[3]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:lz-0.5*mesh.h[2]/ni)
-        xp          = repeat(reshape(x,1        ,length(x)),length(z),1        )
-        zp          = repeat(reshape(z,length(z),1        ),        1,length(x))
+        x          = collect(mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2])
+        z          = collect(mesh.xB[3]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:lz-0.5*mesh.h[2]/ni)
+        nmp        = [length(x),length(z),length(x)*length(z)]
+        xp         = repeat(reshape(x,1     ,nmp[1]),nmp[2],1     )
+        zp         = repeat(reshape(z,nmp[2],1     ),1     ,nmp[1])
 
         if instr[:GRF][:status]
             c = GRFS_gauss(xp,coh0,cohr,ni,mesh.h[1])

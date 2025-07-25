@@ -6,9 +6,8 @@ const ROOT = @__DIR__
 include(joinpath(ROOT,"boot/boot.jl"))
 
 @info """New comer ?
-- copy-paste the followings:
-  L,nel = [64.1584,12.80],40
-  instr = slump(L,nel);
+- copy-paste the following:
+  instr = slump([64.1584,64.1584],40);
 - wait for the simulation to end
 """
 

@@ -24,7 +24,7 @@ function get_coords(ndim,nn,L,h;ghosts::Vector=[0.0])
         x   = vcat(vec(x))
     elseif ndim == 2
         x0  = [0.0-ghosts[1],L[1]+ghosts[1]]
-        z0  = [0.0-ghosts[2],L[2]+2.0*h[2]+ghosts[2]]
+        z0  = [0.0-ghosts[2],L[2]+ghosts[2]]
         x,z = collect(first(x0):h[1]:last(x0)),collect(first(z0):h[2]:last(z0))
         nno = [length(x),length(z),length(x)*length(z)  ] 
         nel = [nno[1]-1 ,nno[2]-1 ,(nno[1]-1)*(nno[2]-1)]

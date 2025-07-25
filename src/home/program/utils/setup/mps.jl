@@ -1,10 +1,13 @@
-function pointSetup(mesh,cmp,instr;define::Tuple=(nothing,nothing))
+function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
     # non-dimensional constant                                                   
     if mesh.dim == 2 
         nstr = 3 
     elseif mesh.dim == 3 
         nstr = 6 
     end
+    println(size(mesh.xn))
+
+
     # material geometry
     ni,nmp,geom = define
     xp = geom.xp 
@@ -37,7 +40,7 @@ function pointSetup(mesh,cmp,instr;define::Tuple=(nothing,nothing))
         # plot quantity
         z₀   = copy(xp[end,:]),
         # tensor in matrix notation
-        δᵢⱼ  = Matrix(1.0I,mesh.dim,mesh.dim    ), 
+        δᵢⱼ  = Matrix(1.0I,mesh.dim,mesh.dim), 
         ∇vᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
         ∇uᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
         ΔFᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
