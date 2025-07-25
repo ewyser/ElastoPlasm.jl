@@ -1,7 +1,3 @@
-push!(LOAD_PATH, "../src")
-
-using Test,ProgressMeter,Suppressor,ElastoPlasm
-
 cases = [
     Dict(:locking => true,  :transfer => "musl", :deformation => "finite"       , :basis => (; which = "bsmpm", how = nothing, ghost = false)),
     Dict(:locking => true,  :transfer => "musl", :deformation => "infinitesimal", :basis => (; which = "bsmpm", how = nothing, ghost = false)),
@@ -34,30 +30,27 @@ cases = [
 
 @testset "+ $(basename(@__FILE__))" verbose = true begin
     function iter_slump(L,nel,msg)
-        count,n = 0,length(cases)
-        prog = Progress(n;dt=0.5,desc=msg,barlen=10)
+        ic,cfg = ic_slump(L,nel; fid = "test/slump");
+        prog = Progress(length(cases)+1;dt=0.5,desc=msg,barlen=10);
         for case ∈ cases
-            locking = case[:locking]
-            transfer = case[:transfer]
-            deformation = case[:deformation]
+            kwargs = Dict(
+                :basis  => case[:basis],
+                :fwrk   => (; deform = case[:deformation], trsfr = case[:transfer], locking = case[:locking]),
+                :nonloc => (; status = false, ls = 0.5),
+                :plot   => (; status = true, freq = 1.0, what = ["epII"], dims = (500.0,250.0),),
+            )
+            instr = kwargser(:instr,kwargs;dim=ic.mesh.dim)
+            cfg = (;instr = instr, paths = cfg.paths)
 
-            basis  = case[:basis]
-            fwrk   = (; deform = deformation, trsfr = transfer, locking = locking)
-            nonloc = (; status = false, ls = 0.5)
-            plot   = (;status=true,freq=1.0,what=["epII"],dims=(500.0,250.0),)
-
-            @testset "$(basename(@__FILE__)) executes safely with: $(locking), $(transfer), $(deformation), $(basis.which)" begin
+            @testset "$(basename(@__FILE__)) executes safely with: $(instr[:fwrk].locking), $(instr[:fwrk].trsfr), $(instr[:fwrk].deform), $(instr[:basis].which)" begin
                 try
-                    @suppress begin
-                        slump(L,nel; basis,fwrk,nonloc,plot,fid = "test/slump")
-                    end
+                    instr = slump(ic,cfg;)
                     @test true
                 catch e
                     @warn "$(basename(@__FILE__)) failed with error" exception = e
                     @test false
                 end
             end
-            count+=1
             next!(prog)
         end
         finish!(prog)   
@@ -65,13 +58,11 @@ cases = [
     
     @info "Testing $(basename(@__FILE__)):"
     @testset "2D geometry" verbose = true begin
-        @info "Considering 2D geometry"
-         L,nel = [64.1584,64.1584],[40,40]
-        iter_slump(L,nel,"Completion:")
+         L,nel = [64.1584,64.1584/4.0],[40,10]
+        iter_slump(L,nel,"Completion for 2D geometry:")
     end
     @testset "3D geometry" verbose = true begin
-        @info "Considering 3D geometry"
-        L,nel = [64.1584,64.1584,12.80],20
-        #iter_slump(L,nel,"Completion:")
+        L,nel = [64.1584,64.1584/4.0,64.1584/4.0],[40,10,10]
+        #iter_slump(L,nel,"Completion for 3D geometry:")
     end
 end

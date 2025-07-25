@@ -61,8 +61,8 @@ function compactTest(dim,nel,varPlot,ν,E,ρ0,l0; kwargs...)
     g       = 9.81                      
     ni      = 2                         
     # constitutive model
-    setup_cm(dim,instr; E=E,ν=ν,ρ0=ρ0)
-    cmp = setup_cm(length(L),instr)
+    setup_cmpr(dim,instr; E=E,ν=ν,ρ0=ρ0)
+    cmp = setup_cmpr(length(L),instr)
     tg      = ceil((1.0/cmp.c)*(2.0*l0)*40.0)
     T,te    = 1.25*tg,1.25*tg   
     # mesh & mp setup

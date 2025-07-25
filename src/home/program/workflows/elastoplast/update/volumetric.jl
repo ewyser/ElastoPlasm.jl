@@ -11,10 +11,10 @@ end
     no = @index(Global)
     if no≤mesh.nno[end] 
         # solve
-        if iszero(mesh.m[no])
+        if iszero(mesh.mᵢ[no])
             mesh.ΔJ[no] = 0.0
         else
-            mesh.ΔJ[no]/= mesh.m[no]
+            mesh.ΔJ[no]/= mesh.mᵢ[no]
         end
     end
 end

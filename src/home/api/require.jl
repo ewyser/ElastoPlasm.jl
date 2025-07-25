@@ -39,33 +39,33 @@ Admissible keywords, by-default value and purpose are presented below when ```in
 function require(in::Symbol=:instr)
     if in == :instr
         instr = Dict(
-            :dtype   => Int64(64),
-            :basis   => (;
-                            which="bsmpm",
-                            how=nothing,
-                            ghost=false,
+            :dtype => Int64(64),
+            :basis => (;
+                        which="bsmpm",
+                        how=nothing,
+                        ghost=false,
                         ),
-            :fwrk    => (;
-                            deform = "finite",
-                            trsfr = "musl",
-                            locking = true,
+            :fwrk  => (;
+                        deform = "finite",
+                        trsfr = "musl",
+                        locking = true,
                         ),
-            :GRF     => (;
-                            status = false,
+            :GRF   => (;
+                        status = false,
                         ),
-            :plast   => Dict(
-                            :status=>false,
-                            :constitutive=>"DP",
+            :plast => Dict(
+                        :status=>false,
+                        :constitutive=>"DP",
                         ),
-            :nonloc  => (;
-                            status=true,
-                            ls=0.5,
+            :nonloc=> (;
+                        status=true,
+                        ls=0.5,
                         ),
-            :plot    => (;
-                            status=true,
-                            freq=1.0,
-                            what=["epII"],
-                            dims=(500.0,250.0),
+            :plot  => (;
+                        status=true,
+                        freq=1.0,
+                        what=["epII"],
+                        dims=(500.0,250.0),
                         ),
             :perf    => false,
         )

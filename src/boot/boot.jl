@@ -1,5 +1,5 @@
 # include dependencies
-using Revise,Pkg,Test
+using Revise,Pkg,Test,Suppressor
 using Plots,LaTeXStrings,ProgressMeter,REPL.TerminalMenus
 using LinearAlgebra,SparseArrays,Random
 using KernelAbstractions,Adapt,Base.Threads

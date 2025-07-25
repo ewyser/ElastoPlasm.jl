@@ -13,8 +13,8 @@ end
     no = @index(Global)
     for dim ∈ 1:mesh.dim
         if no≤mesh.nno[end] 
-            if mesh.m[no]>0.0
-                mesh.v[dim,no] = (mesh.p[dim,no]*(1.0/mesh.m[no])*mesh.bc[dim,no])
+            if mesh.mᵢ[no]>0.0
+                mesh.v[dim,no] = (mesh.p[dim,no]*(1.0/mesh.mᵢ[no])*mesh.bc[dim,no])
             end   
         end
     end

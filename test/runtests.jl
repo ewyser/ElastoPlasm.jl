@@ -1,19 +1,18 @@
 push!(LOAD_PATH, "../src")
 
-import ElastoPlasm
+using Test,ProgressMeter,Suppressor,ElastoPlasm
 
 function runtests()
     exename   = joinpath(Sys.BINDIR, Base.julia_exename())
-    testdir   = joinpath(pwd(),"testset")
+    testdir   = joinpath(@__DIR__,"testset")
     istest(f) = endswith(f, ".jl") && startswith(f, "test_")
     testfiles = sort(filter(istest, readdir(testdir)))
 
     nfail = 0
     printstyled("\nTesting ElastoPlasm.jl\n"; bold=true, color=:white)
     for f in testfiles
-        println("")
         try
-            run(`$exename -O3 --startup-file=no --check-bounds=no $(joinpath(testdir, f))`)
+            include(joinpath(testdir, f))
         catch ex
             nfail += 1
         end

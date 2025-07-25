@@ -7,10 +7,10 @@ function setup_mesh(nel,L,instr)
     end
 
     if instr[:basis][:ghost]
-        @info "Init Eulerian mesh & adding ghosts"
+        #@info "Init Eulerian mesh & adding ghosts"
         buffer = 2.0.*h
     else
-        @info "Init Eulerian mesh"
+        #@info "Init Eulerian mesh"
         buffer = 0.0.*h            
     end
     # mesh & boundary conditions
@@ -23,12 +23,12 @@ function setup_mesh(nel,L,instr)
         nno  = nno,
         nn   = nn,
         L    = L,
-        h    = h,
+        h    = h, # mᵢ Mᵢⱼ
         # nodal quantities
         x₀   = vec(minimum(xn,dims=2)     ),
         x    = xn                          ,
-        m    = zeros(nno[end]             ), # lumped mass vector
-        M    = zeros(nno[end],nno[end]    ), # consistent mass matrix
+        mᵢ   = zeros(nno[end]             ), # lumped mass vector
+        Mᵢⱼ  = zeros(nno[end],nno[end]    ), # consistent mass matrix
         oobf = zeros(ndim,nno[end]        ),
         D    = zeros(ndim,nno[end]        ),
         f    = zeros(ndim,nno[end]        ),

@@ -154,3 +154,39 @@ function trunc_path(full_path::AbstractString; anchor::AbstractString="ElastoPla
 	idx = findfirst(==(anchor), parts)
 	return isnothing(idx) ? full_path : joinpath(parts[idx:end]...)
 end
+
+"""
+    plasming_logs(instr::NamedTuple) -> String
+
+Generates a summary log string describing the current simulation configuration for ElastoPlasm.
+
+# Arguments
+- `instr::NamedTuple`: Instruction/configuration named tuple containing simulation options.
+
+# Returns
+- `String`: A multi-line string summarizing the simulation setup, including active threads, strain formulation, calculation cycle, and optional features such as F-bar locking mitigation and non-local plastic regularization.
+
+# Example
+```julia
+logstr = plasming_logs(instr)
+println(logstr)
+```
+"""
+function plasming_logs(instr)
+    # Build the list of log lines
+    logs = [
+        "Launching ϵlastσPlasm 👻 v$(get_version()):",
+        "- $(nthreads()) active thread(s)",
+        "- $(instr[:fwrk][:deform]) strain formulation",
+        "- $(instr[:basis][:which]) calculation cycle",
+    ]
+    # Add optional lines only if the corresponding flags are true
+    if instr[:fwrk][:locking]
+        push!(logs, "- F-bar locking mitigation")
+    end
+
+    if instr[:nonloc][:status]
+        push!(logs, "- non-local plastic regularization")
+    end
+    return join(logs,"\n")
+end

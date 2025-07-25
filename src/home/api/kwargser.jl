@@ -52,3 +52,4 @@ function kwargser(type::Symbol,kwargs::Any;dim::Number = 2)
         return Dict(zip(key,value)) #return (;zip(Tuple(Symbol(x) for x in key),value)...)
     end
 end
+export kwargser

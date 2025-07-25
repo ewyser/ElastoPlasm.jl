@@ -2,10 +2,10 @@
     no = @index(Global)
     for dim ∈ 1:mesh.dim
         if no≤mesh.nno[end] 
-            if iszero(mesh.m[no])
+            if iszero(mesh.mᵢ[no])
                 m = 0.0                                                          #(1,)                       
             else
-                m = (1.0/mesh.m[no])*mesh.bc[dim,no]                            #(1,)
+                m = (1.0/mesh.mᵢ[no])*mesh.bc[dim,no]                            #(1,)
             end
             mesh.D[dim,no] = η*norm(mesh.oobf[:,no])*sign(mesh.p[dim,no]*m)    #(2,)
             mesh.f[dim,no] = mesh.oobf[dim,no]-mesh.D[dim,no]                  #(2,)

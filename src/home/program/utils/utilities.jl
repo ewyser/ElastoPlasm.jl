@@ -1,7 +1,7 @@
-function getVersion()
+function get_version()
     return string(Pkg.project().version)
 end
-function getvals(mesh,mp,it,ηmax,ηtot,cmpl,symb)
+function get_vals(mesh,mp,it,ηmax,ηtot,cmpl,symb)
     # completion [%]
     cmpl = round(100.0*cmpl,digits=1)
     # save vals

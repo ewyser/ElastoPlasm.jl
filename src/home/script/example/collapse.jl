@@ -11,7 +11,7 @@ function collapse(dim,nel,ν,E,ρ0,l0; fid::String=first(splitext(basename(@__FI
     # independant physical constant
     g,ni    = 9.81,2                                             
     # constitutive model & time parameters
-    cmp     = setup_cm(length(L),instr; E=E,ν=ν,ρ0=ρ0)
+    cmp     = setup_cmpr(length(L),instr; E=E,ν=ν,ρ0=ρ0)
     tg      = ceil((1.0/cmp.c)*(2.0*l0)*40.0)
     T,te    = 1.25*tg,1.25*tg   
     # mesh & mp setup
