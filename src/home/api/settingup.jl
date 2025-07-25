@@ -48,18 +48,17 @@ function set_paths(new_dir::String, path::String; interactive::Bool=true)
             paths[Symbol(options[name])] = subdir
             if !isdir(subdir)
                 mkpath(subdir)
-                push!(msg, "\n+ $(joinpath(basename(path), new_dir, options[name]))")
+                push!(msg, "\n+ $(trunc_path(paths[Symbol(options[name])]))")
             end
-        end
+        end 
     else
-        
-        if !isdir(root)
-            mkpath(root)
-            push!(msg, "\n+ $(joinpath(path, new_dir))")
-        end
         # point all options to the root (but don't create subfolders)
         for name ∈ options
             paths[Symbol(name)] = root
+            if !isdir(paths[Symbol(name)])
+                mkpath(paths[Symbol(name)])
+                push!(msg, "\n+ $(trunc_path(paths[Symbol(name)]))")
+            end
         end
     end
 

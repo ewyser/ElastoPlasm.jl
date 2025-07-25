@@ -65,8 +65,8 @@ end
 #=
 @views function mapstoN!(mp,mesh,g)
     # initialize nodal quantities
-    mesh.mn  .= 0.0
-    mesh.pn  .= 0.0
+    mesh.m  .= 0.0
+    mesh.p  .= 0.0
     mesh.oobf.= 0.0
     # mapping back to mesh
     for dim ∈ 1:mesh.dim
@@ -75,9 +75,9 @@ end
             # accumulation
             lock(lk) do 
                 if dim == 1 
-                    mesh.mn[mp.p2n[:,p]].+= mp.ϕ∂ϕ[:,p,1].*mp.m[p] 
+                    mesh.m[mp.p2n[:,p]].+= mp.ϕ∂ϕ[:,p,1].*mp.m[p] 
                 end
-                mesh.pn[  mp.p2n[:,p],dim].+= mp.ϕ∂ϕ[:,p,1].*(mp.m[p]*mp.v[p,dim])
+                mesh.p[  mp.p2n[:,p],dim].+= mp.ϕ∂ϕ[:,p,1].*(mp.m[p]*mp.v[p,dim])
                 mesh.oobf[mp.p2n[:,p],dim].+= mp.ϕ∂ϕ[:,p,1].*(mp.m[p]*g[dim]      )
                 mesh.oobf[mp.p2n[:,p],dim].-= mp.V[p].*(mp.B[dim:mesh.dim:end,:,p]*mp.σ[:,p]) 
             end

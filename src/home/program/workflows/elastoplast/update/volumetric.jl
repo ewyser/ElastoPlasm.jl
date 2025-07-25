@@ -3,7 +3,7 @@
     if p≤mp.nmp 
         # accumulation
         for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
-            @atom mesh.ΔJn[no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.ΔJ[p])  
+            @atom mesh.ΔJ[no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.ΔJ[p])  
         end
     end
 end
@@ -11,10 +11,10 @@ end
     no = @index(Global)
     if no≤mesh.nno[end] 
         # solve
-        if iszero(mesh.mn[no])
-            mesh.ΔJn[no] = 0.0
+        if iszero(mesh.m[no])
+            mesh.ΔJ[no] = 0.0
         else
-            mesh.ΔJn[no]/= mesh.mn[no]
+            mesh.ΔJ[no]/= mesh.m[no]
         end
     end
 end
@@ -24,7 +24,7 @@ end
         # mapping back to mp's
         ΔJ = 0.0
         for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
-            ΔJ += mp.ϕ∂ϕ[nn,p,1]*mesh.ΔJn[no]/mp.ΔJ[p]
+            ΔJ += mp.ϕ∂ϕ[nn,p,1]*mesh.ΔJ[no]/mp.ΔJ[p]
         end
         @views mp.ΔFᵢⱼ[:,:,p].*= ΔJ^dim
     end

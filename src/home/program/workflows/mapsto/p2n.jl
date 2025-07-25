@@ -10,11 +10,11 @@ end
     if p≤mp.nmp 
         # accumulation
         for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
-            @atom mesh.pn[no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.v[p])
+            @atom mesh.p[no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.v[p])
             # lumped mass matrix
-            @atom mesh.mn[no]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]
+            @atom mesh.m[no]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]
             # consistent mass matrix
-            # mesh.Mn[mp.p2n[:,p],mp.p2n[:,p]].+= (mp.ϕ∂ϕ[:,p,1].*mp.ϕ∂ϕ[:,p,1]').*mp.m[p]   
+            # mesh.M[mp.p2n[:,p],mp.p2n[:,p]].+= (mp.ϕ∂ϕ[:,p,1].*mp.ϕ∂ϕ[:,p,1]').*mp.m[p]   
             @atom mesh.oobf[no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*g) 
             @atom mesh.oobf[no]-= mp.Ω[p]*mp.ϕ∂ϕ[nn,p,2]*mp.σᵢ[1,p]
         end
@@ -26,12 +26,12 @@ end
         if p≤mp.nmp 
             # accumulation
             for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
-                @atom mesh.pn[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.v[dim,p])
+                @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.v[dim,p])
                 if dim == 1
                     # lumped mass matrix
-                    @atom mesh.mn[no]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]
+                    @atom mesh.m[no]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]
                     # consistent mass matrix
-                    # mesh.Mn[mp.p2n[:,p],mp.p2n[:,p]].+= (mp.ϕ∂ϕ[:,p,1].*mp.ϕ∂ϕ[:,p,1]').*mp.m[p]    
+                    # mesh.M[mp.p2n[:,p],mp.p2n[:,p]].+= (mp.ϕ∂ϕ[:,p,1].*mp.ϕ∂ϕ[:,p,1]').*mp.m[p]    
                     @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.σᵢ[1,p]+mp.ϕ∂ϕ[nn,p,3]*mp.σᵢ[3,p])
                 elseif dim == 2
                     @atom mesh.oobf[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*g[dim]      )
@@ -46,9 +46,9 @@ end
     for dim ∈ 1:mesh.dim
         if p≤mp.nmp 
             for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
-                @atom mesh.pn[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.v[dim,p])
+                @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.v[dim,p])
                 if dim == 1
-                    @atom mesh.mn[no      ]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p] 
+                    @atom mesh.m[no      ]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p] 
                     @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.σᵢ[1,p]+mp.ϕ∂ϕ[nn,p,3]*mp.σᵢ[6,p]+mp.ϕ∂ϕ[nn,p,4]*mp.σᵢ[5,p])
                 elseif dim == 2
                     @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.σᵢ[6,p]+mp.ϕ∂ϕ[nn,p,3]*mp.σᵢ[2,p]+mp.ϕ∂ϕ[nn,p,4]*mp.σᵢ[4,p])
@@ -68,9 +68,9 @@ end
     for dim ∈ 1:mesh.dim
         if p≤mp.nmp 
             for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
-                @atom mesh.pn[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]*(mp.v[dim,p]+mp.∇vᵢⱼ[dim,1,p]*mp.δnp[nn,1,p]+mp.∇vᵢⱼ[dim,2,p]*mp.δnp[nn,2,p])
+                @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]*(mp.v[dim,p]+mp.∇vᵢⱼ[dim,1,p]*mp.δnp[nn,1,p]+mp.∇vᵢⱼ[dim,2,p]*mp.δnp[nn,2,p])
                 if dim == 1
-                    @atom mesh.mn[no]      += mp.ϕ∂ϕ[nn,p,1]*mp.m[p]
+                    @atom mesh.m[no]      += mp.ϕ∂ϕ[nn,p,1]*mp.m[p]
                     @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.σᵢ[1,p]+mp.ϕ∂ϕ[nn,p,3]*mp.σᵢ[3,p])
                 elseif dim == 2
                     @atom mesh.oobf[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*g[dim]      )
@@ -86,9 +86,9 @@ end
     for dim ∈ 1:mesh.dim
         if p≤mp.nmp 
             for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
-                @atom mesh.pn[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]*(mp.v[dim,p]+mp.∇vᵢⱼ[dim,1,p]*mp.δnp[nn,1,p]+mp.∇vᵢⱼ[dim,2,p]*mp.δnp[nn,2,p]+mp.∇vᵢⱼ[dim,3,p]*mp.δnp[nn,3,p])
+                @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]*(mp.v[dim,p]+mp.∇vᵢⱼ[dim,1,p]*mp.δnp[nn,1,p]+mp.∇vᵢⱼ[dim,2,p]*mp.δnp[nn,2,p]+mp.∇vᵢⱼ[dim,3,p]*mp.δnp[nn,3,p])
                 if dim == 1
-                    @atom mesh.mn[no      ]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]
+                    @atom mesh.m[no      ]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]
                     @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.σᵢ[1,p]+mp.ϕ∂ϕ[nn,p,3]*mp.σᵢ[6,p]+mp.ϕ∂ϕ[nn,p,4]*mp.σᵢ[5,p])
                 elseif dim == 2
                     @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.σᵢ[6,p]+mp.ϕ∂ϕ[nn,p,3]*mp.σᵢ[2,p]+mp.ϕ∂ϕ[nn,p,4]*mp.σᵢ[4,p])
@@ -106,8 +106,8 @@ function p2n(mp,mesh,g,dt,instr)
         instr[:cairn][:mapsto][:map].σᵢ!(ndrange=mp.nmp,mp);sync(CPU())
     end
     # initialize nodal quantities
-    mesh.mn  .= 0.0
-    mesh.pn  .= 0.0
+    mesh.m  .= 0.0
+    mesh.p  .= 0.0
     mesh.oobf.= 0.0
     # mapping to mesh
     instr[:cairn][:mapsto][:map].p2n!(ndrange=mp.nmp,mp,mesh,g);sync(CPU())

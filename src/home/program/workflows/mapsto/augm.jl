@@ -4,7 +4,7 @@
         if p≤mp.nmp 
             # accumulation
             for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
-                @atom mesh.pn[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.v[dim,p])
+                @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.v[dim,p])
             end
         end
     end
@@ -13,8 +13,8 @@ end
     no = @index(Global)
     for dim ∈ 1:mesh.dim
         if no≤mesh.nno[end] 
-            if mesh.mn[no]>0.0
-                mesh.vn[dim,no] = (mesh.pn[dim,no]*(1.0/mesh.mn[no])*mesh.bc[dim,no])
+            if mesh.m[no]>0.0
+                mesh.v[dim,no] = (mesh.p[dim,no]*(1.0/mesh.m[no])*mesh.bc[dim,no])
             end   
         end
     end
@@ -25,15 +25,15 @@ end
     for dim ∈ 1:mesh.dim
         Δu = 0.0
         for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
-            Δu += dt*(mp.ϕ∂ϕ[nn,p,1]*mesh.vn[dim,no])
+            Δu += dt*(mp.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no])
         end
         mp.u[dim,p]+= Δu
     end
 end
 function augm(mp,mesh,dt,instr)
     # initialize for DM
-    mesh.pn.= 0.0
-    mesh.vn.= 0.0
+    mesh.p.= 0.0
+    mesh.v.= 0.0
     # accumulate material point contributions
     instr[:cairn][:mapsto][:augm].p2n!(ndrange=mp.nmp,mp,mesh);sync(CPU())
     # solve for nodal incremental displacement

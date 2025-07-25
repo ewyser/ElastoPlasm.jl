@@ -46,7 +46,7 @@ function update(mp,mesh,dt,instr)
     # volumetric locking correction
     if instr[:fwrk][:locking]
         # init mesh quantities to zero
-        mesh.ΔJn.= 0.0
+        mesh.ΔJ.= 0.0
         # calculate dimensional cst.
         dim     = 1/mesh.dim
         # mapping to mesh 

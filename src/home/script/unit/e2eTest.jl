@@ -33,8 +33,8 @@ function e2eTest(L::Vector{Float64},nel::Int64; kwargs...)
     fSize = (2.0*250,2*125)
     mSize = 0.25*fSize[1]/mesh.nel[1]
     gr(size=fSize,legend=true,markersize=2.25,markerstrokecolor=:auto)
-    xn = reshape(mesh.xn[:,1],mesh.nno[2],mesh.nno[1])
-    yn = reshape(mesh.xn[:,2],mesh.nno[2],mesh.nno[1])
+    xn = reshape(mesh.x[:,1],mesh.nno[2],mesh.nno[1])
+    yn = reshape(mesh.x[:,2],mesh.nno[2],mesh.nno[1])
     xe = xn[1:end-1,1:end-1].+0.5*mesh.h[1]
     ye = yn[1:end-1,1:end-1].+0.5*mesh.h[2]
     for p ∈ 1:mp.nmp

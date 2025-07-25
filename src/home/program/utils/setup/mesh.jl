@@ -21,18 +21,18 @@ function setup_mesh(nel,L,instr)
         h    = h,
         # nodal quantities
         x₀   = vec(minimum(xn,dims=2)     ),
-        xn   = xn                          ,
-        mn   = zeros(nno[end]             ), # lumped mass vector
-        Mn   = zeros(nno[end],nno[end]    ), # consistent mass matrix
+        x    = xn                          ,
+        m    = zeros(nno[end]             ), # lumped mass vector
+        M    = zeros(nno[end],nno[end]    ), # consistent mass matrix
         oobf = zeros(ndim,nno[end]        ),
-        Dn   = zeros(ndim,nno[end]        ),
-        fn   = zeros(ndim,nno[end]        ),
-        an   = zeros(ndim,nno[end]        ),
-        pn   = zeros(ndim,nno[end]        ),
-        vn   = zeros(ndim,nno[end]        ),
-        Δun  = zeros(ndim,nno[end]        ),
-        ΔJn  = zeros(ndim,nno[end]        ),
-        bijn = zeros(ndim,ndim,nno[end]   ),
+        D    = zeros(ndim,nno[end]        ),
+        f    = zeros(ndim,nno[end]        ),
+        a    = zeros(ndim,nno[end]        ),
+        p    = zeros(ndim,nno[end]        ),
+        v    = zeros(ndim,nno[end]        ),
+        Δu   = zeros(ndim,nno[end]        ),
+        ΔJ   = zeros(ndim,nno[end]        ),
+        bij  = zeros(ndim,ndim,nno[end]   ),
         # mesh-to-node topology
         e2n  = e2n(ndim,nno,nel,nn        ),
         e2e  = e2e(ndim,nno,nel,nn,h,instr),

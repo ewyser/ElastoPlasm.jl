@@ -5,8 +5,8 @@
         for dim ∈ 1:mesh.dim
             δa = δv = 0.0
             for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
-                δa += (mp.ϕ∂ϕ[nn,p,1]*mesh.an[dim,no])
-                δv += (mp.ϕ∂ϕ[nn,p,1]*mesh.vn[dim,no])
+                δa += (mp.ϕ∂ϕ[nn,p,1]*mesh.a[dim,no])
+                δv += (mp.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no])
             end
             mp.v[dim,p]+= dt*δa 
             mp.x[dim,p]+= dt*δv
@@ -22,7 +22,7 @@ end
             δv = 0.0
             # pic update
             for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
-                δv += mp.ϕ∂ϕ[nn,p,1]*mesh.vn[dim,no]
+                δv += mp.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
             end
             mp.v[dim,p] = δv 
             mp.x[dim,p]+= dt*δv

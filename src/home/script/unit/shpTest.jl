@@ -49,19 +49,19 @@ function shpfunCheck(shp,instr,paths)
     
     
 
-    xp0,ϕ0,colors = mesh.xn,zeros(length(mesh.xn)),[]
+    xp0,ϕ0,colors = mesh.x,zeros(length(mesh.x)),[]
     p0 = plot(ylim= (0.0,1.1*ϕmax),title= T[1],)
-    for i = 1:length(mesh.xn)
-        clr = i % length(mesh.xn) + 1
+    for i = 1:length(mesh.x)
+        clr = i % length(mesh.x) + 1
         p0 = plot!(xp[:,i],ϕ[:,i],seriestype = :line   ,color=clr,)
         push!(colors,clr)
     end
     p0 = plot!(xp0,ϕ0,seriestype = :scatter,markershape= :square,markersize = 2*2.25, markercolor=colors,)
 
-    xp0,ϕ0,colors = mesh.xn,zeros(length(mesh.xn)),[]
+    xp0,ϕ0,colors = mesh.x,zeros(length(mesh.x)),[]
     p1 = plot(ylim = (-1.1*∂ϕmax,1.1*∂ϕmax) , title = T[2],)
-    for i = 1:length(mesh.xn)
-        clr = i % length(mesh.xn) + 1
+    for i = 1:length(mesh.x)
+        clr = i % length(mesh.x) + 1
         p1 = plot!(xp[:,i],∂ϕ[:,i],seriestype = :line   ,color=clr,)
         push!(colors,clr)
     end
@@ -77,7 +77,7 @@ function shpfunCheck(shp,instr,paths)
         title      = T[3],
     )
     p2 = plot!(
-        mesh.xn,ones(size(mesh.xn)),
+        mesh.x,ones(size(mesh.x)),
         seriestype = :scatter,
         markershape= :square,
         color      = colors,

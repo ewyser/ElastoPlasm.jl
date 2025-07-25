@@ -5,9 +5,6 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
     elseif mesh.dim == 3 
         nstr = 6 
     end
-    println(size(mesh.xn))
-
-
     # material geometry
     ni,nmp,geom = define
     xp = geom.xp 

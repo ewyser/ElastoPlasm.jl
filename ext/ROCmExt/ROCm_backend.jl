@@ -76,7 +76,7 @@ function device_free!(mesh::Mesh,::Val{:ROCm})
         if map[field][:exec] == :device
             if field == :Dn
                 for (j,key) ∈ enumerate([:i,:j,:Q])
-                    AMDGPU.unsafe_free!(getfield(mesh.Dn,key))
+                    AMDGPU.unsafe_free!(getfield(mesh.D,key))
                 end
                 push!(msg,"(✓) $(field), ")
             else
@@ -166,7 +166,7 @@ function device_free(mesh::Mesh,bckd::NamedTuple)
             if map[field][:exec] == :device
                 if field == :Dn
                     for (j,key) ∈ enumerate([:i,:j,:Q])
-                        AMDGPU.unsafe_free!(getfield(mesh.Dn,key))
+                        AMDGPU.unsafe_free!(getfield(mesh.D,key))
                     end
                     push!(msg,"(✓) $(field), ")
                 else

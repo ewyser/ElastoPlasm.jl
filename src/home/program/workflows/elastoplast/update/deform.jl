@@ -5,7 +5,7 @@
         mp.∇vᵢⱼ[:,:,p].= 0.0
         for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             for i ∈ 1:mesh.dim , j ∈ 1:mesh.dim
-                mp.∇vᵢⱼ[i,j,p]+= mp.ϕ∂ϕ[nn,p,j+1]*mesh.vn[i,no]
+                mp.∇vᵢⱼ[i,j,p]+= mp.ϕ∂ϕ[nn,p,j+1]*mesh.v[i,no]
             end
         end
         # compute incremental deformation and update

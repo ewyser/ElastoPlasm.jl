@@ -114,21 +114,43 @@ Note:
 A note
 """
 function rootflush(info)
-	root = basename(info.sys.out)
 	if !isdir(info.sys.out)
-		msg = ["Creating /dump at:\n+ $(root)"]
+		msg = ["Creating:\n+ $(trunc_path(info.sys.out))"]
 		mkdir(info.sys.out) 
 	else
 		msg,files = ["Nothing to flush at /dump"],readdir(info.sys.out;join=true)
 		if !isempty(files)
-			msg = ["Flushing /dump:"]
+			msg = ["Flushing:"]
 			for file ∈ files
 				if !occursin(info.mpi.glob,file) 
 					rm(file,recursive=true)  
-					push!(msg,"✗ $(basename(file))")
+					push!(msg,"✗ $(trunc_path(file))")
 				end
 			end
 		end
 	end
 	return msg
+end
+
+"""
+    trunc_path(full_path::AbstractString; anchor::AbstractString="ElastoPlasm.jl") -> String
+
+Returns the subpath of `full_path` starting from the directory name `anchor`.
+
+# Arguments
+- `full_path`: The full absolute or relative path.
+- `anchor`: The folder name from which you want to keep the rest of the path (e.g., "ElastoPlasm.jl").
+
+# Returns
+- A truncated path string like `"ElastoPlasm.jl/dump/slump"`.
+
+# Example
+```julia
+truncate_path_from("C:/Users/lili8/Documents/GitHub/ElastoPlasm.jl/dump/slump", "ElastoPlasm.jl")
+# => "ElastoPlasm.jl/dump/slump"
+"""
+function trunc_path(full_path::AbstractString; anchor::AbstractString="ElastoPlasm.jl")
+	parts = splitpath(full_path)
+	idx = findfirst(==(anchor), parts)
+	return isnothing(idx) ? full_path : joinpath(parts[idx:end]...)
 end

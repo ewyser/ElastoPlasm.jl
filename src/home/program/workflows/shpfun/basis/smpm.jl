@@ -14,7 +14,7 @@ end
     if p ≤ mp.nmp
         for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             # compute basis functions
-            ξ      = (mp.x[p]-mesh.xn[no])
+            ξ      = (mp.x[p]-mesh.x[no])
             ϕx,dϕx = N∂N(ξ,mesh.h[1]           )
             # convolution of basis function
             mp.ϕ∂ϕ[nn,p,1] =  ϕx
@@ -28,8 +28,8 @@ end
     if p ≤ mp.nmp
         for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             # compute basis functions
-            ξ      = (mp.x[1,p]-mesh.xn[1,no]) 
-            η      = (mp.x[2,p]-mesh.xn[2,no])
+            ξ      = (mp.x[1,p]-mesh.x[1,no]) 
+            η      = (mp.x[2,p]-mesh.x[2,no])
             ϕx,dϕx = N∂N(ξ,mesh.h[1]           )
             ϕz,dϕz = N∂N(η,mesh.h[2]           )
             # convolution of basis function
@@ -45,9 +45,9 @@ end
     if p ≤ mp.nmp
         for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
             # compute basis functions
-            ξ      = (mp.x[1,p]-mesh.xn[1,no]) 
-            η      = (mp.x[2,p]-mesh.xn[2,no])
-            ζ      = (mp.x[3,p]-mesh.xn[3,no])
+            ξ      = (mp.x[1,p]-mesh.x[1,no]) 
+            η      = (mp.x[2,p]-mesh.x[2,no])
+            ζ      = (mp.x[3,p]-mesh.x[3,no])
             ϕx,dϕx = N∂N(ξ,mesh.h[1]           )
             ϕy,dϕy = N∂N(η,mesh.h[2]           )
             ϕz,dϕz = N∂N(ζ,mesh.h[3]           )
