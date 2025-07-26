@@ -29,15 +29,3 @@ add_backend!(Val(:x86_64),info)
 
 # include .jl files
 @info join(superList(lists),"\n")
-
-
-#=
-sys = moduleCore()
-out = ["ElastoPlasm.jl location:\n\t- "*sys.root,]
-if !isdir(sys.out)
-	mkpath(sys.out) 
-	push!(out,"\n\tcreating directory at:\n- "*sys.out)
-else
-	push!(out,"\n\talready existing directory at:\n- "*sys.out)
-end
-=#

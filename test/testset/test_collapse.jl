@@ -2,7 +2,7 @@
 
     nel  = [5, 10]
     dim  = length(nel)
-    ν, E, ρ0, l0 = 0.0, 1.0e4, 80.0, 10.0
+    ν, E, ρ0, l0 = 0.0, 1.0e4, 80.0, 50.0
     ic, cfg = ic_collapse(nel, ν, E, ρ0, l0; fid = "test/collapse", plot = (; status=true, freq=1.0, what=["P"], dims=(500.0,250.0) ))
     z0      = copy(ic.mp.x[end, :])
     out     = collapse(ic, cfg)
@@ -19,9 +19,27 @@
     #println(err)
 
     config_plot()
-    #=    =#
-    p1 = scatter(xnum .* 1e-3, ynum, label="$(dim)")
-    #plot!(x .* 1e-3, y, label=L"\sum_{p}\dfrac{||\sigma_{yy}^p-\sigma_{yy}^a(x_p)||V_0^p}{(g\rho_0l_0)V_0}", xlabel=L"$\sigma_{yy}$ [kPa]", ylabel=L"$y-$position [m]")
-    display(plot(p1; layout=(1,1), size=(450,250)))
+    gr(size=(500,300),legend=true,markersize=2.5,markershape=:circle,markerstrokewidth=0.0,markerstrokecolor=:match,)
+    p1 = plot(
+        xnum .* 1e-3, ynum,
+        seriestype = :scatter,
+        label = "$(dim)d $(cfg.instr[:basis][:which])",
+        markersize = 2.0,
+        xlabel = L"\sigma_{yy}\ \mathrm{[kPa]}",
+        ylabel = L"y\ \mathrm{[m]}",
+        legend = :topright,
+        grid = true,
+        color = :red,
+        dpi = 120
+    )
+
+    plot!(
+        x .* 1e-3, y,
+        seriestype = :line,
+        label = L"\sum_{p}\frac{||\sigma_{yy}^p - \sigma_{yy}^a(x_p)|| \Omega_0^p}{(g \rho_0 l_0) \Omega_0}", 
+        linewidth = 2,
+        color = :blue
+    )
+    display(plot(p1; layout = (1, 1), size = (500, 300), dpi = 120))
     savefig(joinpath(cfg.paths[:plot],"$(dim)d_numeric_analytic_$(basename(@__FILE__)).png"))
 end
