@@ -1,6 +1,6 @@
 push!(LOAD_PATH, "../src")
 
-using Test,ProgressMeter,Suppressor,ElastoPlasm
+using Test,ProgressMeter,Suppressor,Plots,ElastoPlasm
 
 function runtests()
     exename   = joinpath(Sys.BINDIR, Base.julia_exename())
