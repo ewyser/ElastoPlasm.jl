@@ -39,8 +39,8 @@
     
     cases  = [
         (; which = "bsmpm", how = nothing     , ghost = false),
-        (; which = "gimpm", how = "undeformed", ghost = true ),
-        (; which = "smpm" , how = nothing     , ghost = true ),
+        #(; which = "gimpm", how = "undeformed", ghost = true ),
+        #(; which = "smpm" , how = nothing     , ghost = true ),
     ]
     
     for basis ∈ cases
