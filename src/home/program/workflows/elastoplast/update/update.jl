@@ -1,5 +1,9 @@
 function init_update(instr::Dict)
-    kernel1 = deform(CPU())
+    if instr[:fwrk][:deform] == "finite"
+        kernel1 = finite_deform(CPU())
+    elseif instr[:fwrk][:deform] == "infinitesimal"
+        kernel1 = infinitesimal_deform(CPU())
+    end
     if instr[:basis][:which] == "gimpm"
         if instr[:fwrk][:deform] == "finite"
             if instr[:basis][:how] == "undeformed"
@@ -52,7 +56,7 @@ function update(mp,mesh,dt,instr)
         # mapping to mesh 
         instr[:cairn][:elastoplast][:update].ΔJn!(ndrange=mp.nmp,mp,mesh);sync(CPU())
         # compute nodal determinant of incremental deformation 
-        instr[:cairn][:elastoplast][:update].ΔJs!(ndrange=mesh.nno[end],mp,mesh);sync(CPU())
+        instr[:cairn][:elastoplast][:update].ΔJs!(ndrange=mesh.nno[end],mesh);sync(CPU())
         # compute determinant Jbar 
         instr[:cairn][:elastoplast][:update].ΔJp!(ndrange=mp.nmp,mp,mesh,dim);sync(CPU())
     end  

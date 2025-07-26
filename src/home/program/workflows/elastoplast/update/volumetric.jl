@@ -7,7 +7,7 @@
         end
     end
 end
-@kernel inbounds = true function ΔJs(mp,mesh)
+@kernel inbounds = true function ΔJs(mesh)
     no = @index(Global)
     if no≤mesh.nno[end] 
         # solve
