@@ -8,14 +8,14 @@ function runtests()
     istest(f) = endswith(f, ".jl") && startswith(f, "test_")
     testfiles = sort(filter(istest, readdir(testdir)))
     nfail = 0
-    printstyled("\nTesting ElastoPlasm.jl\n"; bold=true, color=:white)
     for f ∈ testfiles
         try
-            printstyled("\nRunning test: $(f)\n"; bold=true, color=:white)
+            printstyled("Running test: $(f)\n"; bold=true, color=:white)
             include(joinpath(testdir, f))
         catch ex
             nfail += 1
         end
+        println("")
     end
     return nfail
 end
