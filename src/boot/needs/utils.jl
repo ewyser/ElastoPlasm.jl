@@ -123,7 +123,7 @@ function rootflush(info)
 			for file ∈ files
 				if !occursin(info.mpi.glob,file) 
 					rm(file,recursive=true)  
-					push!(msg,"✗ $(trunc_path(file))")
+					push!(msg,"\e[31m- $(trunc_path(file))\e[0m")
 				end
 			end
 		end

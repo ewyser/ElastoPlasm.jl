@@ -37,7 +37,7 @@ function set_paths(new_dir::String, path::String; interactive::Bool=true)
             paths[Symbol(options[name])] = subdir
             if !isdir(subdir)
                 mkpath(subdir)
-                push!(msg, "\n+ $(trunc_path(paths[Symbol(options[name])]))")
+                push!(msg, "\n\e[32m+ $(trunc_path(paths[Symbol(options[name])]))\e[0m")
             end
         end 
     else
@@ -46,7 +46,7 @@ function set_paths(new_dir::String, path::String; interactive::Bool=true)
             paths[Symbol(name)] = root
             if !isdir(paths[Symbol(name)])
                 mkpath(paths[Symbol(name)])
-                push!(msg, "\n+ $(trunc_path(paths[Symbol(name)]))")
+                push!(msg, "\n\e[32m+ $(trunc_path(paths[Symbol(name)]))\e[0m")
             end
         end
     end
