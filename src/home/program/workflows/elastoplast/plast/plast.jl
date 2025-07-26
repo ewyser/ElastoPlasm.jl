@@ -23,11 +23,11 @@ function plast(mp,mesh,cmpr,instr)
             mp.ϵpII[2,:].= 0.0
             W,w     = spzeros(mp.nmp),spzeros(mp.nmp,mp.nmp)
             for proc ∈ ["tplgy","p->q","p<-q"]
-                instr[:cairn][:elastoplast][:plast].nonloc!(W,w,mp,mesh,ls,proc; ndrange=mp.nmp);sync(CPU())
+                instr[:cairn][:elastoplast][:plast].nonloc!(ndrange=mp.nmp,W,w,mp,mesh,ls,proc);sync(CPU())
             end
         end
         # plastic return-mapping dispatcher
-        instr[:cairn][:elastoplast][:plast].retmap!(mp,cmpr,instr; ndrange=mp.nmp);sync(CPU())
+        instr[:cairn][:elastoplast][:plast].retmap!(ndrange=mp.nmp,mp,cmpr,instr);sync(CPU())
         ηmax = 0
     else 
         ηmax = 0 
