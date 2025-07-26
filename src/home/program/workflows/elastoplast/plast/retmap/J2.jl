@@ -19,7 +19,7 @@ end
 @views function hasyield(σ,κ; χ::Real=3.0/2.0)
     nstr     = length(σ)
     P,q,n,ξn = getJ2(σ,χ,nstr)
-    return f = ξn-κ
+    return ξn-κ,n
 end
 @views @kernel inbounds = true function J2!(mp,ϵIIp,cmp,instr; ftol::Real= 1e-9,ηmax::Int= 20) # Borja (1990); De Souza Neto (2008)
     p = @index(Global)
@@ -37,8 +37,8 @@ end
             ϵII0 = mp.ϵpII[:,1]
         end
         # calculate yield function
-        κ = max(mp.cr[p],2.5*mp.c0[p]+cmp.Hp*ϵpII[p,1])
-        f = hasyield(σ[:,p],κ)
+        κ   = max(mp.cr[p],2.5*mp.c0[p]+cmp.Hp*ϵpII[p,1])
+        f,n = hasyield(σ[:,p],κ)
         # return mapping using CPA (non-quadratic convergence)
         if f>0.0 
             γ0,σ0,ηit = copy(mp.ϵpII[p]),copy(σ[:,p]),1
@@ -53,7 +53,7 @@ end
                 ηit +=1
             end
             mp.ϵpII[p,1] = γ0
-            σ[:,p]       .= σ0
+            σ[:,p]      .= σ0
             if instr[:fwrk] == "finite"
                 # update strain tensor
                 mp.ϵᵢⱼ[:,:,p].= mutate(cmp.Del\σ[:,p],0.5,:tensor)

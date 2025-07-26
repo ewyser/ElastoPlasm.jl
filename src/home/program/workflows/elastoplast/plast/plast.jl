@@ -9,15 +9,15 @@ function init_plast(instr)
     elseif instr[:plast][:constitutive] == "camC"
         #ηmax = camCRetMap!(mp,cmp,instr[:fwrk])
     else
-        throw(error("InvalidReturnMapping: $(cmp[:cmType])"))
+        throw(error("InvalidReturnMapping: $(cmpr[:cmType])"))
     end 
     return (;nonloc! = kernel1, retmap! = kernel2,) 
 end
-function plast(mp,mesh,cmp,instr)
+function plast(mp,mesh,cmpr,instr)
     if instr[:plast][:status] 
         # nonlocal regularization
-        if cmp[:nonlocal][:status]
-            ls      = cmp[:nonlocal][:ls]
+        if instr[:nonloc][:status]
+            ls      = instr[:nonloc][:ls]
             mp.e2p.= Int(0)
             mp.p2p.= Int(0)
             mp.ϵpII[2,:].= 0.0
@@ -27,7 +27,7 @@ function plast(mp,mesh,cmp,instr)
             end
         end
         # plastic return-mapping dispatcher
-        instr[:cairn][:elastoplast][:plast].retmap!(mp,cmp,instr; ndrange=mp.nmp);sync(CPU())
+        instr[:cairn][:elastoplast][:plast].retmap!(mp,cmpr,instr; ndrange=mp.nmp);sync(CPU())
         ηmax = 0
     else 
         ηmax = 0 

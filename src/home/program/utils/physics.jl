@@ -59,14 +59,14 @@ function get_g(t::Float64,tg::Float64,ndim::Int64)
 end
 
 """
-    get_spacetime(mp, mesh, cmp, instr, t, tg, te, time) -> Tuple{Vector{Float64}, Float64}
+    get_spacetime(mp, mesh, cmpr, instr, t, tg, te, time) -> Tuple{Vector{Float64}, Float64}
 
 Updates simulation state, including plasticity status, adaptive time step, and gravity vector.
 
 # Arguments
 - `mp`: Material point data structure.
 - `mesh`: Mesh data structure.
-- `cmp`: Compression or constitutive model data.
+- `cmpr`: Compression or constitutive model data.
 - `instr`: Instruction/configuration dictionary.
 - `t`: Current simulation time.
 - `tg`: Gravity ramp duration.
@@ -78,16 +78,16 @@ Updates simulation state, including plasticity status, adaptive time step, and g
 
 # Example
 ```julia
-g, dt = get_spacetime(mp, mesh, cmp, instr, t, tg, te, time)
+g, dt = get_spacetime(mp, mesh, cmpr, instr, t, tg, te, time)
 ```
 """
-function get_spacetime(mp,mesh,cmp,instr,t,tg,te,time) # t = tw 
+function get_spacetime(mp,mesh,cmpr,instr,t,tg,te,time) # t = tw 
     # check elastoplastic status
     if t > te 
         instr[:plast][:status] = true 
     end
     # calculte dt
-    cmax = mesh.h./(mp.vmax.+cmp[:c]); mp.vmax.=0.0 
+    cmax = mesh.h./(mp.vmax.+cmpr[:c]); mp.vmax.=0.0 
     dt   = min(0.5*maximum(cmax),time-t)
     # ramp-up gravity
     if t<=tg 

@@ -46,7 +46,7 @@ end
         end   
     end
 end
-@views @kernel inbounds = true function finite_elast(mp,Del,instr)
+@views @kernel inbounds = true function finite_elast(mp,Del)
     p = @index(Global)
     if p ≤ mp.nmp 
         # update left cauchy-green tensor
@@ -58,7 +58,7 @@ end
         mp.τᵢ[:,p]    = Del*mutate(mp.ϵᵢⱼ[:,:,p],2.0,:voigt)
     end
 end
-@views @kernel inbounds = true function infinitesimal_elast(mp,Del,instr)
+@views @kernel inbounds = true function infinitesimal_elast(mp,Del)
     p = @index(Global)
     if p ≤ mp.nmp 
         # calculate elastic strains & spins
@@ -86,7 +86,7 @@ function init_elast(instr)
 end
 
 
-function elast(mp,cmp,instr,type)
-    instr[:cairn][:elastoplast][:elast].elast!(ndrange=mp.nmp,mp,cmp.Del,instr);sync(CPU())
+function elast(mp,cmpr,instr)
+    instr[:cairn][:elastoplast][:elast].elast!(ndrange=mp.nmp,mp,cmpr.Del);sync(CPU())
     return nothing
 end

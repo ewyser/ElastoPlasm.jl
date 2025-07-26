@@ -26,10 +26,10 @@ Runs the explicit time-stepping workflow for ElastoPlasm, updating material poin
 
 # Example
 ```julia
-result = plasming!(mp, mesh, cmp, g, 10.0, 5.0, 2.0, instr)
+result = plasming!(mp, mesh, cmpr, g, 10.0, 5.0, 2.0, instr)
 ```
 """
-function plasming!(mp,mesh,cmp,time,instr)
+function plasming!(mp,mesh,cmpr,time,instr)
     @info plasming_logs(instr)
     t,Δt,it,ηmax,ηtot = 0.0,instr[:plot][:freq],0,0,0
     te,tg,T = time.te,time.tg,time.T
@@ -41,11 +41,11 @@ function plasming!(mp,mesh,cmp,time,instr)
             # set clock on/off
             tic = time_ns()
             # adaptative dt & linear increase of gravity
-            g,dt = get_spacetime(mp,mesh,cmp,instr,t,tg,te,time)
+            g,dt = get_spacetime(mp,mesh,cmpr,instr,t,tg,te,time)
             # mpm cycle
             shpfun(mp,mesh,instr)
             mapsto(mp,mesh,g,dt,instr)    
-            ηmax = elastoplast(mp,mesh,cmp,dt,instr)
+            ηmax = elastoplast(mp,mesh,cmpr,dt,instr)
             # update sim time
             t,it,toc,ηtot = t+dt,it+1,((time_ns()-tic)),max(ηmax,ηtot)
         end
