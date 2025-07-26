@@ -1,5 +1,4 @@
 @testset "+ $(basename(@__FILE__))" verbose = true begin
-    @info "Launching ./$(basename(@__FILE__))"
 
     nel  = [5, 10]
     dim  = length(nel)
@@ -17,7 +16,7 @@
     y = z0
 
     err = sum(sqrt.((xnum .- x).^2) .* mp.Ω₀) / (9.81 * cmpr.ρ0 * l0 * sum(mp.Ω₀))
-    println(err)
+    #println(err)
 
     config_plot()
     #=    =#

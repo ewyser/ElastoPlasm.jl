@@ -4,3 +4,5 @@ out/
 docs/build
 
 dump/
+
+*.cov
