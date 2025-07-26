@@ -1,12 +1,6 @@
 ```@meta
 CurrentModule = ElastoPlasm
 ```
-
-# Documentation 
-
-```@index
-```
-
 ## Overview
 
 This package is an evolution of the somewhat cumbersome-to-use [`ep2-3De v1.0`](https://github.com/ewyser/ep2-3De), and is entirely written in **Julia**. It is designed for **rapid prototyping** while maintaining **reasonable production capabilities**. It addresses the following key aspects:
@@ -36,7 +30,3 @@ The solver can generate initial fields $f(\boldsymbol{x})$—such as the cohesio
   <br/>
   <em>Figure: Initial cohesion field \( c_0(\boldsymbol{x}_p) \) with average \( \mu = 20 \,\text{kPa} \) and variance \( \sigma = \pm 5 \,\text{kPa} \).</em>
 </p>
-
-## **Content**
-1. [Usage](#id-section2)
-<div id='id-section2'/>

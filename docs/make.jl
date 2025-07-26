@@ -24,6 +24,7 @@ makedocs(;
     ),
     pages=[
         "Home" => "index.md",
+        "Function" => "function.md",
     ],
     checkdocs= :none,
 )
