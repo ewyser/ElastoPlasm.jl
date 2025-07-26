@@ -10,7 +10,7 @@ function runtests()
     nfail = 0
     for f ∈ testfiles
         try
-            printstyled("Running test: $(f)\n"; bold=true, color=:white)
+            printstyled("Running: $(f)\n"; bold=true, color=:white)
             include(joinpath(testdir, f))
         catch ex
             nfail += 1
