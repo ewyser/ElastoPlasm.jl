@@ -23,12 +23,12 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
         p    = zeros(size(xp)),
         ℓ₀   = copy(l0), 
         ℓ    = copy(l0),
-        Ω₀   = copy(v0),
-        Ω    = copy(v0),
-        m    = copy(m),
-        c₀   = copy(geom.coh0),
-        cᵣ   = copy(geom.cohr),
-        ϕ    = copy(geom.phi),            
+        Ω₀   = vec(copy(v0)),
+        Ω    = vec(copy(v0)),
+        m    = vec(copy(m)),
+        c₀   = vec(copy(geom.coh0)),
+        cᵣ   = vec(copy(geom.cohr)),
+        ϕ    = vec(copy(geom.phi)),            
         Δλ   = zeros(nmp),
         ϵpII = zeros(2,nmp),
         ϵpV  = zeros(nmp), 
@@ -57,6 +57,61 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
         p2p  = spzeros(Int,nmp,nmp),
         p2e  = zeros(Int,nmp),
         p2n  = zeros(Int,mesh.nn,nmp),
+    )
+    #=
+    println("")
+    println("Material Point Setup:")
+    for key in keys(mp)
+        println("$(key): $(typeof(mp[key]))")
+    end
+    =#
+    T1, T2     = Int64              , Float64
+    A3, A5, A7 = AbstractArray{T1,1}, AbstractArray{T1,2}, AbstractArray{T1,3}
+    A2, A4, A6 = AbstractArray{T2,1}, AbstractArray{T2,2}, AbstractArray{T2,3}
+    out = Point{T1,T2,A3,A5,A7,A2,A4,A6}(
+        mp.ndim ,
+        mp.nmp  ,
+        mp.vmax ,
+        mp.x    ,
+        mp.u    ,
+        mp.v    ,
+        mp.p    ,
+        mp.ℓ₀   ,
+        mp.ℓ    ,
+        mp.Ω₀   ,
+        mp.Ω    ,
+        mp.m    ,
+        mp.c₀   ,
+        mp.cᵣ   ,
+        mp.ϕ    ,
+        mp.Δλ   ,
+        mp.ϵpII ,
+        mp.ϵpV  ,
+        mp.ΔJ   ,
+        mp.J    ,
+        # plot quantity
+        mp.z₀   ,
+        # tensor in matrix notation
+        mp.δᵢⱼ  ,
+        mp.∇vᵢⱼ ,
+        mp.∇uᵢⱼ ,
+        mp.ΔFᵢⱼ ,
+        mp.Fᵢⱼ  ,
+        mp.Bᵢⱼ  ,
+        mp.ϵᵢⱼ  ,
+        mp.ωᵢⱼ  ,
+        mp.σJᵢⱼ ,
+        # tensor in voigt notation
+        mp.σᵢ   ,
+        mp.τᵢ   ,
+        # additional quantities
+        mp.ϕ∂ϕ  ,
+        mp.δnp  ,
+        # connectivity
+        mp.e2p  ,
+        mp.p2p  ,
+        mp.p2e  ,
+        mp.p2n  ,
     )
     return mp 
 end
