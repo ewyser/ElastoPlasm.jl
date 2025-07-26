@@ -41,13 +41,13 @@ end
         elseif instr[:fwrk][:deform] == "infinitesimal"
             σ = mp.σᵢ
         end
-        if first(instr[:nonloc])
-            ϵII0 = mp.ϵpII[2,:]
+        if instr[:nonloc][:status]
+            id = 2
         else
-            ϵII0 = mp.ϵpII[1,:]
+            id = 1
         end
         # closed-form solution return-mapping for D-P
-        c   = mp.c₀[p]+cmp.Hp*ϵII0[p]
+        c   = mp.c₀[p]+cmp.Hp*mp.ϵpII[id,p]
         if c<mp.cᵣ[p] c = mp.cᵣ[p] end
         P,τ0,τII = σTr(σ[:,p],nstr)
         η,ηB,ξ   = materialParam(mp.ϕ[p],ψ,c,nstr)
