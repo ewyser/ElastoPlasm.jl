@@ -57,7 +57,7 @@ function require(in::Symbol=:instr)
                         ),
             :plot  => (;
                         status=true,
-                        freq=0.1,
+                        freq=1.0,
                         what=["epII"],
                         dims=(500.0,250.0),
                         ),
