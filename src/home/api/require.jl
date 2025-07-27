@@ -49,7 +49,7 @@ function require(in::Symbol=:instr)
                         ),
             :plast => Dict(
                         :status=>false,
-                        :constitutive=>"J2",
+                        :constitutive=>"DP",
                         ),
             :nonloc=> (;
                         status=true,
@@ -58,7 +58,7 @@ function require(in::Symbol=:instr)
             :plot  => (;
                         status=true,
                         freq=0.1,
-                        what=["P"],
+                        what=["epII"],
                         dims=(500.0,250.0),
                         ),
             :perf    => false,
