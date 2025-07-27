@@ -13,7 +13,7 @@ function init_plast(instr)
     elseif instr[:plast][:constitutive] == "camC"
         #ηmax = camCRetMap!(mp,cmp,instr[:fwrk])
     else
-        throw(error("InvalidReturnMapping: $(cmpr[:cmType])"))
+        throw(error("InvalidReturnMapping: $(instr[:plast][:constitutive])"))
     end 
     return (;nonloc! = kernel1, retmap! = kernel2,) 
 end
