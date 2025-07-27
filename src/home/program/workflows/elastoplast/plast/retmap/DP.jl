@@ -30,7 +30,7 @@ end
     end
     return σn 
 end
-@views @kernel inbounds = true function DP!(mp,cmp,instr)
+@views @kernel inbounds = true function DP(mp,cmp,instr)
     p = @index(Global)
     if p≤mp.nmp 
         mp.Δλ[p] = 0.0
