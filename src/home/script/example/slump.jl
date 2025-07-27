@@ -1,4 +1,4 @@
-export slump,ic_slump 
+export slump, slump!, ic_slump 
 
 """
     ic_slump(L::Vector{Float64}, nel::Vector{Int64}; fid::String=..., kwargs...) -> NamedTuple, NamedTuple
@@ -31,16 +31,27 @@ function ic_slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(split
     mp      = setup_mps(mesh,cmpr;define=inislump(mesh,cmpr,ni,instr))
     # time parameters
     time = (; T = 15.0, te = 10.0, tg = 15.0/1.5,)  
+    # plot initial cohesion field
+    plotcoh(mp,cmpr,paths)   
+    # display summary
+    @info """
+    Summary: 
+    - $(mesh.nel[end]) elements 
+    - $(mp.nmp) material points
+    - $(time.T) s simulation time:
+        - elastic loading: $(time.te) s
+        - gravity ramp-up: $(time.tg) s
+    """
     return (;mesh,mp,cmpr,time),(;instr,paths)
 end
 
 """
-    slump(ic::NamedTuple, cfg::NamedTuple) -> Bool
+    slump(ic::NamedTuple, cfg::NamedTuple; mutate::Bool=false) -> Bool
 
 Runs the explicit solution workflow for the slump problem, including simulation and postprocessing.
 
 # Arguments
-- `ic::NamedTuple`: Initial mesh/material/compression configuration.
+- `ic::NamedTuple`: Initial mesh, material point, compression, and time configuration.
 - `cfg::NamedTuple`: Simulation instructions and output paths.
 
 # Returns
@@ -51,14 +62,12 @@ Runs the explicit solution workflow for the slump problem, including simulation 
 success = slump(ic, cfg)
 ```
 """
-function slump(ic::NamedTuple,cfg::NamedTuple;)
+function slump(ic::NamedTuple,cfg::NamedTuple)
     @info "Explicit solution to slump problem";config_plot()
-    # extract mesh, mp, cmpr, instr, paths
+    # unpack mesh, mp, cmpr, instr, paths
     mesh,mp,cmpr = deepcopy(ic[:mesh]  ), deepcopy(ic[:mp]    ), deepcopy(ic[:cmpr])
-    time         = deepcopy(ic[:time]  )
     instr,paths  = deepcopy(cfg[:instr]), deepcopy(cfg[:paths])
-    # plot initial cohesion field
-    plotcoh(mp,cmpr,paths)                                                  
+    time         = deepcopy(ic[:time]  )                                             
     # action
     out  = plasming!(mp,mesh,cmpr,time,instr)
     # postprocessing
@@ -68,7 +77,21 @@ function slump(ic::NamedTuple,cfg::NamedTuple;)
     msg("(✓) Done! exiting...\n")
     return sucess=true
 end
-
+function slump!(ic::NamedTuple,cfg::NamedTuple)
+    @info "Explicit solution to slump problem";config_plot()
+    # unpack mesh, mp, cmpr, instr, paths
+    mesh,mp,cmpr = ic[:mesh]  , ic[:mp]    , (ic[:cmpr])
+    instr,paths  = cfg[:instr], cfg[:paths]
+    time         = ic[:time]                                                
+    # action
+    out  = plasming!(mp,mesh,cmpr,time,instr)
+    # postprocessing
+    @info "Fig(s) saved at $(paths[:plot])"
+    path =joinpath(paths[:plot],"$(mesh.dim)d_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
+    savefig(path)
+    msg("(✓) Done! exiting...\n")
+    return sucess=true
+end
 #=
     L,nel  = [64.1584,64.1584/4.0],[40,10];
     ic,cfg = ic_slump(L,nel);
