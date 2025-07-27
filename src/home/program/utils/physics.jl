@@ -81,17 +81,17 @@ Updates simulation state, including plasticity status, adaptive time step, and g
 g, dt = get_spacetime(mp, mesh, cmpr, instr, t, tg, te, time)
 ```
 """
-function get_spacetime(mp,mesh,cmpr,instr,t,tg,te,time) # t = tw 
+function get_spacetime(mp,mesh,cmpr,instr,time,ΔT)
     # check elastoplastic status
-    if t > te 
+    if time.t[1] > time.te 
         instr[:plast][:status] = true 
     end
     # calculte dt
     cmax = mesh.h./(mp.vmax.+cmpr[:c]); mp.vmax.=0.0 
-    dt   = min(0.5*maximum(cmax),time-t)
+    dt   = min(0.5*maximum(cmax),ΔT-time.t[1])
     # ramp-up gravity
-    if t<=tg 
-        g = 9.81*t/tg 
+    if time.t[1] <= time.tg 
+        g = 9.81*time.t[1]/time.tg 
     else
         g = 9.81
     end

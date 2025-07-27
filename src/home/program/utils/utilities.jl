@@ -1,14 +1,11 @@
 function get_version()
     return string(Pkg.project().version)
 end
-function get_vals(mesh,mp,it,ηmax,ηtot,cmpl,symb)
-    # completion [%]
-    cmpl = round(100.0*cmpl,digits=1)
+function get_vals(mesh,mp,it,ηmax,ηtot)
     # save vals
-    vals = [("nel,np",(round(Int64,mesh.nel[1]*mesh.nel[2]),mp.nmp)),
+    vals = [("nel,np",(round(Int64,prod(mesh.nel[1:end-1])),mp.nmp)),
             ("iteration(s)",it),
-            ("ηmax,ηtot",(ηmax,ηtot)),
-            (symb*" t/T",cmpl)]
+            ("ηmax,ηtot",(ηmax,ηtot))]
     return vals
 end
 function msg(message)

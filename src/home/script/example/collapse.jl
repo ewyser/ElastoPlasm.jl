@@ -30,7 +30,8 @@ function ic_collapse(nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=first(split
     mp    = setup_mps(mesh, cmpr; define=inicollapse(mesh, cmpr, ni; ℓ₀=l0))
     # time parameters
     tg    = ceil((1.0/cmpr.c)*(2.0*l0)*40.0)
-    time  = (; T=1.25*tg, te=1.25*tg, tg=tg)
+    t     = [0.0, 1.25*tg]
+    time  = (; te = 1.25*tg, tg = tg, t = t, checks = sort(unique([collect(t[1]:instr[:plot][:freq]:t[2]);t[2]])))
     return (;mesh, mp, cmpr, time), (;instr, paths)
 end
 
