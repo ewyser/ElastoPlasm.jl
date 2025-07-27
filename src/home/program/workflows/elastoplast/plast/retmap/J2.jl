@@ -39,9 +39,8 @@ end
             end
             mp.ϵpII[p,1] = γ0
             mp.τᵢ[:,p]  .= σ0
-            # update strain tensor
+            # update strain tensor & left cauchy green deformation tensor
             mp.ϵᵢⱼ[:,:,p].= mutate(cmpr.Del\mp.τᵢ[:,p],0.5,:tensor)
-            # update left cauchy green deformation tensor
             λ,n           = eigen(mp.ϵᵢⱼ[:,:,p],sortby=nothing)
             mp.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
             # update plastic corrector increment
