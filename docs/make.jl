@@ -52,22 +52,17 @@ makedocs(;
     checkdocs = :none,
 )
 
-# Deploy documentation
-@info "Deploying documentation..."
-allowed_branches = ["refs/heads/main", "refs/heads/dev"]
-current_ref = get(ENV, "GITHUB_REF", ".")
+# Deploy documentation only if inside GitHub Actions
 if get(ENV, "GITHUB_ACTIONS", "false") == "true"
-    if current_ref ∈ allowed_branches
-        deploydocs(;repo = repo,
-                    devbranch = "main",
-                    branch = "gh-pages",
-                    versions = ["stable" => "v^", "dev" => "dev"],
-                    forcepush = true,
-                    push_preview = true,
-                )
-    else
-        @info "Current branch $current_ref ∉ $allowed_branches, skipping deploydocs."
-    end
+    @info "Deploying documentation..."
+    deploydocs(; 
+        repo = repo,
+        devbranch = "main",
+        branch = "gh-pages",
+        versions = ["stable" => "v^", "dev" => "dev"],
+        forcepush = true,
+        push_preview = true,
+    )
 else
     @info "Not running inside CI, skipping deploydocs."
 end
