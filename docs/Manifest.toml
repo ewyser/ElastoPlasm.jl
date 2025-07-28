@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.10"
+julia_version = "1.10.5"
 manifest_format = "2.0"
-project_hash = "8d4ffe253f1615b2b677880c836d5e85cbef9544"
+project_hash = "4f6e25cb8f92ac17f9b957302532c7cb5ab7c442"
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -219,7 +219,7 @@ version = "1.6.0"
 deps = ["Adapt", "BenchmarkTools", "HDF5", "KernelAbstractions", "LaTeXStrings", "LinearAlgebra", "Pkg", "Plots", "ProgressMeter", "REPL", "Random", "Revise", "SparseArrays", "Suppressor", "Test"]
 path = ".."
 uuid = "ff84b311-7f94-4593-ba3b-b1d6d2226836"
-version = "0.3.7"
+version = "0.4.0"
 
     [deps.ElastoPlasm.extensions]
     CUDAExt = "CUDA"
@@ -711,7 +711,7 @@ version = "0.3.23+4"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.1+2"
 
 [[deps.OpenMPI_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML", "Zlib_jll"]
