@@ -52,4 +52,61 @@ function plasming!(mp,mesh,cmpr,time,instr)
     end
     finish!(prog); 
     return sleep(1.0)
-end                        
+end                  
+
+function elastodynamic!(mp,mesh,cmpr,time,instr)
+    @info plasming_logs(instr)
+    it,ηmax,ηtot = 0, 0, 0
+    checkpts = sort(collect(time.t[1]:instr[:plot][:freq]:time.te))
+    # action
+    prog = Progress(length(checkpts);dt=0.5,desc="Solving elastodynamic...",barlen=10)
+    for T ∈ checkpts
+        while T > time.t[1]
+            # set clock on/off
+            tic = time_ns()
+            # adaptative dt & linear increase of gravity
+            g,dt = get_spacetime(mp,mesh,cmpr,instr,time,T)
+            # mpm cycle
+            shpfun(mp,mesh,instr)
+            mapsto(mp,mesh,g,dt,instr)    
+            elasto(mp,mesh,cmpr,dt,instr)
+            # update sim parameters
+            time.t[1],it   = time.t[1]+dt     ,it+1
+            toc      ,ηtot = ((time_ns()-tic)),max(ηmax,ηtot)
+        end
+        # plot/save
+        savlot(mp,mesh,time.t[1],instr)
+        # update progress bar
+        next!(prog;showvalues = get_vals(mesh,mp,it,ηmax,ηtot))
+    end
+    finish!(prog); 
+    return sleep(1.0)
+end  
+function elastoplastic!(mp,mesh,cmpr,time,instr)
+    @info plasming_logs(instr)
+    it,ηmax,ηtot = 0, 0, 0
+    checkpts =  
+    # action
+    prog = Progress(length(time.checks);dt=0.5,desc="Solving elastoplastic...",barlen=10)
+    for T ∈ time.checks
+        while T > time.t[1]
+            # set clock on/off
+            tic = time_ns()
+            # adaptative dt & linear increase of gravity
+            dt  = get_dt(mp,mesh,cmpr,instr,time,ΔT)
+            # mpm cycle
+            shpfun(mp,mesh,instr)
+            mapsto(mp,mesh,g,dt,instr)    
+            ηmax = elastoplast(mp,mesh,cmpr,dt,instr)
+            # update sim parameters
+            time.t[1],it   = time.t[1]+dt     ,it+1
+            toc      ,ηtot = ((time_ns()-tic)),max(ηmax,ηtot)
+        end
+        # plot/save
+        savlot(mp,mesh,time.t[1],instr)
+        # update progress bar
+        next!(prog;showvalues = get_vals(mesh,mp,it,ηmax,ηtot))
+    end
+    finish!(prog); 
+    return sleep(1.0)
+end  

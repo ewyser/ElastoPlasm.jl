@@ -32,7 +32,7 @@ function ic_slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(split
     # time parameters
     t     = [0.0,15.0]
     te,tg = 10.0, 15.0/1.5
-    time  = (; te = te, tg = tg, t = t, checks = sort(unique([collect(t[1]:instr[:plot][:freq]:t[2]);te;t[2]])))
+    time  = (; te = te, tg = tg, t = t,)
     # plot initial cohesion field
     plotcoh(mp,cmpr,paths)   
     # display summary
@@ -71,7 +71,7 @@ function slump(ic::NamedTuple,cfg::NamedTuple)
     instr,paths  = deepcopy(cfg[:instr]), deepcopy(cfg[:paths])
     time         = deepcopy(ic[:time]  )                                             
     # action
-    plasming!(mp,mesh,cmpr,time,instr)
+    elastodynamic!(mp,mesh,cmpr,time,instr)
     # postprocessing
     @info "Fig(s) saved at $(paths[:plot])"
     path =joinpath(paths[:plot],"$(mesh.dim)d_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
