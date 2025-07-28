@@ -155,8 +155,30 @@ function trunc_path(full_path::AbstractString; anchor::AbstractString="ElastoPla
 	return isnothing(idx) ? full_path : joinpath(parts[idx:end]...)
 end
 
+
+function ic_log(mesh,mp,time)
+	# build the list of constant log lines
+    logs = [
+		"Summary:",
+		"- elements: $(mesh.nel[end])",
+		"- material points: $(mp.nmp)", 
+		"- simulation time ∈ $(time.t) s:",
+    ]
+    # add optional lines
+    if isa(time.tg,AbstractFloat)
+        push!(logs, "   - gravity ramp-up: $(time.tg ) s")
+    end
+	if isa(time.te,AbstractFloat)
+        push!(logs, "   - elastodynamic  : $(time.te ) s")
+    end
+	if isa(time.tep,AbstractFloat)
+        push!(logs, "   - elastoplastic  : $(time.tep) s")
+    end
+	return join(logs,"\n")::String
+end
+
 """
-    plasming_logs(instr::NamedTuple) -> String
+    elastoplasm_log(instr::NamedTuple) -> String
 
 Generates a summary log string describing the current simulation configuration for ElastoPlasm.
 
@@ -173,7 +195,7 @@ println(logstr)
 ```
 """
 function elastoplasm_log(instr; msg::String="elastodynamic")
-    # Build the list of log lines
+    # build the list of log lines
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "- $(nthreads()) active thread(s)",
@@ -181,7 +203,7 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
         "- $(instr[:fwrk][:deform]) strain formulation",
         "- $(instr[:basis][:which]) calculation cycle",
     ]
-    # Add optional lines only if the corresponding flags are true
+    # add optional lines only if the corresponding flags are true
     if instr[:fwrk][:locking]
         push!(logs, "- F-bar locking mitigation")
     end
