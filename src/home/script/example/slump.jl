@@ -25,14 +25,13 @@ function ic_slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(split
     instr = kwargser(:instr,kwargs;dim=length(L))
     paths = set_paths(fid,info.sys.out;interactive=false)      
     # mesh & mp initial conditions
-    ni    = 2  
     mesh  = setup_mesh(nel,L,instr)    
     cmpr  = setup_cmpr(mesh.dim,instr)                       
-    mp    = setup_mps(mesh,cmpr;define=inislump(mesh,cmpr,ni,instr))
+    mp    = setup_mps(mesh,cmpr;define=inislump(mesh,cmpr,instr))
     # time parameters
-    t     = [0.0,15.0]
-    te,tg = 10.0, 15.0/1.5
-    time  = (; te = te, tg = tg, t = t,)
+    te,tg = 10.0, 10.0
+    tep   = 5.0
+    time  = (; t = [0.0,te+tep], te = te, tg = if tg > te te else tg end, tep = tep,)
     # plot initial cohesion field
     plotcoh(mp,cmpr,paths)   
     # display summary
@@ -41,8 +40,9 @@ function ic_slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(split
     - elements: $(mesh.nel[end])
     - material points: $(mp.nmp) 
     - simulation time ∈ $(time.t) s:
-        - elastic loading: $(time.te) s
-        - gravity ramp-up: $(time.tg) s
+        - gravity ramp-up: $(time.tg ) s    
+        - elastodynamic  : $(time.te ) s
+        - elastoplastic  : $(time.tep) s
     """
     return (;mesh,mp,cmpr,time),(;instr,paths)
 end
@@ -64,35 +64,27 @@ Runs the explicit solution workflow for the slump problem, including simulation 
 success = slump(ic, cfg)
 ```
 """
-function slump(ic::NamedTuple,cfg::NamedTuple)
+function slump(ic::NamedTuple,cfg::NamedTuple; load::String="elastodynamic")
     @info "Explicit solution to slump problem";config_plot()
     # unpack mesh, mp, cmpr, instr, paths
     mesh,mp,cmpr = deepcopy(ic[:mesh]  ), deepcopy(ic[:mp]    ), deepcopy(ic[:cmpr])
     instr,paths  = deepcopy(cfg[:instr]), deepcopy(cfg[:paths])
     time         = deepcopy(ic[:time]  )                                             
     # action
-    elastodynamic!(mp,mesh,cmpr,time,instr)
-    # postprocessing
-    @info "Fig(s) saved at $(paths[:plot])"
-    path =joinpath(paths[:plot],"$(mesh.dim)d_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
-    savefig(path)
-    msg("(✓) Done! exiting...\n")
-    return sucess=true
+    ϵlastσplasm(mp,mesh,cmpr,time,paths,instr; load = load)
+    # return success
+    return success=true
 end
-function slump!(ic::NamedTuple,cfg::NamedTuple)
+function slump!(ic::NamedTuple,cfg::NamedTuple; load::String="elastodynamic")
     @info "Explicit solution to slump problem";config_plot()
     # unpack mesh, mp, cmpr, instr, paths
     mesh,mp,cmpr = ic[:mesh]  , ic[:mp]    , (ic[:cmpr])
     instr,paths  = cfg[:instr], cfg[:paths]
     time         = ic[:time]                                                
     # action
-    plasming!(mp,mesh,cmpr,time,instr)
-    # postprocessing
-    @info "Fig(s) saved at $(paths[:plot])"
-    path =joinpath(paths[:plot],"$(mesh.dim)d_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
-    savefig(path)
-    msg("(✓) Done! exiting...\n")
-    return sucess=true
+    ϵlastσplasm(mp,mesh,cmpr,time,paths,instr; load = load)
+    # return success
+    return success=true
 end
 #=
     L,nel  = [64.1584,64.1584/4.0],[40,10];
