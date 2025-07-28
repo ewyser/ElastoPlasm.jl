@@ -71,7 +71,7 @@ function slump(ic::NamedTuple,cfg::NamedTuple; load::String="elastodynamic")
     instr,paths  = deepcopy(cfg[:instr]), deepcopy(cfg[:paths])
     time         = deepcopy(ic[:time]  )                                             
     # action
-    ϵlastσplasm(mp,mesh,cmpr,time,paths,instr; load = load)
+    elastoplasm(mp,mesh,cmpr,time,paths,instr; load = load)
     # return success
     return success=true
 end
@@ -82,7 +82,7 @@ function slump!(ic::NamedTuple,cfg::NamedTuple; load::String="elastodynamic")
     instr,paths  = cfg[:instr], cfg[:paths]
     time         = ic[:time]                                                
     # action
-    ϵlastσplasm(mp,mesh,cmpr,time,paths,instr; load = load)
+    elastoplasm(mp,mesh,cmpr,time,paths,instr; load = load)
     # return success
     return success=true
 end

@@ -1,6 +1,6 @@
-export ϵlastσplasm,ϵlastσplastic!,ϵlastσdynamic!              
+export elastoplasm,elastoplastic!,elastodynamic!              
 
-function ϵlastσdynamic!(mp,mesh,cmpr,time,instr)
+function elastodynamic!(mp,mesh,cmpr,time,instr)
     it,ηmax,ηtot = 0, 0, 0
     checks = sort(collect(time.t[1]:instr[:plot][:freq]:time.te))
     # action
@@ -27,7 +27,7 @@ function ϵlastσdynamic!(mp,mesh,cmpr,time,instr)
     finish!(prog); 
     return sleep(1.0)
 end  
-function ϵlastσplastic!(mp,mesh,cmpr,time,instr)
+function elastoplastic!(mp,mesh,cmpr,time,instr)
     it,ηmax,ηtot = 0, 0, 0
     checks = sort(collect(time.t[1]:instr[:plot][:freq]:time.t[2]))
     g = get_g(mesh.dim)
@@ -56,21 +56,25 @@ function ϵlastσplastic!(mp,mesh,cmpr,time,instr)
     return sleep(1.0)
 end  
 
-function ϵlastσplasm(mp,mesh,cmpr,time,paths,instr; load::String="elastodynamic")
+function elastoplasm(mp,mesh,cmpr,time,paths,instr; load::String="elastodynamic")
     # action
     if load == "elastodynamic"
         @info elastoplasm_log(instr;           )
-        ϵlastσdynamic!(mp,mesh,cmpr,time,instr )
+        elastodynamic!(mp,mesh,cmpr,time,instr )
     elseif load == "elastoplastic"
         @info elastoplasm_log(instr; msg = load) 
-        ϵlastσplastic!(mp,mesh,cmpr,time,instr )
+        elastoplastic!(mp,mesh,cmpr,time,instr )
+    elseif load == "all-in-one"
+        @info elastoplasm_log(instr; msg = load) 
+        elastodynamic!(mp,mesh,cmpr,time,instr )
+        elastoplastic!(mp,mesh,cmpr,time,instr )
     else
-        @error "Invalid workflow: $(load). Choose 'elastodynamic' or 'elastoplastic'."
+        @error "Invalid workflow: $(load). Choose 'elastodynamic', 'elastoplastic' or 'all-in-one'."
         return false
     end
     # postprocessing
     @info "Fig(s) saved at $(paths[:plot])"
-    path =joinpath(paths[:plot],"$(mesh.dim)d_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
+    path =joinpath(paths[:plot],"$(mesh.dim)d_$(load)_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
     savefig(path)
     # return success message
     return msg("(✓) Done! exiting...\n")
