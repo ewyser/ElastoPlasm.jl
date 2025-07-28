@@ -1,10 +1,11 @@
 # ϵlastσPlasm.jl 👻
 [![Build Status](https://github.com/ewyser/ElastoPlasm.jl/workflows/CI/badge.svg)](https://github.com/ewyser/ElastoPlasm.jl/actions)
 [![Documentation](https://github.com/ewyser/ElastoPlasm.jl/actions/workflows/docs.yaml/badge.svg)](https://github.com/ewyser/ElastoPlasm.jl/actions/workflows/docs.yaml)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://ewyser.github.io/ElastoPlasm.jl/)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://ewyser.github.io/ElastoPlasm.jl/stable)
+
+<!--
 [![](https://img.shields.io/badge/NVIDIA-CUDA-green.svg?logo=nvidia)](https://developer.nvidia.com/cuda-toolkit)
 [![](https://img.shields.io/badge/AMD-ROCm-red.svg?logo=amd)](https://www.amd.com/en/products/software/rocm.html)
-<!--
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaci.github.io/PkgTemplates.jl/stable)
 [![](https://img.shields.io/badge/docs-stable-blue.svg?logo=quicklook)](https://github.com/LandslideSIM/MaterialPointSolver.jl/wiki)
 [![](https://img.shields.io/badge/version-v0.3.0-926116)]()
