@@ -1,6 +1,8 @@
 using Printf, REPL.TerminalMenus
 
-function read_version(path = joinpath(@__DIR__, "..", "Project.toml"))
+elastoplasm_project = joinpath(@__DIR__, "..", "Project.toml")
+
+function read_version(path = elastoplasm_project)
     for line in eachline(path)
         if occursin("version", line)
             return match(r"\"(.*?)\"", line).captures[1]
@@ -9,7 +11,7 @@ function read_version(path = joinpath(@__DIR__, "..", "Project.toml"))
     error("Version not found in Project.toml")
 end
 
-function write_version(new_version; path = joinpath(@__DIR__, "..", "Project.toml"))
+function write_version(new_version; path = elastoplasm_project)
     content = read(path, String)
     new_content = replace(content, r"version\s*=\s*\"[0-9]+\.[0-9]+\.[0-9]+\"" => "version = \"$new_version\"")
     open(path, "w") do io
@@ -53,7 +55,7 @@ println("Bumping $part version to: v$new_version")
 write_version(new_version)
 
 # Step 4: git add Project.toml
-run(`git add ../Project.toml`)
+run(`git add $elastoplasm_project`)
 
 # Step 5: git commit with new version
 run(`git commit -m "Release v$new_version"`)
@@ -64,3 +66,4 @@ run(`git tag v$new_version`)
 # Step 7: push commit and tag
 run(`git push origin main`)
 run(`git push origin v$new_version`)
+#==#
