@@ -30,8 +30,10 @@ function ic_collapse(nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=first(split
     mp    = setup_mps(mesh, cmpr; define=inicollapse(mesh, cmpr, ni; ℓ₀=l0))
     # time parameters
     tg    = ceil((1.0/cmpr.c)*(2.0*l0)*40.0)
-    t     = [0.0, 1.25*tg]
-    time  = (; te = 1.25*tg, tg = tg, t = t, checks = sort(unique([collect(t[1]:instr[:plot][:freq]:t[2]);t[2]])))
+    te    = 1.25*tg
+    time  = (; t = [0.0, te], te = te, tg = if tg > te te else tg end, tep = nothing,)
+    # display summary
+    @info ic_log(mesh,mp,time)
     return (;mesh, mp, cmpr, time), (;instr, paths)
 end
 
@@ -54,11 +56,8 @@ function collapse(ic::NamedTuple, cfg::NamedTuple)
     time         = deepcopy(ic[:time]  )
     instr,paths  = deepcopy(cfg[:instr]), deepcopy(cfg[:paths])                                              
     # action
-    out  = plasming!(mp,mesh,cmpr,time,instr)
-    @info "Fig(s) saved at $(paths[:plot])"
-    path =joinpath(paths[:plot],"$(mesh.dim)d_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
-    savefig(path)
-    msg("(✓) Done! exiting...\n")
+    elastoplasm(mp,mesh,cmpr,time,paths,instr)
+    # return success
     return (;sucess=true,mesh,mp)
 end
 

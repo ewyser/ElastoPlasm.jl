@@ -35,15 +35,7 @@ function ic_slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(split
     # plot initial cohesion field
     plotcoh(mp,cmpr,paths)   
     # display summary
-    @info """
-    Summary: 
-    - elements: $(mesh.nel[end])
-    - material points: $(mp.nmp) 
-    - simulation time ∈ $(time.t) s:
-        - gravity ramp-up: $(time.tg ) s    
-        - elastodynamic  : $(time.te ) s
-        - elastoplastic  : $(time.tep) s
-    """
+    @info ic_log(mesh,mp,time)
     return (;mesh,mp,cmpr,time),(;instr,paths)
 end
 
