@@ -1,5 +1,5 @@
 @testset "+ $(basename(@__FILE__))" verbose = true begin
-    function iter_slump(ic,cfg,basis,plot,msg)
+    function iter_slump(ic,cfg,basis,plot,grf,msg)
         cases = [
             Dict(:deformation => "finite",       :transfer => "musl", :locking => true ),
             Dict(:deformation => "finite",       :transfer => "musl", :locking => false),
@@ -17,6 +17,7 @@
                 :fwrk   => (; deform = case[:deformation], trsfr = case[:transfer], locking = case[:locking]),
                 :nonloc => (; status = false, ls = 0.5),
                 :plot   => plot,
+                :grf    => grf,
             )
             instr = kwargser(:instr,kwargs;dim=ic.mesh.dim)
             cfg = (;instr = instr, paths = cfg.paths)
@@ -43,19 +44,21 @@
         #(; which = "smpm" , how = nothing     , ghost = true ),
     ]
     plot = (; status = true, freq = 1.0, what = ["epII"], dims = (500.0,250.0),)
+    grf  = (; status = true, covariance = "gaussian", param = (; Iₓ= [2.5,2.5,2.5], Nₕ = 5000, kₘ = 100,),)
+
     for basis ∈ cases
         @info "Testing with $(basis.which) basis"
         # 2d slump tests
         L,nel  = [64.1584,64.1584/4.0],[40,10];
-        ic,cfg = ic_slump(L,nel; fid = "test/slump");
+        ic,cfg = ic_slump(L,nel; fid = "test/slump", grf);
         @testset "- 2d geometry with $(basis.which) basis" verbose = true begin
-            iter_slump(ic,cfg,basis,plot,"Completion for 2d geometry:")
+            iter_slump(ic,cfg,basis,plot,grf,"Completion for 2d geometry:")
         end
         # 3d slump tests
         L,nel  = [64.1584,64.1584/4.0,64.1584/4.0],[40,10,10];
-        ic,cfg = ic_slump(L,nel; fid = "test/slump");
+        ic,cfg = ic_slump(L,nel; fid = "test/slump", grf);
         @testset "- 3d geometry with $(basis.which) basis" verbose = true begin
-            iter_slump(ic,cfg,basis,plot,"Completion for 3d geometry:")
+            iter_slump(ic,cfg,basis,plot,grf,"Completion for 3d geometry:")
         end
     end
 end

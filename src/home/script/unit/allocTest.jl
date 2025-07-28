@@ -15,7 +15,7 @@ using BenchmarkTools
     T,te,tg = 15.0,10.0,15.0/1.5                                                # simulation time [s], elastic loading [s], gravity load
     # mesh & mp setup
     mesh     = setup_mesh(nel,L,instr)                                            # mesh geometry setup
-    mp     = setup_mps(mesh,L,cmp,instr[:GRF],typeD)                      # material point geometry setup
+    mp     = setup_mps(mesh,L,cmp,instr[:grf],typeD)                      # material point geometry setup
     @info "Mesh & mp feature(s):" instr[:shpfun] instr[:fwrk] instr[:trsfr] instr[:vollock] nel nthreads()
     # plot & time stepping parameters
     tw,Δt,it,ctr,toc,flag,ηmax,ηtot,dt = 0.0,1.0/1.0,0,0,0.0,0,0,0,1.0e-4    

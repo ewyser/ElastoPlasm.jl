@@ -24,7 +24,7 @@ cfg = require(:instr)
 - `:fwrk`    — Deformation framework
 - `:trsfr`   — Mapping scheme
 - `:vollock` — Volumetric locking mitigation
-- `:GRF`     — Gaussian Random Field generator
+- `:grf`     — Gaussian Random Field generator
 - `:plast`   — Plasticity onset and flow law
 - `:nonloc`  — Non-local regularization
 - `:plot`    — Plotting options
@@ -38,29 +38,31 @@ function require(in::Symbol=:instr)
                         which="bsmpm",
                         how=nothing,
                         ghost=false,
-                        ),
+            ),
             :fwrk  => (;
                         deform = "finite",
                         trsfr = "musl",
                         locking = true,
-                        ),
-            :GRF   => (;
+            ),
+            :grf   => (;
                         status = false,
-                        ),
+                        covariance = "gaussian",
+                        param = (; Iₓ= [2.5,2.5,2.5], Nₕ = 5000, kₘ = 100,),
+            ),
             :plast => Dict(
                         :status=>false,
                         :constitutive=>"DP",
-                        ),
+            ),
             :nonloc=> (;
                         status=true,
                         ls=0.5,
-                        ),
+            ),
             :plot  => (;
                         status=true,
                         freq=1.0,
                         what=["epII"],
                         dims=(500.0,250.0),
-                        ),
+            ),
             :perf    => false,
         )
         return instr

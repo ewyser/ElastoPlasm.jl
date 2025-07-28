@@ -10,8 +10,13 @@ function inislump(mesh,cmp,ni,instr; lz = 12.80)
         xp         = repeat(reshape(x,1     ,nmp[1]),nmp[2],1     )
         zp         = repeat(reshape(z,nmp[2],1     ),1     ,nmp[1])
 
-        if instr[:GRF][:status]
-            c = GRFS_gauss(xp,coh0,cohr,ni,mesh.h[1])
+        if instr[:grf][:status]
+            if instr[:grf][:covariance] == "gaussian"
+                c = GRFS_gauss(xp,coh0,cohr,ni,mesh.h[1])
+            end
+            if instr[:grf][:covariance] == "exponential"
+
+            end
         else 
             c = ones(size(xp)).*coh0 
         end
@@ -48,7 +53,7 @@ function inislump(mesh,cmp,ni,instr; lz = 12.80)
         xp          = (xL'.*ones(npz,1  )      ).*ones(1,1,npy)
         yp          = (     ones(npz,npx)      ).*reshape(yL,1,1,npy)
         zp          = (     ones(npx,1  )'.*zL ).*ones(1,1,npy)
-        if instr[:GRF][:status]
+        if instr[:grf][:status]
             c = GRFS_gauss(xp,coh0,cohr,ni,mesh.h[1])
         else 
             c = ones(size(xp)).*coh0 

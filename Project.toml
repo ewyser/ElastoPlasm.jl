@@ -1,7 +1,7 @@
 name = "ElastoPlasm"
 uuid = "ff84b311-7f94-4593-ba3b-b1d6d2226836"
 authors = ["ewyser <manuwyser@gmail.com>"]
-version = "0.3.7"
+version = "0.4.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
