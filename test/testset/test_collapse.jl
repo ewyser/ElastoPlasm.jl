@@ -6,7 +6,7 @@
     ic, cfg = ic_collapse(nel, ν, E, ρ0, l0; fid = "test/collapse", plot = (; status=true, freq=1.0, what=["P"], dims=(500.0,250.0) ))
     z0      = copy(ic.mp.x[end, :])
     out     = collapse(ic, cfg)
-    mesh,mp,cmpr = out.mesh, out.mp, ic.cmpr
+    mesh,mp,cmpr = out.ic.mesh, out.ic.mp, out.ic.cmpr
 
     # Numeric and analytic solution
     idx = mesh.dim == 2 ? 2 : 3
@@ -16,7 +16,8 @@
     y = z0
 
     err = sum(sqrt.((xnum .- x).^2) .* mp.Ω₀) / (9.81 * cmpr.ρ0 * l0 * sum(mp.Ω₀))
-    #println(err)
+    
+    @test isa(err,AbstractFloat)
 
     config_plot()
     gr(size=(500,300),legend=true,markersize=2.5,markershape=:circle,markerstrokewidth=0.0,markerstrokecolor=:match,)

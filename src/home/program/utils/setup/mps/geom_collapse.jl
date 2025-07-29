@@ -1,4 +1,4 @@
-function inicollapse(mesh,cmp,ni;ℓ₀=0.0)
+function geom_collapse(mesh,cmp,ni;ℓ₀=0.0)
     @info "Init elastic collumn geometry"
     coh0,cohr,phi0= cmp[:c0],cmp[:cr],cmp[:ϕ0]
     if mesh.dim == 2

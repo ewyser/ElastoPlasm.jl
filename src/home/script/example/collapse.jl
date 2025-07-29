@@ -1,19 +1,26 @@
-export collapse, ic_collapse
+export collapse,collapse!,ic_collapse
 
 """
-    ic_collapse(dim::Int, nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=..., kwargs...) -> NamedTuple, NamedTuple
+    ic_collapse(nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=..., kwargs...) -> NamedTuple, NamedTuple
 
 Initializes the mesh, material points, constitutive model, and simulation configuration for a collapse test.
 
 # Arguments
-- `dim::Int`: Number of spatial dimensions (2 or 3).
 - `nel::Vector{Int64}`: Number of elements in each dimension.
-- `ν, E, ρ0, l0`: Physical parameters.
+- `ν`: Poisson's ratio.
+- `E`: Young's modulus.
+- `ρ0`: Initial density.
+- `l0`: Characteristic length.
 - `fid::String`: (Optional) File or run identifier.
 - `kwargs...`: Additional keyword arguments for simulation configuration.
 
 # Returns
-- `(ic, cfg)`: Two named tuples containing mesh/material/compression info (`ic`) and instructions/paths (`cfg`).
+- `(ic, cfg)`: Two named tuples containing mesh/material/constitutive/time data structure (`ic`) and instructions/paths (`cfg`).
+
+# Example
+```julia
+ic, cfg = ic_collapse([5, 10], 0.0, 1.0e4, 80.0, 10.0; plot=(status=true, freq=1.0))
+```
 """
 function ic_collapse(nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
     @info "Setting up mesh & material point system for $(length(nel))d collapse problem"
@@ -27,39 +34,72 @@ function ic_collapse(nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=first(split
     ni    =  2
     mesh  = setup_mesh(nel, L, instr)
     cmpr  = setup_cmpr(dim, instr; E=E, ν=ν, ρ0=ρ0)
-    mp    = setup_mps(mesh, cmpr; define=inicollapse(mesh, cmpr, ni; ℓ₀=l0))
+    mp    = setup_mps(mesh, cmpr; define=geom_collapse(mesh, cmpr, ni; ℓ₀=l0))
     # time parameters
     tg    = ceil((1.0/cmpr.c)*(2.0*l0)*40.0)
-    t     = [0.0, 1.25*tg]
-    time  = (; te = 1.25*tg, tg = tg, t = t, checks = sort(unique([collect(t[1]:instr[:plot][:freq]:t[2]);t[2]])))
+    te    = 1.25*tg
+    time  = (; t = [0.0, te], te = te, tg = if tg > te te else tg end, tep = nothing,)
+    # display summary
+    @info ic_log(mesh,mp,time)
     return (;mesh, mp, cmpr, time), (;instr, paths)
 end
 
 """
-    collapse(ic::NamedTuple, cfg::NamedTuple) -> Bool
+    collapse(ic::NamedTuple, cfg::NamedTuple) -> NamedTuple
 
-Runs the explicit solution workflow for the collapse problem, including simulation and postprocessing.
+Runs the explicit solution workflow for the collapse problem using a deep copy of the initial conditions and configuration.
+This function is suitable for workflows where you do not want to mutate the input data.
 
 # Arguments
-- `ic::NamedTuple`: Initial mesh/material/compression/time/gravity configuration.
+- `ic::NamedTuple`: Initial mesh/material/constitutive/time condition.
 - `cfg::NamedTuple`: Simulation instructions and output paths.
 
 # Returns
-- `Bool`: Returns `true` if the simulation and postprocessing complete successfully.
+- `NamedTuple`: Simulation output with all fields from `elastoplasm` and an added `success=true` field.
+
+# Example
+```julia
+result = collapse(ic, cfg)
+if result.success
+    println("Simulation completed successfully!")
+end
+```
 """
 function collapse(ic::NamedTuple, cfg::NamedTuple)
-    @info "Execution of collapse()"
-    # extract mesh, mp, cmpr, instr, paths
-    mesh,mp,cmpr = deepcopy(ic[:mesh]  ), deepcopy(ic[:mp]    ), deepcopy(ic[:cmpr])
-    time         = deepcopy(ic[:time]  )
-    instr,paths  = deepcopy(cfg[:instr]), deepcopy(cfg[:paths])                                              
-    # action
-    out  = plasming!(mp,mesh,cmpr,time,instr)
-    @info "Fig(s) saved at $(paths[:plot])"
-    path =joinpath(paths[:plot],"$(mesh.dim)d_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
-    savefig(path)
-    msg("(✓) Done! exiting...\n")
-    return (;sucess=true,mesh,mp)
+    @info "Execution of collapse()"; config_plot()
+    # forward-euler explicit workflow
+    out = elastoplasm(deepcopy(ic), deepcopy(cfg);)
+    # return output with success flag
+    return out = (; out..., success=true,)
+end
+
+"""
+    collapse!(ic::NamedTuple, cfg::NamedTuple) -> NamedTuple
+
+Runs the explicit solution workflow for the collapse problem, mutating the input initial conditions and configuration.
+Use this when you want changes to `ic` and `cfg` to persist after the simulation.
+
+# Arguments
+- `ic::NamedTuple`: Initial mesh/material/constitutive/time condition.
+- `cfg::NamedTuple`: Simulation instructions and output paths.
+
+# Returns
+- `NamedTuple`: Simulation output with all fields from `elastoplasm` and an added `success=true` field.
+
+# Example
+```julia
+result = collapse!(ic, cfg)
+if result.success
+    println("Simulation completed successfully!")
+end
+```
+"""
+function collapse!(ic::NamedTuple, cfg::NamedTuple)
+    @info "Explicit solution to collapse problem"; config_plot()
+    # forward-euler explicit workflow
+    out = elastoplasm(ic, cfg;)
+    # return output with success flag
+    return out = (; out..., success=true,)
 end
 
 #=

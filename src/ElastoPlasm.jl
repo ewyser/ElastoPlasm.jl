@@ -9,7 +9,7 @@ include(joinpath(ROOT,"boot/boot.jl"))
 - copy-paste the following:
   L,nel  = [64.1584,64.1584/4.0],[40,10];
   ic,cfg = ic_slump(L,nel);
-  status = slump(ic,cfg;);
+  out    = slump(ic,cfg; workflow="all-in-one");
 - wait for the simulation to end
 """
 

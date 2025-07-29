@@ -1,4 +1,4 @@
-export set_paths
+export set_paths, config_plot
 
 """
     set_paths(new_dir::String, path::String; interactive::Bool=true) -> Dict{Symbol, String}

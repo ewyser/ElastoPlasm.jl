@@ -18,16 +18,11 @@ Computes the adaptive time step for the simulation based on mesh spacing and mat
 dt = get_dt(mp, mesh, 1e-6, t, time)
 ```
 """
-function get_dt(mp, mesh, yd, t, time)
-    h    = mesh.h
-    vmax = mp.vmax .+ yd
-    if length(h) == length(vmax)
-        cmax     = h ./ vmax
-        mp.vmax .= 0.0
-        return min(0.5 * maximum(cmax), time - t)
-    else
-        return nothing
-    end
+function get_dt(mp,mesh,cmpr,time,ΔT)
+    # calculte dt
+    cmax = mesh.h./(mp.vmax.+cmpr[:c]); mp.vmax.=0.0 
+    dt   = min(0.5*maximum(cmax),ΔT-time.t[1])
+    return dt
 end
 
 """
@@ -48,14 +43,15 @@ Calculates the gravity vector for the current time, ramping up to full gravity o
 g = get_g(t, tg, 2)
 ```
 """
-function get_g(t::Float64,tg::Float64,ndim::Int64)
-    g = 0.0
-    if t<=tg 
-        g = 9.81*t/tg 
-    else
-        g = 9.81
+function get_g(dim; G::Float64=9.81)
+    if dim == 1 
+        g = [-G] 
+    elseif dim == 2 
+        g = [0.0,-G] 
+    elseif dim == 3 
+        g = [0.0,0.0,-G] 
     end
-    return if ndim == 1 g = [-g] elseif ndim == 2 g = [0.0 -g] elseif ndim == 3 g = [0.0 0.0 -g] end
+    return g
 end
 
 """
@@ -81,26 +77,14 @@ Updates simulation state, including plasticity status, adaptive time step, and g
 g, dt = get_spacetime(mp, mesh, cmpr, instr, t, tg, te, time)
 ```
 """
-function get_spacetime(mp,mesh,cmpr,instr,time,ΔT)
-    # check elastoplastic status
-    if time.t[1] > time.te 
-        instr[:plast][:status] = true 
-    end
+function get_spacetime(mp,mesh,cmpr,time,ΔT)
     # calculte dt
-    cmax = mesh.h./(mp.vmax.+cmpr[:c]); mp.vmax.=0.0 
-    dt   = min(0.5*maximum(cmax),ΔT-time.t[1])
+    dt = get_dt(mp,mesh,cmpr,time,ΔT)
     # ramp-up gravity
     if time.t[1] <= time.tg 
-        g = 9.81*time.t[1]/time.tg 
+        g = get_g(mesh.dim; G = 9.81*time.t[1]/time.tg)
     else
-        g = 9.81
-    end
-    if mesh.dim == 1 
-        g = [-g] 
-    elseif mesh.dim == 2 
-        g = [0.0 -g] 
-    elseif mesh.dim == 3 
-        g = [0.0 0.0 -g] 
+        g = get_g(mesh.dim;)
     end
     return g,dt
 end
