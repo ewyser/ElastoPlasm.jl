@@ -18,11 +18,7 @@ Computes the adaptive time step for the simulation based on mesh spacing and mat
 dt = get_dt(mp, mesh, 1e-6, t, time)
 ```
 """
-function get_dt(mp,mesh,cmpr,instr,time,ΔT)
-    # check elastoplastic status
-    if time.t[1] > time.te 
-        instr[:plast][:status] = true 
-    end
+function get_dt(mp,mesh,cmpr,time,ΔT)
     # calculte dt
     cmax = mesh.h./(mp.vmax.+cmpr[:c]); mp.vmax.=0.0 
     dt   = min(0.5*maximum(cmax),ΔT-time.t[1])
@@ -81,9 +77,9 @@ Updates simulation state, including plasticity status, adaptive time step, and g
 g, dt = get_spacetime(mp, mesh, cmpr, instr, t, tg, te, time)
 ```
 """
-function get_spacetime(mp,mesh,cmpr,instr,time,ΔT)
+function get_spacetime(mp,mesh,cmpr,time,ΔT)
     # calculte dt
-    dt = get_dt(mp,mesh,cmpr,instr,time,ΔT)
+    dt = get_dt(mp,mesh,cmpr,time,ΔT)
     # ramp-up gravity
     if time.t[1] <= time.tg 
         g = get_g(mesh.dim; G = 9.81*time.t[1]/time.tg)

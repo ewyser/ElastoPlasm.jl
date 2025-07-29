@@ -27,13 +27,21 @@ function ic_slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(split
     # mesh & mp initial conditions
     mesh  = setup_mesh(nel,L,instr)    
     cmpr  = setup_cmpr(mesh.dim,instr)                       
-    mp    = setup_mps(mesh,cmpr;define=inislump(mesh,cmpr,instr))
+    mp    = setup_mps(mesh,cmpr;define=geom_slump(mesh,cmpr,instr))
     # time parameters
     te,tg = 10.0, 10.0
     tep   = 5.0
     time  = (; t = [0.0,te+tep], te = te, tg = if tg > te te else tg end, tep = tep,)
     # plot initial cohesion field
-    plotcoh(mp,cmpr,paths)   
+    ms = 0.4*instr[:plot][:dims][1]/mesh.nel[1]
+    opts = (;
+        dims    = instr[:plot][:dims],
+        what    = ["coh0","phi0"],
+        backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
+        tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
+        file    = joinpath(paths[:plot],"$(mesh.dim)d_coh0_phi0.png"),
+    )
+    get_plot_field(mp,mesh,opts);save_plot(opts)
     # display summary
     @info ic_log(mesh,mp,time)
     return (;mesh,mp,cmpr,time),(;instr,paths)
@@ -56,22 +64,17 @@ Runs the explicit solution workflow for the slump problem, including simulation 
 success = slump(ic, cfg)
 ```
 """
-function slump(ic::NamedTuple,cfg::NamedTuple; load::String="elastodynamic")
+function slump(ic::NamedTuple,cfg::NamedTuple; workflow::String="elastodynamic")
     @info "Explicit solution to slump problem";config_plot()                                           
     # forward-euler explicit workflow
-    out = elastoplasm(deepcopy(ic),deepcopy(cfg); mode = load)
-    # return success
-    return success=true
-end
-function slump!(ic::NamedTuple,cfg::NamedTuple; load::String="elastodynamic")
-    @info "Explicit solution to slump problem";config_plot()                                           
-    # forward-euler explicit workflow
-    out = elastoplasm(ic          ,cfg         ; mode = load)
+    out = elastoplasm(deepcopy(ic),deepcopy(cfg); mode = workflow)
     # return success
     return out = (; out...,success=true,)
 end
-#=
-    L,nel  = [64.1584,64.1584/4.0],[40,10];
-    ic,cfg = ic_slump(L,nel);
-    status = slump(ic,cfg;);
-=#
+function slump!(ic::NamedTuple,cfg::NamedTuple; workflow::String="elastodynamic")
+    @info "Explicit solution to slump problem";config_plot()                                           
+    # forward-euler explicit workflow
+    out = elastoplasm(ic          ,cfg         ; mode = workflow)
+    # return success
+    return out = (; out...,success=true,)
+end
