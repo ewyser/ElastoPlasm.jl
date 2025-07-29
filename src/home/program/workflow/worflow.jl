@@ -24,8 +24,8 @@ function elastodynamic!(mp,mesh,cmpr,time,instr)
         # update progress bar
         next!(prog;showvalues = get_vals(mesh,mp,it,ηmax,ηtot))
     end
-    finish!(prog); 
-    return sleep(1.0)
+    finish!(prog)
+    return nothing
 end  
 function elastoplastic!(mp,mesh,cmpr,time,instr)
     it,ηmax,ηtot = 0, 0, 0
@@ -52,30 +52,34 @@ function elastoplastic!(mp,mesh,cmpr,time,instr)
         # update progress bar
         next!(prog;showvalues = get_vals(mesh,mp,it,ηmax,ηtot))
     end
-    finish!(prog); 
-    return sleep(1.0)
+    finish!(prog)
+    return nothing
 end  
 
-function elastoplasm(mp,mesh,cmpr,time,paths,instr; load::String="elastodynamic")
+function elastoplasm(ic::NamedTuple,cfg::NamedTuple; mode::String="elastodynamic")
+    # unpack mesh, mp, cmpr, instr, paths as aliases
+    mesh,mp,cmpr = ic[:mesh]  , ic[:mp]    , (ic[:cmpr])
+    instr,paths  = cfg[:instr], cfg[:paths]
+    time         = ic[:time]
     # action
-    if load == "elastodynamic"
-        @info elastoplasm_log(instr;           )
-        elastodynamic!(mp,mesh,cmpr,time,instr )
-    elseif load == "elastoplastic"
-        @info elastoplasm_log(instr; msg = load) 
-        elastoplastic!(mp,mesh,cmpr,time,instr )
-    elseif load == "all-in-one"
-        @info elastoplasm_log(instr; msg = load) 
-        elastodynamic!(mp,mesh,cmpr,time,instr )
-        elastoplastic!(mp,mesh,cmpr,time,instr )
+    @info elastoplasm_log(instr; msg = mode) 
+    if mode == "elastodynamic"
+        elastodynamic!(mp,mesh,cmpr,time,instr)
+    elseif mode == "elastoplastic"
+        elastoplastic!(mp,mesh,cmpr,time,instr)
+    elseif mode == "all-in-one"
+        elastodynamic!(mp,mesh,cmpr,time,instr)
+        elastoplastic!(mp,mesh,cmpr,time,instr)
     else
-        @error "Invalid workflow: $(load). Choose 'elastodynamic', 'elastoplastic' or 'all-in-one'."
+        @error "Invalid workflow: $(mode). Choose 'elastodynamic', 'elastoplastic' or 'all-in-one'."
         return false
     end
+    sleep(1.0)
     # postprocessing
-    @info "Fig(s) saved at $(paths[:plot])"
-    path =joinpath(paths[:plot],"$(mesh.dim)d_$(load)_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
+    path = joinpath(paths[:plot],"$(mesh.dim)d_$(mode)_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
     savefig(path)
+    @info "Fig(s): \n\e[32m+ $(trunc_path(path))\e[0m"
     # return success message
-    return msg("(✓) Done! exiting...\n")
+    exit_log("(✓) Done! exiting...\n")
+    return out = (; ic,cfg,)
 end

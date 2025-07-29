@@ -213,3 +213,11 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
     end
     return join(logs,"\n")
 end
+
+function exit_log(message::String)
+    try
+        return printstyled("└ $message",color=:green,bold=true,blink=true)
+    catch
+        return printstyled("└ $message",color=:blink)
+    end
+end

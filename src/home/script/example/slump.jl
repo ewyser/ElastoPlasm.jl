@@ -57,26 +57,18 @@ success = slump(ic, cfg)
 ```
 """
 function slump(ic::NamedTuple,cfg::NamedTuple; load::String="elastodynamic")
-    @info "Explicit solution to slump problem";config_plot()
-    # unpack mesh, mp, cmpr, instr, paths
-    mesh,mp,cmpr = deepcopy(ic[:mesh]  ), deepcopy(ic[:mp]    ), deepcopy(ic[:cmpr])
-    instr,paths  = deepcopy(cfg[:instr]), deepcopy(cfg[:paths])
-    time         = deepcopy(ic[:time]  )                                             
-    # action
-    elastoplasm(mp,mesh,cmpr,time,paths,instr; load = load)
+    @info "Explicit solution to slump problem";config_plot()                                           
+    # forward-euler explicit workflow
+    out = elastoplasm(deepcopy(ic),deepcopy(cfg); mode = load)
     # return success
     return success=true
 end
 function slump!(ic::NamedTuple,cfg::NamedTuple; load::String="elastodynamic")
-    @info "Explicit solution to slump problem";config_plot()
-    # unpack mesh, mp, cmpr, instr, paths
-    mesh,mp,cmpr = ic[:mesh]  , ic[:mp]    , (ic[:cmpr])
-    instr,paths  = cfg[:instr], cfg[:paths]
-    time         = ic[:time]                                                
-    # action
-    elastoplasm(mp,mesh,cmpr,time,paths,instr; load = load)
+    @info "Explicit solution to slump problem";config_plot()                                           
+    # forward-euler explicit workflow
+    out = elastoplasm(ic          ,cfg         ; mode = load)
     # return success
-    return success=true
+    return out = (; out...,success=true,)
 end
 #=
     L,nel  = [64.1584,64.1584/4.0],[40,10];

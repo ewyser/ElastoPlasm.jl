@@ -1,4 +1,4 @@
-export collapse, ic_collapse
+export collapse,collapse!, ic_collapse
 
 """
     ic_collapse(dim::Int, nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=..., kwargs...) -> NamedTuple, NamedTuple
@@ -50,15 +50,18 @@ Runs the explicit solution workflow for the collapse problem, including simulati
 - `Bool`: Returns `true` if the simulation and postprocessing complete successfully.
 """
 function collapse(ic::NamedTuple, cfg::NamedTuple)
-    @info "Execution of collapse()"
-    # extract mesh, mp, cmpr, instr, paths
-    mesh,mp,cmpr = deepcopy(ic[:mesh]  ), deepcopy(ic[:mp]    ), deepcopy(ic[:cmpr])
-    time         = deepcopy(ic[:time]  )
-    instr,paths  = deepcopy(cfg[:instr]), deepcopy(cfg[:paths])                                              
-    # action
-    elastoplasm(mp,mesh,cmpr,time,paths,instr)
+    @info "Execution of collapse()";config_plot()                                           
+    # forward-euler explicit workflow
+    out = elastoplasm(deepcopy(ic),deepcopy(cfg);)
     # return success
-    return (;sucess=true,mesh,mp)
+    return out = (; out...,success=true,)
+end
+function collapse!(ic::NamedTuple, cfg::NamedTuple)
+    @info "Explicit solution to slump problem";config_plot()                                           
+    # forward-euler explicit workflow
+    out = elastoplasm(ic          ,cfg         ;)
+    # return success
+    return out = (; out...,success=true,)
 end
 
 #=
