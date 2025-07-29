@@ -26,7 +26,7 @@
                 status = false
                 try
                     @suppress begin
-                        status = slump(ic,cfg; load = "all-in-one")
+                        status = slump(ic,cfg; workflow = "all-in-one").success
                     end
                 catch e
                     @warn "$(basename(@__FILE__)) failed with error" exception = e

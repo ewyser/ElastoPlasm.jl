@@ -155,42 +155,61 @@ function trunc_path(full_path::AbstractString; anchor::AbstractString="ElastoPla
 	return isnothing(idx) ? full_path : joinpath(parts[idx:end]...)
 end
 
+"""
+    ic_log(mesh, mp, time) -> String
 
+Generates a summary log string for the initial simulation setup, including mesh, material points, and time parameters.
+
+# Arguments
+- `mesh`: Mesh object containing element information.
+- `mp`: Material point object containing number of points.
+- `time`: Named tuple with time parameters (`t`, `te`, `tg`, `tep`).
+
+# Returns
+- `String`: Multi-line summary of the simulation setup.
+
+# Example
+```julia
+summary = ic_log(mesh, mp, time)
+println(summary)
+```
+"""
 function ic_log(mesh,mp,time)
-	# build the list of constant log lines
+    # build the list of constant log lines
     logs = [
-		"Summary:",
-		"- elements: $(mesh.nel[end])",
-		"- material points: $(mp.nmp)", 
-		"- simulation time ∈ $(time.t) s:",
+        "Summary:",
+        "- elements: $(mesh.nel[end])",
+        "- material points: $(mp.nmp)", 
+        "- simulation time ∈ $(time.t) s:",
     ]
     # add optional lines
     if isa(time.tg,AbstractFloat)
         push!(logs, "   - gravity ramp-up: $(time.tg ) s")
     end
-	if isa(time.te,AbstractFloat)
+    if isa(time.te,AbstractFloat)
         push!(logs, "   - elastodynamic  : $(time.te ) s")
     end
-	if isa(time.tep,AbstractFloat)
+    if isa(time.tep,AbstractFloat)
         push!(logs, "   - elastoplastic  : $(time.tep) s")
     end
-	return join(logs,"\n")::String
+    return join(logs,"\n")::String
 end
 
 """
-    elastoplasm_log(instr::NamedTuple) -> String
+    elastoplasm_log(instr::NamedTuple; msg::String="elastodynamic") -> String
 
 Generates a summary log string describing the current simulation configuration for ElastoPlasm.
 
 # Arguments
 - `instr::NamedTuple`: Instruction/configuration named tuple containing simulation options.
+- `msg::String`: (Optional) Workflow name, default is "elastodynamic".
 
 # Returns
 - `String`: Multi-line string summarizing the simulation setup.
 
 # Example
 ```julia
-logstr = plasming_logs(instr)
+logstr = elastoplasm_log(instr)
 println(logstr)
 ```
 """
@@ -199,7 +218,7 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "- $(nthreads()) active thread(s)",
-		"- $msg workflow",
+        "- $msg workflow",
         "- $(instr[:fwrk][:deform]) strain formulation",
         "- $(instr[:basis][:which]) calculation cycle",
     ]
@@ -207,13 +226,28 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
     if instr[:fwrk][:locking]
         push!(logs, "- F-bar locking mitigation")
     end
-
     if instr[:nonloc][:status] && msg == "elastoplastic"
         push!(logs, "- non-local plastic regularization")
     end
     return join(logs,"\n")
 end
 
+"""
+    exit_log(message::String)
+
+Prints a styled exit message to the console. Uses green, bold, and blinking text if supported.
+
+# Arguments
+- `message::String`: The message to display.
+
+# Returns
+- Nothing. Prints the message to the console.
+
+# Example
+```julia
+exit_log("Simulation finished successfully.")
+```
+"""
 function exit_log(message::String)
     try
         return printstyled("└ $message",color=:green,bold=true,blink=true)

@@ -1,3 +1,4 @@
+export require
 """
     require(in::Symbol=:instr) -> Dict
 
@@ -49,9 +50,9 @@ function require(in::Symbol=:instr)
                         covariance = "gaussian",
                         param = (; Iₓ= [2.5,2.5,2.5], Nₕ = 5000, kₘ = 100,),
             ),
-            :plast => Dict(
-                        :status=>false,
-                        :constitutive=>"DP",
+            :plast => (;
+                        status = false,
+                        constitutive = "DP",
             ),
             :nonloc=> (;
                         status=true,
@@ -71,4 +72,3 @@ function require(in::Symbol=:instr)
         return nothing
     end
 end
-export require

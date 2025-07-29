@@ -10,7 +10,7 @@ function elastodynamic!(mp,mesh,cmpr,time,instr)
             # set clock on/off
             tic = time_ns()
             # adaptative dt & linear increase of gravity
-            g,dt = get_spacetime(mp,mesh,cmpr,instr,time,T)
+            g,dt = get_spacetime(mp,mesh,cmpr,time,T)
             # mpm cycle
             shpfun(mp,mesh,instr)
             mapsto(mp,mesh,g,dt,instr)    
@@ -38,7 +38,7 @@ function elastoplastic!(mp,mesh,cmpr,time,instr)
             # set clock on/off
             tic = time_ns()
             # adaptative dt & linear increase of gravity
-            dt  = get_dt(mp,mesh,cmpr,instr,time,T)
+            dt  = get_dt(mp,mesh,cmpr,time,T)
             # mpm cycle
             shpfun(mp,mesh,instr)
             mapsto(mp,mesh,g,dt,instr)    
@@ -76,9 +76,9 @@ function elastoplasm(ic::NamedTuple,cfg::NamedTuple; mode::String="elastodynamic
     end
     sleep(1.0)
     # postprocessing
-    path = joinpath(paths[:plot],"$(mesh.dim)d_$(mode)_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png")
-    savefig(path)
-    @info "Fig(s): \n\e[32m+ $(trunc_path(path))\e[0m"
+    opts = (;
+        file = joinpath(paths[:plot],"$(mesh.dim)d_$(mode)_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf])_$(first(instr[:nonloc])).png"),
+    );save_plot(opts)
     # return success message
     exit_log("(✓) Done! exiting...\n")
     return out = (; ic,cfg,)

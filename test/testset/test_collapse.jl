@@ -16,7 +16,8 @@
     y = z0
 
     err = sum(sqrt.((xnum .- x).^2) .* mp.Ω₀) / (9.81 * cmpr.ρ0 * l0 * sum(mp.Ω₀))
-    #println(err)
+    
+    @test isa(err,AbstractFloat)
 
     config_plot()
     gr(size=(500,300),legend=true,markersize=2.5,markershape=:circle,markerstrokewidth=0.0,markerstrokecolor=:match,)

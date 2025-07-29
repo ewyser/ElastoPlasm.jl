@@ -1,4 +1,4 @@
-function inislump(mesh,cmp,instr; ni = 2, lz = 12.80)
+function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80)
     #@info "Init slump geometry"
     coh0,cohr,phi0,phir,rho0 = cmp[:c0],cmp[:cr],cmp[:ϕ0],cmp[:ϕr],cmp[:ρ0]
 
