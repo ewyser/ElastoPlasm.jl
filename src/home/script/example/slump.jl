@@ -1,4 +1,4 @@
-export slump, slump!, ic_slump 
+export slump,slump!,ic_slump 
 
 """
     ic_slump(L::Vector{Float64}, nel::Vector{Int64}; fid::String=..., kwargs...) -> NamedTuple, NamedTuple
@@ -48,33 +48,61 @@ function ic_slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(split
 end
 
 """
-    slump(ic::NamedTuple, cfg::NamedTuple; mutate::Bool=false) -> Bool
+    slump(ic::NamedTuple, cfg::NamedTuple; workflow::String="elastodynamic") -> NamedTuple
 
-Runs the explicit solution workflow for the slump problem, including simulation and postprocessing.
+Runs the explicit solution workflow for the slump problem using a deep copy of the initial conditions and configuration.
+This function is suitable for workflows where you do not want to mutate the input data.
 
 # Arguments
 - `ic::NamedTuple`: Initial mesh, material point, compression, and time configuration.
 - `cfg::NamedTuple`: Simulation instructions and output paths.
+- `workflow::String`: (Optional) Workflow mode, default is "elastodynamic".
 
 # Returns
-- `Bool`: Returns `true` if the simulation and postprocessing complete successfully.
+- `NamedTuple`: Simulation output with all fields from `elastoplasm` and an added `success=true` field.
 
 # Example
 ```julia
-success = slump(ic, cfg)
+result = slump(ic, cfg)
+if result.success
+    println("Simulation completed successfully!")
+end
 ```
 """
 function slump(ic::NamedTuple,cfg::NamedTuple; workflow::String="elastodynamic")
-    @info "Explicit solution to slump problem";config_plot()                                           
+    @info "Explicit solution to slump problem"; config_plot()
     # forward-euler explicit workflow
-    out = elastoplasm(deepcopy(ic),deepcopy(cfg); mode = workflow)
-    # return success
-    return out = (; out...,success=true,)
+    out = elastoplasm(deepcopy(ic), deepcopy(cfg); mode = workflow)
+    # return output with success flag
+    return out = (; out..., success=true,)
 end
+
+"""
+    slump!(ic::NamedTuple, cfg::NamedTuple; workflow::String="elastodynamic") -> NamedTuple
+
+Runs the explicit solution workflow for the slump problem, mutating the input initial conditions and configuration.
+Use this when you want changes to `ic` and `cfg` to persist after the simulation.
+
+# Arguments
+- `ic::NamedTuple`: Initial mesh, material point, compression, and time configuration.
+- `cfg::NamedTuple`: Simulation instructions and output paths.
+- `workflow::String`: (Optional) Workflow mode, default is "elastodynamic".
+
+# Returns
+- `NamedTuple`: Simulation output with all fields from `elastoplasm` and an added `success=true` field.
+
+# Example
+```julia
+result = slump!(ic, cfg)
+if result.success
+    println("Simulation completed successfully!")
+end
+```
+"""
 function slump!(ic::NamedTuple,cfg::NamedTuple; workflow::String="elastodynamic")
-    @info "Explicit solution to slump problem";config_plot()                                           
+    @info "Explicit solution to slump problem"; config_plot()
     # forward-euler explicit workflow
-    out = elastoplasm(ic          ,cfg         ; mode = workflow)
-    # return success
-    return out = (; out...,success=true,)
+    out = elastoplasm(ic, cfg; mode = workflow)
+    # return output with success flag
+    return out = (; out..., success=true,)
 end

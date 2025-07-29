@@ -1,3 +1,4 @@
+export require
 """
     require(in::Symbol=:instr) -> Dict
 
@@ -71,4 +72,3 @@ function require(in::Symbol=:instr)
         return nothing
     end
 end
-export require
