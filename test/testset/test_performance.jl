@@ -36,6 +36,15 @@
     suite["mapsto"]["n2p!"  ] = @benchmarkable begin
         $cfg.instr[:cairn][:mapsto][:map].n2p!(ndrange=$mp.nmp,$mp,$mesh,$dt);sync(CPU())
     end
+    # volumetric locking correction
+    suite["mapsto"]["augm"] = @benchmarkable begin
+        # accumulate material point contributions
+        $cfg.instr[:cairn][:mapsto][:augm].p2n!(ndrange=$mp.nmp,$mp,$mesh);sync(CPU())
+        # solve for nodal incremental displacement
+        $cfg.instr[:cairn][:mapsto][:augm].solve!(ndrange=$mesh.nno[end],$mesh);sync(CPU())
+        # update material point's displacement
+        $cfg.instr[:cairn][:mapsto][:augm].Δu!(ndrange=$mp.nmp,$mp,$mesh,$dt);sync(CPU())
+    end
     # get incremental deformation tensor
     suite["elastoplast"]["deform!"] = @benchmarkable begin
         $cfg.instr[:cairn][:elastoplast][:update].deform!(ndrange=$mp.nmp,$mp,$mesh,$dt);sync(CPU())
