@@ -65,27 +65,26 @@
 
     @info "Run benchmarks..."
     benchmark = mean(run(suite))
-    
-    @info "Benchmark summary:"
+
     saved = Dict()
     for (group, results) in benchmark
-        println("Group: kernel(s) in $group")
+        #println("Group: kernel(s) in $group")
         tot_mean,tot_memory,tot_alloc = 0.0, 0, 0
         for (name, res) in results
             mean_time = round(res.time / 1e6,digits=2)
             memory    = res.memory
             allocs    = res.allocs
-            println("  $name:")
-            println("    mean time: $(mean_time) ms")
-            println("    memory   : $(memory) bytes"                 )
-            println("    allocs   : $(allocs)"                       )
+            #println("  $name:")
+            #println("    mean time: $(mean_time) ms")
+            #println("    memory   : $(memory) bytes"                 )
+            #println("    allocs   : $(allocs)"                       )
             tot_mean   = round(tot_mean + mean_time,digits=2)
             tot_alloc  = tot_alloc + allocs
             tot_memory = tot_memory + memory
         end
         # Store results in a dictionary for later use
         saved[group] = (; mean_time=tot_mean, memory=tot_memory, allocs=tot_alloc)
-        println("")
+        #println("")
     end
     @info "Overall summary:"
     for (key, group) in saved
