@@ -5,8 +5,9 @@
         "shpfun" => (; mean_time=0.49, memory=missing, allocs=missing),
     )
     suite = BenchmarkGroup()
-    suite["shpfun"] = BenchmarkGroup(["string", "unicode"])
-    suite["mapsto"] = BenchmarkGroup(["string", "unicode"])
+    suite["shpfun"]      = BenchmarkGroup(["string", "unicode"])
+    suite["mapsto"]      = BenchmarkGroup(["string", "unicode"])
+    suite["elastoplast"] = BenchmarkGroup(["string", "unicode"])
 
     L,nel  = [64.1584,64.1584/4.0],[80,20];
     ic,cfg = ic_slump(L,nel; fid = "test/performance");
@@ -35,10 +36,27 @@
     suite["mapsto"]["n2p!"  ] = @benchmarkable begin
         $cfg.instr[:cairn][:mapsto][:map].n2p!(ndrange=$mp.nmp,$mp,$mesh,$dt);sync(CPU())
     end
+    # get incremental deformation tensor
+    suite["elastoplast"]["deform!"] = @benchmarkable begin
+        $cfg.instr[:cairn][:elastoplast][:update].deform!(ndrange=$mp.nmp,$mp,$mesh,$dt);sync(CPU())
+    end
+    # volumetric locking correction
+    suite["elastoplast"]["locking"] = @benchmarkable begin
+        # mapping to mesh 
+        $cfg.instr[:cairn][:elastoplast][:update].ΔJn!(ndrange=$mp.nmp,$mp,$mesh);sync(CPU())
+        # compute nodal determinant of incremental deformation 
+        $cfg.instr[:cairn][:elastoplast][:update].ΔJs!(ndrange=$mesh.nno[end],$mesh);sync(CPU())
+        # compute determinant Jbar 
+        $cfg.instr[:cairn][:elastoplast][:update].ΔJp!(ndrange=$mp.nmp,$mp,$mesh,1/$mesh.dim);sync(CPU())
+    end
+    # elastic predictor
+    suite["elastoplast"]["elast"] = @benchmarkable begin
+        $cfg.instr[:cairn][:elastoplast][:elast].elast!(ndrange=$mp.nmp,$mp,$cmpr.Del);sync(CPU())
+    end
 
     @info "Run benchmarks..."
     benchmark = mean(run(suite))
-
+    
     @info "Benchmark summary:"
     saved = Dict()
     for (group, results) in benchmark
@@ -56,14 +74,19 @@
             tot_alloc  = tot_alloc + allocs
             tot_memory = tot_memory + memory
         end
-        println("  +-------------------------------------------+")
-        println("    tot time  : $(tot_mean) ms"                 )
-        println("    tot allocs: $(tot_alloc)"                   )
-        println("    tot memory: $(tot_memory) bytes"            )
         # Store results in a dictionary for later use
         saved[group] = (; mean_time=tot_mean, memory=tot_memory, allocs=tot_alloc)
         println("")
     end
+    @info "Overall summary:"
+    for (key, group) in saved
+        println("Results for group: $key")
+        println("  mean time: $(group.mean_time) ms")
+        println("  memory   : $(group.memory) bytes")
+        println("  allocs   : $(group.allocs)")
+    end
+    println("")
+
 
     path = joinpath(DATASET, "performance_baseline.jld2")
     if "performance_baseline.jld2" ∉ readdir(DATASET) 
