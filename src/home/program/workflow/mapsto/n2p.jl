@@ -17,6 +17,7 @@ end
 @kernel inbounds = true function pic_nd_n2p(mp,mesh,dt)
     p = @index(Global)
     if p≤mp.nmp    
+        # pic update
         for dim ∈ 1:mesh.dim
             δv = 0.0
             for nn ∈ 1:mesh.nn
