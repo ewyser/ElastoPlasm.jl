@@ -24,8 +24,8 @@ end
 end
 @kernel inbounds = true function flip_2d_p2n(mp,mesh,g)
     p = @index(Global)
-    for dim ∈ 1:mesh.dim
-        if p≤mp.nmp 
+    if p≤mp.nmp
+        for dim ∈ 1:mesh.dim 
             # accumulation
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
@@ -47,8 +47,8 @@ end
 end
 @kernel inbounds = true function flip_3d_p2n(mp,mesh,g)
     p = @index(Global)
-    for dim ∈ 1:mesh.dim
-        if p≤mp.nmp 
+    if p≤mp.nmp
+        for dim ∈ 1:mesh.dim 
             # accumulation
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
@@ -72,8 +72,8 @@ end
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 @kernel inbounds = true function tpic_2d_p2n(mp,mesh,g)
     p = @index(Global)
-    for dim ∈ 1:mesh.dim
-        if p≤mp.nmp 
+    if p≤mp.nmp
+        for dim ∈ 1:mesh.dim 
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
                 if no < 1 continue end
@@ -92,8 +92,8 @@ end
 end
 @kernel inbounds = true function tpic_3d_p2n(mp,mesh,g)
     p = @index(Global)
-    for dim ∈ 1:mesh.dim
-        if p≤mp.nmp 
+    if p≤mp.nmp
+        for dim ∈ 1:mesh.dim 
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
                 if no < 1 continue end
