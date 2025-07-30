@@ -55,12 +55,10 @@
             iter_slump(ic,cfg,basis,plot,grf,"Completion for 2d geometry:")
         end
         # 3d slump tests
-        #=
         L,nel  = [64.1584,64.1584/4.0,64.1584/4.0],[40,10,10];
         ic,cfg = ic_slump(L,nel; fid = "test/slump", grf);
         @testset "- 3d geometry with $(basis.which) basis" verbose = true begin
             iter_slump(ic,cfg,basis,plot,grf,"Completion for 3d geometry:")
         end
-        =#
     end
 end
