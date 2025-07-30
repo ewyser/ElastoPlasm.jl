@@ -36,6 +36,15 @@
     suite["mapsto"]["n2p!"  ] = @benchmarkable begin
         $cfg.instr[:cairn][:mapsto][:map].n2p!(ndrange=$mp.nmp,$mp,$mesh,$dt);sync(CPU())
     end
+    # volumetric locking correction
+    suite["mapsto"]["augm"] = @benchmarkable begin
+        # accumulate material point contributions
+        $cfg.instr[:cairn][:mapsto][:augm].p2n!(ndrange=$mp.nmp,$mp,$mesh);sync(CPU())
+        # solve for nodal incremental displacement
+        $cfg.instr[:cairn][:mapsto][:augm].solve!(ndrange=$mesh.nno[end],$mesh);sync(CPU())
+        # update material point's displacement
+        $cfg.instr[:cairn][:mapsto][:augm].Δu!(ndrange=$mp.nmp,$mp,$mesh,$dt);sync(CPU())
+    end
     # get incremental deformation tensor
     suite["elastoplast"]["deform!"] = @benchmarkable begin
         $cfg.instr[:cairn][:elastoplast][:update].deform!(ndrange=$mp.nmp,$mp,$mesh,$dt);sync(CPU())
@@ -56,27 +65,26 @@
 
     @info "Run benchmarks..."
     benchmark = mean(run(suite))
-    
-    @info "Benchmark summary:"
+
     saved = Dict()
     for (group, results) in benchmark
-        println("Group: kernel(s) in $group")
+        #println("Group: kernel(s) in $group")
         tot_mean,tot_memory,tot_alloc = 0.0, 0, 0
         for (name, res) in results
             mean_time = round(res.time / 1e6,digits=2)
             memory    = res.memory
             allocs    = res.allocs
-            println("  $name:")
-            println("    mean time: $(mean_time) ms")
-            println("    memory   : $(memory) bytes"                 )
-            println("    allocs   : $(allocs)"                       )
+            #println("  $name:")
+            #println("    mean time: $(mean_time) ms")
+            #println("    memory   : $(memory) bytes"                 )
+            #println("    allocs   : $(allocs)"                       )
             tot_mean   = round(tot_mean + mean_time,digits=2)
             tot_alloc  = tot_alloc + allocs
             tot_memory = tot_memory + memory
         end
         # Store results in a dictionary for later use
         saved[group] = (; mean_time=tot_mean, memory=tot_memory, allocs=tot_alloc)
-        println("")
+        #println("")
     end
     @info "Overall summary:"
     for (key, group) in saved
