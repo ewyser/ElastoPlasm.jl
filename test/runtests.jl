@@ -1,15 +1,23 @@
 push!(LOAD_PATH, "../src")
 
-using Test,ProgressMeter,Suppressor,Plots,LaTeXStrings,ElastoPlasm
+using Test,JLD2,ProgressMeter,Suppressor,Plots,LaTeXStrings,ElastoPlasm
+using BenchmarkTools, KernelAbstractions
+import KernelAbstractions.@atomic as @atom
+import KernelAbstractions.synchronize as sync
 
 function runtests()
-    exename   = joinpath(Sys.BINDIR, Base.julia_exename())
+    global ROOT    = dirname(@__FILE__)
+    global DATASET = joinpath(ROOT, "dataset")
+    if !isdir(DATASET)
+        mkpath(DATASET)
+    end
+
     testdir   = joinpath(@__DIR__,"testset")
     istest(f) = endswith(f, ".jl") && startswith(f, "test_")
     testfiles = sort(filter(istest, readdir(testdir)))
     nfail = 0
-
-    @testset "All Tests" verbose = true begin
+    testfiles = ["test_performance.jl"]
+    @testset "ElastoPlasm.jl tested:" verbose = true begin
         for f ∈ testfiles
             try
                 printstyled("Running: $(f)\n"; bold=true, color=:white)

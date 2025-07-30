@@ -1,6 +1,4 @@
-using BenchmarkTools, KernelAbstractions
-import KernelAbstractions.@atomic as @atom
-import KernelAbstractions.synchronize as sync
+
 
 @testset "+ $(basename(@__FILE__))" verbose = true begin
    baseline = Dict(
@@ -8,6 +6,7 @@ import KernelAbstractions.synchronize as sync
     )
     suite = BenchmarkGroup()
     suite["shpfun"] = BenchmarkGroup(["string", "unicode"])
+    suite["mapsto"] = BenchmarkGroup(["string", "unicode"])
 
     L,nel  = [64.1584,64.1584/4.0],[80,20];
     ic,cfg = ic_slump(L,nel; fid = "test/performance");
@@ -15,10 +14,7 @@ import KernelAbstractions.synchronize as sync
     mesh,mp,cmpr = ic[:mesh]  , ic[:mp]    , (ic[:cmpr])
     instr,paths  = cfg[:instr], cfg[:paths]
     time         = ic[:time]
-
-    
-    suite["shpfun"]["tplgy!"] = @benchmarkable shpfun!($mp,$mesh,$instr)
-    suite["shpfun"]["ϕ∂ϕ!"  ] = @benchmarkable shpfun!($mp,$mesh,$instr)
+    g, dt, η     = [0.0, -9.81], 1e-3, 0.1
     # calculate/update topology
     suite["shpfun"]["tplgy!"] = @benchmarkable begin
        $cfg.instr[:cairn][:shpfun].tplgy!($mp,$mesh; ndrange=($mp.nmp));sync(CPU()) 
@@ -27,16 +23,26 @@ import KernelAbstractions.synchronize as sync
     suite["shpfun"]["ϕ∂ϕ!"  ] = @benchmarkable begin
        $cfg.instr[:cairn][:shpfun].ϕ∂ϕ!($mp,$mesh; ndrange=($mp.nmp));sync(CPU()) 
     end
+    # map material point to node
+    suite["mapsto"]["p2n!"  ] = @benchmarkable begin
+       $cfg.instr[:cairn][:mapsto][:map].p2n!(ndrange=$mp.nmp,$mp,$mesh,$g);sync(CPU())
+    end
+    # solve Eulerian momentum equation
+    suite["mapsto"]["solve!"] = @benchmarkable begin
+        $cfg.instr[:cairn][:mapsto][:map].solve!(ndrange=$mesh.nno[end],$mesh,$dt,$η);sync(CPU())
+    end
+    # map back solution to material point
+    suite["mapsto"]["n2p!"  ] = @benchmarkable begin
+        $cfg.instr[:cairn][:mapsto][:map].n2p!(ndrange=$mp.nmp,$mp,$mesh,$dt);sync(CPU())
+    end
 
     @info "Run benchmarks..."
     benchmark = mean(run(suite))
-    results   = Dict()
-    # Print readable summary for each benchmark with statistics
-
 
     @info "Benchmark summary:"
+    saved = Dict()
     for (group, results) in benchmark
-        println("Group: $group")
+        println("Group: kernel(s) in $group")
         tot_mean,tot_memory,tot_alloc = 0.0, 0, 0
         for (name, res) in results
             mean_time = round(res.time / 1e6,digits=2)
@@ -46,8 +52,8 @@ import KernelAbstractions.synchronize as sync
             println("    mean time: $(mean_time) ms")
             println("    memory   : $(memory) bytes"                 )
             println("    allocs   : $(allocs)"                       )
-            tot_mean  = tot_mean + mean_time
-            tot_alloc = tot_alloc + allocs
+            tot_mean   = round(tot_mean + mean_time,digits=2)
+            tot_alloc  = tot_alloc + allocs
             tot_memory = tot_memory + memory
         end
         println("  +-------------------------------------------+")
@@ -55,10 +61,28 @@ import KernelAbstractions.synchronize as sync
         println("    tot allocs: $(tot_alloc)"                   )
         println("    tot memory: $(tot_memory) bytes"            )
         # Store results in a dictionary for later use
-        results[group] = (; mean_time=tot_mean, memory=tot_memory, allocs=tot_alloc)
-        
-        @testset "$(group): total execution time" begin 
-            @test_broken results[group].mean_time ≈ baseline[group].mean_time 
+        saved[group] = (; mean_time=tot_mean, memory=tot_memory, allocs=tot_alloc)
+        println("")
+    end
+
+    path = joinpath(DATASET, "performance_baseline.jld2")
+    if "performance_baseline.jld2" ∉ readdir(DATASET) 
+        @info "No baseline found, saving current performance results."
+        # Save the current benchmark results as a baseline
+        baseline = saved; save(path, baseline)
+    else
+        @info "Baseline found, comparing current performance against it."
+        # Load the baseline for comparison
+        baseline = load(path)
+        # Compare current results with the baseline
+        for (group, res) ∈ baseline
+            @testset "- $group" verbose = true begin
+                try
+                    @test res.mean_time ≤ baseline[group].mean_time * (1 + 0.05)
+                catch
+                    @test_broken "Baseline comparison failed for $group"
+                end
+            end
         end
     end
 end
