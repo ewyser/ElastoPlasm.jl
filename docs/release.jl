@@ -44,26 +44,36 @@ end
 
 # Step 1: read current version
 current_version = read_version()
-println("Current version: v$current_version")
 
-# Step 2: bump patch version
+# Step 2: bump {major|minor|patch} version
+@info "Bumping version and Releasing"
 part = select_version_part()
 new_version = bump_version(current_version, part)
-println("Bumping $part version to: v$new_version")
 
-# Step 3: write new version back to Project.toml
-write_version(new_version)
+# Step 3: repare commit message, confirm commit and tag
+commit_msg = "Bump $current_version → $new_version and Release v$new_version"
+options    = ["yes", "no"]
+selected   = request("$commit_msg ?", RadioMenu(options))
+if options[selected] == "yes"
+    println("Bumping Project.toml, commit and tag release...")
 
-# Step 4: git add Project.toml
-run(`git add $elastoplasm_project`)
+    # Step 3a: bump Project.toml
+    write_version(new_version)
 
-# Step 5: git commit with new version
-run(`git commit -m "Release v$new_version"`)
+    # Step 3b: git add Project.toml
+    run(`git add $elastoplasm_project`)
 
-# Step 6: git tag
-run(`git tag v$new_version`)
+    # Step 3c: git commit with new version
+    run(`git commit -m "Bump $current_version and release v$new_version"`) →
 
-# Step 7: push commit and tag
-run(`git push origin main`)
-run(`git push origin v$new_version`)
-#==#
+    # Step 3d: git tag
+    run(`git tag v$new_version`)
+
+    # Step 3e: push commit and tag
+    run(`git push origin main`)
+    run(`git push origin v$new_version`)
+    #=    =#
+else
+    println("Aborting release process.")
+    return
+end

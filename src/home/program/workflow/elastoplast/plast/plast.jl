@@ -18,26 +18,21 @@ function init_plast(instr)
     return (;nonloc! = kernel1, retmap! = kernel2,) 
 end
 function plast(mp,mesh,cmpr,instr)
-    if instr[:plast][:status] 
-        # nonlocal regularization
-        if instr[:nonloc][:status]
-            ls      = instr[:nonloc][:ls]
-            mp.e2p.= Int(0)
-            mp.p2p.= Int(0)
-            mp.ϵpII[2,:].= 0.0
-            W,w     = spzeros(mp.nmp),spzeros(mp.nmp,mp.nmp)
-            for proc ∈ ["tplgy","p->q","p<-q"]
-                instr[:cairn][:elastoplast][:plast].nonloc!(ndrange=mp.nmp,W,w,mp,mesh,ls,proc);sync(CPU())
-            end
-        else
-            mp.ϵpII[2,:].= mp.ϵpII[1,:]
+    # nonlocal regularization
+    if instr[:nonloc][:status]
+        ls      = instr[:nonloc][:ls]
+        mp.e2p.= Int(0)
+        mp.p2p.= Int(0)
+        mp.ϵpII[2,:].= 0.0
+        W,w     = spzeros(mp.nmp),spzeros(mp.nmp,mp.nmp)
+        for proc ∈ ["tplgy","p->q","p<-q"]
+            instr[:cairn][:elastoplast][:plast].nonloc!(ndrange=mp.nmp,W,w,mp,mesh,ls,proc);sync(CPU())
         end
-        # plastic return-mapping dispatcher
-        instr[:cairn][:elastoplast][:plast].retmap!(ndrange=mp.nmp,mp,cmpr,instr);sync(CPU())
-        ηmax = 0
-    else 
-        ηmax = 0 
+    else
+        mp.ϵpII[2,:].= mp.ϵpII[1,:]
     end
-
+    # plastic return-mapping dispatcher
+    instr[:cairn][:elastoplast][:plast].retmap!(ndrange=mp.nmp,mp,cmpr,instr);sync(CPU())
+    ηmax = 0
     return ηmax::Int64
 end
