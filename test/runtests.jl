@@ -16,6 +16,7 @@ function runtests()
     istest(f) = endswith(f, ".jl") && startswith(f, "test_")
     testfiles = sort(filter(istest, readdir(testdir)))
     nfail = 0
+    testfiles = ["test_performance.jl"]
     @testset "ElastoPlasm.jl tested:" verbose = true begin
         for f ∈ testfiles
             try

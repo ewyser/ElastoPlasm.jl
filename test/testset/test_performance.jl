@@ -105,15 +105,21 @@
         @info "Baseline found, comparing current performance against it."
         # Load the baseline for comparison
         baseline = load(path)
+        # Extract CPU information
+        cpu_name = split(string(Sys.cpu_info()[1]), ":")[1]
+        if !haskey(baseline,cpu_name)
+            baseline[cpu_name] = current
+            save(path, baseline)
+        end
         # Compare current results with the baseline
-        for (group, res) ∈ baseline
+        for (group, res) ∈ baseline[cpu_name]
             @testset "- $group" verbose = true begin
-                println("Testing:")
-                println("current: $(current[group].mean_time) ms ≤ baseline: $(baseline[group].mean_time) ms")
-                try
-                    @test current[group].mean_time ≤ baseline[group].mean_time * (1 + 0.05)
-                catch
-                    @test_broken "Baseline comparison failed for $group"
+                if !haskey(current, group)
+                    @test_broken "Current performance results do not contain group $group"                    
+                else
+                    println("Testing $(group):")
+                    println("current: $(current[group].mean_time) ms ≤ baseline: $(res.mean_time) ms")
+                    @test current[group].mean_time ≤ res.mean_time * (1 + 0.05)
                 end
             end
         end
