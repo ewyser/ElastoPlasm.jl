@@ -11,15 +11,17 @@ function runtests()
     if !isdir(DATASET)
         mkpath(DATASET)
     end
-
+    # List of all test files
     testdir   = joinpath(@__DIR__,"testset")
     istest(f) = endswith(f, ".jl") && startswith(f, "test_")
     options   = sort(filter(istest, readdir(testdir)))
-    selected  = request("Select device(s):",MultiSelectMenu(options))
-    testfiles = options[collect(selected)]
-    
-    readline()
-
+    if get(ENV, "GITHUB_ACTIONS", "false") == "true"
+        testfiles = options
+    else
+        selected  = request("Select device(s):",MultiSelectMenu(options))
+        testfiles = options[collect(selected)]
+    end
+    # Run test(s) in testfiles
     nfail = 0
     @testset "ElastoPlasm.jl tested:" verbose = true begin
         for f ∈ testfiles
