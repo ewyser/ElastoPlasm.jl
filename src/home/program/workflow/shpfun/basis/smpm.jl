@@ -12,21 +12,25 @@ end
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
-        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
+        for nn ∈ 1:mesh.nn
+            no = mp.p2n[nn,p]
+            if no < 1 continue end
             # compute basis functions
             ξ      = (mp.x[p]-mesh.x[no])
             ϕx,dϕx = N∂N(ξ,mesh.h[1]           )
             # convolution of basis function
             mp.ϕ∂ϕ[nn,p,1] =  ϕx
             mp.ϕ∂ϕ[nn,p,2] = dϕx
-        end        
+        end  
     end
 end
 @views @kernel inbounds = true function smpm_2d(mp,mesh)
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
-        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
+        for nn ∈ 1:mesh.nn
+            no = mp.p2n[nn,p]
+            if no < 1 continue end
             # compute basis functions
             ξ      = (mp.x[1,p]-mesh.x[1,no]) 
             η      = (mp.x[2,p]-mesh.x[2,no])
@@ -43,7 +47,9 @@ end
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
-        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
+        for nn ∈ 1:mesh.nn
+            no = mp.p2n[nn,p]
+            if no < 1 continue end
             # compute basis functions
             ξ      = (mp.x[1,p]-mesh.x[1,no]) 
             η      = (mp.x[2,p]-mesh.x[2,no])

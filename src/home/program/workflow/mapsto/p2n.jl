@@ -9,7 +9,9 @@ end
     p = @index(Global)
     if p≤mp.nmp 
         # accumulation
-        for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
+        for nn ∈ 1:mesh.nn
+            no = mp.p2n[nn,p]
+            if no < 1 continue end
             @atom mesh.p[no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.v[p])
             # lumped mass matrix
             @atom mesh.mᵢ[no]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]
@@ -22,10 +24,12 @@ end
 end
 @kernel inbounds = true function flip_2d_p2n(mp,mesh,g)
     p = @index(Global)
-    for dim ∈ 1:mesh.dim
-        if p≤mp.nmp 
+    if p≤mp.nmp
+        for dim ∈ 1:mesh.dim 
             # accumulation
-            for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
+            for nn ∈ 1:mesh.nn
+                no = mp.p2n[nn,p]
+                if no < 1 continue end
                 @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.v[dim,p])
                 if dim == 1
                     # lumped mass matrix
@@ -43,9 +47,12 @@ end
 end
 @kernel inbounds = true function flip_3d_p2n(mp,mesh,g)
     p = @index(Global)
-    for dim ∈ 1:mesh.dim
-        if p≤mp.nmp 
-            for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
+    if p≤mp.nmp
+        for dim ∈ 1:mesh.dim 
+            # accumulation
+            for nn ∈ 1:mesh.nn
+                no = mp.p2n[nn,p]
+                if no < 1 continue end
                 @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.v[dim,p])
                 if dim == 1
                     @atom mesh.mᵢ[no      ]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p] 
@@ -65,9 +72,11 @@ end
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 @kernel inbounds = true function tpic_2d_p2n(mp,mesh,g)
     p = @index(Global)
-    for dim ∈ 1:mesh.dim
-        if p≤mp.nmp 
-            for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
+    if p≤mp.nmp
+        for dim ∈ 1:mesh.dim 
+            for nn ∈ 1:mesh.nn
+                no = mp.p2n[nn,p]
+                if no < 1 continue end
                 @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]*(mp.v[dim,p]+mp.∇vᵢⱼ[dim,1,p]*mp.δnp[nn,1,p]+mp.∇vᵢⱼ[dim,2,p]*mp.δnp[nn,2,p])
                 if dim == 1
                     @atom mesh.mᵢ[no]      += mp.ϕ∂ϕ[nn,p,1]*mp.m[p]
@@ -83,9 +92,11 @@ end
 end
 @kernel inbounds = true function tpic_3d_p2n(mp,mesh,g)
     p = @index(Global)
-    for dim ∈ 1:mesh.dim
-        if p≤mp.nmp 
-            for (nn,no) ∈ enumerate(mp.p2n[:,p]) if no<1 continue end
+    if p≤mp.nmp
+        for dim ∈ 1:mesh.dim 
+            for nn ∈ 1:mesh.nn
+                no = mp.p2n[nn,p]
+                if no < 1 continue end
                 @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]*(mp.v[dim,p]+mp.∇vᵢⱼ[dim,1,p]*mp.δnp[nn,1,p]+mp.∇vᵢⱼ[dim,2,p]*mp.δnp[nn,2,p]+mp.∇vᵢⱼ[dim,3,p]*mp.δnp[nn,3,p])
                 if dim == 1
                     @atom mesh.mᵢ[no      ]+= mp.ϕ∂ϕ[nn,p,1]*mp.m[p]
