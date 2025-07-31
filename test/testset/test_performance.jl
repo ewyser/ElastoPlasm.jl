@@ -1,16 +1,8 @@
-
-
-@testset "+ $(basename(@__FILE__))" verbose = true begin
-   baseline = Dict(
-        "shpfun" => (; mean_time=0.49, memory=missing, allocs=missing),
-    )
+function define_benchs(ic,cfg)
     suite = BenchmarkGroup()
     suite["shpfun"]      = BenchmarkGroup(["string", "unicode"])
     suite["mapsto"]      = BenchmarkGroup(["string", "unicode"])
     suite["elastoplast"] = BenchmarkGroup(["string", "unicode"])
-
-    L,nel  = [64.1584,64.1584/4.0],[80,20];
-    ic,cfg = ic_slump(L,nel; fid = "test/performance");
     # unpack mesh, mp, cmpr, instr, paths as aliases
     mesh,mp,cmpr = ic[:mesh]  , ic[:mp]    , (ic[:cmpr])
     instr,paths  = cfg[:instr], cfg[:paths]
@@ -62,11 +54,21 @@
     suite["elastoplast"]["elast"] = @benchmarkable begin
         $cfg.instr[:cairn][:elastoplast][:elast].elast!(ndrange=$mp.nmp,$mp,$cmpr.Del);sync(CPU())
     end
+    return suite
+end
 
-    @info "Run benchmarks..."
-    benchmark = mean(run(suite))
+function run_bench(L,nel)
+    ic,cfg = ic_slump(L,nel; fid = "test/performance");
+    suite  = define_benchs(ic,cfg)
+    if length(L) == 2
+        dim = "2d" 
+    elseif length(L) == 3
+        dim = "3d"
+    end
 
+    @info "Run $dim benchmarks..."
     current = Dict()
+    benchmark = mean(run(suite))
     for (group, results) in benchmark
         #println("Group: kernel(s) in $group")
         tot_mean,tot_memory,tot_alloc = 0.0, 0, 0
@@ -94,32 +96,45 @@
         println("  allocs   : $(group.allocs)")
     end
     println("")
+    return current
+end
+
+
+@testset "+ $(basename(@__FILE__))" verbose = true begin
+
+    current = Dict(
+        "2d" => Dict(),
+        "3d" => Dict(),
+    )
+
+    L,nel   = [64.1584,64.1584/4.0],[80,20];
+    current["2d"] = run_bench(L,nel)
+
 
 
     path = joinpath(DATASET, "performance_baseline.jld2")
+    cpu_name = split(string(Sys.cpu_info()[1]), ":")[1]
     if "performance_baseline.jld2" ∉ readdir(DATASET) 
         @info "No baseline found, saving current performance results."
         # Save the current benchmark results as a baseline
-        baseline = current; save(path, baseline)
+        baseline = Dict(cpu_name => current); save(path, baseline)
     else
         @info "Baseline found, comparing current performance against it."
         # Load the baseline for comparison
         baseline = load(path)
-        # Extract CPU information
-        cpu_name = split(string(Sys.cpu_info()[1]), ":")[1]
         if !haskey(baseline,cpu_name)
             baseline[cpu_name] = current
             save(path, baseline)
         end
         # Compare current results with the baseline
-        for (group, res) ∈ baseline[cpu_name]
+        for (group, res) ∈ baseline[cpu_name]["2d"]
             @testset "- $group" verbose = true begin
-                if !haskey(current, group)
+                if !haskey(current["2d"], group)
                     @test_broken "Current performance results do not contain group $group"                    
                 else
                     println("Testing $(group):")
-                    println("current: $(current[group].mean_time) ms ≤ baseline: $(res.mean_time) ms")
-                    @test current[group].mean_time ≤ res.mean_time * (1 + 0.05)
+                    println("current: $(current["2d"][group].mean_time) ms ≤ baseline: $(res.mean_time) ms")
+                    @test current["2d"][group].mean_time ≤ res.mean_time * (1 + 0.05)
                 end
             end
         end
