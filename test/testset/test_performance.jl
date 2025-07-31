@@ -66,7 +66,7 @@
     @info "Run benchmarks..."
     benchmark = mean(run(suite))
 
-    saved = Dict()
+    current = Dict()
     for (group, results) in benchmark
         #println("Group: kernel(s) in $group")
         tot_mean,tot_memory,tot_alloc = 0.0, 0, 0
@@ -83,11 +83,11 @@
             tot_memory = tot_memory + memory
         end
         # Store results in a dictionary for later use
-        saved[group] = (; mean_time=tot_mean, memory=tot_memory, allocs=tot_alloc)
+        current[group] = (; mean_time=tot_mean, memory=tot_memory, allocs=tot_alloc)
         #println("")
     end
     @info "Overall summary:"
-    for (key, group) in saved
+    for (key, group) ∈ current
         println("Results for group: $key")
         println("  mean time: $(group.mean_time) ms")
         println("  memory   : $(group.memory) bytes")
@@ -100,7 +100,7 @@
     if "performance_baseline.jld2" ∉ readdir(DATASET) 
         @info "No baseline found, saving current performance results."
         # Save the current benchmark results as a baseline
-        baseline = saved; save(path, baseline)
+        baseline = current; save(path, baseline)
     else
         @info "Baseline found, comparing current performance against it."
         # Load the baseline for comparison
@@ -108,8 +108,10 @@
         # Compare current results with the baseline
         for (group, res) ∈ baseline
             @testset "- $group" verbose = true begin
+                println("Testing:")
+                println("current: $(current[group].mean_time) ms ≤ baseline: $(baseline[group].mean_time) ms")
                 try
-                    @test res.mean_time ≤ baseline[group].mean_time * (1 + 0.05)
+                    @test current[group].mean_time ≤ baseline[group].mean_time * (1 + 0.05)
                 catch
                     @test_broken "Baseline comparison failed for $group"
                 end
