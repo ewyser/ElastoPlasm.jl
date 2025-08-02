@@ -5,7 +5,7 @@
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
             if no < 1 continue end
-            @atom mesh.ΔJ[no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.m[p]*mp.ΔJ[p])  
+            @atom mesh.ΔJ[no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*mp.s.ΔJ[p])  
         end
     end
 end
@@ -28,9 +28,9 @@ end
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
             if no < 1 continue end
-            ΔJ += mp.ϕ∂ϕ[nn,p,1]*mesh.ΔJ[no]/mp.ΔJ[p]
+            ΔJ += mp.ϕ∂ϕ[nn,p,1]*mesh.ΔJ[no]/mp.s.ΔJ[p]
         end
         # update
-        mp.ΔFᵢⱼ[:,:,p].*= ΔJ^dim
+        mp.s.ΔFᵢⱼ[:,:,p].*= ΔJ^dim
     end
 end

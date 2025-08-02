@@ -6,11 +6,11 @@
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
                 if no < 1 continue end
-                mp.v[dim,p]+= dt*(mp.ϕ∂ϕ[nn,p,1]*mesh.a[dim,no])
-                mp.x[dim,p]+= dt*(mp.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no])
+                mp.s.v[dim,p]+= dt*(mp.ϕ∂ϕ[nn,p,1]*mesh.a[dim,no])
+                mp.x[dim,p]  += dt*(mp.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no])
             end
             # find maximum velocity component over mps
-            @atom mp.vmax[dim] = max(mp.vmax[dim],abs(mp.v[dim,p]))
+            @atom mp.vmax[dim] = max(mp.vmax[dim],abs(mp.s.v[dim,p]))
         end
     end  
 end
@@ -25,10 +25,10 @@ end
                 if no < 1 continue end
                 δv += mp.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
             end
-            mp.v[dim,p] = δv 
-            mp.x[dim,p]+= dt*δv
+            mp.s.v[dim,p] = δv 
+            mp.x[dim,p]  += dt*δv
             # find maximum velocity component over mps
-            @atom mp.vmax[dim] = max(mp.vmax[dim],abs(mp.v[dim,p]))
+            @atom mp.vmax[dim] = max(mp.vmax[dim],abs(mp.s.v[dim,p]))
         end
     end  
 end
