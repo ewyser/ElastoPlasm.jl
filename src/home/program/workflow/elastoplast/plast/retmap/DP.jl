@@ -30,55 +30,71 @@ end
     end
     return σn 
 end
-@views @kernel inbounds = true function DP(mp,cmp,instr)
+@views @kernel inbounds = true function finite_DP(mp,cmp)
     p = @index(Global)
     if p≤mp.nmp 
-        mp.Δλ[p] = 0.0
-        ψ,nstr   = 0.0*π/180.0,size(mp.σᵢ,1)
-        # create an alias for stress tensor
-        if instr[:fwrk][:deform] == "finite"
-            σ = mp.τᵢ
-        elseif instr[:fwrk][:deform] == "infinitesimal"
-            σ = mp.σᵢ
-        end
-        if instr[:nonloc][:status]
-            id = 2
-        else
-            id = 1
-        end
+        mp.s.Δλ[p] = 0.0
+        ψ,nstr   = 0.0*π/180.0,size(mp.s.σᵢ,1)
+
         # closed-form solution return-mapping for D-P
-        c   = mp.c₀[p]+cmp.Hp*mp.ϵpII[id,p]
-        if c<mp.cᵣ[p] c = mp.cᵣ[p] end
-        P,τ0,τII = σTr(σ[:,p],nstr)
-        η,ηB,ξ   = materialParam(mp.ϕ[p],ψ,c,nstr)
+        c = mp.s.c₀[p]+cmp.Hp*mp.s.ϵpII[2,p]
+        if c<mp.s.cᵣ[p] 
+            c = mp.s.cᵣ[p] 
+        end
+        P,τ0,τII = σTr(mp.s.τᵢ[:,p],nstr)
+        η,ηB,ξ   = materialParam(mp.s.ϕ[p],ψ,c,nstr)
         σm,τP    = ξ/η,ξ-η*(ξ/η)
         fs,ft    = τII+η*P-ξ,P-σm         
         αP,h     = sqrt(1.0+η^2)-η,τII-τP-(sqrt(1.0+η^2))*(P-σm)  
         if fs>0.0 && P<σm || h>0.0 && P≥σm 
-            Δλ        = fs/(cmp.Gc+cmp.Kc*η*ηB)
-            mp.Δλ[p] = Δλ
-            Pn,τn     = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
-            σ[:,p]   .= σn(Pn,τ0,τn,τII,nstr)
-            if instr[:fwrk][:deform] == "finite"
-                mp.ϵᵢⱼ[:,:,p].= mutate(cmp.Del\σ[:,p],0.5,:tensor)
-                # update left cauchy green tensor
-                λ,n            = eigen(mp.ϵᵢⱼ[:,:,p],sortby=nothing)
-                mp.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
-            end
-            mp.ϵpII[1,p]+= Δλ*sqrt(1/3+2/9*ηB^2)
+            Δλ             = fs/(cmp.Gc+cmp.Kc*η*ηB)
+            Pn,τn          = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
+            mp.s.Δλ[p]     = Δλ
+            mp.s.τᵢ[:,p]  .= σn(Pn,τ0,τn,τII,nstr)
+            mp.s.ϵpII[1,p]+= Δλ*sqrt(1/3+2/9*ηB^2)
         end
         if h≤0.0 && P≥σm
-            Δλ        = (P-σm)/cmp.Kc
-            mp.Δλ[p] = Δλ
-            Pn        = σm-P
-            σ[:,p]   .= σn(Pn,τ0,0.0,τII,nstr)
-            if instr[:fwrk][:deform] == "finite"
-                mp.ϵᵢⱼ[:,:,p].= mutate(cmp.Del\σ[:,p],0.5,:tensor)
-                # update left cauchy green tensor
-                λ,n            = eigen(mp.ϵᵢⱼ[:,:,p],sortby=nothing)
-                mp.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
-            end
-            mp.ϵpII[1,p]+= sqrt(2.0)*Δλ/3.0
+            Δλ             = (P-σm)/cmp.Kc
+            Pn             = σm-P
+            mp.s.Δλ[p]     = Δλ
+            mp.s.τᵢ[:,p]  .= σn(Pn,τ0,0.0,τII,nstr)
+            mp.s.ϵpII[1,p]+= sqrt(2.0)*Δλ/3.0
+        end
+        # update strain tensor & left cauchy green deformation tensor
+        mp.s.ϵᵢⱼ[:,:,p].= mutate(cmp.Del\mp.s.τᵢ[:,p],0.5,:tensor)
+        λ,n             = eigen(mp.s.ϵᵢⱼ[:,:,p],sortby=nothing)
+        mp.s.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
+    end
+end
+@views @kernel inbounds = true function infinitesimal_DP(mp,cmp)
+    p = @index(Global)
+    if p≤mp.nmp 
+        mp.s.Δλ[p] = 0.0
+        ψ,nstr   = 0.0*π/180.0,size(mp.s.σᵢ,1)
+
+        # closed-form solution return-mapping for D-P
+        c   = mp.s.c₀[p]+cmp.Hp*mp.s.ϵpII[2,p]
+        if c<mp.s.cᵣ[p] 
+            c = mp.s.cᵣ[p] 
+        end
+        P,τ0,τII = σTr(mp.s.σᵢ[:,p],nstr)
+        η,ηB,ξ   = materialParam(mp.s.ϕ[p],ψ,c,nstr)
+        σm,τP    = ξ/η,ξ-η*(ξ/η)
+        fs,ft    = τII+η*P-ξ,P-σm         
+        αP,h     = sqrt(1.0+η^2)-η,τII-τP-(sqrt(1.0+η^2))*(P-σm)  
+        if fs>0.0 && P<σm || h>0.0 && P≥σm 
+            Δλ             = fs/(cmp.Gc+cmp.Kc*η*ηB)
+            mp.s.Δλ[p]     = Δλ
+            Pn,τn          = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
+            mp.s.σᵢ[:,p]  .= σn(Pn,τ0,τn,τII,nstr)
+            mp.s.ϵpII[1,p]+= Δλ*sqrt(1/3+2/9*ηB^2)
+        end
+        if h≤0.0 && P≥σm
+            Δλ             = (P-σm)/cmp.Kc
+            mp.s.Δλ[p]     = Δλ
+            Pn             = σm-P
+            mp.s.σᵢ[:,p]  .= σn(Pn,τ0,0.0,τII,nstr)
+            mp.s.ϵpII[1,p]+= sqrt(2.0)*Δλ/3.0
         end
     end
 end

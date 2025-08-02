@@ -7,16 +7,17 @@
             # cache mass node & norm of out-of-balance force
             mᵢ,oobf = (1.0/mesh.mᵢ[no]),norm(mesh.oobf[:,no])
             for dim ∈ 1:mesh.dim
-                # calculate damping
-                mesh.D[dim,no] = η*oobf*sign(mesh.p[dim,no]*mᵢ)                  #(2,)
-                # forward euler solution
-                mesh.f[dim,no] = mesh.oobf[dim,no]-mesh.D[dim,no]                #(2,)
-                mesh.a[dim,no] = mesh.f[dim,no]*mᵢ                               #(2,)
-                mesh.v[dim,no] = (mesh.p[dim,no]+dt*mesh.f[dim,no])*mᵢ           #(2,)  
                 # apply boundary contidions
-                if mesh.bc[dim,no] == 0.0
+                if iszero(mesh.bc[dim,no])
                     mesh.a[dim,no] = 0.0                                         
                     mesh.v[dim,no] = 0.0                                         
+                else
+                    # calculate damping
+                    mesh.D[dim,no] = η*oobf*sign(mesh.p[dim,no]*mᵢ)                  #(2,)
+                    # forward euler solution
+                    mesh.f[dim,no] = mesh.oobf[dim,no]-mesh.D[dim,no]                #(2,)
+                    mesh.a[dim,no] = mesh.f[dim,no]*mᵢ                               #(2,)
+                    mesh.v[dim,no] = (mesh.p[dim,no]+dt*mesh.f[dim,no])*mᵢ           #(2,)  
                 end
             end
         end

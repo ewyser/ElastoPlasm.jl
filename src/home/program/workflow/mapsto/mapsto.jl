@@ -33,7 +33,7 @@ function init_mapsto(dim::Number,instr::Dict)
 end
 function mapsto(mp,mesh,g,dt,instr) 
     # maps material point to node
-    p2n(mp,mesh,g,dt,instr)
+    p2n(mp,mesh,g,instr)
     # solve Eulerian momentum equation
     solve(mesh,dt,instr)
     # maps back solution to material point
