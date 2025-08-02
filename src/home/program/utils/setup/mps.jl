@@ -9,7 +9,7 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
     ni,nmp,geom = define
     xp = geom.xp 
     # scalars & vectors
-    n0 = zeros(nmp)
+    n0 = 0.0.*ones(nmp)
     l0 = ones(size(xp)).*0.5.*(mesh.h./ni)
     v0 = prod(2 .* l0; dims=1)
     m  = (1.0 .- n0).*cmp[:ρ0].*v0
@@ -20,7 +20,7 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
         vmax = zeros(mesh.dim),
         x    = copy(xp),
         z₀   = copy(xp[end,:]),
-        n₀   = zeros(nmp),
+        n₀   = copy(n0),
         ℓ₀   = copy(l0), 
         ℓ    = copy(l0),
         Ω₀   = vec(copy(v0)),
@@ -39,8 +39,6 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
             ϵpV  = zeros(nmp), 
             ΔJ   = ones(nmp),
             J    = ones(nmp),
-            # plot quantity
-
             # tensor in matrix notation
             δᵢⱼ  = Matrix(1.0I,mesh.dim,mesh.dim), 
             ∇vᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
