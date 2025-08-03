@@ -37,119 +37,99 @@ export Mesh,Point,Liquid,Solid
 abstract type AbstractEulerian end
 abstract type UniformCartesian{T1, T2} <: AbstractEulerian end
 abstract type NonUniformCartesian{T1, T2} <: AbstractEulerian end
-struct Mesh{T1,T2,
-    A3 <: AbstractArray{T1,1},
-    A5 <: AbstractArray{T1,2},
-    A7 <: AbstractArray{T1,3},
-    A4 <: AbstractArray{T2,1}, 
-    A6 <: AbstractArray{T2,2}, 
-    A8 <: AbstractArray{T2,3}} <: UniformCartesian{T1,T2}
+struct Mesh{T1,T2}
     dim  ::T1
-    nel  ::A3
-    nno  ::A3
+    nel  ::Vector{T1}
+    nno  ::Vector{T1}
     nn   ::T1
-    L    ::A4
-    h    ::A4
+    L    ::Vector{T2}
+    h    ::Vector{T2}
     # nodal quantities
-    x₀   ::A4 
-    x    ::A6
-    mᵢ   ::A4
-    Mᵢⱼ  ::A6
-    oobf ::A6
-    D    ::A6
-    f    ::A6
-    a    ::A6
-    p    ::A6
-    v    ::A6
-    Δu   ::A6
-    ΔJ   ::A6
-    bij  ::A8
+    x₀   ::Vector{T2}
+    x    ::Matrix{T2}
+    mᵢ   ::Vector{T2}
+    Mᵢⱼ  ::Matrix{T2}
+    oobf ::Matrix{T2}
+    D    ::Matrix{T2}
+    f    ::Matrix{T2}
+    a    ::Matrix{T2}
+    p    ::Matrix{T2}
+    v    ::Matrix{T2}
+    Δu   ::Matrix{T2}
+    ΔJ   ::Matrix{T2}
+    bij  ::Array{T2,3}
     # mesh-to-node topology
-    e2n  ::A5
+    e2n  ::Matrix{T1}
     e2e  ::SparseMatrixCSC{T1,T1}
-    xB   ::A4
+    xB   ::Vector{T2}
     # mesh boundary conditions
-    bc   ::A6
+    bc   ::Matrix{T2}
 end
+@adapt_struct Mesh
 
 abstract type AbstractLagrangian end
 abstract type MaterialPoint{T1, T2} <: AbstractLagrangian end
 
 
-struct Solid{T1,T2,
-    A3 <: AbstractArray{T1,1},
-    A5 <: AbstractArray{T1,2},
-    A7 <: AbstractArray{T1,3},
-    A4 <: AbstractArray{T2,1}, 
-    A6 <: AbstractArray{T2,2}, 
-    A8 <: AbstractArray{T2,3}} <: MaterialPoint{T1, T2}
-    u    ::A6 
-    v    ::A6
-    p    ::A6
+struct Solid{T1,T2}
+    u    ::Matrix{T2}
+    v    ::Matrix{T2}
+    p    ::Matrix{T2}
     # mechanical properties
-    m    ::A4
-    c₀   ::A4
-    cᵣ   ::A4
-    ϕ    ::A4
-    Δλ   ::A4
-    ϵpII ::A6
-    ϵpV  ::A4
-    ΔJ   ::A4
-    J    ::A4
+    m    ::Vector{T2}
+    c₀   ::Vector{T2}
+    cᵣ   ::Vector{T2}
+    ϕ    ::Vector{T2}
+    Δλ   ::Vector{T2}
+    ϵpII ::Matrix{T2}
+    ϵpV  ::Vector{T2}
+    ΔJ   ::Vector{T2}
+    J    ::Vector{T2}
     # tensor in voigt notation
-    σᵢ   ::A6
-    τᵢ   ::A6 
+    σᵢ   ::Matrix{T2}
+    τᵢ   ::Matrix{T2}
     # tensor in matrix notation
-    δᵢⱼ  ::A6
-    ∇vᵢⱼ ::A8
-    ∇uᵢⱼ ::A8
-    ΔFᵢⱼ ::A8
-    Fᵢⱼ  ::A8
-    Bᵢⱼ  ::A8
-    ϵᵢⱼ  ::A8
-    ωᵢⱼ  ::A8
-    σJᵢⱼ ::A8
+    δᵢⱼ  ::Matrix{T2}
+    ∇vᵢⱼ ::Array{T2,3}
+    ∇uᵢⱼ ::Array{T2,3}
+    ΔFᵢⱼ ::Array{T2,3}
+    Fᵢⱼ  ::Array{T2,3}
+    Bᵢⱼ  ::Array{T2,3}
+    ϵᵢⱼ  ::Array{T2,3}
+    ωᵢⱼ  ::Array{T2,3}
+    σJᵢⱼ ::Array{T2,3}
 end
 @adapt_struct Solid
 
-struct Liquid{T1,T2,
-    A3 <: AbstractArray{T1,1},
-    A5 <: AbstractArray{T1,2},
-    A7 <: AbstractArray{T1,3},
-    A4 <: AbstractArray{T2,1}, 
-    A6 <: AbstractArray{T2,2}, 
-    A8 <: AbstractArray{T2,3}} <: MaterialPoint{T1, T2}
+struct Liquid{T1,T2}
+    # Add concrete fields as needed, e.g.:
+    # p    ::Vector{T2}
+    # v    ::Matrix{T2}
 end
 @adapt_struct Liquid
 
-struct Point{T1,T2,
-    A3 <: AbstractArray{T1,1},
-    A5 <: AbstractArray{T1,2},
-    A7 <: AbstractArray{T1,3},
-    A4 <: AbstractArray{T2,1}, 
-    A6 <: AbstractArray{T2,2}, 
-    A8 <: AbstractArray{T2,3}} <: MaterialPoint{T1, T2}
+struct Point{T1,T2}
     # general information
     ndim ::T1
     nmp  ::T1
-    vmax ::A4
+    vmax ::Vector{T2}
     # basis-related quantities
-    ϕ∂ϕ  ::A8
-    δnp  ::A8
+    ϕ∂ϕ  ::Array{T2,3}
+    δnp  ::Array{T2,3}
     # connectivity
-    e2p  ::A5
-    p2p  ::A5
-    p2e  ::A3
-    p2n  ::A5
+    e2p  ::Matrix{T1}
+    p2p  ::Matrix{T1}
+    p2e  ::Vector{T1}
+    p2n  ::Matrix{T1}
     # material point properties
-    x    ::A6
-    ℓ₀   ::A6
-    ℓ    ::A6
-    Ω₀   ::A4
-    Ω    ::A4
+    x    ::Matrix{T2}
+    ℓ₀   ::Matrix{T2}
+    ℓ    ::Matrix{T2}
+    Ω₀   ::Vector{T2}
+    Ω    ::Vector{T2}
     # solid phase
-    s    ::Solid{T1,T2,A3,A5,A7,A4,A6,A8}
+    s    ::Solid{T1,T2}
     # liquid phase
-    l    ::Liquid{T1,T2,A3,A5,A7,A4,A6,A8}
+    l    ::Liquid{T1,T2}
 end
 @adapt_struct Point

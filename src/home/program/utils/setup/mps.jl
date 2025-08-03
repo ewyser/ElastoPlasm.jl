@@ -69,7 +69,7 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
     T1, T2     = Int64              , Float64
     A3, A5, A7 = AbstractArray{T1,1}, AbstractArray{T1,2}, AbstractArray{T1,3}
     A2, A4, A6 = AbstractArray{T2,1}, AbstractArray{T2,2}, AbstractArray{T2,3}
-    s = Solid{T1,T2,A3,A5,A7,A2,A4,A6}(
+    s = Solid{T1,T2}(
         mp.s.u    ,
         mp.s.v    ,
         mp.s.p    ,
@@ -97,10 +97,10 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
         mp.s.ωᵢⱼ  ,
         mp.s.σJᵢⱼ ,
     )
-    l = Liquid{T1,T2,A3,A5,A7,A2,A4,A6}(
+    l = Liquid{T1,T2}(
 
     )
-    out = Point{T1,T2,A3,A5,A7,A2,A4,A6}(
+    out = Point{T1,T2}(
         # general information
         mp.ndim ,
         mp.nmp  ,

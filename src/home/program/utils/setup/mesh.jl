@@ -55,7 +55,7 @@ function setup_mesh(nel,L,instr)
     T1, T2     = Int64              , Float64
     A3, A5, A7 = AbstractArray{T1,1}, AbstractArray{T1,2}, AbstractArray{T1,3}
     A2, A4, A6 = AbstractArray{T2,1}, AbstractArray{T2,2}, AbstractArray{T2,3}
-    out = Mesh{T1,T2,A3,A5,A7,A2,A4,A6}(
+    out = Mesh{T1,T2}(
         mesh.dim, 
         mesh.nel, 
         mesh.nno, 
