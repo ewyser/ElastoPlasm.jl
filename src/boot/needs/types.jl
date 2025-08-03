@@ -32,7 +32,7 @@ end
 
 # ============================================================================================================= # 
 # Concrete Parametric AbstractArray Types
-export Mesh,Point
+export Mesh,Point,Liquid,Solid
 
 abstract type AbstractEulerian end
 abstract type UniformCartesian{T1, T2} <: AbstractEulerian end
@@ -74,24 +74,19 @@ end
 
 abstract type AbstractLagrangian end
 abstract type MaterialPoint{T1, T2} <: AbstractLagrangian end
-struct Point{T1,T2,
+
+
+struct Solid{T1,T2,
     A3 <: AbstractArray{T1,1},
     A5 <: AbstractArray{T1,2},
     A7 <: AbstractArray{T1,3},
     A4 <: AbstractArray{T2,1}, 
     A6 <: AbstractArray{T2,2}, 
     A8 <: AbstractArray{T2,3}} <: MaterialPoint{T1, T2}
-    ndim ::T1
-    nmp  ::T1
-    vmax ::A4
-    x    ::A6
-    u    ::A6
+    u    ::A6 
     v    ::A6
     p    ::A6
-    ℓ₀   ::A6
-    ℓ    ::A6
-    Ω₀   ::A4
-    Ω    ::A4
+    # mechanical properties
     m    ::A4
     c₀   ::A4
     cᵣ   ::A4
@@ -101,27 +96,56 @@ struct Point{T1,T2,
     ϵpV  ::A4
     ΔJ   ::A4
     J    ::A4
-    # plot quantity
-    z₀   ::A4
+    # tensor in voigt notation
+    σᵢ   ::A6
+    τᵢ   ::A6 
     # tensor in matrix notation
     δᵢⱼ  ::A6
     ∇vᵢⱼ ::A8
-    ∇uᵢⱼ ::A8  
+    ∇uᵢⱼ ::A8
     ΔFᵢⱼ ::A8
-    Fᵢⱼ  ::A8 
-    Bᵢⱼ  ::A8 
-    ϵᵢⱼ  ::A8 
-    ωᵢⱼ  ::A8 
-    σJᵢⱼ ::A8 
-# tensor in voigt notation
-    σᵢ   ::A6
-    τᵢ   ::A6
-# additional quantities
+    Fᵢⱼ  ::A8
+    Bᵢⱼ  ::A8
+    ϵᵢⱼ  ::A8
+    ωᵢⱼ  ::A8
+    σJᵢⱼ ::A8
+end
+struct Liquid{T1,T2,
+    A3 <: AbstractArray{T1,1},
+    A5 <: AbstractArray{T1,2},
+    A7 <: AbstractArray{T1,3},
+    A4 <: AbstractArray{T2,1}, 
+    A6 <: AbstractArray{T2,2}, 
+    A8 <: AbstractArray{T2,3}} <: MaterialPoint{T1, T2}
+end
+
+struct Point{T1,T2,
+    A3 <: AbstractArray{T1,1},
+    A5 <: AbstractArray{T1,2},
+    A7 <: AbstractArray{T1,3},
+    A4 <: AbstractArray{T2,1}, 
+    A6 <: AbstractArray{T2,2}, 
+    A8 <: AbstractArray{T2,3}} <: MaterialPoint{T1, T2}
+    # general information
+    ndim ::T1
+    nmp  ::T1
+    vmax ::A4
+    # basis-related quantities
     ϕ∂ϕ  ::A8
     δnp  ::A8
-# connectivity
+    # connectivity
     e2p  ::A6
     p2p  ::A6
     p2e  ::A4
     p2n  ::A6
+    # material point properties
+    x    ::A6
+    ℓ₀   ::A6
+    ℓ    ::A6
+    Ω₀   ::A4
+    Ω    ::A4
+    # solid phase
+    s    ::Solid{T1,T2,A3,A5,A7,A4,A6,A8}
+    # liquid phase
+    l    ::Liquid{T1,T2,A3,A5,A7,A4,A6,A8}
 end

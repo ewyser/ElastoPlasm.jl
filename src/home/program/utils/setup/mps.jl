@@ -65,6 +65,67 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
         p2e  = zeros(Int,nmp),
         p2n  = zeros(Int,mesh.nn,nmp),
     )
+
+    T1, T2     = Int64              , Float64
+    A3, A5, A7 = AbstractArray{T1,1}, AbstractArray{T1,2}, AbstractArray{T1,3}
+    A2, A4, A6 = AbstractArray{T2,1}, AbstractArray{T2,2}, AbstractArray{T2,3}
+    s = Solid{T1,T2,A3,A5,A7,A2,A4,A6}(
+        mp.s.u    ,
+        mp.s.v    ,
+        mp.s.p    ,
+        # mechanical properties
+        mp.s.m    ,
+        mp.s.c₀   ,
+        mp.s.cᵣ   ,
+        mp.s.ϕ    ,
+        mp.s.Δλ   ,
+        mp.s.ϵpII ,
+        mp.s.ϵpV  ,
+        mp.s.ΔJ   ,
+        mp.s.J    ,
+        # tensor in voigt notation
+        mp.s.σᵢ   ,
+        mp.s.τᵢ   ,
+        # tensor in matrix notation
+        mp.s.δᵢⱼ  ,
+        mp.s.∇vᵢⱼ ,
+        mp.s.∇uᵢⱼ ,
+        mp.s.ΔFᵢⱼ ,
+        mp.s.Fᵢⱼ  ,
+        mp.s.Bᵢⱼ  ,
+        mp.s.ϵᵢⱼ  ,
+        mp.s.ωᵢⱼ  ,
+        mp.s.σJᵢⱼ ,
+    )
+    l = Liquid{T1,T2,A3,A5,A7,A2,A4,A6}(
+
+    )
+    out = Point{T1,T2,A3,A5,A7,A2,A4,A6}(
+        # general information
+        mp.ndim ,
+        mp.nmp  ,
+        mp.vmax ,
+        # basis-related quantities
+        mp.ϕ∂ϕ  ,
+        mp.δnp  ,
+        # connectivity
+        mp.e2p  ,
+        mp.p2p  ,
+        mp.p2e  ,
+        mp.p2n  ,
+        # material point properties
+        mp.x    ,
+        mp.ℓ₀   ,
+        mp.ℓ    ,
+        mp.Ω₀   ,
+        mp.Ω    ,
+        # solid phase
+        s       ,
+        # liquid phase
+        l       ,
+    )
+
+
     #=
     println("")
     println("Material Point Setup:")
