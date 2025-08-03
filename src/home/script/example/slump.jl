@@ -23,7 +23,9 @@ function ic_slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(split
     @info "Setting up mesh & material point system for $(length(L))d slump problem"
     # init & kwargs
     instr = kwargser(:instr,kwargs;dim=length(L))
-    paths = set_paths(fid,info.sys.out;interactive=false)      
+    paths = set_paths(fid,info.sys.out;interactive=false)  
+    T0    = instr[:dtype].T0  
+    T1,T2 = first(T0),last(T0)  
     # mesh & mp initial conditions
     mesh  = setup_mesh(nel,L,instr)    
     cmpr  = setup_cmpr(mesh,instr)                       
@@ -31,7 +33,7 @@ function ic_slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(split
     # time parameters
     te,tg = 10.0, 10.0
     tep   = 5.0
-    time  = (; t = [0.0,te+tep], te = te, tg = if tg > te te else tg end, tep = tep,)
+    time  = (; t = T2.([0.0,te+tep]), te = T2(te), tg = if tg > te T2(te) else T2(tg) end, tep = T2(tep),)
     # plot initial cohesion field
     ms = 0.4*instr[:plot][:dims][1]/mesh.nel[1]
     opts = (;

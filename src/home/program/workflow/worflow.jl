@@ -1,7 +1,7 @@
 export elastoplasm,elastoplastic!,elastodynamic!              
 
 function elastodynamic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,instr::Dict) where {T1,T2}
-    it,ηmax,ηtot = 0, 0, 0
+    it,ηmax,ηtot = T1(0), T1(0), T1(0)
     checks = sort(collect(time.t[1]:instr[:plot][:freq]:time.te))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving elastodynamic...",barlen=10)
@@ -11,12 +11,13 @@ function elastodynamic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,
             tic = time_ns()
             # adaptative dt & linear increase of gravity
             g,dt = get_spacetime(mp,mesh,cmpr,time,T)
+            println("$(typeof(g)),$(typeof(dt))")
             # mpm cycle
             shpfun(mp,mesh,instr)
             mapsto(mp,mesh,g,dt,instr)    
             elasto(mp,mesh,cmpr,dt,instr)
             # update sim parameters
-            time.t[1],it   = time.t[1]+dt     ,it+1
+            time.t[1],it   = time.t[1]+dt     ,it+T1(1)
             toc      ,ηtot = ((time_ns()-tic)),max(ηmax,ηtot)
         end
         # plot/save
