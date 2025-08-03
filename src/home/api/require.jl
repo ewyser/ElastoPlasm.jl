@@ -34,14 +34,14 @@ cfg = require(:instr)
 function require(in::Symbol=:instr)
     if in == :instr
         instr = Dict(
-            :dtype => Int32(32),
+            :dtype => Int64(64),
             :basis => (;
                         which="bsmpm",
                         how=nothing,
                         ghost=false,
             ),
             :fwrk  => (;
-                        deform = "infinitesimal",
+                        deform = "finite",
                         trsfr = "musl",
                         locking = true,
             ),
