@@ -22,7 +22,7 @@ end
         end
     end
 end
-@kernel inbounds = true function flip_2d_p2n(mp::Point{T1,T2},mesh,g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function flip_2d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp
         for dim ∈ 1:mesh.dim 
@@ -42,7 +42,7 @@ end
         end
     end
 end
-@kernel inbounds = true function flip_3d_p2n(mp,mesh,g)
+@kernel inbounds = true function flip_3d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp
         for dim ∈ 1:mesh.dim 
@@ -67,7 +67,7 @@ end
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # TPIC transfer scheme, see Nakamura etal, 2023, https://doi.org/10.1016/j.cma.2022.115720
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-@kernel inbounds = true function tpic_2d_p2n(mp,mesh,g)
+@kernel inbounds = true function tpic_2d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp
         for dim ∈ 1:mesh.dim 
@@ -87,7 +87,7 @@ end
     end
 
 end
-@kernel inbounds = true function tpic_3d_p2n(mp,mesh,g)
+@kernel inbounds = true function tpic_3d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp
         for dim ∈ 1:mesh.dim 
@@ -108,15 +108,15 @@ end
         end
     end
 end
-function p2n(mp,mesh,g,instr)
+function p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},instr::Dict) where {T1,T2}
     # get cauchy stress 
     if instr[:fwrk][:deform] == "finite"
         instr[:cairn][:mapsto][:map].σᵢ!(ndrange=mp.nmp,mp);sync(CPU())
     end
     # initialize nodal quantities
-    mesh.mᵢ  .= 0.0
-    mesh.p   .= 0.0
-    mesh.oobf.= 0.0
+    mesh.mᵢ  .= T2(0.0)
+    mesh.p   .= T2(0.0)
+    mesh.oobf.= T2(0.0)
     # mapping to mesh
     instr[:cairn][:mapsto][:map].p2n!(ndrange=mp.nmp,mp,mesh,g);sync(CPU())
     return nothing

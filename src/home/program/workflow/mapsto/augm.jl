@@ -1,4 +1,4 @@
-@kernel inbounds = true function augm_momentum(mp::Point{T1,T2},mesh) where {T1,T2}
+@kernel inbounds = true function augm_momentum(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp
         for dim ∈ 1:mesh.dim 
@@ -11,7 +11,7 @@
         end
     end
 end
-@kernel inbounds = true function augm_velocity(mesh)
+@kernel inbounds = true function augm_velocity(mesh::Mesh{T1,T2}) where {T1,T2}
     no = @index(Global)
     if no≤mesh.nno[end] 
         if iszero(mesh.mᵢ[no])
@@ -19,16 +19,16 @@ end
         else
             for dim ∈ 1:mesh.dim       
                 # apply boundary contidions || forward euler solution
-                if mesh.bc[dim,no] == 0.0
-                    mesh.v[dim,no] = 0.0                                         
+                if iszero(mesh.bc[dim,no])
+                    mesh.v[dim,no] = T2(0.0)                                         
                 else
-                    mesh.v[dim,no] = mesh.p[dim,no]*(1.0/mesh.mᵢ[no])  
+                    mesh.v[dim,no] = mesh.p[dim,no]*(T2(1.0)/mesh.mᵢ[no])  
                 end
             end
         end
     end
 end
-@views @kernel inbounds = true function augm_displacement(mp::Point{T1,T2},mesh,dt::T2) where {T1,T2}
+@views @kernel inbounds = true function augm_displacement(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
     p = @index(Global)
     # flip update
     if p≤mp.nmp
@@ -43,7 +43,7 @@ end
         end
     end
 end
-function augm(mp::Point{T1,T2},mesh,dt::T2,instr::Dict) where {T1,T2}
+function augm(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::Dict) where {T1,T2}
     # initialize for DM
     mesh.p.= T2(0.0)
     mesh.v.= T2(0.0)

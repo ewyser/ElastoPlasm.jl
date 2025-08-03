@@ -31,7 +31,7 @@ function init_mapsto(dim::Number,instr::Dict)
         return throw(ArgumentError("$(instr[:fwrk][:trsfr]) is an unsupported transfer scheme"))
     end    
 end
-function mapsto(mp,mesh,g,dt,instr) 
+function mapsto(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::Dict) where {T1,T2}
     # maps material point to node
     p2n(mp,mesh,g,instr)
     # solve Eulerian momentum equation

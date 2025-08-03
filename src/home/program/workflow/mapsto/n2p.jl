@@ -1,4 +1,4 @@
-@kernel inbounds = true function flip_nd_n2p(mp::Point{T1,T2},mesh,dt::T2) where {T1,T2}
+@kernel inbounds = true function flip_nd_n2p(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp    
         # flip update
@@ -14,12 +14,12 @@
         end
     end  
 end
-@kernel inbounds = true function pic_nd_n2p(mp::Point{T1,T2},mesh,dt::T2) where {T1,T2}
+@kernel inbounds = true function pic_nd_n2p(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp    
         # pic update
         for dim ∈ 1:mesh.dim
-            δv = 0.0
+            δv = T2(0.0)
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
                 if iszero(no) continue end
@@ -32,7 +32,7 @@ end
         end
     end  
 end
-function n2p(mp::Point{T1,T2},mesh,dt::T2,instr::Dict) where {T1,T2}
+function n2p(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::Dict) where {T1,T2}
     # mapping to material point
     instr[:cairn][:mapsto][:map].n2p!(ndrange=mp.nmp,mp,mesh,dt);sync(CPU())
     return nothing
