@@ -48,32 +48,32 @@ function setup_mesh(nel,L,instr)
 
     T1, T2 = first(instr[:dtype].T0), last(instr[:dtype].T0)
     out = Mesh{T1,T2}(
-        mesh.dim, 
-        mesh.nel, 
-        mesh.nno, 
-        mesh.nn, 
-        mesh.L, 
-        mesh.h, 
+        T1(mesh.dim), 
+        T1.(mesh.nel), 
+        T1.(mesh.nno), 
+        T1(mesh.nn), 
+        T2.(mesh.L), 
+        T2.(mesh.h), 
         # nodal quantities
-        mesh.x₀, 
-        mesh.x, 
-        mesh.mᵢ, 
-        mesh.Mᵢⱼ,
-        mesh.oobf, 
-        mesh.D, 
-        mesh.f, 
-        mesh.a, 
-        mesh.p, 
-        mesh.v, 
-        mesh.Δu, 
-        mesh.ΔJ, 
-        mesh.bij,
+        T2.(mesh.x₀), 
+        T2.(mesh.x), 
+        T2.(mesh.mᵢ), 
+        T2.(mesh.Mᵢⱼ),
+        T2.(mesh.oobf), 
+        T2.(mesh.D), 
+        T2.(mesh.f), 
+        T2.(mesh.a), 
+        T2.(mesh.p), 
+        T2.(mesh.v), 
+        T2.(mesh.Δu), 
+        T2.(mesh.ΔJ), 
+        T2.(mesh.bij),
         # mesh-to-node topology
-        mesh.e2n, 
-        mesh.e2e, 
-        mesh.xB, 
+        T1.(mesh.e2n), 
+        T1.(mesh.e2e), 
+        T2.(mesh.xB), 
         # mesh boundary conditions
-        mesh.bc
+        T2.(mesh.bc)
     )
     return out
 end

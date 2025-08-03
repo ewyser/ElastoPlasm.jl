@@ -21,7 +21,7 @@ function D(E,ν,ndim)
     end
     return Kc,Gc,D
 end
-function setup_cmpr(mesh::Mesh{T1,T2},instr::Dict; E::T2=1.0e6,ν::T2=0.3,ρ0::T2= 2700.0) where {T1,T2}
+function setup_cmpr(mesh::Mesh{T1,T2},instr::Dict; E::T2=T2(1.0e6),ν::T2=T2(0.3),ρ0::T2= T2(2700.0)) where {T1,T2}
     # independant physical constant          
     K,G,Del = D(E,ν,mesh.dim)                                                   # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]    
     c       = sqrt((K+4.0/3.0*G)/ρ0)                                            # elastic wave speed [m/s]

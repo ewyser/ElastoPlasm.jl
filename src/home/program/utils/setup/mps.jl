@@ -1,4 +1,4 @@
-function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
+function setup_mps(mesh::Mesh{T1,T2},cmp::NamedTuple;define::Tuple=(nothing,nothing)) where {T1,T2}
     # non-dimensional constant                                                   
     if mesh.dim == 2 
         nstr = 3 
@@ -66,57 +66,56 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
         p2n  = zeros(Int,mesh.nn,nmp),
     )
 
-    T1, T2 = Int64, Float64
     s = Solid{T1,T2}(
-        mp.s.u    ,
-        mp.s.v    ,
-        mp.s.p    ,
+        T2.(mp.s.u)    ,
+        T2.(mp.s.v)    ,
+        T2.(mp.s.p)    ,
         # mechanical properties
-        mp.s.m    ,
-        mp.s.c₀   ,
-        mp.s.cᵣ   ,
-        mp.s.ϕ    ,
-        mp.s.Δλ   ,
-        mp.s.ϵpII ,
-        mp.s.ϵpV  ,
-        mp.s.ΔJ   ,
-        mp.s.J    ,
+        T2.(mp.s.m)    ,
+        T2.(mp.s.c₀)   ,
+        T2.(mp.s.cᵣ)   ,
+        T2.(mp.s.ϕ)    ,
+        T2.(mp.s.Δλ)   ,
+        T2.(mp.s.ϵpII) ,
+        T2.(mp.s.ϵpV)  ,
+        T2.(mp.s.ΔJ)   ,
+        T2.(mp.s.J)    ,
         # tensor in voigt notation
-        mp.s.σᵢ   ,
-        mp.s.τᵢ   ,
+        T2.(mp.s.σᵢ)   ,
+        T2.(mp.s.τᵢ)   ,
         # tensor in matrix notation
-        mp.s.δᵢⱼ  ,
-        mp.s.∇vᵢⱼ ,
-        mp.s.∇uᵢⱼ ,
-        mp.s.ΔFᵢⱼ ,
-        mp.s.Fᵢⱼ  ,
-        mp.s.Bᵢⱼ  ,
-        mp.s.ϵᵢⱼ  ,
-        mp.s.ωᵢⱼ  ,
-        mp.s.σJᵢⱼ ,
+        T2.(mp.s.δᵢⱼ)  ,
+        T2.(mp.s.∇vᵢⱼ) ,
+        T2.(mp.s.∇uᵢⱼ) ,
+        T2.(mp.s.ΔFᵢⱼ) ,
+        T2.(mp.s.Fᵢⱼ)  ,
+        T2.(mp.s.Bᵢⱼ)  ,
+        T2.(mp.s.ϵᵢⱼ)  ,
+        T2.(mp.s.ωᵢⱼ)  ,
+        T2.(mp.s.σJᵢⱼ) ,
     )
     l = Liquid{T1,T2}(
 
     )
     out = Point{T1,T2}(
         # general information
-        mp.ndim ,
-        mp.nmp  ,
-        mp.vmax ,
+        T1(mp.ndim) ,
+        T1(mp.nmp)  ,
+        T2.(mp.vmax) ,
         # basis-related quantities
-        mp.ϕ∂ϕ  ,
-        mp.δnp  ,
+        T2.(mp.ϕ∂ϕ)  ,
+        T2.(mp.δnp)  ,
         # connectivity
-        mp.e2p  ,
-        mp.p2p  ,
-        mp.p2e  ,
-        mp.p2n  ,
+        T1.(mp.e2p)  ,
+        T1.(mp.p2p)  ,
+        T1.(mp.p2e)  ,
+        T1.(mp.p2n)  ,
         # material point properties
-        mp.x    ,
-        mp.ℓ₀   ,
-        mp.ℓ    ,
-        mp.Ω₀   ,
-        mp.Ω    ,
+        T2.(mp.x)    ,
+        T2.(mp.ℓ₀)   ,
+        T2.(mp.ℓ)    ,
+        T2.(mp.Ω₀)   ,
+        T2.(mp.Ω)    ,
         # solid phase
         s       ,
         # liquid phase
