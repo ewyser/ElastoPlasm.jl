@@ -34,7 +34,7 @@ end
     p = @index(Global)
     if p≤mp.nmp 
         mp.s.Δλ[p] = T2(0.0)
-        ψ,nstr   = T2(0.0)*π/180.0,size(mp.s.σᵢ,1)
+        ψ,nstr   = T2(0.0*π/180.0),size(mp.s.σᵢ,1)
 
         # closed-form solution return-mapping for D-P
         c = mp.s.c₀[p]+cmp.Hp*mp.s.ϵpII[2,p]
@@ -70,7 +70,7 @@ end
     p = @index(Global)
     if p≤mp.nmp 
         mp.s.Δλ[p] = T2(0.0)
-        ψ,nstr   = T2(0.0)*π/180.0,size(mp.s.σᵢ,1)
+        ψ,nstr   = T2(0.0*π/180.0),size(mp.s.σᵢ,1)
 
         # closed-form solution return-mapping for D-P
         c   = mp.s.c₀[p]+cmp.Hp*mp.s.ϵpII[2,p]

@@ -76,6 +76,8 @@ struct Solid{T1,T2}
     v    ::Matrix{T2}
     p    ::Matrix{T2}
     # mechanical properties
+    ρ₀   ::Vector{T2}
+    ρ    ::Vector{T2}
     m    ::Vector{T2}
     c₀   ::Vector{T2}
     cᵣ   ::Vector{T2}

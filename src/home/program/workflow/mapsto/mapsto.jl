@@ -6,13 +6,14 @@ function init_mapsto(dim::Number,instr::Dict)
     end
     kernel2 = euler(CPU())
     if instr[:fwrk][:trsfr] == "musl"
-        if dim == 2
+        if dim == 1
+            kernel1 = flip_1d_p2n(CPU())
+        elseif dim == 2
             kernel1 = flip_2d_p2n(CPU())
-            kernel3 = flip_nd_n2p(CPU())
         elseif dim == 3
             kernel1 = flip_3d_p2n(CPU())
-            kernel3 = flip_nd_n2p(CPU())
         end
+        kernel3 = flip_nd_n2p(CPU())
         kernel3a = augm_momentum(CPU())
         kernel3b = augm_velocity(CPU())
         kernel3c = augm_displacement(CPU())

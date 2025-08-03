@@ -1,8 +1,7 @@
 export elastoplasm,elastoplastic!,elastodynamic!              
 
 function elastodynamic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,instr::Dict) where {T1,T2}
-    it,ηmax,ηtot = T1(0), T1(0), T1(0)
-    checks = T2.(sort(collect(time.t[1]:instr[:plot][:freq]:time.te)))
+    it,checks = T1(0), T2.(sort(collect(time.t[1]:instr[:plot][:freq]:time.te)))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving elastodynamic...",barlen=10)
     for T ∈ checks
@@ -16,21 +15,19 @@ function elastodynamic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,
             mapsto(mp,mesh,g,dt,instr)    
             elasto(mp,mesh,cmpr,dt,instr)
             # update sim parameters
-            time.t[1],it   = time.t[1]+dt     ,it+T1(1)
-            toc      ,ηtot = ((time_ns()-tic)),max(ηmax,ηtot)
+            time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
         # plot/save
         savlot(mp,mesh,time.t[1],instr)
         # update progress bar
-        next!(prog;showvalues = get_vals(mesh,mp,it,ηmax,ηtot))
+        next!(prog;showvalues = get_vals(mesh,mp,it))
     end
     finish!(prog)
     return nothing
 end  
 function elastoplastic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,instr::Dict) where {T1,T2}
-    it,ηmax,ηtot = T1(0), T1(0), T1(0)
-    checks = T2.(sort(collect(time.t[1]:instr[:plot][:freq]:time.t[2])))
-    g = get_g(mesh.dim)
+    it,checks = T1(0), T2.(sort(collect(time.t[1]:instr[:plot][:freq]:time.t[2])))
+    g         = get_g(mesh; G = T2(9.81))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving elastoplastic...",barlen=10)
     for T ∈ checks
@@ -42,15 +39,14 @@ function elastoplastic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,
             # mpm cycle
             shpfun(mp,mesh,instr)
             mapsto(mp,mesh,g,dt,instr)    
-            ηmax = elastoplast(mp,mesh,cmpr,dt,instr)
+            elastoplast(mp,mesh,cmpr,dt,instr)
             # update sim parameters
-            time.t[1],it   = time.t[1]+dt     ,it+1
-            toc      ,ηtot = ((time_ns()-tic)),max(ηmax,ηtot)
+            time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
         # plot/save
         savlot(mp,mesh,time.t[1],instr)
         # update progress bar
-        next!(prog;showvalues = get_vals(mesh,mp,it,ηmax,ηtot))
+        next!(prog;showvalues = get_vals(mesh,mp,it))
     end
     finish!(prog)
     return nothing

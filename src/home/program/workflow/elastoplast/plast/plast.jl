@@ -24,7 +24,7 @@ end
 function plast(mp::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,instr::Dict) where {T1,T2}
     # nonlocal regularization
     if instr[:nonloc][:status]
-        ls             = instr[:nonloc][:ls]
+        ls             = T2(instr[:nonloc][:ls])
         mp.e2p        .= T1(0)
         mp.p2p        .= T1(0)
         mp.s.ϵpII[2,:].= T2(0.0)
@@ -37,6 +37,5 @@ function plast(mp::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,instr::Dict) 
     end
     # plastic return-mapping dispatcher
     instr[:cairn][:elastoplast][:plast].retmap!(ndrange=mp.nmp,mp,cmpr);sync(CPU())
-    ηmax = 0
-    return ηmax::Int64
+    return nothing
 end
