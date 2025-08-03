@@ -110,6 +110,8 @@ struct Solid{T1,T2,
     ωᵢⱼ  ::A8
     σJᵢⱼ ::A8
 end
+@adapt_struct Solid
+
 struct Liquid{T1,T2,
     A3 <: AbstractArray{T1,1},
     A5 <: AbstractArray{T1,2},
@@ -118,6 +120,7 @@ struct Liquid{T1,T2,
     A6 <: AbstractArray{T2,2}, 
     A8 <: AbstractArray{T2,3}} <: MaterialPoint{T1, T2}
 end
+@adapt_struct Liquid
 
 struct Point{T1,T2,
     A3 <: AbstractArray{T1,1},
@@ -134,10 +137,10 @@ struct Point{T1,T2,
     ϕ∂ϕ  ::A8
     δnp  ::A8
     # connectivity
-    e2p  ::A6
-    p2p  ::A6
-    p2e  ::A4
-    p2n  ::A6
+    e2p  ::A5
+    p2p  ::A5
+    p2e  ::A3
+    p2n  ::A5
     # material point properties
     x    ::A6
     ℓ₀   ::A6
@@ -149,3 +152,4 @@ struct Point{T1,T2,
     # liquid phase
     l    ::Liquid{T1,T2,A3,A5,A7,A4,A6,A8}
 end
+@adapt_struct Point

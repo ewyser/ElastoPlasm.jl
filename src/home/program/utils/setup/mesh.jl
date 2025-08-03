@@ -83,5 +83,5 @@ function setup_mesh(nel,L,instr)
         # mesh boundary conditions
         mesh.bc
     )
-    return mesh
+    return out
 end

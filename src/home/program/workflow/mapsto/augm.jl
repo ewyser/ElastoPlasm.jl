@@ -1,4 +1,4 @@
-@kernel inbounds = true function augm_momentum(mp,mesh)
+@kernel inbounds = true function augm_momentum(mp::Point{T1,T2},mesh) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp
         for dim ∈ 1:mesh.dim 
@@ -28,12 +28,12 @@ end
         end
     end
 end
-@views @kernel inbounds = true function augm_displacement(mp,mesh,dt)
+@views @kernel inbounds = true function augm_displacement(mp::Point{T1,T2},mesh,dt::T2) where {T1,T2}
     p = @index(Global)
     # flip update
     if p≤mp.nmp
         for dim ∈ 1:mesh.dim 
-            Δu = 0.0
+            Δu = T2(0.0)
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
                 if no < 1 continue end
@@ -43,10 +43,10 @@ end
         end
     end
 end
-function augm(mp,mesh,dt,instr)
+function augm(mp::Point{T1,T2},mesh,dt::T2,instr::Dict) where {T1,T2}
     # initialize for DM
-    mesh.p.= 0.0
-    mesh.v.= 0.0
+    mesh.p.= T2(0.0)
+    mesh.v.= T2(0.0)
     # accumulate material point contributions
     instr[:cairn][:mapsto][:augm].p2n!(ndrange=mp.nmp,mp,mesh);sync(CPU())
     # solve for nodal incremental displacement

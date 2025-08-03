@@ -66,7 +66,7 @@ function ϕ∂ϕ(ξ,xn,xB,Δx)
     end   
     return ϕ,∂ϕ/Δx 
 end
-@views @kernel inbounds = true function bsmpm_1d(mp,mesh)
+@views @kernel inbounds = true function bsmpm_1d(mp::Point{T1,T2},mesh) where {T1,T2}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
@@ -82,7 +82,7 @@ end
         end
     end
 end
-@views @kernel inbounds = true function bsmpm_2d(mp,mesh)
+@views @kernel inbounds = true function bsmpm_2d(mp::Point{T1,T2},mesh) where {T1,T2}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
@@ -90,18 +90,18 @@ end
             no = mp.p2n[nn,p]
             if no < 1 continue end
             # compute basis functions
-            ξ      = (mp.x[1,p]-mesh.x[1,no]) 
-            η      = (mp.x[2,p]-mesh.x[2,no])
+            ξ      = T2(mp.x[1,p]-mesh.x[1,no]) 
+            η      = T2(mp.x[2,p]-mesh.x[2,no])
             ϕx,dϕx = ϕ∂ϕ(ξ/mesh.h[1],mesh.x[1,no],mesh.xB[1:2],mesh.h[1])
             ϕz,dϕz = ϕ∂ϕ(η/mesh.h[2],mesh.x[2,no],mesh.xB[3:4],mesh.h[2])
             # convolution of basis function
-            mp.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
-            mp.ϕ∂ϕ[nn,p,2] = dϕx*  ϕz                                        
-            mp.ϕ∂ϕ[nn,p,3] =  ϕx* dϕz   
+            mp.ϕ∂ϕ[nn,p,1] = T2( ϕx*  ϕz)                                        
+            mp.ϕ∂ϕ[nn,p,2] = T2(dϕx*  ϕz)                                        
+            mp.ϕ∂ϕ[nn,p,3] = T2( ϕx* dϕz)   
         end
     end
 end
-@views @kernel inbounds = true function bsmpm_3d(mp,mesh)
+@views @kernel inbounds = true function bsmpm_3d(mp::Point{T1,T2},mesh) where {T1,T2}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp

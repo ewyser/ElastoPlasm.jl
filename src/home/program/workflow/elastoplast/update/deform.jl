@@ -1,8 +1,8 @@
-@views @kernel inbounds = true function finite_deform(mp,mesh,dt)
+@views @kernel inbounds = true function finite_deform(mp::Point{T1,T2},mesh,dt::T2) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp 
         # compute velocity & displacement gradients
-        mp.s.∇vᵢⱼ[:,:,p].= 0.0
+        mp.s.∇vᵢⱼ[:,:,p].= T2(0.0)
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
             if no < 1 continue end
@@ -19,11 +19,11 @@
         mp.Ω[p]          = mp.s.J[p]*mp.Ω₀[p]
     end
 end
-@views @kernel inbounds = true function infinitesimal_deform(mp,mesh,dt)
+@views @kernel inbounds = true function infinitesimal_deform(mp::Point{T1,T2},mesh,dt::T2) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp 
         # compute velocity & displacement gradients
-        mp.s.∇vᵢⱼ[:,:,p].= 0.0
+        mp.s.∇vᵢⱼ[:,:,p].= T2(0.0)
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
             if no < 1 continue end

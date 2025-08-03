@@ -1,4 +1,4 @@
-@kernel inbounds = true function ΔJn(mp,mesh)
+@kernel inbounds = true function ΔJn(mp::Point{T1,T2},mesh) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp 
         # accumulation
@@ -20,11 +20,11 @@ end
         end
     end
 end
-@views @kernel inbounds = true function ΔJp(mp,mesh,dim)
+@views @kernel inbounds = true function ΔJp(mp::Point{T1,T2},mesh,dim::T2) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp 
         # mapping back to mp's
-        ΔJ = 0.0
+        ΔJ = T2(0.0)
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
             if no < 1 continue end

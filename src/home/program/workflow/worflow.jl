@@ -1,6 +1,6 @@
 export elastoplasm,elastoplastic!,elastodynamic!              
 
-function elastodynamic!(mp,mesh,cmpr,time,instr)
+function elastodynamic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,instr::Dict) where {T1,T2}
     it,ηmax,ηtot = 0, 0, 0
     checks = sort(collect(time.t[1]:instr[:plot][:freq]:time.te))
     # action

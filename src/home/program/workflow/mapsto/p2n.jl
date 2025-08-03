@@ -1,4 +1,4 @@
-@views @kernel inbounds = true function transform(mp)
+@views @kernel inbounds = true function transform(mp::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
     # deformation framework dispatcher
     if p ≤ mp.nmp 
@@ -22,7 +22,7 @@ end
         end
     end
 end
-@kernel inbounds = true function flip_2d_p2n(mp,mesh,g)
+@kernel inbounds = true function flip_2d_p2n(mp::Point{T1,T2},mesh,g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp
         for dim ∈ 1:mesh.dim 
