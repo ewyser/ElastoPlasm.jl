@@ -11,7 +11,7 @@ end
         # accumulation
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             @atom mesh.p[no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*mp.s.v[p])
             # lumped mass matrix
             @atom mesh.mᵢ[no]+= mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p]
@@ -29,7 +29,7 @@ end
             # accumulation
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
-                if no < 1 continue end
+                if iszero(no) continue end
                 @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*mp.s.v[dim,p])
                 if dim == 1
                     @atom mesh.mᵢ[no]      += mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p]
@@ -49,7 +49,7 @@ end
             # accumulation
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
-                if no < 1 continue end
+                if iszero(no) continue end
                 @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*mp.s.v[dim,p])
                 if dim == 1
                     @atom mesh.mᵢ[no]      += mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p] 
@@ -73,7 +73,7 @@ end
         for dim ∈ 1:mesh.dim 
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
-                if no < 1 continue end
+                if iszero(no) continue end
                 @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p]*(mp.s.v[dim,p]+mp.s.∇vᵢⱼ[dim,1,p]*mp.δnp[nn,1,p]+mp.s.∇vᵢⱼ[dim,2,p]*mp.δnp[nn,2,p])
                 if dim == 1
                     @atom mesh.mᵢ[no]      += mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p]
@@ -93,7 +93,7 @@ end
         for dim ∈ 1:mesh.dim 
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
-                if no < 1 continue end
+                if iszero(no) continue end
                 @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p]*(mp.s.v[dim,p]+mp.s.∇vᵢⱼ[dim,1,p]*mp.δnp[nn,1,p]+mp.s.∇vᵢⱼ[dim,2,p]*mp.δnp[nn,2,p]+mp.s.∇vᵢⱼ[dim,3,p]*mp.δnp[nn,3,p])
                 if dim == 1
                     @atom mesh.mᵢ[no      ]+= mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p]

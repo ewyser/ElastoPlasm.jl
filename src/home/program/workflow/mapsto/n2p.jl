@@ -5,7 +5,7 @@
         for dim ∈ 1:mesh.dim
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
-                if no < 1 continue end
+                if iszero(no) continue end
                 mp.s.v[dim,p]+= dt*(mp.ϕ∂ϕ[nn,p,1]*mesh.a[dim,no])
                 mp.x[dim,p]  += dt*(mp.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no])
             end
@@ -22,7 +22,7 @@ end
             δv = 0.0
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
-                if no < 1 continue end
+                if iszero(no) continue end
                 δv += mp.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
             end
             mp.s.v[dim,p] = δv 

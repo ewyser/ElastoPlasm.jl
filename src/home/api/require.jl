@@ -55,7 +55,7 @@ function require(in::Symbol=:instr)
                         constitutive = "DP",
             ),
             :nonloc=> (;
-                        status=false,
+                        status=true,
                         ls=0.5,
             ),
             :plot  => (;

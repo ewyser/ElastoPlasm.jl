@@ -5,7 +5,7 @@
             # accumulation
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
-                if no < 1 continue end
+                if iszero(no) continue end
                 @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*mp.s.v[dim,p])
             end
         end
@@ -36,7 +36,7 @@ end
             Δu = T2(0.0)
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
-                if no < 1 continue end
+                if iszero(no) continue end
                 Δu += dt*(mp.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no])
             end
             mp.s.u[dim,p]+= Δu

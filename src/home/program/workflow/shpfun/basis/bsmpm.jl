@@ -66,13 +66,13 @@ function ϕ∂ϕ(ξ,xn,xB,Δx)
     end   
     return ϕ,∂ϕ/Δx 
 end
-@views @kernel inbounds = true function bsmpm_1d(mp::Point{T1,T2},mesh) where {T1,T2}
+@views @kernel inbounds = true function bsmpm_1d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             # compute basis functions
             ξ      = (mp.x[p]-mesh.x[no]) 
             ϕx,dϕx = ϕ∂ϕ(ξ/mesh.h[1],mesh.x[no],mesh.xB[1:2],mesh.h[1])
@@ -82,13 +82,13 @@ end
         end
     end
 end
-@views @kernel inbounds = true function bsmpm_2d(mp::Point{T1,T2},mesh) where {T1,T2}
+@views @kernel inbounds = true function bsmpm_2d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             # compute basis functions
             ξ      = T2(mp.x[1,p]-mesh.x[1,no]) 
             η      = T2(mp.x[2,p]-mesh.x[2,no])
@@ -101,13 +101,13 @@ end
         end
     end
 end
-@views @kernel inbounds = true function bsmpm_3d(mp::Point{T1,T2},mesh) where {T1,T2}
+@views @kernel inbounds = true function bsmpm_3d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             # compute basis functions
             ξ      = (mp.x[1,p]-mesh.x[1,no]) 
             η      = (mp.x[2,p]-mesh.x[2,no])

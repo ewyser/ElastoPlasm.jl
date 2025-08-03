@@ -1,4 +1,4 @@
-@kernel inbounds = true function p2e2n_1d(mp::Point{T1,T2},mesh) where {T1,T2}
+@kernel inbounds = true function p2e2n_1d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp 
         # Compute element indices
@@ -11,7 +11,7 @@
         mp.p2e[p] = el
     end
 end
-@kernel inbounds = true function p2e2n_2d(mp::Point{T1,T2},mesh) where {T1,T2}
+@kernel inbounds = true function p2e2n_2d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp 
         # Compute element indices
@@ -26,7 +26,7 @@ end
         mp.p2e[p] = el
     end
 end
-@kernel inbounds = true function p2e2n_3d(mp::Point{T1,T2},mesh) where {T1,T2}
+@kernel inbounds = true function p2e2n_3d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp 
         # Compute element indices

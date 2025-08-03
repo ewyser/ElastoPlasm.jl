@@ -27,8 +27,8 @@ function elastodynamic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,
     finish!(prog)
     return nothing
 end  
-function elastoplastic!(mp,mesh,cmpr,time,instr)
-    it,ηmax,ηtot = 0, 0, 0
+function elastoplastic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,instr::Dict) where {T1,T2}
+    it,ηmax,ηtot = T1(0), T1(0), T1(0)
     checks = sort(collect(time.t[1]:instr[:plot][:freq]:time.t[2]))
     g = get_g(mesh.dim)
     # action

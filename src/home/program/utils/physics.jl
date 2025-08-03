@@ -22,7 +22,7 @@ function get_dt(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,ΔT::T2)
     # calculte dt
     cmax = mesh.h./(mp.vmax.+cmpr[:c]); mp.vmax.=T2(0.0) 
     dt   = min(T2(0.5)*maximum(cmax),ΔT-time.t[1])
-    return dt
+    return dt::T2
 end
 
 """
@@ -51,7 +51,7 @@ function get_g(dim::T1; G::T2=9.81) where {T1,T2}
     elseif dim == T1(3) 
         g = [T2(0.0),T2(0.0),-G] 
     end
-    return g
+    return g::Vector{T2}
 end
 
 """
@@ -82,9 +82,9 @@ function get_spacetime(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,�
     dt = get_dt(mp,mesh,cmpr,time,ΔT)
     # ramp-up gravity
     if time.t[1] <= time.tg 
-        g = get_g(mesh.dim; G = T2(9.81)*time.t[1]/time.tg)
+        g = get_g(mesh.dim; G = T2(9.81*time.t[1]/time.tg))
     else
-        g = get_g(mesh.dim;)
+        g = get_g(mesh.dim; G = T2(9.81)                  )
     end
     return g,dt
 end
