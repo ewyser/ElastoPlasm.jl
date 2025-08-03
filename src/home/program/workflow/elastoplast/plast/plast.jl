@@ -21,14 +21,14 @@ function init_plast(instr)
     end 
     return (;nonloc! = kernel1, retmap! = kernel2,) 
 end
-function plast(mp,mesh,cmpr,instr)
+function plast(mp::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,instr::Dict) where {T1,T2}
     # nonlocal regularization
     if instr[:nonloc][:status]
         ls             = instr[:nonloc][:ls]
-        mp.e2p        .= Int(0)
-        mp.p2p        .= Int(0)
-        mp.s.ϵpII[2,:].= 0.0
-        W,w     = spzeros(mp.nmp),spzeros(mp.nmp,mp.nmp)
+        mp.e2p        .= T1(0)
+        mp.p2p        .= T1(0)
+        mp.s.ϵpII[2,:].= T2(0.0)
+        W,w     = spzeros(T2,mp.nmp),spzeros(T2,mp.nmp,mp.nmp)
         for proc ∈ ["tplgy","p->q","p<-q"]
             instr[:cairn][:elastoplast][:plast].nonloc!(ndrange=mp.nmp,W,w,mp,mesh,ls,proc);sync(CPU())
         end

@@ -26,7 +26,7 @@ function ic_slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(split
     paths = set_paths(fid,info.sys.out;interactive=false)      
     # mesh & mp initial conditions
     mesh  = setup_mesh(nel,L,instr)    
-    cmpr  = setup_cmpr(mesh.dim,instr)                       
+    cmpr  = setup_cmpr(mesh,instr)                       
     mp    = setup_mps(mesh,cmpr;define=geom_slump(mesh,cmpr,instr))
     # time parameters
     te,tg = 10.0, 10.0

@@ -21,9 +21,9 @@ function D(E,ν,ndim)
     end
     return Kc,Gc,D
 end
-function setup_cmpr(dim,instr; E::Real=1.0e6,ν::Real=0.3,ρ0::Real= 2700.0)
+function setup_cmpr(mesh::Mesh{T1,T2},instr::Dict; E::T2=1.0e6,ν::T2=0.3,ρ0::T2= 2700.0) where {T1,T2}
     # independant physical constant          
-    K,G,Del = D(E,ν,dim)                                                  # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]    
+    K,G,Del = D(E,ν,mesh.dim)                                                   # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]    
     c       = sqrt((K+4.0/3.0*G)/ρ0)                                            # elastic wave speed [m/s]
     c0,cr   = 20.0e3,4.0e3                                                      # cohesion [Pa]
     ϕ0,ϕr,ψ0= 20.0*π/180,7.5*π/180,0.0                                          # friction angle [Rad], dilation angle [Rad]                                                              
@@ -32,18 +32,18 @@ function setup_cmpr(dim,instr; E::Real=1.0e6,ν::Real=0.3,ρ0::Real= 2700.0)
     cmp = (;
         cmType   = instr[:plast][:constitutive], 
         nonlocal = instr[:nonloc],
-        E   = E, 
-        ν   = ν, 
-        Kc  = K, 
-        Gc  = G, 
-        Del = Del, 
-        Hp  = Hp, 
-        c0  = c0,
-        cr  = cr,
-        ϕ0  = ϕ0,
-        ϕr  = ϕr,
-        ρ0  = ρ0,
-        c   = c,
+        E   = T2(E), 
+        ν   = T2(ν), 
+        Kc  = T2(K), 
+        Gc  = T2(G), 
+        Del = T2.(Del), 
+        Hp  = T2(Hp), 
+        c0  = T2(c0),
+        cr  = T2(cr),
+        ϕ0  = T2(ϕ0),
+        ϕr  = T2(ϕr),
+        ρ0  = T2(ρ0),
+        c   = T2(c),
     )
-    return cmp
+    return cmp::NamedTuple
 end

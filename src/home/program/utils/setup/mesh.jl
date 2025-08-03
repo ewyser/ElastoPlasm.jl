@@ -45,16 +45,8 @@ function setup_mesh(nel,L,instr)
         # mesh boundary conditions
         bc   = bc                          ,
     )
-    #=
-    println("")
-    println("Material Point Setup:")
-    for key in keys(mesh)
-        println("$(key): $(typeof(mesh[key]))")
-    end
-    =#
-    T1, T2     = Int64              , Float64
-    A3, A5, A7 = AbstractArray{T1,1}, AbstractArray{T1,2}, AbstractArray{T1,3}
-    A2, A4, A6 = AbstractArray{T2,1}, AbstractArray{T2,2}, AbstractArray{T2,3}
+
+    T1, T2 = first(instr[:dtype].T0), last(instr[:dtype].T0)
     out = Mesh{T1,T2}(
         mesh.dim, 
         mesh.nel, 

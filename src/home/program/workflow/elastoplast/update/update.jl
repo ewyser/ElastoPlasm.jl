@@ -40,7 +40,7 @@ function init_update(instr::Dict)
     end
     return (;deform! = kernel1,domain! = kernel2,ΔJn! = kernel3a,ΔJs! = kernel3b,ΔJp! = kernel3c,)
 end
-function update(mp::Point{T1,T2},mesh,dt::T2,instr::Dict) where {T1,T2}
+function update(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::Dict) where {T1,T2}
     # get incremental deformation tensor
     instr[:cairn][:elastoplast][:update].deform!(ndrange=mp.nmp,mp,mesh,dt);sync(CPU())
     # update material point's domain
