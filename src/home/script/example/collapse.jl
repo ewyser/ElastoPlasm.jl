@@ -35,7 +35,7 @@ function ic_collapse(nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=first(split
     # mesh & mp initial conditions
     ni    =  2
     mesh  = setup_mesh(nel, L, instr)
-    cmpr  = setup_cmpr(dim, instr; E=E, ν=ν, ρ0=ρ0)
+    cmpr  = setup_cmpr(mesh,instr; E=E, ν=ν, ρ0=ρ0)
     mp    = setup_mps(mesh, cmpr; define=geom_collapse(mesh, cmpr, ni; ℓ₀=l0))
     # time parameters
     tg    = ceil((1.0/cmpr.c)*(2.0*l0)*40.0)

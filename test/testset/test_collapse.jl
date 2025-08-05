@@ -10,7 +10,7 @@
 
     # Numeric and analytic solution
     idx = mesh.dim == 2 ? 2 : 3
-    xnum = abs.(mp.σᵢ[idx, :])
+    xnum = abs.(mp.s.σᵢ[idx, :])
     ynum = z0
     x = abs.(cmpr.ρ0 * 9.81 * (l0 .- z0))
     y = z0

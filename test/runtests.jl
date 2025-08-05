@@ -1,3 +1,5 @@
+# TEST_PKG="true" julia --project=. -e "using Pkg; Pkg.test()"
+
 push!(LOAD_PATH, "../src")
 
 using Test,JLD2,ProgressMeter,Suppressor,Plots,LaTeXStrings,REPL.TerminalMenus,ElastoPlasm
@@ -15,12 +17,13 @@ function runtests()
     testdir   = joinpath(@__DIR__,"testset")
     istest(f) = endswith(f, ".jl") && startswith(f, "test_")
     options   = sort(filter(istest, readdir(testdir)))
-    if get(ENV, "GITHUB_ACTIONS", "false") == "true"
+    if get(ENV, "GITHUB_ACTIONS", "false") == "true" || get(ENV, "TEST_PKG", "false") == "true"
         testfiles = options
     else
         selected  = request("Select device(s):",MultiSelectMenu(options))
         testfiles = options[collect(selected)]
     end
+
     # Run test(s) in testfiles
     nfail = 0
     @testset "ElastoPlasm.jl tested:" verbose = true begin
