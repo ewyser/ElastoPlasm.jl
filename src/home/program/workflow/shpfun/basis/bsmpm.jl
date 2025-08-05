@@ -1,99 +1,110 @@
-function which(xn,xB,Δx)
-    if xn == xB[1] ||  xn==xB[2] 
-        return 1::Int64
-    elseif xn == (xB[1]+Δx)
-        return 2::Int64
-    elseif (xB[1]+Δx) < xn < (xB[2]-Δx) 
-        return 3::Int64
-    elseif xn == (xB[2]-Δx)
-        return 4::Int64
-    else
-        return 0::Int64
-    end
+function t1_ϕ∂ϕ(ξ::T2) where {T2}
+    ϕ,∂ϕ = T2(0.0),T2(0.0)
+    if T2(-2.0)<=ξ<=T2(-1.0) 
+        ϕ = T2( 1.0/6.0)     *ξ^3+        ξ^2+T2(2.0)*ξ+T2(4.0/3.0)
+        ∂ϕ= T2( 3.0/6.0)     *ξ^2+T2(2.0)*ξ  +T2(2.0)
+    elseif T2(-1.0)<=ξ<=T2(0.0) 
+        ϕ = T2(-1.0/6.0)     *ξ^3+        ξ  +T2(1.0)
+        ∂ϕ= T2(-3.0/6.0)     *ξ^2+T2(1.0)
+    elseif  T2(0.0)<=ξ<=T2(1.0) 
+        ϕ = T2( 1.0/6.0)     *ξ^3-        ξ  +T2(1.0)
+        ∂ϕ= T2( 3.0/6.0)     *ξ^2-T2(1.0)
+    elseif  T2(1.0)<=ξ<=T2(2.0) 
+        ϕ = T2(-1.0/6.0)     *ξ^3+        ξ^2-T2(2.0)*ξ+T2(4.0/3.0)
+        ∂ϕ= T2(-3.0/6.0)     *ξ^2+T2(2.0)*ξ  -T2(2.0)
+    end   
+    return ϕ,∂ϕ
 end
-function ϕ∂ϕ(ξ,xn,xB,Δx)
-    ϕ,∂ϕ = 0.0,0.0
-    if which(xn,xB,Δx) == 1
-        if -2.0<=ξ<=-1.0 
-            ϕ = 1.0/6.0     *ξ^3+     ξ^2   +2.0*ξ    +4.0/3.0
-            ∂ϕ= 3.0/6.0     *ξ^2+2.0 *ξ     +2.0
-        elseif -1.0<=ξ<=0.0 
-            ϕ = -1.0/6.0     *ξ^3           +    ξ    +1.0
-            ∂ϕ= -3.0/6.0     *ξ^2           +  1.0
-        elseif  0.0<=ξ<= 1.0 
-            ϕ =  1.0/6.0     *ξ^3           -    ξ    +1.0
-            ∂ϕ=  3.0/6.0     *ξ^2           -  1.0
-        elseif  1.0<=ξ<= 2.0 
-            ϕ = -1.0/6.0     *ξ^3+     ξ^2  -2.0*ξ    +4.0/3.0
-            ∂ϕ= -3.0/6.0     *ξ^2+2.0 *ξ    -2.0
-        end  
-    elseif which(xn,xB,Δx) == 2
-        if -1.0<=ξ<=0.0 
-            ϕ = -1.0/3.0     *ξ^3-     ξ^2    +2.0/3.0
-            ∂ϕ= -3.0/3.0     *ξ^2-2.0 *ξ
-        elseif 0.0<=ξ<=1.0 
-            ϕ =  1.0/2.0     *ξ^3-     ξ^2    +2.0/3.0
-            ∂ϕ=  3.0/2.0     *ξ^2-2.0 *ξ
-        elseif 1.0<=ξ<=2.0 
-            ϕ = -1.0/6.0     *ξ^3+     ξ^2-2.0*ξ+4.0/3.0
-            ∂ϕ= -3.0/6.0     *ξ^2+2.0 *ξ  -2.0
-        end
-    elseif which(xn,xB,Δx) == 3
-        if -2.0<=ξ<=-1.0 
-            ϕ =  1.0/6.0     *ξ^3+     ξ^2+2.0*ξ+4.0/3.0
-            ∂ϕ=  3.0/6.0     *ξ^2+2.0 *ξ  +2.0
-        elseif -1.0<=ξ<=0.0 
-            ϕ = -1.0/2.0     *ξ^3-     ξ^2    +2.0/3.0
-            ∂ϕ= -3.0/2.0     *ξ^2-2.0 *ξ
-        elseif  0.0<=ξ<=1.0
-            ϕ =  1.0/2.0     *ξ^3-     ξ^2    +2.0/3.0
-            ∂ϕ=  3.0/2.0     *ξ^2-2.0 *ξ
-        elseif  1.0<=ξ<=2.0    
-            ϕ = -1.0/6.0     *ξ^3+     ξ^2-2.0*ξ+4.0/3.0
-            ∂ϕ= -3.0/6.0     *ξ^2+2.0 *ξ  -2.0
-        end
-    elseif which(xn,xB,Δx) == 4
-        if -2.0<=ξ<=-1.0
-            ϕ =  1.0/6.0     *ξ^3+     ξ^2+2.0*ξ+4.0/3.0
-            ∂ϕ=  3.0/6.0     *ξ^2+2.0 *ξ  +2.0 
-        elseif -1.0<=ξ<=0.0
-            ϕ = -1.0/2.0     *ξ^3-     ξ^2    +2.0/3.0
-            ∂ϕ= -3.0/2.0     *ξ^2-2.0 *ξ      
-        elseif 0.0<=ξ<=1.0
-            ϕ =  1.0/3.0     *ξ^3-     ξ^2    +2.0/3.0
-            ∂ϕ=  3.0/3.0     *ξ^2-2.0 *ξ      
-        end
+function t2_ϕ∂ϕ(ξ::T2) where {T2}
+    ϕ,∂ϕ = T2(0.0),T2(0.0)
+    if T2(-1.0)<=ξ<=T2(0.0)
+        ϕ = T2(-1.0/3.0)     *ξ^3-T2(ξ^2)      +T2(2.0/3.0)
+        ∂ϕ= T2(-3.0/3.0)     *ξ^2-T2(2.0)     *ξ
+    elseif T2(0.0)<=ξ<=T2(1.0)
+        ϕ = T2( 1.0/2.0)     *ξ^3-T2(ξ^2)      +T2(2.0/3.0)
+        ∂ϕ= T2( 3.0/2.0)     *ξ^2-T2(2.0)    *ξ
+    elseif T2(1.0)<=ξ<=T2(2.0)
+        ϕ = T2(-1.0/6.0)     *ξ^3+ξ^2-T2(2.0)*ξ+T2(4.0/3.0)
+        ∂ϕ= T2(-3.0/6.0)     *ξ^2+T2(2.0)    *ξ-T2(2.0)
+    end
+    return ϕ,∂ϕ
+end
+function t3_ϕ∂ϕ(ξ::T2) where {T2}
+    ϕ,∂ϕ = T2(0.0),T2(0.0)
+    if T2(-2.0)<=ξ<=T2(-1.0) 
+        ϕ = T2( 1.0/6.0)     *ξ^3+ξ^2      +T2(2.0)*ξ+T2(4.0/3.0)
+        ∂ϕ= T2( 3.0/6.0)     *ξ^2+T2(2.0)*ξ+T2(2.0)
+    elseif T2(-1.0)<=ξ<=T2(0.0) 
+        ϕ = T2(-1.0/2.0)     *ξ^3-ξ^2      +T2(2.0/3.0)
+        ∂ϕ= T2(-3.0/2.0)     *ξ^2-T2(2.0)*ξ
+    elseif T2(0.0)<=ξ<=T2(1.0)
+        ϕ = T2( 1.0/2.0)     *ξ^3-T2(ξ^2)  +T2(2.0/3.0)
+        ∂ϕ= T2( 3.0/2.0)     *ξ^2-T2(2.0)*ξ
+    elseif  T2(1.0)<=ξ<=T2(2.0)
+        ϕ = T2(-1.0/6.0)     *ξ^3+ξ^2      -T2(2.0)*ξ+T2(4.0/3.0)
+        ∂ϕ= T2(-3.0/6.0)     *ξ^2+T2(2.0)*ξ-T2(2.0)
+    end
+    return ϕ,∂ϕ
+end
+function t4_ϕ∂ϕ(ξ::T2) where {T2}
+    ϕ,∂ϕ = T2(0.0),T2(0.0)
+    if T2(-2.0)<=ξ<=T2(-1.0)
+        ϕ = T2( 1.0/6.0)     *ξ^3+ξ^2      +T2(2.0)*ξ+T2(4.0/3.0)
+        ∂ϕ= T2( 3.0/6.0)     *ξ^2+T2(2.0)*ξ+T2(2.0)
+    elseif T2(-1.0)<=ξ<=T2(0.0)
+        ϕ = T2(-1.0/2.0)     *ξ^3-ξ^2      +T2(2.0/3.0)
+        ∂ϕ= T2(-3.0/2.0)     *ξ^2-T2(2.0)*ξ
+    elseif T2(0.0)<=ξ<=T2(1.0)
+        ϕ = T2( 1.0/3.0)     *ξ^3-ξ^2      +T2(2.0/3.0)
+        ∂ϕ= T2( 3.0/3.0)     *ξ^2-T2(2.0)*ξ
+    end
+    return ϕ,∂ϕ
+end
+function ϕ∂ϕ(ξ::T2,xn::T2,xB::SubArray{T2},Δx::T2) where {T2}
+    if xn == xB[1]
+        ϕ,∂ϕ = t1_ϕ∂ϕ(ξ)
+    elseif xn == (xB[1]+Δx)
+        ϕ,∂ϕ = t2_ϕ∂ϕ(ξ)
+    elseif (xB[1]+Δx) < xn < (xB[2]-Δx) 
+        ϕ,∂ϕ = t3_ϕ∂ϕ(ξ)
+    elseif xn == (xB[2]-Δx)
+        ϕ,∂ϕ = t4_ϕ∂ϕ(ξ)
+    elseif xn==xB[2] 
+        ϕ,∂ϕ = t1_ϕ∂ϕ(ξ)
+    else
+        error("Invalid position: $(xn) not in $(xB)")
     end   
     return ϕ,∂ϕ/Δx 
 end
-@views @kernel inbounds = true function bsmpm_1d(mp,mesh)
+@views @kernel inbounds = true function bsmpm_1d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             # compute basis functions
-            ξ      = (mp.x[p]-mesh.x[no]) 
-            ϕx,dϕx = ϕ∂ϕ(ξ/mesh.h[1],mesh.x[no],mesh.xB[1:2],mesh.h[1])
+            ξ      = (mp.x[p]-mesh.x[no])/mesh.h[1]
+            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[no],mesh.xB[1:2],mesh.h[1])
             # convolution of basis function
             mp.ϕ∂ϕ[nn,p,1] =  ϕx
             mp.ϕ∂ϕ[nn,p,2] = dϕx
         end
     end
 end
-@views @kernel inbounds = true function bsmpm_2d(mp,mesh)
+@views @kernel inbounds = true function bsmpm_2d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             # compute basis functions
-            ξ      = (mp.x[1,p]-mesh.x[1,no]) 
-            η      = (mp.x[2,p]-mesh.x[2,no])
-            ϕx,dϕx = ϕ∂ϕ(ξ/mesh.h[1],mesh.x[1,no],mesh.xB[1:2],mesh.h[1])
-            ϕz,dϕz = ϕ∂ϕ(η/mesh.h[2],mesh.x[2,no],mesh.xB[3:4],mesh.h[2])
+            ξ      = (mp.x[1,p]-mesh.x[1,no])/mesh.h[1]
+            η      = (mp.x[2,p]-mesh.x[2,no])/mesh.h[2]
+            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[1,no],mesh.xB[1:2],mesh.h[1])
+            ϕz,dϕz = ϕ∂ϕ(η,mesh.x[2,no],mesh.xB[3:4],mesh.h[2])
+            #println("$(typeof(ξ)),$(typeof(η)),$(typeof(ϕx)),$(typeof(ϕz)),$(typeof(dϕx)),$(typeof(dϕz))")
             # convolution of basis function
             mp.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
             mp.ϕ∂ϕ[nn,p,2] = dϕx*  ϕz                                        
@@ -101,20 +112,20 @@ end
         end
     end
 end
-@views @kernel inbounds = true function bsmpm_3d(mp,mesh)
+@views @kernel inbounds = true function bsmpm_3d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             # compute basis functions
-            ξ      = (mp.x[1,p]-mesh.x[1,no]) 
-            η      = (mp.x[2,p]-mesh.x[2,no])
-            ζ      = (mp.x[3,p]-mesh.x[3,no])
-            ϕx,dϕx = ϕ∂ϕ(ξ/mesh.h[1],mesh.x[1,no],mesh.xB[1:2],mesh.h[1])
-            ϕy,dϕy = ϕ∂ϕ(η/mesh.h[2],mesh.x[2,no],mesh.xB[3:4],mesh.h[2])
-            ϕz,dϕz = ϕ∂ϕ(ζ/mesh.h[3],mesh.x[3,no],mesh.xB[5:6],mesh.h[3])
+            ξ      = (mp.x[1,p]-mesh.x[1,no])/mesh.h[1]
+            η      = (mp.x[2,p]-mesh.x[2,no])/mesh.h[2]
+            ζ      = (mp.x[3,p]-mesh.x[3,no])/mesh.h[3]
+            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[1,no],mesh.xB[1:2],mesh.h[1])
+            ϕy,dϕy = ϕ∂ϕ(η,mesh.x[2,no],mesh.xB[3:4],mesh.h[2])
+            ϕz,dϕz = ϕ∂ϕ(ζ,mesh.x[3,no],mesh.xB[5:6],mesh.h[3])
             # convolution of basis function
             mp.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕy*  ϕz                                                                                
             mp.ϕ∂ϕ[nn,p,2] = dϕx*  ϕy*  ϕz                                                                                

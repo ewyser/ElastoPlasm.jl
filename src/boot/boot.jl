@@ -6,7 +6,7 @@ using KernelAbstractions,Adapt,Base.Threads
 import KernelAbstractions.@atomic as @atom
 import KernelAbstractions.synchronize as sync
 import Adapt.adapt as user_adapt
-import Adapt.@adapt_structure as @user_struct
+import Adapt.@adapt_structure as @adapt_struct
 
 # arithmetic precision & relative path for figs & data
 const typeD = Float64  

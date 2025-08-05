@@ -1,17 +1,17 @@
-@kernel inbounds = true function augm_momentum(mp,mesh)
+@kernel inbounds = true function augm_momentum(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp
         for dim ∈ 1:mesh.dim 
             # accumulation
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
-                if no < 1 continue end
+                if iszero(no) continue end
                 @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*mp.s.v[dim,p])
             end
         end
     end
 end
-@kernel inbounds = true function augm_velocity(mesh)
+@kernel inbounds = true function augm_velocity(mesh::Mesh{T1,T2}) where {T1,T2}
     no = @index(Global)
     if no≤mesh.nno[end] 
         if iszero(mesh.mᵢ[no])
@@ -19,34 +19,34 @@ end
         else
             for dim ∈ 1:mesh.dim       
                 # apply boundary contidions || forward euler solution
-                if mesh.bc[dim,no] == 0.0
-                    mesh.v[dim,no] = 0.0                                         
+                if iszero(mesh.bc[dim,no])
+                    mesh.v[dim,no] = T2(0.0)                                         
                 else
-                    mesh.v[dim,no] = mesh.p[dim,no]*(1.0/mesh.mᵢ[no])  
+                    mesh.v[dim,no] = mesh.p[dim,no]*(T2(1.0)/mesh.mᵢ[no])  
                 end
             end
         end
     end
 end
-@views @kernel inbounds = true function augm_displacement(mp,mesh,dt)
+@views @kernel inbounds = true function augm_displacement(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
     p = @index(Global)
     # flip update
     if p≤mp.nmp
         for dim ∈ 1:mesh.dim 
-            Δu = 0.0
+            Δu = T2(0.0)
             for nn ∈ 1:mesh.nn
                 no = mp.p2n[nn,p]
-                if no < 1 continue end
+                if iszero(no) continue end
                 Δu += dt*(mp.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no])
             end
             mp.s.u[dim,p]+= Δu
         end
     end
 end
-function augm(mp,mesh,dt,instr)
+function augm(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::Dict) where {T1,T2}
     # initialize for DM
-    mesh.p.= 0.0
-    mesh.v.= 0.0
+    mesh.p.= T2(0.0)
+    mesh.v.= T2(0.0)
     # accumulate material point contributions
     instr[:cairn][:mapsto][:augm].p2n!(ndrange=mp.nmp,mp,mesh);sync(CPU())
     # solve for nodal incremental displacement

@@ -45,43 +45,35 @@ function setup_mesh(nel,L,instr)
         # mesh boundary conditions
         bc   = bc                          ,
     )
-    #=
-    println("")
-    println("Material Point Setup:")
-    for key in keys(mesh)
-        println("$(key): $(typeof(mesh[key]))")
-    end
-    =#
-    T1, T2     = Int64              , Float64
-    A3, A5, A7 = AbstractArray{T1,1}, AbstractArray{T1,2}, AbstractArray{T1,3}
-    A2, A4, A6 = AbstractArray{T2,1}, AbstractArray{T2,2}, AbstractArray{T2,3}
-    out = Mesh{T1,T2,A3,A5,A7,A2,A4,A6}(
-        mesh.dim, 
-        mesh.nel, 
-        mesh.nno, 
-        mesh.nn, 
-        mesh.L, 
-        mesh.h, 
+
+    T1, T2 = first(instr[:dtype].T0), last(instr[:dtype].T0)
+    out = Mesh{T1,T2}(
+        T1(mesh.dim), 
+        T1.(mesh.nel), 
+        T1.(mesh.nno), 
+        T1(mesh.nn), 
+        T2.(mesh.L), 
+        T2.(mesh.h), 
         # nodal quantities
-        mesh.x₀, 
-        mesh.x, 
-        mesh.mᵢ, 
-        mesh.Mᵢⱼ,
-        mesh.oobf, 
-        mesh.D, 
-        mesh.f, 
-        mesh.a, 
-        mesh.p, 
-        mesh.v, 
-        mesh.Δu, 
-        mesh.ΔJ, 
-        mesh.bij,
+        T2.(mesh.x₀), 
+        T2.(mesh.x), 
+        T2.(mesh.mᵢ), 
+        T2.(mesh.Mᵢⱼ),
+        T2.(mesh.oobf), 
+        T2.(mesh.D), 
+        T2.(mesh.f), 
+        T2.(mesh.a), 
+        T2.(mesh.p), 
+        T2.(mesh.v), 
+        T2.(mesh.Δu), 
+        T2.(mesh.ΔJ), 
+        T2.(mesh.bij),
         # mesh-to-node topology
-        mesh.e2n, 
-        mesh.e2e, 
-        mesh.xB, 
+        T1.(mesh.e2n), 
+        T1.(mesh.e2e), 
+        T2.(mesh.xB), 
         # mesh boundary conditions
-        mesh.bc
+        T2.(mesh.bc)
     )
-    return mesh
+    return out
 end

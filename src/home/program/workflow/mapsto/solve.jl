@@ -1,16 +1,16 @@
-@views @kernel inbounds = true function euler(mesh,dt,η)
+@views @kernel inbounds = true function euler(mesh,dt::T2,η) where {T2}
     no = @index(Global)
     if no≤mesh.nno[end] 
         if iszero(mesh.mᵢ[no])
             nothing         
         else
             # cache mass node & norm of out-of-balance force
-            mᵢ,oobf = (1.0/mesh.mᵢ[no]),norm(mesh.oobf[:,no])
+            mᵢ,oobf = (T2(1.0)/mesh.mᵢ[no]),norm(mesh.oobf[:,no])
             for dim ∈ 1:mesh.dim
                 # apply boundary contidions
                 if iszero(mesh.bc[dim,no])
-                    mesh.a[dim,no] = 0.0                                         
-                    mesh.v[dim,no] = 0.0                                         
+                    mesh.a[dim,no] = T2(0.0)                                         
+                    mesh.v[dim,no] = T2(0.0)                                         
                 else
                     # calculate damping
                     mesh.D[dim,no] = η*oobf*sign(mesh.p[dim,no]*mᵢ)                  #(2,)
@@ -23,13 +23,13 @@
         end
     end
 end
-@views function solve(mesh,dt,instr)
+@views function solve(mesh,dt::T2,instr::Dict) where {T2}
     # viscous damping
-    η      = 0.1
+    η      = T2(0.1)
     # initialize
-    mesh.f.= 0.0
-    mesh.a.= 0.0
-    mesh.v.= 0.0
+    mesh.f.= T2(0.0)
+    mesh.a.= T2(0.0)
+    mesh.v.= T2(0.0)
     # solve momentum equation on the mesh using backend-agnostic kernel
     instr[:cairn][:mapsto][:map].solve!(ndrange=mesh.nno[end],mesh,dt,η);sync(CPU())
     return nothing

@@ -1,35 +1,35 @@
-@views @kernel inbounds = true function δ_1d(mp,mesh)
+@views @kernel inbounds = true function δ_1d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     # calculate delta functions for tpic
     if p ≤ mp.nmp
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             # compute delta functions
             mp.δnp[nn,1,p] = -(mp.x[p]-mesh.x[no])
         end
     end
 end
-@views @kernel inbounds = true function δ_2d(mp,mesh)
+@views @kernel inbounds = true function δ_2d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     # calculate delta functions for tpic
     if p ≤ mp.nmp
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             # compute delta functions
             mp.δnp[nn,1,p] = -(mp.x[1,p]-mesh.x[1,no])
             mp.δnp[nn,2,p] = -(mp.x[2,p]-mesh.x[2,no])
         end
     end
 end
-@views @kernel inbounds = true function δ_3d(mp,mesh)
+@views @kernel inbounds = true function δ_3d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     # calculate delta functions for tpic
     if p ≤ mp.nmp
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             # compute delta functions
             mp.δnp[nn,1,p] = -(mp.x[1,p]-mesh.x[1,no])
             mp.δnp[nn,2,p] = -(mp.x[2,p]-mesh.x[2,no])

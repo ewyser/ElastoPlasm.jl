@@ -1,4 +1,4 @@
-function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
+function setup_mps(mesh::Mesh{T1,T2},cmp::NamedTuple;define::Tuple=(nothing,nothing)) where {T1,T2}
     # non-dimensional constant                                                   
     if mesh.dim == 2 
         nstr = 3 
@@ -12,6 +12,7 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
     n0 = 0.0.*ones(nmp)
     l0 = ones(size(xp)).*0.5.*(mesh.h./ni)
     v0 = prod(2 .* l0; dims=1)
+    ρ0 = ones(nmp) .* cmp[:ρ0]
     m  = (1.0 .- n0).*cmp[:ρ0].*v0
     # constructor
     mp = (
@@ -30,6 +31,8 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
             v    = zeros(size(xp)),
             p    = zeros(size(xp)),
 
+            ρ₀   = vec(copy(ρ0)),
+            ρ    = vec(copy(ρ0)),
             m    = vec(copy(m)),
             c₀   = vec(copy(geom.coh0)),
             cᵣ   = vec(copy(geom.cohr)),
@@ -65,62 +68,63 @@ function setup_mps(mesh,cmp;define::Tuple=(nothing,nothing))
         p2e  = zeros(Int,nmp),
         p2n  = zeros(Int,mesh.nn,nmp),
     )
-    #=
-    println("")
-    println("Material Point Setup:")
-    for key in keys(mp)
-        println("$(key): $(typeof(mp[key]))")
-    end
-    =#
-    #=
-    T1, T2     = Int64              , Float64
-    A3, A5, A7 = AbstractArray{T1,1}, AbstractArray{T1,2}, AbstractArray{T1,3}
-    A2, A4, A6 = AbstractArray{T2,1}, AbstractArray{T2,2}, AbstractArray{T2,3}
-    out = Point{T1,T2,A3,A5,A7,A2,A4,A6}(
-        mp.ndim ,
-        mp.nmp  ,
-        mp.vmax ,
-        mp.x    ,
-        mp.u    ,
-        mp.v    ,
-        mp.p    ,
-        mp.ℓ₀   ,
-        mp.ℓ    ,
-        mp.Ω₀   ,
-        mp.Ω    ,
-        mp.m    ,
-        mp.c₀   ,
-        mp.cᵣ   ,
-        mp.ϕ    ,
-        mp.Δλ   ,
-        mp.ϵpII ,
-        mp.ϵpV  ,
-        mp.ΔJ   ,
-        mp.J    ,
-        # plot quantity
-        mp.z₀   ,
-        # tensor in matrix notation
-        mp.δᵢⱼ  ,
-        mp.∇vᵢⱼ ,
-        mp.∇uᵢⱼ ,
-        mp.ΔFᵢⱼ ,
-        mp.Fᵢⱼ  ,
-        mp.Bᵢⱼ  ,
-        mp.ϵᵢⱼ  ,
-        mp.ωᵢⱼ  ,
-        mp.σJᵢⱼ ,
+
+    s = Solid{T1,T2}(
+        T2.(mp.s.u)    ,
+        T2.(mp.s.v)    ,
+        T2.(mp.s.p)    ,
+        # mechanical properties
+        T2.(mp.s.ρ₀)   ,
+        T2.(mp.s.ρ)    ,
+        T2.(mp.s.m)    ,
+        T2.(mp.s.c₀)   ,
+        T2.(mp.s.cᵣ)   ,
+        T2.(mp.s.ϕ)    ,
+        T2.(mp.s.Δλ)   ,
+        T2.(mp.s.ϵpII) ,
+        T2.(mp.s.ϵpV)  ,
+        T2.(mp.s.ΔJ)   ,
+        T2.(mp.s.J)    ,
         # tensor in voigt notation
-        mp.σᵢ   ,
-        mp.τᵢ   ,
-        # additional quantities
-        mp.ϕ∂ϕ  ,
-        mp.δnp  ,
-        # connectivity
-        mp.e2p  ,
-        mp.p2p  ,
-        mp.p2e  ,
-        mp.p2n  ,
+        T2.(mp.s.σᵢ)   ,
+        T2.(mp.s.τᵢ)   ,
+        # tensor in matrix notation
+        T2.(mp.s.δᵢⱼ)  ,
+        T2.(mp.s.∇vᵢⱼ) ,
+        T2.(mp.s.∇uᵢⱼ) ,
+        T2.(mp.s.ΔFᵢⱼ) ,
+        T2.(mp.s.Fᵢⱼ)  ,
+        T2.(mp.s.Bᵢⱼ)  ,
+        T2.(mp.s.ϵᵢⱼ)  ,
+        T2.(mp.s.ωᵢⱼ)  ,
+        T2.(mp.s.σJᵢⱼ) ,
     )
-    =#
-    return mp 
+    l = Liquid{T1,T2}(
+
+    )
+    out = Point{T1,T2}(
+        # general information
+        T1(mp.ndim) ,
+        T1(mp.nmp)  ,
+        T2.(mp.vmax) ,
+        # basis-related quantities
+        T2.(mp.ϕ∂ϕ)  ,
+        T2.(mp.δnp)  ,
+        # connectivity
+        T1.(mp.e2p)  ,
+        T1.(mp.p2p)  ,
+        T1.(mp.p2e)  ,
+        T1.(mp.p2n)  ,
+        # material point properties
+        T2.(mp.x)    ,
+        T2.(mp.ℓ₀)   ,
+        T2.(mp.ℓ)    ,
+        T2.(mp.Ω₀)   ,
+        T2.(mp.Ω)    ,
+        # solid phase
+        s       ,
+        # liquid phase
+        l       ,
+    )
+    return out 
 end

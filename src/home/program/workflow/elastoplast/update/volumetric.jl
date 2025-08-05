@@ -1,33 +1,33 @@
-@kernel inbounds = true function ΔJn(mp,mesh)
+@kernel inbounds = true function ΔJn(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp 
         # accumulation
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             @atom mesh.ΔJ[no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*mp.s.ΔJ[p])  
         end
     end
 end
-@kernel inbounds = true function ΔJs(mesh)
+@kernel inbounds = true function ΔJs(mesh::Mesh{T1,T2} ) where {T1,T2}
     no = @index(Global)
     if no≤mesh.nno[end] 
         # solve
         if iszero(mesh.mᵢ[no])
-            mesh.ΔJ[no] = 0.0
+            mesh.ΔJ[no] = T2(0.0)
         else
             mesh.ΔJ[no]/= mesh.mᵢ[no]
         end
     end
 end
-@views @kernel inbounds = true function ΔJp(mp,mesh,dim)
+@views @kernel inbounds = true function ΔJp(mp::Point{T1,T2},mesh::Mesh{T1,T2},dim::T2) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp 
         # mapping back to mp's
-        ΔJ = 0.0
+        ΔJ = T2(0.0)
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             ΔJ += mp.ϕ∂ϕ[nn,p,1]*mesh.ΔJ[no]/mp.s.ΔJ[p]
         end
         # update

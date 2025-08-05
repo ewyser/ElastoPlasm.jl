@@ -1,4 +1,4 @@
-function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80)
+function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80 )
     #@info "Init slump geometry"
     coh0,cohr,phi0,phir,rho0 = cmp[:c0],cmp[:cr],cmp[:ϕ0],cmp[:ϕr],cmp[:ρ0]
 
@@ -46,13 +46,13 @@ function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80)
             end
         end
     elseif mesh.dim == 3
-        xL          = mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2]
-        yL          = mesh.xB[3]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:mesh.xB[4]
-        zL          = mesh.xB[5]+(0.5*mesh.h[3]/ni):mesh.h[3]/ni:lz-0.5*mesh.h[3]/ni
-        npx,npy,npz = length(xL),length(yL),length(zL)
-        xp          = (xL'.*ones(npz,1  )      ).*ones(1,1,npy)
-        yp          = (     ones(npz,npx)      ).*reshape(yL,1,1,npy)
-        zp          = (     ones(npx,1  )'.*zL ).*ones(1,1,npy)
+        x          = collect(mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2]         )
+        y          = collect(mesh.xB[3]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:mesh.xB[4]         )
+        z          = collect(mesh.xB[5]+(0.5*mesh.h[3]/ni):mesh.h[3]/ni:lz-0.5*mesh.h[3]/ni)
+        nmp        = [length(x),length(y),length(z),length(x)*length(y)*length(z)]
+        xp         = repeat(reshape(x,1     ,nmp[1],1     ),nmp[3],1     ,nmp[2])
+        yp         = repeat(reshape(y,1     ,1     ,nmp[2]),nmp[3],nmp[1],1     )
+        zp         = repeat(reshape(z,nmp[3],1     ,1     ),1     ,nmp[1],nmp[2])
         if instr[:grf][:status]
             c = GRFS_gauss(xp,coh0,cohr,ni,mesh.h[1])
         else 

@@ -8,7 +8,7 @@ function e2n(ndim,nno,nel,nn)
                 try
                     push!(nno,gnum[i0+i])
                 catch
-                    push!(nno,-404)
+                    push!(nno,0)
                 end
             end
             e2n[:,iel].= nno
@@ -24,7 +24,7 @@ function e2n(ndim,nno,nel,nn)
                         try
                             push!(nno,gnum[j0+j,i0+i])
                         catch
-                            push!(nno,-404)
+                            push!(nno,0)
                         end
                     end
                 end
@@ -44,7 +44,7 @@ function e2n(ndim,nno,nel,nn)
                                 try
                                     push!(nno,gnum[j0+j,i0+i,k0+k])
                                 catch
-                                    push!(nno,-404)
+                                    push!(nno,0)
                                 end
                             end
                         end

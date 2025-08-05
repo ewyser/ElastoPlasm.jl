@@ -1,11 +1,12 @@
 function get_version()
     return string(Pkg.project().version)
 end
-function get_vals(mesh,mp,it,ηmax,ηtot)
+function get_vals(mesh,mp,it)
     # save vals
-    vals = [("nel,np",(round(Int64,prod(mesh.nel[1:end-1])),mp.nmp)),
+    vals = [
+            ("nel,np",(round(Int64,prod(mesh.nel[1:end-1])),mp.nmp)),
             ("iteration(s)",it),
-            ("ηmax,ηtot",(ηmax,ηtot))]
+            ]
     return vals
 end
 function msg(message)

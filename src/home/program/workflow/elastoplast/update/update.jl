@@ -40,7 +40,7 @@ function init_update(instr::Dict)
     end
     return (;deform! = kernel1,domain! = kernel2,ΔJn! = kernel3a,ΔJs! = kernel3b,ΔJp! = kernel3c,)
 end
-function update(mp,mesh,dt,instr)
+function update(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::Dict) where {T1,T2}
     # get incremental deformation tensor
     instr[:cairn][:elastoplast][:update].deform!(ndrange=mp.nmp,mp,mesh,dt);sync(CPU())
     # update material point's domain
@@ -50,9 +50,9 @@ function update(mp,mesh,dt,instr)
     # volumetric locking correction
     if instr[:fwrk][:locking]
         # init mesh quantities to zero
-        mesh.ΔJ.= 0.0
+        mesh.ΔJ.= T2(0.0)
         # calculate dimensional cst.
-        dim     = 1/mesh.dim
+        dim     = T2(1.0)/mesh.dim
         # mapping to mesh 
         instr[:cairn][:elastoplast][:update].ΔJn!(ndrange=mp.nmp,mp,mesh);sync(CPU())
         # compute nodal determinant of incremental deformation 
