@@ -17,61 +17,32 @@
     end
     return ϵmut
 end
-@views @kernel inbounds = true function ELAST(mp,Del,instr)
-    p = @index(Global)
-    # deformation framework dispatcher
-    if instr[:fwrk] == "finite"
-        if p ≤ mp.nmp 
-            # update left cauchy-green tensor
-            mp.Bᵢⱼ[:,:,p].= mp.ΔFᵢⱼ[:,:,p]*mp.Bᵢⱼ[:,:,p]*mp.ΔFᵢⱼ[:,:,p]'
-            # compute logarithmic strain tensor
-            λ,n            = eigen(mp.Bᵢⱼ[:,:,p],sortby=nothing)
-            mp.ϵᵢⱼ[:,:,p].= 0.5.*(n*diagm(log.(λ))*n')
-            # krichhoff stress tensor
-            mp.τᵢ[:,p]    = Del*mutate(mp.ϵᵢⱼ[:,:,p],2.0,:voigt)
-        end
-    elseif instr[:fwrk] == "infinitesimal"
-        if p ≤ mp.nmp 
-            # calculate elastic strains & spins
-            for i ∈ 1:mp.ndim , j ∈ 1:mp.ndim
-                mp.ϵᵢⱼ[i,j,p] = 0.5*(mp.ΔFᵢⱼ[i,j,p]+mp.ΔFᵢⱼ[j,i,p])-mp.δᵢⱼ[i,j] 
-                mp.ωᵢⱼ[i,j,p] = 0.5*(mp.ΔFᵢⱼ[i,j,p]-mp.ΔFᵢⱼ[j,i,p])
-            end
-            Δϵ = mutate(mp.ϵᵢⱼ[:,:,p],2.0,:voigt)
-            Δω = mp.ωᵢⱼ[1,2,p]
-            σ0 = [Δω*(2.0*mp.σᵢ[3,p]),Δω*(-2.0*mp.σᵢ[3,p]),Δω*(mp.σᵢ[2,p]-mp.σᵢ[1,p])]
-            for k ∈ 1:length(σ0)
-                mp.σᵢ[k,p]+= (Del[k,1]*Δϵ[1]+Del[k,2]*Δϵ[2]+Del[k,3]*Δϵ[3])+σ0[k]
-            end
-        end   
-    end
-end
-@views @kernel inbounds = true function finite_elast(mp,Del)
+@views @kernel inbounds = true function finite_elast(mp::Point{T1,T2},Del) where {T1,T2}
     p = @index(Global)
     if p ≤ mp.nmp 
         # update left cauchy-green tensor
-        mp.Bᵢⱼ[:,:,p].= mp.ΔFᵢⱼ[:,:,p]*mp.Bᵢⱼ[:,:,p]*mp.ΔFᵢⱼ[:,:,p]'
+        mp.s.Bᵢⱼ[:,:,p].= mp.s.ΔFᵢⱼ[:,:,p]*mp.s.Bᵢⱼ[:,:,p]*mp.s.ΔFᵢⱼ[:,:,p]'
         # compute logarithmic strain tensor
-        λ,n            = eigen(mp.Bᵢⱼ[:,:,p],sortby=nothing)
-        mp.ϵᵢⱼ[:,:,p].= 0.5.*(n*diagm(log.(λ))*n')
+        λ,n             = eigen(mp.s.Bᵢⱼ[:,:,p],sortby=nothing)
+        mp.s.ϵᵢⱼ[:,:,p].= T2(0.5).*(n*diagm(log.(λ))*n')
         # krichhoff stress tensor
-        mp.τᵢ[:,p]    = Del*mutate(mp.ϵᵢⱼ[:,:,p],2.0,:voigt)
+        mp.s.τᵢ[:,p]    = Del*mutate(mp.s.ϵᵢⱼ[:,:,p],T2(2.0),:voigt)
     end
 end
-@views @kernel inbounds = true function infinitesimal_elast(mp,Del)
+@views @kernel inbounds = true function infinitesimal_elast(mp::Point{T1,T2},Del) where {T1,T2}
     p = @index(Global)
     if p ≤ mp.nmp 
         # calculate elastic strains & spins
-        mp.ϵᵢⱼ[:,:,p] .= 0.5.*(mp.ΔFᵢⱼ[:,:,p]+mp.ΔFᵢⱼ[:,:,p]').-mp.δᵢⱼ[:,:] 
-        mp.ωᵢⱼ[:,:,p] .= 0.5.*(mp.ΔFᵢⱼ[:,:,p]-mp.ΔFᵢⱼ[:,:,p]')
+        mp.s.ϵᵢⱼ[:,:,p] .= T2(0.5).*(mp.s.ΔFᵢⱼ[:,:,p]+mp.s.ΔFᵢⱼ[:,:,p]').-mp.s.δᵢⱼ[:,:] 
+        mp.s.ωᵢⱼ[:,:,p] .= T2(0.5).*(mp.s.ΔFᵢⱼ[:,:,p]-mp.s.ΔFᵢⱼ[:,:,p]')
         # update cauchy stress tensor
-        mp.σJᵢⱼ[:,:,p].= mutate(mp.σᵢ[:,p],1.0,:tensor)
-        mp.σJᵢⱼ[:,:,p].= mp.σJᵢⱼ[:,:,p]*mp.ωᵢⱼ[:,:,p]'+mp.σJᵢⱼ[:,:,p]'*mp.ωᵢⱼ[:,:,p]
-        mp.σᵢ[:,p]   .+= Del*mutate(mp.ϵᵢⱼ[:,:,p],2.0,:voigt).+mutate(mp.σJᵢⱼ[:,:,p],1.0,:voigt)
+        mp.s.σJᵢⱼ[:,:,p].= mutate(mp.s.σᵢ[:,p],T2(1.0),:tensor)
+        mp.s.σJᵢⱼ[:,:,p].= mp.s.σJᵢⱼ[:,:,p]*mp.s.ωᵢⱼ[:,:,p]'+mp.s.σJᵢⱼ[:,:,p]'*mp.s.ωᵢⱼ[:,:,p]
+        mp.s.σᵢ[:,p]   .+= Del*mutate(mp.s.ϵᵢⱼ[:,:,p],T2(2.0),:voigt).+mutate(mp.s.σJᵢⱼ[:,:,p],T2(1.0),:voigt)
     end  
 end
 
-function init_elast(instr)
+function init_elast(instr::Dict)
     if instr[:perf]
         kernel1 = ELAST(CPU())
     else
@@ -86,7 +57,87 @@ function init_elast(instr)
 end
 
 
-function elast(mp,cmpr,instr)
+function elast(mp::Point{T1,T2},cmpr::NamedTuple,instr::Dict) where {T1,T2}
     instr[:cairn][:elastoplast][:elast].elast!(ndrange=mp.nmp,mp,cmpr.Del);sync(CPU())
     return nothing
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@views @kernel inbounds = true function ELAST(mp,Del,instr)
+    p = @index(Global)
+    # deformation framework dispatcher
+    if instr[:fwrk] == "finite"
+        if p ≤ mp.nmp 
+            # update left cauchy-green tensor
+            mp.s.Bᵢⱼ[:,:,p].= mp.s.ΔFᵢⱼ[:,:,p]*mp.s.Bᵢⱼ[:,:,p]*mp.s.ΔFᵢⱼ[:,:,p]'
+            # compute logarithmic strain tensor
+            λ,n             = eigen(mp.s.Bᵢⱼ[:,:,p],sortby=nothing)
+            mp.s.ϵᵢⱼ[:,:,p].= 0.5.*(n*diagm(log.(λ))*n')
+            # krichhoff stress tensor
+            mp.s.τᵢ[:,p]    = Del*mutate(mp.s.ϵᵢⱼ[:,:,p],2.0,:voigt)
+        end
+    elseif instr[:fwrk] == "infinitesimal"
+        if p ≤ mp.nmp 
+            # calculate elastic strains & spins
+            for i ∈ 1:mp.ndim , j ∈ 1:mp.ndim
+                mp.s.ϵᵢⱼ[i,j,p] = 0.5*(mp.s.ΔFᵢⱼ[i,j,p]+mp.s.ΔFᵢⱼ[j,i,p])-mp.s.δᵢⱼ[i,j] 
+                mp.s.ωᵢⱼ[i,j,p] = 0.5*(mp.s.ΔFᵢⱼ[i,j,p]-mp.s.ΔFᵢⱼ[j,i,p])
+            end
+            Δϵ = mutate(mp.s.ϵᵢⱼ[:,:,p],2.0,:voigt)
+            Δω = mp.s.ωᵢⱼ[1,2,p]
+            σ0 = [Δω*(2.0*mp.s.σᵢ[3,p]),Δω*(-2.0*mp.s.σᵢ[3,p]),Δω*(mp.s.σᵢ[2,p]-mp.s.σᵢ[1,p])]
+            for k ∈ 1:length(σ0)
+                mp.σᵢ[k,p]+= (Del[k,1]*Δϵ[1]+Del[k,2]*Δϵ[2]+Del[k,3]*Δϵ[3])+σ0[k]
+            end
+        end   
+    end
 end

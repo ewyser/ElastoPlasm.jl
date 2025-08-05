@@ -12,13 +12,13 @@ function S∂S(δx,h,lp)
     end
     return S,∂S    
 end
-@views @kernel inbounds = true function gimpm_1d(mp,mesh)
+@views @kernel inbounds = true function gimpm_1d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             # compute basis functions
             ξ      = (mp.x[p]-mesh.x[no]) 
             ϕx,dϕx = S∂S(ξ,mesh.h[1],mp.ℓ[p]) 
@@ -28,13 +28,13 @@ end
         end
     end
 end
-@views @kernel inbounds = true function gimpm_2d(mp,mesh)
+@views @kernel inbounds = true function gimpm_2d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             # compute basis functions
             ξ      = (mp.x[1,p]-mesh.x[1,no]) 
             η      = (mp.x[2,p]-mesh.x[2,no])
@@ -47,13 +47,13 @@ end
         end
     end
 end
-@views @kernel inbounds = true function gimpm_3d(mp,mesh)
+@views @kernel inbounds = true function gimpm_3d(mp::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mp.nmp
         for nn ∈ 1:mesh.nn
             no = mp.p2n[nn,p]
-            if no < 1 continue end
+            if iszero(no) continue end
             # compute basis functions
             ξ      = (mp.x[1,p]-mesh.x[1,no]) 
             η      = (mp.x[2,p]-mesh.x[2,no])

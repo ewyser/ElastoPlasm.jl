@@ -30,6 +30,8 @@ function ic_collapse(nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=first(split
     # Simulation instructions
     instr = kwargser(:instr, kwargs; dim=dim)
     paths = set_paths(fid, info.sys.out; interactive=false)
+    T0    = instr[:dtype].T0  
+    T1,T2 = first(T0),last(T0)  
     # mesh & mp initial conditions
     ni    =  2
     mesh  = setup_mesh(nel, L, instr)
@@ -38,7 +40,7 @@ function ic_collapse(nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=first(split
     # time parameters
     tg    = ceil((1.0/cmpr.c)*(2.0*l0)*40.0)
     te    = 1.25*tg
-    time  = (; t = [0.0, te], te = te, tg = if tg > te te else tg end, tep = nothing,)
+    time  = (; t = T2.([0.0, te]), te = T2(te), tg = if tg > te T2(te) else T2(tg) end, tep = nothing,)
     # display summary
     @info ic_log(mesh,mp,time)
     return (;mesh, mp, cmpr, time), (;instr, paths)

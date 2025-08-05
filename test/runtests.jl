@@ -1,6 +1,6 @@
 push!(LOAD_PATH, "../src")
 
-using Test,JLD2,ProgressMeter,Suppressor,Plots,LaTeXStrings,ElastoPlasm
+using Test,JLD2,ProgressMeter,Suppressor,Plots,LaTeXStrings,REPL.TerminalMenus,ElastoPlasm
 using BenchmarkTools, KernelAbstractions
 import KernelAbstractions.@atomic as @atom
 import KernelAbstractions.synchronize as sync
@@ -11,10 +11,17 @@ function runtests()
     if !isdir(DATASET)
         mkpath(DATASET)
     end
-
+    # List of all test files
     testdir   = joinpath(@__DIR__,"testset")
     istest(f) = endswith(f, ".jl") && startswith(f, "test_")
-    testfiles = sort(filter(istest, readdir(testdir)))
+    options   = sort(filter(istest, readdir(testdir)))
+    if get(ENV, "GITHUB_ACTIONS", "false") == "true"
+        testfiles = options
+    else
+        selected  = request("Select device(s):",MultiSelectMenu(options))
+        testfiles = options[collect(selected)]
+    end
+    # Run test(s) in testfiles
     nfail = 0
     @testset "ElastoPlasm.jl tested:" verbose = true begin
         for f ∈ testfiles

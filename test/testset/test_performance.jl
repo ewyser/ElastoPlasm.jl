@@ -1,16 +1,8 @@
-
-
-@testset "+ $(basename(@__FILE__))" verbose = true begin
-   baseline = Dict(
-        "shpfun" => (; mean_time=0.49, memory=missing, allocs=missing),
-    )
+function define_benchs(ic,cfg)
     suite = BenchmarkGroup()
     suite["shpfun"]      = BenchmarkGroup(["string", "unicode"])
     suite["mapsto"]      = BenchmarkGroup(["string", "unicode"])
     suite["elastoplast"] = BenchmarkGroup(["string", "unicode"])
-
-    L,nel  = [64.1584,64.1584/4.0],[80,20];
-    ic,cfg = ic_slump(L,nel; fid = "test/performance");
     # unpack mesh, mp, cmpr, instr, paths as aliases
     mesh,mp,cmpr = ic[:mesh]  , ic[:mp]    , (ic[:cmpr])
     instr,paths  = cfg[:instr], cfg[:paths]
@@ -62,56 +54,87 @@
     suite["elastoplast"]["elast"] = @benchmarkable begin
         $cfg.instr[:cairn][:elastoplast][:elast].elast!(ndrange=$mp.nmp,$mp,$cmpr.Del);sync(CPU())
     end
+    return suite
+end
 
-    @info "Run benchmarks..."
+function run_bench(L,nel)
+    ic,cfg = ic_slump(L,nel; fid = "test/performance");
+    suite  = define_benchs(ic,cfg)
+    if length(L) == 2
+        dim = "2d" 
+    elseif length(L) == 3
+        dim = "3d"
+    end
+
+    @info "Run $dim benchmarks..."
+    current = Dict()
     benchmark = mean(run(suite))
-
-    saved = Dict()
-    for (group, results) in benchmark
-        #println("Group: kernel(s) in $group")
+    for (group, results) ∈ benchmark
+        println("Group: kernel(s) in $group")
         tot_mean,tot_memory,tot_alloc = 0.0, 0, 0
         for (name, res) in results
             mean_time = round(res.time / 1e6,digits=2)
             memory    = res.memory
             allocs    = res.allocs
-            #println("  $name:")
-            #println("    mean time: $(mean_time) ms")
-            #println("    memory   : $(memory) bytes"                 )
-            #println("    allocs   : $(allocs)"                       )
+            println("  $name:")
+            println("    mean time: $(mean_time) ms")
+            println("    memory   : $(memory) bytes"                 )
+            println("    allocs   : $(allocs)"                       )
             tot_mean   = round(tot_mean + mean_time,digits=2)
             tot_alloc  = tot_alloc + allocs
             tot_memory = tot_memory + memory
         end
         # Store results in a dictionary for later use
-        saved[group] = (; mean_time=tot_mean, memory=tot_memory, allocs=tot_alloc)
+        current[group] = (; mean_time=tot_mean, memory=tot_memory, allocs=tot_alloc)
         #println("")
     end
     @info "Overall summary:"
-    for (key, group) in saved
+    for (key, group) ∈ current
         println("Results for group: $key")
         println("  mean time: $(group.mean_time) ms")
         println("  memory   : $(group.memory) bytes")
         println("  allocs   : $(group.allocs)")
     end
     println("")
+    return current
+end
+
+
+@testset "+ $(basename(@__FILE__))" verbose = true begin
+
+    current = Dict(
+        "2d" => Dict(),
+        "3d" => Dict(),
+    )
+
+    L,nel   = [64.1584,64.1584/4.0],[80,20];
+    current["2d"] = run_bench(L,nel)
+
 
 
     path = joinpath(DATASET, "performance_baseline.jld2")
+    cpu_name = split(string(Sys.cpu_info()[1]), ":")[1]
     if "performance_baseline.jld2" ∉ readdir(DATASET) 
         @info "No baseline found, saving current performance results."
         # Save the current benchmark results as a baseline
-        baseline = saved; save(path, baseline)
+        baseline = Dict(cpu_name => current); save(path, baseline)
     else
         @info "Baseline found, comparing current performance against it."
         # Load the baseline for comparison
         baseline = load(path)
+        if !haskey(baseline,cpu_name)
+            baseline[cpu_name] = current
+            save(path, baseline)
+        end
         # Compare current results with the baseline
-        for (group, res) ∈ baseline
+        for (group, res) ∈ baseline[cpu_name]["2d"]
             @testset "- $group" verbose = true begin
-                try
-                    @test res.mean_time ≤ baseline[group].mean_time * (1 + 0.05)
-                catch
-                    @test_broken "Baseline comparison failed for $group"
+                if !haskey(current["2d"], group)
+                    @test_broken "Current performance results do not contain group $group"                    
+                else
+                    println("Testing $(group):")
+                    println("current: $(current["2d"][group].mean_time) ms ≤ baseline: $(res.mean_time) ms")
+                    @test current["2d"][group].mean_time ≤ res.mean_time * (1 + 0.05)
                 end
             end
         end

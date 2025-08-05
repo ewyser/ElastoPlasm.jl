@@ -18,11 +18,11 @@ Computes the adaptive time step for the simulation based on mesh spacing and mat
 dt = get_dt(mp, mesh, 1e-6, t, time)
 ```
 """
-function get_dt(mp,mesh,cmpr,time,ΔT)
+function get_dt(mp::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
     # calculte dt
-    cmax = mesh.h./(mp.vmax.+cmpr[:c]); mp.vmax.=0.0 
-    dt   = min(0.5*maximum(cmax),ΔT-time.t[1])
-    return dt
+    cmax = mesh.h./(mp.vmax.+cmpr[:c]); mp.vmax.=T2(0.0) 
+    dt   = min(T2(0.5)*maximum(cmax),ΔT-time.t[1])
+    return dt::T2
 end
 
 """
@@ -43,15 +43,15 @@ Calculates the gravity vector for the current time, ramping up to full gravity o
 g = get_g(t, tg, 2)
 ```
 """
-function get_g(dim; G::Float64=9.81)
-    if dim == 1 
+function get_g(mesh::Mesh{T1,T2}; G::T2=9.81) where {T1,T2}
+    if mesh.dim == T1(1) 
         g = [-G] 
-    elseif dim == 2 
-        g = [0.0,-G] 
-    elseif dim == 3 
-        g = [0.0,0.0,-G] 
+    elseif mesh.dim == T1(2) 
+        g = [T2(0.0),-G] 
+    elseif mesh.dim == T1(3) 
+        g = [T2(0.0),T2(0.0),-G] 
     end
-    return g
+    return g::Vector{T2}
 end
 
 """
@@ -77,14 +77,14 @@ Updates simulation state, including plasticity status, adaptive time step, and g
 g, dt = get_spacetime(mp, mesh, cmpr, instr, t, tg, te, time)
 ```
 """
-function get_spacetime(mp,mesh,cmpr,time,ΔT)
+function get_spacetime(mp::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
     # calculte dt
     dt = get_dt(mp,mesh,cmpr,time,ΔT)
     # ramp-up gravity
     if time.t[1] <= time.tg 
-        g = get_g(mesh.dim; G = 9.81*time.t[1]/time.tg)
+        g = get_g(mesh; G = T2(9.81*time.t[1]/time.tg))
     else
-        g = get_g(mesh.dim;)
+        g = get_g(mesh; G = T2(9.81)                  )
     end
     return g,dt
 end

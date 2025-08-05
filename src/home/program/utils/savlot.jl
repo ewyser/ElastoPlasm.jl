@@ -1,5 +1,5 @@
-@views function savlot(mp,mesh,t,instr) 
-    if instr[:plot][:status]        
+@views function savlot(mp::Point{T1,T2},mesh::Mesh{T1,T2},t::T2,instr::Dict) where {T1,T2}
+    if instr[:plot][:status]
         ms = 0.4*instr[:plot][:dims][1]/mesh.nel[1]
         opts = (;
             dims  = instr[:plot][:dims],
