@@ -9,7 +9,7 @@ function get_bc(xn,h,nno,ndim;ghosts=0.0)
         bcX[end]= 0.0
         bc   = bcX
     elseif ndim == 2
-        xB  = vcat([l[1],L[1]],[l[2],Inf])
+        xB  = vcat([l[1],L[1]],[l[2],L[2]])
         idx = findall(x-> x ∈ xB[1:2],xn[1,:])
         idz = findall(x-> x ∈ xB[3:4],xn[2,:])
         for k ∈ 1:nno[end]
@@ -21,7 +21,7 @@ function get_bc(xn,h,nno,ndim;ghosts=0.0)
             end
         end
     elseif ndim == 3
-        xB  = vcat([l[1],L[1]],[l[2],L[2]],[l[3],Inf])
+        xB  = vcat([l[1],L[1]],[l[2],L[2]],[l[3],L[3]])
         idx = findall(x-> x ∈ xB[1:2],xn[1,:])
         idy = findall(x-> x ∈ xB[3:4],xn[2,:])
         idz = findall(x-> x ∈ xB[5:6],xn[3,:])

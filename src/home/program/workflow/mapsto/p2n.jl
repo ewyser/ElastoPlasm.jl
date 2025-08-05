@@ -41,6 +41,32 @@ end
             end
         end
     end
+#=
+    # accumulation
+    if p≤mp.nmp
+        # caching 
+        m  ,Ω       = mp.s.m[p]    ,mp.Ω[p]
+        px ,py      = m*mp.s.v[1,p],m*mp.s.v[2,p]
+        σxx,σyy,σxy = mp.s.σᵢ[1,p] ,mp.s.σᵢ[2,p] ,mp.s.σᵢ[3,p]
+        for dim ∈ 1:mesh.dim 
+            for nn ∈ 1:mesh.nn
+                # caching 
+                no        = mp.p2n[nn,p]
+                N,∂Nx,∂Ny = mp.ϕ[nn,p,1],mp.∂ϕ[nn,p,2],mp.∂ϕ[nn,p,3]
+                if iszero(no) continue end
+                
+                if dim == 1
+                    @atom mesh.mᵢ[no]      += N * m
+                    @atom mesh.p[dim,no]   += N * px
+                    @atom mesh.oobf[dim,no]-= Ω * (∂Nx * σxx + ∂Ny * σxy)
+                elseif dim == 2
+                    @atom mesh.p[dim,no]   += N * py
+                    @atom mesh.oobf[dim,no]+= N * (m * g[dim]) - Ω * (∂Nx * σxy + ∂Ny * σyy)
+                end
+            end
+        end
+    end
+=#
 end
 @kernel inbounds = true function flip_3d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
