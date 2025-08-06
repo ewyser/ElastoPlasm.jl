@@ -107,10 +107,11 @@ end
         "3d" => Dict(),
     )
 
-    L,nel   = [64.1584,64.1584/4.0],[80,20];
+    L,nel   = [64.1584,64.1584/4.0],[40,10];
     current["2d"] = run_bench(L,nel)
 
-
+    L,nel   = [64.1584,64.1584/4.0,64.1584/4.0],[40,10,10];
+    current["3d"] = run_bench(L,nel)
 
     path = joinpath(DATASET, "performance_baseline.jld2")
     cpu_name = split(string(Sys.cpu_info()[1]), ":")[1]
