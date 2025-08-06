@@ -19,21 +19,20 @@ Initializes the mesh, material points, and simulation configuration for a slump 
 ic, cfg = ic_slump([64.0, 16.0], [40, 10]; fid="run1")
 ```
 """
-function ic_slump(L::Vector{Float64},nel::Vector{Int64}; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
+function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
     @info "Setting up mesh & material point system for $(length(L))d slump problem"
     # init & kwargs
     instr = kwargser(:instr,kwargs;dim=length(L))
     paths = set_paths(fid,info.sys.out;interactive=false)  
     T0    = instr[:dtype].T0  
-    T1,T2 = first(T0),last(T0)  
+    T1,T2 = first(T0),last(T0) 
+    L,nel = T2.(L),T1.(nel) 
     # mesh & mp initial conditions
     mesh  = setup_mesh(nel,L,instr)
     cmpr  = setup_cmpr(mesh,instr;)                       
-    mp    = setup_mps(mesh,cmpr;define=geom_slump(mesh,cmpr,instr))
+    mp    = setup_mpts(mesh,cmpr;define=geom_slump(mesh,cmpr,instr))
     # time parameters
-    te,tg = 10.0, 10.0
-    tep   = 5.0
-    time  = (; t = T2.([0.0,te+tep]), te = T2(te), tg = if tg > te T2(te) else T2(tg) end, tep = T2(tep),)
+    time  = setup_time(T2; te=10.0,tg=10.0,tep=5.0) 
     # plot initial cohesion field
     ms = 0.4*instr[:plot][:dims][1]/mesh.nel[1]
     opts = (;
