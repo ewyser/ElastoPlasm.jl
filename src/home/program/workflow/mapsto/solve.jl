@@ -8,7 +8,7 @@
             mᵢ,oobf = (T2(1.0)/mesh.mᵢ[no]),norm(mesh.oobf[:,no])
             for dim ∈ 1:mesh.dim
                 # apply boundary contidions
-                if iszero(mesh.bc[dim,no])
+                if mesh.bcs.status[dim,no]
                     mesh.a[dim,no] = T2(0.0)                                         
                     mesh.v[dim,no] = T2(0.0)                                         
                 else

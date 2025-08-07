@@ -1,4 +1,4 @@
-function setup_mps(mesh::Mesh{T1,T2},cmp::NamedTuple;define::Tuple=(nothing,nothing)) where {T1,T2}
+function setup_mpts(mesh::Mesh{T1,T2},cmp::NamedTuple;define::Tuple=(nothing,nothing)) where {T1,T2}
     # non-dimensional constant                                                   
     if mesh.dim == 2 
         nstr = 3 

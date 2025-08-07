@@ -19,7 +19,7 @@ end
         else
             for dim ∈ 1:mesh.dim       
                 # apply boundary contidions || forward euler solution
-                if iszero(mesh.bc[dim,no])
+                if mesh.bcs.status[dim,no]
                     mesh.v[dim,no] = T2(0.0)                                         
                 else
                     mesh.v[dim,no] = mesh.p[dim,no]*(T2(1.0)/mesh.mᵢ[no])  
