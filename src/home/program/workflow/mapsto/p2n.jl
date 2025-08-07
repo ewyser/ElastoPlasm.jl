@@ -2,91 +2,74 @@
     p = @index(Global)
     # deformation framework dispatcher
     if p ≤ mp.nmp 
-        mp.s.σᵢ[:,p].= mp.s.τᵢ[:,p]./mp.s.J[p]
+        J = mp.s.J[p]
+        for c ∈ 1:size(mp.s.σᵢ,1)
+            mp.s.σᵢ[c,p] = mp.s.τᵢ[c,p]/J
+        end
     end   
 end
-@kernel inbounds = true function flip_1d_p2n(mp,mesh,g)
+@kernel inbounds = true function flip_1d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp 
-        # accumulation
+        # buffering 
+        m,Ω = mp.s.m[p]    ,mp.Ω[p]
+        px  = m*mp.s.v[p]
+        σxx = mp.s.σᵢ[1,p]
         for nn ∈ 1:mesh.nn
-            no = mp.p2n[nn,p]
+            # buffering 
+            no        = mp.p2n[nn,p]
+            N,∂Nx     = mp.ϕ∂ϕ[nn,p,1],mp.ϕ∂ϕ[nn,p,2]
+            # accumulation
             if iszero(no) continue end
-            @atom mesh.p[no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*mp.s.v[p])
-            # lumped mass matrix
-            @atom mesh.mᵢ[no]+= mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p]
-            # consistent mass matrix
-            # mesh.Mᵢⱼ[mp.p2n[:,p],mp.p2n[:,p]].+= (mp.ϕ∂ϕ[:,p,1].*mp.ϕ∂ϕ[:,p,1]').*mp.m[p]   
-            @atom mesh.oobf[no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*g) 
-            @atom mesh.oobf[no]-= mp.Ω[p]*mp.ϕ∂ϕ[nn,p,2]*mp.s.σᵢ[1,p]
+            @atom mesh.mᵢ[no]  += N * m
+            @atom mesh.p[no]   += N * px
+            @atom mesh.oobf[no]-= Ω * (∂Nx * σxx)
+            @atom mesh.oobf[no]+= N * (m * g[1])
         end
     end
 end
 @kernel inbounds = true function flip_2d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp
-        for dim ∈ 1:mesh.dim 
-            # accumulation
-            for nn ∈ 1:mesh.nn
-                no = mp.p2n[nn,p]
-                if iszero(no) continue end
-                @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*mp.s.v[dim,p])
-                if dim == 1
-                    @atom mesh.mᵢ[no]      += mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p]
-                    @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.s.σᵢ[1,p]+mp.ϕ∂ϕ[nn,p,3]*mp.s.σᵢ[3,p])
-                elseif dim == 2
-                    @atom mesh.oobf[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*g[dim]      )
-                    @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.s.σᵢ[3,p]+mp.ϕ∂ϕ[nn,p,3]*mp.s.σᵢ[2,p])
-                end
-            end
-        end
-    end
-#=
-    # accumulation
-    if p≤mp.nmp
-        # caching 
+        # buffering 
         m  ,Ω       = mp.s.m[p]    ,mp.Ω[p]
         px ,py      = m*mp.s.v[1,p],m*mp.s.v[2,p]
         σxx,σyy,σxy = mp.s.σᵢ[1,p] ,mp.s.σᵢ[2,p] ,mp.s.σᵢ[3,p]
-        for dim ∈ 1:mesh.dim 
-            for nn ∈ 1:mesh.nn
-                # caching 
-                no        = mp.p2n[nn,p]
-                N,∂Nx,∂Ny = mp.ϕ[nn,p,1],mp.∂ϕ[nn,p,2],mp.∂ϕ[nn,p,3]
-                if iszero(no) continue end
-                
-                if dim == 1
-                    @atom mesh.mᵢ[no]      += N * m
-                    @atom mesh.p[dim,no]   += N * px
-                    @atom mesh.oobf[dim,no]-= Ω * (∂Nx * σxx + ∂Ny * σxy)
-                elseif dim == 2
-                    @atom mesh.p[dim,no]   += N * py
-                    @atom mesh.oobf[dim,no]+= N * (m * g[dim]) - Ω * (∂Nx * σxy + ∂Ny * σyy)
-                end
-            end
+        for nn ∈ 1:mesh.nn
+            # buffering 
+            no        = mp.p2n[nn,p]
+            N,∂Nx,∂Ny = mp.ϕ∂ϕ[nn,p,1],mp.ϕ∂ϕ[nn,p,2],mp.ϕ∂ϕ[nn,p,3]
+            # accumulation
+            if iszero(no) continue end
+            @atom mesh.mᵢ[no]    += N * m
+            @atom mesh.p[1,no]   += N * px
+            @atom mesh.p[2,no]   += N * py
+            @atom mesh.oobf[1,no]-= Ω * (∂Nx * σxx + ∂Ny * σxy)
+            @atom mesh.oobf[2,no]-= Ω * (∂Nx * σxy + ∂Ny * σyy) - N * (m * g[2])
         end
     end
-=#
 end
 @kernel inbounds = true function flip_3d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp
-        for dim ∈ 1:mesh.dim 
+        # buffering 
+        m  ,Ω       = mp.s.m[p]    ,mp.Ω[p]
+        px ,py ,pz  = m*mp.s.v[1,p],m*mp.s.v[2,p],m*mp.s.v[3,p]
+        σxx,σyy,σzz = mp.s.σᵢ[1,p] ,mp.s.σᵢ[2,p] ,mp.s.σᵢ[3,p]
+        σyx,σzy,σzx = mp.s.σᵢ[6,p] ,mp.s.σᵢ[4,p] ,mp.s.σᵢ[5,p]
+        for nn ∈ 1:mesh.nn
+            # buffering
+            no            = mp.p2n[nn,p]
+            N,∂Nx,∂Ny,∂Nz = mp.ϕ∂ϕ[nn,p,1],mp.ϕ∂ϕ[nn,p,2],mp.ϕ∂ϕ[nn,p,3],mp.ϕ∂ϕ[nn,p,4]
             # accumulation
-            for nn ∈ 1:mesh.nn
-                no = mp.p2n[nn,p]
-                if iszero(no) continue end
-                @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*mp.s.v[dim,p])
-                if dim == 1
-                    @atom mesh.mᵢ[no]      += mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p] 
-                    @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.s.σᵢ[1,p]+mp.ϕ∂ϕ[nn,p,3]*mp.s.σᵢ[6,p]+mp.ϕ∂ϕ[nn,p,4]*mp.s.σᵢ[5,p])
-                elseif dim == 2
-                    @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.s.σᵢ[6,p]+mp.ϕ∂ϕ[nn,p,3]*mp.s.σᵢ[2,p]+mp.ϕ∂ϕ[nn,p,4]*mp.s.σᵢ[4,p])
-                elseif dim == 3
-                    @atom mesh.oobf[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*g[dim]      )
-                    @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.s.σᵢ[5,p]+mp.ϕ∂ϕ[nn,p,3]*mp.s.σᵢ[4,p]+mp.ϕ∂ϕ[nn,p,4]*mp.s.σᵢ[3,p])
-                end
-            end
+            if iszero(no) continue end
+            @atom mesh.mᵢ[no]    += N * m
+            @atom mesh.p[1,no]   += N * px
+            @atom mesh.p[2,no]   += N * py
+            @atom mesh.p[3,no]   += N * pz
+            @atom mesh.oobf[1,no]-= Ω * ( ∂Nx * σxx + ∂Ny * σyx + ∂Nz * σzx)
+            @atom mesh.oobf[2,no]-= Ω * ( ∂Nx * σyx + ∂Ny * σyy + ∂Nz * σzy)
+            @atom mesh.oobf[3,no]-= Ω * ( ∂Nx * σzx + ∂Ny * σzy + ∂Nz * σzz) - N * (m * g[3])
         end
     end
 end
@@ -96,41 +79,53 @@ end
 @kernel inbounds = true function tpic_2d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp
-        for dim ∈ 1:mesh.dim 
-            for nn ∈ 1:mesh.nn
-                no = mp.p2n[nn,p]
-                if iszero(no) continue end
-                @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p]*(mp.s.v[dim,p]+mp.s.∇vᵢⱼ[dim,1,p]*mp.δnp[nn,1,p]+mp.s.∇vᵢⱼ[dim,2,p]*mp.δnp[nn,2,p])
-                if dim == 1
-                    @atom mesh.mᵢ[no]      += mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p]
-                    @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.s.σᵢ[1,p]+mp.ϕ∂ϕ[nn,p,3]*mp.s.σᵢ[3,p])
-                elseif dim == 2
-                    @atom mesh.oobf[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*g[dim]      )
-                    @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.s.σᵢ[3,p]+mp.ϕ∂ϕ[nn,p,3]*mp.s.σᵢ[2,p])
-                end
-            end
+        # buffering 
+        m  ,Ω       = mp.s.m[p]       ,mp.Ω[p]
+        vx ,vy      = mp.s.v[1,p]     ,mp.s.v[2,p]
+        σxx,σyy,σxy = mp.s.σᵢ[1,p]    ,mp.s.σᵢ[2,p]     ,mp.s.σᵢ[3,p]
+        ∇vxx,∇vxy   = mp.s.∇vᵢⱼ[1,1,p],mp.s.∇vᵢⱼ[1,2,p]
+        ∇vyx,∇vyy   = mp.s.∇vᵢⱼ[2,1,p],mp.s.∇vᵢⱼ[2,2,p]
+        for nn ∈ 1:mesh.nn
+            # buffering 
+            no        = mp.p2n[nn,p]
+            N,∂Nx,∂Ny = mp.ϕ∂ϕ[nn,p,1],mp.ϕ∂ϕ[nn,p,2],mp.ϕ∂ϕ[nn,p,3]
+            δx,δy     = mp.δnp[nn,1,p],mp.δnp[nn,2,p]
+            # accumulation
+            if iszero(no) continue end
+            @atom mesh.mᵢ[no]    += N * m
+            @atom mesh.p[1,no]   += N * m * (vx + ∇vxx * δx + ∇vxy * δy)
+            @atom mesh.p[2,no]   += N * m * (vy + ∇vyx * δx + ∇vyy * δy)
+            @atom mesh.oobf[1,no]-= Ω * (∂Nx * σxx + ∂Ny * σxy)
+            @atom mesh.oobf[2,no]-= Ω * (∂Nx * σxy + ∂Ny * σyy) - N * (m * g[2])
         end
     end
-
 end
 @kernel inbounds = true function tpic_3d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mp.nmp
-        for dim ∈ 1:mesh.dim 
-            for nn ∈ 1:mesh.nn
-                no = mp.p2n[nn,p]
-                if iszero(no) continue end
-                @atom mesh.p[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p]*(mp.s.v[dim,p]+mp.s.∇vᵢⱼ[dim,1,p]*mp.δnp[nn,1,p]+mp.s.∇vᵢⱼ[dim,2,p]*mp.δnp[nn,2,p]+mp.s.∇vᵢⱼ[dim,3,p]*mp.δnp[nn,3,p])
-                if dim == 1
-                    @atom mesh.mᵢ[no      ]+= mp.ϕ∂ϕ[nn,p,1]*mp.s.m[p]
-                    @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.s.σᵢ[1,p]+mp.ϕ∂ϕ[nn,p,3]*mp.s.σᵢ[6,p]+mp.ϕ∂ϕ[nn,p,4]*mp.s.σᵢ[5,p])
-                elseif dim == 2
-                    @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.s.σᵢ[6,p]+mp.ϕ∂ϕ[nn,p,3]*mp.s.σᵢ[2,p]+mp.ϕ∂ϕ[nn,p,4]*mp.s.σᵢ[4,p])
-                elseif dim == 3
-                    @atom mesh.oobf[dim,no]+= mp.ϕ∂ϕ[nn,p,1]*(mp.s.m[p]*g[dim]      )
-                    @atom mesh.oobf[dim,no]-= mp.Ω[p]*(mp.ϕ∂ϕ[nn,p,2]*mp.s.σᵢ[5,p]+mp.ϕ∂ϕ[nn,p,3]*mp.s.σᵢ[4,p]+mp.ϕ∂ϕ[nn,p,4]*mp.s.σᵢ[3,p])
-                end
-            end
+        # buffering 
+        m   ,Ω          = mp.s.m[p]       ,mp.Ω[p]
+        vx  ,vy  ,vz    = mp.s.v[1,p]     ,mp.s.v[2,p]  ,mp.s.v[3,p]
+        σxx ,σyy ,σzz   = mp.s.σᵢ[1,p]    ,mp.s.σᵢ[2,p] ,mp.s.σᵢ[3,p]
+        σyx ,σzy ,σzx   = mp.s.σᵢ[6,p]    ,mp.s.σᵢ[4,p] ,mp.s.σᵢ[5,p]
+        σxx ,σyy ,σxy   = mp.s.σᵢ[1,p]    ,mp.s.σᵢ[2,p] ,mp.s.σᵢ[3,p]
+        ∇vxx,∇vxy,∇vxz = mp.s.∇vᵢⱼ[1,1,p],mp.s.∇vᵢⱼ[1,2,p],mp.s.∇vᵢⱼ[1,3,p]
+        ∇vyx,∇vyy,∇vyz = mp.s.∇vᵢⱼ[2,1,p],mp.s.∇vᵢⱼ[2,2,p],mp.s.∇vᵢⱼ[2,3,p]
+        ∇vzx,∇vzy,∇vzz = mp.s.∇vᵢⱼ[3,1,p],mp.s.∇vᵢⱼ[3,2,p],mp.s.∇vᵢⱼ[3,3,p]
+        for nn ∈ 1:mesh.nn
+            # buffering
+            no            = mp.p2n[nn,p]
+            N,∂Nx,∂Ny,∂Nz = mp.ϕ∂ϕ[nn,p,1],mp.ϕ∂ϕ[nn,p,2],mp.ϕ∂ϕ[nn,p,3],mp.ϕ∂ϕ[nn,p,4]
+            δx,δy,δz      = mp.δnp[nn,1,p],mp.δnp[nn,2,p],mp.δnp[nn,3,p]
+            # accumulation
+            if iszero(no) continue end
+            @atom mesh.mᵢ[no]    += N * m
+            @atom mesh.p[1,no]   += N * m * (vx + ∇vxx * δx + ∇vxy * δy + ∇vxz * δz)
+            @atom mesh.p[2,no]   += N * m * (vy + ∇vyx * δx + ∇vyy * δy + ∇vyz * δz)
+            @atom mesh.p[3,no]   += N * m * (vz + ∇vzx * δx + ∇vzy * δy + ∇vzz * δz)
+            @atom mesh.oobf[1,no]-= Ω * ( ∂Nx * σxx + ∂Ny * σyx + ∂Nz * σzx)
+            @atom mesh.oobf[2,no]-= Ω * ( ∂Nx * σyx + ∂Ny * σyy + ∂Nz * σzy)
+            @atom mesh.oobf[3,no]-= Ω * ( ∂Nx * σzx + ∂Ny * σzy + ∂Nz * σzz) - N * (m * g[3])
         end
     end
 end

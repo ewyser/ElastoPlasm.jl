@@ -4,8 +4,8 @@ function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80 )
 
     wl = 0.15*lz
     if mesh.dim == 2
-        x          = collect(mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2])
-        z          = collect(mesh.xB[3]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:lz-0.5*mesh.h[2]/ni)
+        x          = collect(mesh.xB[1,1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[1,2])
+        z          = collect(mesh.xB[2,1]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:lz-0.5*mesh.h[2]/ni)
         nmp        = [length(x),length(z),length(x)*length(z)]
         xp         = repeat(reshape(x,1     ,nmp[1]),nmp[2],1     )
         zp         = repeat(reshape(z,nmp[2],1     ),1     ,nmp[1])
@@ -46,9 +46,9 @@ function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80 )
             end
         end
     elseif mesh.dim == 3
-        x          = collect(mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2]         )
-        y          = collect(mesh.xB[3]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:mesh.xB[4]         )
-        z          = collect(mesh.xB[5]+(0.5*mesh.h[3]/ni):mesh.h[3]/ni:lz-0.5*mesh.h[3]/ni)
+        x          = collect(mesh.xB[1,1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[1,2]         )
+        y          = collect(mesh.xB[2,1]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:mesh.xB[2,2]         )
+        z          = collect(mesh.xB[3,1]+(0.5*mesh.h[3]/ni):mesh.h[3]/ni:lz-0.5*mesh.h[3]/ni)
         nmp        = [length(x),length(y),length(z),length(x)*length(y)*length(z)]
         xp         = repeat(reshape(x,1     ,nmp[1],1     ),nmp[3],1     ,nmp[2])
         yp         = repeat(reshape(y,1     ,1     ,nmp[2]),nmp[3],nmp[1],1     )

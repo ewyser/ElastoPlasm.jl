@@ -102,8 +102,8 @@ end
             # compute basis functions
             ξ      = (mp.x[1,p]-mesh.x[1,no])/mesh.h[1]
             η      = (mp.x[2,p]-mesh.x[2,no])/mesh.h[2]
-            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[1,no],mesh.xB[1:2],mesh.h[1])
-            ϕz,dϕz = ϕ∂ϕ(η,mesh.x[2,no],mesh.xB[3:4],mesh.h[2])
+            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[1,no],mesh.xB[1,:],mesh.h[1])
+            ϕz,dϕz = ϕ∂ϕ(η,mesh.x[2,no],mesh.xB[2,:],mesh.h[2])
             #println("$(typeof(ξ)),$(typeof(η)),$(typeof(ϕx)),$(typeof(ϕz)),$(typeof(dϕx)),$(typeof(dϕz))")
             # convolution of basis function
             mp.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
@@ -123,9 +123,9 @@ end
             ξ      = (mp.x[1,p]-mesh.x[1,no])/mesh.h[1]
             η      = (mp.x[2,p]-mesh.x[2,no])/mesh.h[2]
             ζ      = (mp.x[3,p]-mesh.x[3,no])/mesh.h[3]
-            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[1,no],mesh.xB[1:2],mesh.h[1])
-            ϕy,dϕy = ϕ∂ϕ(η,mesh.x[2,no],mesh.xB[3:4],mesh.h[2])
-            ϕz,dϕz = ϕ∂ϕ(ζ,mesh.x[3,no],mesh.xB[5:6],mesh.h[3])
+            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[1,no],mesh.xB[1,:],mesh.h[1])
+            ϕy,dϕy = ϕ∂ϕ(η,mesh.x[2,no],mesh.xB[2,:],mesh.h[2])
+            ϕz,dϕz = ϕ∂ϕ(ζ,mesh.x[3,no],mesh.xB[3,:],mesh.h[3])
             # convolution of basis function
             mp.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕy*  ϕz                                                                                
             mp.ϕ∂ϕ[nn,p,2] = dϕx*  ϕy*  ϕz                                                                                

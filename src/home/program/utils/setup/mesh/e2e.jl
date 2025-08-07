@@ -1,8 +1,8 @@
-function e2e(ndim,nno,nel,nn,h,instr)
-    e2e  = spzeros(Int64,nel[end],nel[end])
-    nnel = ceil.(Int,instr[:nonloc][:ls]./h)
+function e2e(ndim::T1,nel::Vector{T1},h::Vector{T2},instr) where {T1,T2}
+    e2e  = spzeros(T1,nel[end],nel[end])
+    nnel = ceil.(T1,instr[:nonloc][:ls]./h)
+    gnum = collect(T1(1):nel[end])
     if ndim == 1
-        gnum = collect(1:nel[end])
         iel  = 0
         for i ∈ 1:nel[1]#nelx
             iel = iel+1
@@ -11,7 +11,7 @@ function e2e(ndim,nno,nel,nn,h,instr)
             e2e[iel,els] = els
         end
     elseif ndim == 2
-        gnum = reshape(1:nel[end],nel[2],nel[1])
+        gnum = reshape(gnum,Int(nel[2]),Int(nel[1]))
         iel  = 0
         for i ∈ 1:nel[1]#nelx
             for j ∈ 1:nel[2]#nelz
@@ -23,7 +23,7 @@ function e2e(ndim,nno,nel,nn,h,instr)
             end
         end
     elseif ndim == 3
-        gnum = reshape(1:(nel[end]),nel[3],nel[1],nel[2])
+        gnum = reshape(gnum,Int(nel[3]),Int(nel[1]),Int(nel[2]))
         iel  = 0
         for k ∈ 1:nel[2] #nely
             for i ∈ 1:nel[1] #nelx

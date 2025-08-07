@@ -22,7 +22,7 @@ Initializes the mesh, material points, constitutive model, and simulation config
 ic, cfg = ic_collapse([5, 10], 0.0, 1.0e4, 80.0, 10.0; plot=(status=true, freq=1.0))
 ```
 """
-function ic_collapse(nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
+function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
     @info "Setting up mesh & material point system for $(length(nel))d collapse problem"
     # Geometry
     dim = length(nel)
@@ -31,16 +31,17 @@ function ic_collapse(nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=first(split
     instr = kwargser(:instr, kwargs; dim=dim)
     paths = set_paths(fid, info.sys.out; interactive=false)
     T0    = instr[:dtype].T0  
-    T1,T2 = first(T0),last(T0)  
+    T1,T2 = first(T0),last(T0) 
+    L,nel = T2.(L),T1.(nel) 
     # mesh & mp initial conditions
-    ni    =  2
+    ni    = T1(2)
     mesh  = setup_mesh(nel, L, instr)
-    cmpr  = setup_cmpr(mesh,instr; E=E, ν=ν, ρ0=ρ0)
-    mp    = setup_mps(mesh, cmpr; define=geom_collapse(mesh, cmpr, ni; ℓ₀=l0))
+    cmpr  = setup_cmpr(mesh,instr; E=T2(E), ν=T2(ν), ρ0=T2(ρ0))
+    mp    = setup_mpts(mesh, cmpr; define=geom_collapse(mesh, cmpr, ni; ℓ₀=l0))
     # time parameters
     tg    = ceil((1.0/cmpr.c)*(2.0*l0)*40.0)
     te    = 1.25*tg
-    time  = (; t = T2.([0.0, te]), te = T2(te), tg = if tg > te T2(te) else T2(tg) end, tep = nothing,)
+    time  = setup_time(T2; te=te,tg=tg) 
     # display summary
     @info ic_log(mesh,mp,time)
     return (;mesh, mp, cmpr, time), (;instr, paths)

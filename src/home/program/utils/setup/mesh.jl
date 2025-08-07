@@ -1,22 +1,14 @@
-function setup_mesh(nel,L,instr)
-    # geometry                                               
-    if instr[:basis][:which] == "bsmpm"
-        ndim,nn,h = length(L),4^length(L),min.(L./nel,L./4)
-    else
-        ndim,nn,h = length(L),4^length(L),L./nel #L,h,ndim,nn = getinfo(L,nel)
-    end
-
+function setup_mesh(nel::Vector{T1},L::Vector{T2},instr) where {T1,T2}
     if instr[:basis][:ghost]
-        #@info "Init Eulerian mesh & adding ghosts"
-        buffer = 2.0.*h
+        buffer = T2(2.0)
     else
-        #@info "Init Eulerian mesh"
-        buffer = 0.0.*h            
+        buffer = T2(0.0)
     end
-    # mesh & boundary conditions
-    xn,nel,nno = get_coords(ndim,nn,L,h;ghosts=buffer)
-    bc,xB      = get_bc(xn,h,nno,ndim;ghosts=buffer)
-    # constructor 
+    # mesh & boundary conditions                                      
+    ndim,nn,h  = get_geom(nel,L,instr)
+    xn,nel,nno = get_coords(ndim,L,h; ghosts=buffer.*h)
+    status,xB  = get_bc(xn,nno,ndim ; ghosts=buffer.*h, set=instr[:bcs].dirichlet)
+    # constructor
     mesh = (;
         dim  = ndim,
         nel  = nel,
@@ -40,14 +32,13 @@ function setup_mesh(nel,L,instr)
         bij  = zeros(ndim,ndim,nno[end]   ),
         # mesh-to-node topology
         e2n  = e2n(ndim,nno,nel,nn        ),
-        e2e  = e2e(ndim,nno,nel,nn,h,instr),
+        e2e  = e2e(ndim,nel,h,instr),
         xB   = xB                          ,
-        # mesh boundary conditions
-        bc   = bc                          ,
     )
-
-    T1, T2 = first(instr[:dtype].T0), last(instr[:dtype].T0)
-    out = Mesh{T1,T2}(
+    bcs = Boundary{Bool}(
+        status
+    )
+    out = Mesh{T1,T2,Bool,NamedTuple}(
         T1(mesh.dim), 
         T1.(mesh.nel), 
         T1.(mesh.nno), 
@@ -73,7 +64,7 @@ function setup_mesh(nel,L,instr)
         T1.(mesh.e2e), 
         T2.(mesh.xB), 
         # mesh boundary conditions
-        T2.(mesh.bc)
+        bcs
     )
     return out
 end

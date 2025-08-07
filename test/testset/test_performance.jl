@@ -70,16 +70,16 @@ function run_bench(L,nel)
     current = Dict()
     benchmark = mean(run(suite))
     for (group, results) ∈ benchmark
-        println("Group: kernel(s) in $group")
+        #println("Group: kernel(s) in $group")
         tot_mean,tot_memory,tot_alloc = 0.0, 0, 0
         for (name, res) in results
             mean_time = round(res.time / 1e6,digits=2)
             memory    = res.memory
             allocs    = res.allocs
-            println("  $name:")
-            println("    mean time: $(mean_time) ms")
-            println("    memory   : $(memory) bytes"                 )
-            println("    allocs   : $(allocs)"                       )
+            #println("  $name:")
+            #println("    mean time: $(mean_time) ms")
+            #println("    memory   : $(memory) bytes"                 )
+            #println("    allocs   : $(allocs)"                       )
             tot_mean   = round(tot_mean + mean_time,digits=2)
             tot_alloc  = tot_alloc + allocs
             tot_memory = tot_memory + memory
@@ -107,10 +107,11 @@ end
         "3d" => Dict(),
     )
 
-    L,nel   = [64.1584,64.1584/4.0],[80,20];
+    L,nel   = [64.1584,64.1584/4.0],[40,10];
     current["2d"] = run_bench(L,nel)
 
-
+    L,nel   = [64.1584,64.1584/4.0,64.1584/4.0],[40,10,10];
+    current["3d"] = run_bench(L,nel)
 
     path = joinpath(DATASET, "performance_baseline.jld2")
     cpu_name = split(string(Sys.cpu_info()[1]), ":")[1]

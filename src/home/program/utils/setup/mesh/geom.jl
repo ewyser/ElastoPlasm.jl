@@ -1,21 +1,13 @@
-function getinfo(L,nel)
-    ndim = length(L)
-    nn = 4^ndim
-    if ndim == 1
-        L   = L
-        h   = L/nel
-    elseif ndim == 2
-        L   = [L[1],ceil(L[2])]
-        h   = [L[1]/nel,L[1]/nel]
-    elseif ndim == 3
-        L   = [L[1],L[2],ceil(L[3])]
-        h   = [L[1]/nel[1],L[1]/nel[1],L[1]/nel[1]]
-    else 
-        throw(error("UnsupportedMeshGeometry: dim > 3"))
+function get_geom(nel::Vector{T1},L::Vector{T2},instr) where {T1,T2}
+    if instr[:basis][:which] == "bsmpm"
+        ndim,nn,h = length(L),4^length(L),min.(L./nel,L./4)
+    else
+        ndim,nn,h = length(L),4^length(L),(L./nel)
     end
-    return L,h,ndim,nn
+    return T1(ndim),T1(nn),T2.(h)
 end
-function get_coords(ndim,nn,L,h;ghosts::Vector=[0.0])
+
+function get_coords(ndim::T1,L::Vector{T2},h::Vector{T2}; ghosts::Vector{T2}=[T2(0.0)]) where {T1,T2}
     if ndim == 1
         x0  = [0.0-ghosts[1],L[1]+ghosts[1]]
         x   = collect(first(x0):h[1]:last(x0))
@@ -47,5 +39,5 @@ function get_coords(ndim,nn,L,h;ghosts::Vector=[0.0])
         z   = repeat((reshape(z,nno[3],1     ,1     )),1     ,nno[1],nno[2]) 
         x   = vcat(vec(x)',vec(y)',vec(z)')
     end
-    return x,nel,nno
+    return T2.(x),T1.(nel),T1.(nno)
 end
