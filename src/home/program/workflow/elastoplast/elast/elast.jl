@@ -43,7 +43,7 @@ end
 end
 
 function init_elast(instr::Dict)
-    if instr[:perf]
+    if instr[:perf][:status]
         kernel1 = ELAST(CPU())
     else
         # deformation framework dispatcher

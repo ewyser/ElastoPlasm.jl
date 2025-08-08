@@ -217,7 +217,7 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
     # build the list of log lines
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
-        "- $(nthreads()) active thread(s)",
+        "└ $(nthreads()) active thread(s)",
         "- $msg workflow",
         "- $(instr[:fwrk][:deform]) strain formulation",
         "- $(instr[:basis][:which]) calculation cycle",
@@ -226,7 +226,7 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
     if instr[:fwrk][:locking]
         push!(logs, "- F-bar locking mitigation")
     end
-    if instr[:nonloc][:status] && msg == "elastoplastic"
+    if instr[:nonloc][:status] && msg ∈ ["elastoplastic","all-in-one"]
         push!(logs, "- non-local plastic regularization")
     end
     return join(logs,"\n")

@@ -33,43 +33,48 @@ cfg = require(:instr)
 """
 function require(in::Symbol=:instr)
     if in == :instr
-        instr = Dict(
-            :dtype => 64,
-            :basis => (;
-                        which="bsmpm",
-                        how=nothing,
-                        ghost=false,
+        return (;
+            dtype = 64,
+            basis = (;
+                which="bsmpm",
+                how=nothing,
+                ghost=false,
             ),
-            :fwrk  => (;
-                        deform = "finite",
-                        trsfr = "musl",
-                        locking = true,
+            fwrk  = (;
+                deform = "finite",
+                trsfr = "musl",
+                locking = true,
             ),
-            :bcs   => (;
-                        dirichlet = :roller,
+            bcs   = (;
+                dirichlet = :roller,
             ),
-            :grf   => (;
-                        status = false,
-                        covariance = "gaussian",
-                        param = (; Iₓ= [2.5,2.5,2.5], Nₕ = 5000, kₘ = 100,),
+            grf   = (;
+                status = false,
+                covariance = "gaussian",
+                param = (; 
+                    Iₓ= [2.5,2.5,2.5], 
+                    Nₕ = 5000, 
+                    kₘ = 100,
+                ),
             ),
-            :plast => (;
-                        status = false,
-                        constitutive = "DP",
+            plast = (;
+                status = false,
+                constitutive = "DP",
             ),
-            :nonloc=> (;
-                        status=true,
-                        ls=0.5,
+            nonloc = (;
+                status=true,
+                ls=0.5,
             ),
-            :plot  => (;
-                        status=true,
-                        freq=1.0,
-                        what=["epII"],
-                        dims=(500.0,250.0),
+            plot  = (;
+                status=true,
+                freq=1.0,
+                what=["epII"],
+                dims=(500.0,250.0),
             ),
-            :perf    => false,
+            perf  = (;
+                status=false,
+            ),
         )
-        return instr
     else
         throw(error("UnsupportedSymbol: $(in)"))
         return nothing
