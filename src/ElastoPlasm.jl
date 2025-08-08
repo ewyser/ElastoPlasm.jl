@@ -5,6 +5,6 @@ const ROOT = @__DIR__
 # include boot file
 include(joinpath(ROOT,"boot/boot.jl"))
 
-welcome_log()
+welcome_log() # TODO(!pending): find a way to force this to be called when `using ElastoPlasm`
 
 end # module elastoPlasm

@@ -35,18 +35,6 @@
 
 ---
 
-## 🚀 Quick Start
-
-```julia
-using Pkg
-Pkg.activate(".")
-Pkg.instantiate()
-using ElastoPlasm
-# plasming begins here!
-```
-
----
-
 ## 🛠️ Installation
 
 1. **Install Julia:** [Download here](https://julialang.org/downloads/) and follow the instructions.
@@ -56,17 +44,21 @@ using ElastoPlasm
    cd ElastoPlasm.jl
    ```
 3. **Start Julia** (on macOS, drag & drop `start_macOS.sh` in the terminal).
-4. **Activate & instantiate:**
-   - Enter pkg mode with `]`
-   - Run:
-     ```
-     activate .
-     instantiate
-     ```
-5. **Use the package:**
-   ```julia
-   using ElastoPlasm
+   ```sh
+   julia --project=. 
    ```
+4. **Quick Start:**
+    ```julia
+    using Pkg
+    Pkg.instantiate()
+    using ElastoPlasm
+    ┌ Welcome to ϵlastσPlasm 👻 v0.4.2
+    │ New comer ? Try this out
+    │   L,nel  = [64.1584,64.1584/4.0],[40,10];
+    │   ic,cfg = ic_slump(L,nel);
+    └   out    = slump(ic,cfg; workflow="all-in-one");
+    # plasming begins here!
+    ```
 
 ---
 
@@ -84,20 +76,7 @@ Feel free to check the [issues page](https://github.com/ewyser/ElastoPlasm.jl/is
 
 ---
 
-## 🧑‍🔬 Features at a Glance
-
-| Feature                | Description                                              |
-|------------------------|---------------------------------------------------------|
-| 🏗️  Formulations       | Updated Lagrangian, explicit elastoplasticity           |
-| 🔢  Deformation        | Finite (log strains), Infinitesimal (Jaumann rate)      |
-| 🧮  Shape Functions    | Linear, GIMP, Cubic B-spline                            |
-| 🔄  Mapping            | FLIP (mUSL), TPIC (USL)                                 |
-
----
-
 ## 🧠 Philosophy
-
-> “Simplicity is the ultimate sophistication.” — *Leonardo da Vinci*
 
 ϵlastσPlasm.jl aims to be simple, modular, and fun to use. Happy plasming! 🎉
 
