@@ -1,43 +1,43 @@
-@views @kernel inbounds = true function finite_deform(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
+@views @kernel inbounds = true function finite_deform(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp 
+    if p≤mpts.nmp 
         # compute velocity & displacement gradients
-        mp.s.∇vᵢⱼ[:,:,p].= T2(0.0)
+        mpts.s.∇vᵢⱼ[:,:,p].= T2(0.0)
         for nn ∈ 1:mesh.nn
-            no = mp.p2n[nn,p]
+            no = mpts.p2n[nn,p]
             if iszero(no) continue end
             for i ∈ 1:mesh.dim , j ∈ 1:mesh.dim
-                mp.s.∇vᵢⱼ[i,j,p]+= mp.ϕ∂ϕ[nn,p,j+1]*mesh.v[i,no]
+                mpts.s.∇vᵢⱼ[i,j,p]+= mpts.ϕ∂ϕ[nn,p,j+1]*mesh.v[i,no]
             end
         end
         # compute incremental deformation and update
-        mp.s.ΔFᵢⱼ[:,:,p].= mp.s.δᵢⱼ+(dt.*mp.s.∇vᵢⱼ[:,:,p])
-        mp.s.Fᵢⱼ[:,:,p] .= mp.s.ΔFᵢⱼ[:,:,p]*mp.s.Fᵢⱼ[:,:,p]
+        mpts.s.ΔFᵢⱼ[:,:,p].= mpts.s.δᵢⱼ+(dt.*mpts.s.∇vᵢⱼ[:,:,p])
+        mpts.s.Fᵢⱼ[:,:,p] .= mpts.s.ΔFᵢⱼ[:,:,p]*mpts.s.Fᵢⱼ[:,:,p]
         # update material point's volume
-        mp.s.ΔJ[p]       = det(mp.s.ΔFᵢⱼ[:,:,p])
-        mp.s.J[p]        = det(mp.s.Fᵢⱼ[:,:,p])
-        mp.Ω[p]          = mp.s.J[p]*mp.Ω₀[p]
+        mpts.s.ΔJ[p]       = det(mpts.s.ΔFᵢⱼ[:,:,p])
+        mpts.s.J[p]        = det(mpts.s.Fᵢⱼ[:,:,p])
+        mpts.Ω[p]          = mpts.s.J[p]*mpts.Ω₀[p]
     end
 end
-@views @kernel inbounds = true function infinitesimal_deform(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
+@views @kernel inbounds = true function infinitesimal_deform(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp 
+    if p≤mpts.nmp 
         # compute velocity & displacement gradients
-        mp.s.∇vᵢⱼ[:,:,p].= T2(0.0)
+        mpts.s.∇vᵢⱼ[:,:,p].= T2(0.0)
         for nn ∈ 1:mesh.nn
-            no = mp.p2n[nn,p]
+            no = mpts.p2n[nn,p]
             if iszero(no) continue end
             for i ∈ 1:mesh.dim , j ∈ 1:mesh.dim
-                mp.s.∇vᵢⱼ[i,j,p]+= mp.ϕ∂ϕ[nn,p,j+1]*mesh.v[i,no]
+                mpts.s.∇vᵢⱼ[i,j,p]+= mpts.ϕ∂ϕ[nn,p,j+1]*mesh.v[i,no]
             end
         end
         # compute incremental deformation and update
-        mp.s.ΔFᵢⱼ[:,:,p].= mp.s.δᵢⱼ+(dt.*mp.s.∇vᵢⱼ[:,:,p])
-        mp.s.Fᵢⱼ[:,:,p] .= mp.s.ΔFᵢⱼ[:,:,p]*mp.s.Fᵢⱼ[:,:,p]
+        mpts.s.ΔFᵢⱼ[:,:,p].= mpts.s.δᵢⱼ+(dt.*mpts.s.∇vᵢⱼ[:,:,p])
+        mpts.s.Fᵢⱼ[:,:,p] .= mpts.s.ΔFᵢⱼ[:,:,p]*mpts.s.Fᵢⱼ[:,:,p]
         # update material point's volume
-        mp.s.ΔJ[p]       = det(mp.s.ΔFᵢⱼ[:,:,p])
-        mp.s.J[p]        = det(mp.s.Fᵢⱼ[:,:,p])
-        mp.Ω[p]          = mp.s.J[p]*mp.Ω₀[p]
+        mpts.s.ΔJ[p]       = det(mpts.s.ΔFᵢⱼ[:,:,p])
+        mpts.s.J[p]        = det(mpts.s.Fᵢⱼ[:,:,p])
+        mpts.Ω[p]          = mpts.s.J[p]*mpts.Ω₀[p]
     end
 end
 

@@ -2,24 +2,25 @@ export kwargser
 """
     kwargser(type::Symbol, kwargs::Any; dim::Number=2) -> Dict
 
-Generates a configuration dictionary for simulation or API routines by merging user-supplied keyword arguments with default reference values.
+Generate a configuration dictionary for simulation or API routines by merging user-supplied keyword arguments with default reference values.
 
 # Arguments
 - `type::Symbol`: The configuration type (e.g., `:instr`) to load defaults for.
 - `kwargs::Any`: Dictionary of user-supplied keyword arguments to override defaults.
-- `dim::Number=2`: (Optional) Spatial dimension, used for kernel initialization.
+- `dim::Number=2`: (Optional) Spatial dimension, used for kernel initialization (only relevant for `:instr`).
 
 # Returns
-- `Dict`: A dictionary containing the merged configuration, with kernels and precision set for `:instr` type.
+- `Dict`: A dictionary containing the merged configuration. For `:instr`, this includes kernels and precision settings.
 
 # Behavior
-- For `type == :instr`, merges `kwargs` with required defaults, sets precision, and attaches kernel functions.
+- For `type == :instr`, merges `kwargs` with required defaults, sets precision, and attaches kernel functions for shape functions, mapping, and constitutive updates.
 - For other types, merges `kwargs` with defaults and returns the result.
 - Warns about any unused keyword arguments.
 
 # Example
 ```julia
 cfg = kwargser(:instr, Dict(:dtype => 64, :locking => true); dim=3)
+println(cfg[:cairn][:shpfun])  # prints the initialized shape function kernel
 ```
 """
 function kwargser(type::Symbol,kwargs::Any;dim::Number = 2)

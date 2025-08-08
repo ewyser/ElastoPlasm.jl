@@ -1,14 +1,14 @@
 #= =#
-@views @kernel inbounds = true function nonlocal(W,w,mp::Point{T1,T2},mesh::Mesh{T1,T2},ls::T2,type::String) where {T1,T2}
+@views @kernel inbounds = true function nonlocal(W,w,mpts::Point{T1,T2},mesh::Mesh{T1,T2},ls::T2,type::String) where {T1,T2}
     p = @index(Global)
 
-    if type == "tplgy" && p ≤ mp.nmp
-        for el ∈ findall(!iszero,mesh.e2e[:,mp.p2e[p]])
-            mp.e2p[p,el] = p       
+    if type == "tplgy" && p ≤ mpts.nmp
+        for el ∈ findall(!iszero,mesh.e2e[:,mpts.p2e[p]])
+            mpts.e2p[p,el] = p       
         end
-    elseif type == "p->q" && p ≤ mp.nmp && mp.s.Δλ[p] != T2(0.0)
-        for (it,q) ∈ enumerate(findall(!iszero,mp.e2p[:,mp.p2e[p]]))
-            ξ,η = (mp.x[1,p]-mp.x[1,q]),(mp.x[2,p]-mp.x[2,q])
+    elseif type == "p->q" && p ≤ mpts.nmp && mpts.s.Δλ[p] != T2(0.0)
+        for (it,q) ∈ enumerate(findall(!iszero,mpts.e2p[:,mpts.p2e[p]]))
+            ξ,η = (mpts.x[1,p]-mpts.x[1,q]),(mpts.x[2,p]-mpts.x[2,q])
             d   = sqrt(ξ^2+η^2)
             if w[p,q] == T2(0.0)
                 ω₀     = d/ls*exp(-(d/ls)^2)
@@ -16,28 +16,28 @@
                 w[q,p] = ω₀
                 W[p]  += ω₀
                 W[q]  += ω₀
-                mp.p2p[q,p] = q
+                mpts.p2p[q,p] = q
             end
         end
-    elseif type == "p<-q" && p ≤ mp.nmp && mp.s.Δλ[p] != T2(0.0)
+    elseif type == "p<-q" && p ≤ mpts.nmp && mpts.s.Δλ[p] != T2(0.0)
         if isapprox(W[p]>T2(1e-16),T2(0.0),atol=T2(1e-16))
-            mp.s.ϵpII[2,p] = mp.s.ϵpII[1,p]
+            mpts.s.ϵpII[2,p] = mpts.s.ϵpII[1,p]
         else
-            for (k,q) ∈ enumerate(findall(!iszero,mp.p2p[:,p]))
-                mp.s.ϵpII[2,p]+= (w[p,q]/W[p])*mp.s.ϵpII[1,q]
+            for (k,q) ∈ enumerate(findall(!iszero,mpts.p2p[:,p]))
+                mpts.s.ϵpII[2,p]+= (w[p,q]/W[p])*mpts.s.ϵpII[1,q]
             end
         end
     end
 end
  
 #= 
-@views @kernel inbounds = true function nonlocal(W,w,mp,mesh,ls,type)
+@views @kernel inbounds = true function nonlocal(W,w,mpts,mesh,ls,type)
     p = @index(Global)
 
-    if type == "p->q" && p ≤ mp.nmp
-        for q ∈ mp.nmp
-            ξ = (mp.x[p,1]-mp.x[q,1])
-            η = (mp.x[p,2]-mp.x[q,2])
+    if type == "p->q" && p ≤ mpts.nmp
+        for q ∈ mpts.nmp
+            ξ = (mpts.x[p,1]-mpts.x[q,1])
+            η = (mpts.x[p,2]-mpts.x[q,2])
             d = sqrt(ξ^2+η^2)
         
             ω₀     = d/ls*exp(-(d/ls)^2)
@@ -47,11 +47,11 @@ end
             W[q]  += ω₀
       
         end
-    elseif type == "p<-q" && p ≤ mp.nmp
-        mp.ϵpII[p,2] = mp.ϵpII[p,1]
-        for q ∈ mp.nmp
+    elseif type == "p<-q" && p ≤ mpts.nmp
+        mpts.ϵpII[p,2] = mpts.ϵpII[p,1]
+        for q ∈ mpts.nmp
             if W[p] != 0.0
-                mp.ϵpII[p,2]+= (w[p,q]/W[p])*mp.ϵpII[q,1]
+                mpts.ϵpII[p,2]+= (w[p,q]/W[p])*mpts.ϵpII[q,1]
             end
         end
     end

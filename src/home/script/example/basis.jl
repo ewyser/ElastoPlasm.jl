@@ -1,5 +1,31 @@
 export basisfunction
 
+"""
+    geom_basis(mesh, cmp, instr; ni=2)
+
+Generate a regular grid of material point coordinates and initial properties for a given mesh and constitutive model.
+
+# Arguments
+- `mesh`: Mesh data structure.
+- `cmp`: Constitutive model parameters.
+- `instr`: Simulation instruction dictionary.
+- `ni`: (Optional) Number of intervals per element (default: 2).
+
+# Returns
+- `ni`: Number of intervals per element.
+- `nmp`: Number of material points.
+- `geom`: Named tuple with fields:
+    - `xp`: Material point coordinates.
+    - `coh0`: Initial cohesion field.
+    - `cohr`: Residual cohesion field.
+    - `phi`: Initial friction angle field.
+
+# Example
+```julia
+ni, nmp, geom = geom_basis(mesh, cmp, instr; ni=4)
+println(geom.xp)
+```
+"""
 function geom_basis(mesh,cmp,instr; ni = 2)
     if mesh.dim == 2
         x          = collect(mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2])
@@ -28,6 +54,28 @@ function geom_basis(mesh,cmp,instr; ni = 2)
     return ni,nmp,(;xp=xp,coh0=coh0,cohr=cohr,phi=phi,)
 end
 
+"""
+    basisfunction(; fid::String=..., kwargs...)
+
+Compute and visualize shape functions and their derivatives for a reference mesh and material point system.
+
+# Keyword Arguments
+- `fid::String`: (Optional) File or run identifier.
+- `kwargs...`: Additional keyword arguments for simulation configuration.
+
+# Behavior
+- Initializes a reference mesh and material point system.
+- Computes shape functions and their derivatives for each node.
+- Visualizes and saves plots for shape functions (`N`), and their derivatives (`dNx`, `dNy`) at each node.
+
+# Returns
+- `nothing`. Plots are displayed and saved to disk.
+
+# Example
+```julia
+basisfunction()
+```
+"""
 function basisfunction(; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
     @info "Calculating shape functions for basis functions"
     nel,L = [4,4],[1.0,1.0]
@@ -37,28 +85,28 @@ function basisfunction(; fid::String=first(splitext(basename(@__FILE__))), kwarg
     paths = set_paths(fid,info.sys.out;interactive=false)  
     T0    = instr[:dtype].T0  
     T1,T2 = first(T0),last(T0)  
-    # mesh & mp initial conditions
+    # mesh & mpts initial conditions
     mesh  = setup_mesh(nel,L,instr)
     cmpr  = setup_cmpr(mesh,instr)                       
-    mp    = setup_mps(mesh,cmpr;define=geom_basis(mesh,cmpr,instr; ni = ni))
+    mpts    = setup_mps(mesh,cmpr;define=geom_basis(mesh,cmpr,instr; ni = ni))
     # calculate tplgy and shpfun
-    shpfun(mp,mesh,instr)
+    shpfun(mpts,mesh,instr)
 
-    # extract and store value of mp.ϕ∂ϕ
-    N   = spzeros(T2,mesh.nno[end],mp.nmp)
-    dNx = spzeros(T2,mesh.nno[end],mp.nmp)
-    dNy = spzeros(T2,mesh.nno[end],mp.nmp)
-    X   = spzeros(T2,mesh.nno[end],mp.nmp)
-    Y   = spzeros(T2,mesh.nno[end],mp.nmp)
-    for p = 1:mp.nmp
+    # extract and store value of mpts.ϕ∂ϕ
+    N   = spzeros(T2,mesh.nno[end],mpts.nmp)
+    dNx = spzeros(T2,mesh.nno[end],mpts.nmp)
+    dNy = spzeros(T2,mesh.nno[end],mpts.nmp)
+    X   = spzeros(T2,mesh.nno[end],mpts.nmp)
+    Y   = spzeros(T2,mesh.nno[end],mpts.nmp)
+    for p = 1:mpts.nmp
         for nn ∈ 1:mesh.nn
-            no = mp.p2n[nn,p]
+            no = mpts.p2n[nn,p]
             if iszero(no) continue end
-            N[no,p]   = mp.ϕ∂ϕ[nn,p,1]
-            dNx[no,p] = mp.ϕ∂ϕ[nn,p,2]
-            dNy[no,p] = mp.ϕ∂ϕ[nn,p,3]
-            X[no,p]   = mp.x[1,p]
-            Y[no,p]   = mp.x[2,p]
+            N[no,p]   = mpts.ϕ∂ϕ[nn,p,1]
+            dNx[no,p] = mpts.ϕ∂ϕ[nn,p,2]
+            dNy[no,p] = mpts.ϕ∂ϕ[nn,p,3]
+            X[no,p]   = mpts.x[1,p]
+            Y[no,p]   = mpts.x[2,p]
         end
     end
 

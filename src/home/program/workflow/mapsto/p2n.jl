@@ -1,24 +1,24 @@
-@views @kernel inbounds = true function transform(mp::Point{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function transform(mpts::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
     # deformation framework dispatcher
-    if p ≤ mp.nmp 
-        J = mp.s.J[p]
-        for c ∈ 1:size(mp.s.σᵢ,1)
-            mp.s.σᵢ[c,p] = mp.s.τᵢ[c,p]/J
+    if p ≤ mpts.nmp 
+        J = mpts.s.J[p]
+        for c ∈ 1:size(mpts.s.σᵢ,1)
+            mpts.s.σᵢ[c,p] = mpts.s.τᵢ[c,p]/J
         end
     end   
 end
-@kernel inbounds = true function flip_1d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function flip_1d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp 
+    if p≤mpts.nmp 
         # buffering 
-        m,Ω = mp.s.m[p]    ,mp.Ω[p]
-        px  = m*mp.s.v[p]
-        σxx = mp.s.σᵢ[1,p]
+        m,Ω = mpts.s.m[p]    ,mpts.Ω[p]
+        px  = m*mpts.s.v[p]
+        σxx = mpts.s.σᵢ[1,p]
         for nn ∈ 1:mesh.nn
             # buffering 
-            no        = mp.p2n[nn,p]
-            N,∂Nx     = mp.ϕ∂ϕ[nn,p,1],mp.ϕ∂ϕ[nn,p,2]
+            no        = mpts.p2n[nn,p]
+            N,∂Nx     = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2]
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]  += N * m
@@ -28,17 +28,17 @@ end
         end
     end
 end
-@kernel inbounds = true function flip_2d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function flip_2d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp
+    if p≤mpts.nmp
         # buffering 
-        m  ,Ω       = mp.s.m[p]    ,mp.Ω[p]
-        px ,py      = m*mp.s.v[1,p],m*mp.s.v[2,p]
-        σxx,σyy,σxy = mp.s.σᵢ[1,p] ,mp.s.σᵢ[2,p] ,mp.s.σᵢ[3,p]
+        m  ,Ω       = mpts.s.m[p]    ,mpts.Ω[p]
+        px ,py      = m*mpts.s.v[1,p],m*mpts.s.v[2,p]
+        σxx,σyy,σxy = mpts.s.σᵢ[1,p] ,mpts.s.σᵢ[2,p] ,mpts.s.σᵢ[3,p]
         for nn ∈ 1:mesh.nn
             # buffering 
-            no        = mp.p2n[nn,p]
-            N,∂Nx,∂Ny = mp.ϕ∂ϕ[nn,p,1],mp.ϕ∂ϕ[nn,p,2],mp.ϕ∂ϕ[nn,p,3]
+            no        = mpts.p2n[nn,p]
+            N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]    += N * m
@@ -49,18 +49,18 @@ end
         end
     end
 end
-@kernel inbounds = true function flip_3d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function flip_3d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp
+    if p≤mpts.nmp
         # buffering 
-        m  ,Ω       = mp.s.m[p]    ,mp.Ω[p]
-        px ,py ,pz  = m*mp.s.v[1,p],m*mp.s.v[2,p],m*mp.s.v[3,p]
-        σxx,σyy,σzz = mp.s.σᵢ[1,p] ,mp.s.σᵢ[2,p] ,mp.s.σᵢ[3,p]
-        σyx,σzy,σzx = mp.s.σᵢ[6,p] ,mp.s.σᵢ[4,p] ,mp.s.σᵢ[5,p]
+        m  ,Ω       = mpts.s.m[p]    ,mpts.Ω[p]
+        px ,py ,pz  = m*mpts.s.v[1,p],m*mpts.s.v[2,p],m*mpts.s.v[3,p]
+        σxx,σyy,σzz = mpts.s.σᵢ[1,p] ,mpts.s.σᵢ[2,p] ,mpts.s.σᵢ[3,p]
+        σyx,σzy,σzx = mpts.s.σᵢ[6,p] ,mpts.s.σᵢ[4,p] ,mpts.s.σᵢ[5,p]
         for nn ∈ 1:mesh.nn
             # buffering
-            no            = mp.p2n[nn,p]
-            N,∂Nx,∂Ny,∂Nz = mp.ϕ∂ϕ[nn,p,1],mp.ϕ∂ϕ[nn,p,2],mp.ϕ∂ϕ[nn,p,3],mp.ϕ∂ϕ[nn,p,4]
+            no            = mpts.p2n[nn,p]
+            N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3],mpts.ϕ∂ϕ[nn,p,4]
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]    += N * m
@@ -76,20 +76,20 @@ end
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # TPIC transfer scheme, see Nakamura etal, 2023, https://doi.org/10.1016/j.cma.2022.115720
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-@kernel inbounds = true function tpic_2d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function tpic_2d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp
+    if p≤mpts.nmp
         # buffering 
-        m  ,Ω       = mp.s.m[p]       ,mp.Ω[p]
-        vx ,vy      = mp.s.v[1,p]     ,mp.s.v[2,p]
-        σxx,σyy,σxy = mp.s.σᵢ[1,p]    ,mp.s.σᵢ[2,p]     ,mp.s.σᵢ[3,p]
-        ∇vxx,∇vxy   = mp.s.∇vᵢⱼ[1,1,p],mp.s.∇vᵢⱼ[1,2,p]
-        ∇vyx,∇vyy   = mp.s.∇vᵢⱼ[2,1,p],mp.s.∇vᵢⱼ[2,2,p]
+        m  ,Ω       = mpts.s.m[p]       ,mpts.Ω[p]
+        vx ,vy      = mpts.s.v[1,p]     ,mpts.s.v[2,p]
+        σxx,σyy,σxy = mpts.s.σᵢ[1,p]    ,mpts.s.σᵢ[2,p]     ,mpts.s.σᵢ[3,p]
+        ∇vxx,∇vxy   = mpts.s.∇vᵢⱼ[1,1,p],mpts.s.∇vᵢⱼ[1,2,p]
+        ∇vyx,∇vyy   = mpts.s.∇vᵢⱼ[2,1,p],mpts.s.∇vᵢⱼ[2,2,p]
         for nn ∈ 1:mesh.nn
             # buffering 
-            no        = mp.p2n[nn,p]
-            N,∂Nx,∂Ny = mp.ϕ∂ϕ[nn,p,1],mp.ϕ∂ϕ[nn,p,2],mp.ϕ∂ϕ[nn,p,3]
-            δx,δy     = mp.δnp[nn,1,p],mp.δnp[nn,2,p]
+            no        = mpts.p2n[nn,p]
+            N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
+            δx,δy     = mpts.δnp[nn,1,p],mpts.δnp[nn,2,p]
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]    += N * m
@@ -100,23 +100,23 @@ end
         end
     end
 end
-@kernel inbounds = true function tpic_3d_p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function tpic_3d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp
+    if p≤mpts.nmp
         # buffering 
-        m   ,Ω          = mp.s.m[p]       ,mp.Ω[p]
-        vx  ,vy  ,vz    = mp.s.v[1,p]     ,mp.s.v[2,p]  ,mp.s.v[3,p]
-        σxx ,σyy ,σzz   = mp.s.σᵢ[1,p]    ,mp.s.σᵢ[2,p] ,mp.s.σᵢ[3,p]
-        σyx ,σzy ,σzx   = mp.s.σᵢ[6,p]    ,mp.s.σᵢ[4,p] ,mp.s.σᵢ[5,p]
-        σxx ,σyy ,σxy   = mp.s.σᵢ[1,p]    ,mp.s.σᵢ[2,p] ,mp.s.σᵢ[3,p]
-        ∇vxx,∇vxy,∇vxz = mp.s.∇vᵢⱼ[1,1,p],mp.s.∇vᵢⱼ[1,2,p],mp.s.∇vᵢⱼ[1,3,p]
-        ∇vyx,∇vyy,∇vyz = mp.s.∇vᵢⱼ[2,1,p],mp.s.∇vᵢⱼ[2,2,p],mp.s.∇vᵢⱼ[2,3,p]
-        ∇vzx,∇vzy,∇vzz = mp.s.∇vᵢⱼ[3,1,p],mp.s.∇vᵢⱼ[3,2,p],mp.s.∇vᵢⱼ[3,3,p]
+        m   ,Ω          = mpts.s.m[p]       ,mpts.Ω[p]
+        vx  ,vy  ,vz    = mpts.s.v[1,p]     ,mpts.s.v[2,p]  ,mpts.s.v[3,p]
+        σxx ,σyy ,σzz   = mpts.s.σᵢ[1,p]    ,mpts.s.σᵢ[2,p] ,mpts.s.σᵢ[3,p]
+        σyx ,σzy ,σzx   = mpts.s.σᵢ[6,p]    ,mpts.s.σᵢ[4,p] ,mpts.s.σᵢ[5,p]
+        σxx ,σyy ,σxy   = mpts.s.σᵢ[1,p]    ,mpts.s.σᵢ[2,p] ,mpts.s.σᵢ[3,p]
+        ∇vxx,∇vxy,∇vxz = mpts.s.∇vᵢⱼ[1,1,p],mpts.s.∇vᵢⱼ[1,2,p],mpts.s.∇vᵢⱼ[1,3,p]
+        ∇vyx,∇vyy,∇vyz = mpts.s.∇vᵢⱼ[2,1,p],mpts.s.∇vᵢⱼ[2,2,p],mpts.s.∇vᵢⱼ[2,3,p]
+        ∇vzx,∇vzy,∇vzz = mpts.s.∇vᵢⱼ[3,1,p],mpts.s.∇vᵢⱼ[3,2,p],mpts.s.∇vᵢⱼ[3,3,p]
         for nn ∈ 1:mesh.nn
             # buffering
-            no            = mp.p2n[nn,p]
-            N,∂Nx,∂Ny,∂Nz = mp.ϕ∂ϕ[nn,p,1],mp.ϕ∂ϕ[nn,p,2],mp.ϕ∂ϕ[nn,p,3],mp.ϕ∂ϕ[nn,p,4]
-            δx,δy,δz      = mp.δnp[nn,1,p],mp.δnp[nn,2,p],mp.δnp[nn,3,p]
+            no            = mpts.p2n[nn,p]
+            N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3],mpts.ϕ∂ϕ[nn,p,4]
+            δx,δy,δz      = mpts.δnp[nn,1,p],mpts.δnp[nn,2,p],mpts.δnp[nn,3,p]
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]    += N * m
@@ -129,16 +129,16 @@ end
         end
     end
 end
-function p2n(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},instr::Dict) where {T1,T2}
+function p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},instr::Dict) where {T1,T2}
     # get cauchy stress 
     if instr[:fwrk][:deform] == "finite"
-        instr[:cairn][:mapsto][:map].σᵢ!(ndrange=mp.nmp,mp);sync(CPU())
+        instr[:cairn][:mapsto][:map].σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
     end
     # initialize nodal quantities
     mesh.mᵢ  .= T2(0.0)
     mesh.p   .= T2(0.0)
     mesh.oobf.= T2(0.0)
     # mapping to mesh
-    instr[:cairn][:mapsto][:map].p2n!(ndrange=mp.nmp,mp,mesh,g);sync(CPU())
+    instr[:cairn][:mapsto][:map].p2n!(ndrange=mpts.nmp,mpts,mesh,g);sync(CPU())
     return nothing
 end

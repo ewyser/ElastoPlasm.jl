@@ -1,35 +1,35 @@
 export require
 """
-    require(in::Symbol=:instr) -> Dict
+    require(in::Symbol = :instr) -> NamedTuple
 
-Returns a reference configuration dictionary for simulation instructions or API routines.
+Return a reference configuration named tuple for simulation instructions or API routines.
 
 # Arguments
-- `in::Symbol`: The configuration type to load defaults for. Only `:instr` is supported.
+- `in::Symbol`: The configuration type to load defaults for. Only `:instr` is currently supported.
 
 # Returns
-- `Dict`: A dictionary containing default configuration values for simulation, including precision, basis, deformation framework, mapping scheme, locking mitigation, random field generator, plasticity, non-local regularization, plotting options, and performance mode.
+- `NamedTuple`: A named tuple containing default configuration values for simulation, including precision, basis, deformation framework, mapping scheme, locking mitigation, random field generator, plasticity, non-local regularization, plotting options, and performance mode.
 
 # Behavior
-- If `in == :instr`, returns a dictionary with all default simulation options.
+- If `in == :instr`, returns a named tuple with all default simulation options.
 - Throws an error for unsupported symbols.
 
 # Example
 ```julia
 cfg = require(:instr)
+println(cfg.basis.which)  # prints the default basis type
 ```
 
 # Supported keys and their purpose
-- `:dtype`   — Arithmetic precision
-- `:basis`   — Shape function type
-- `:fwrk`    — Deformation framework
-- `:trsfr`   — Mapping scheme
-- `:vollock` — Volumetric locking mitigation
-- `:grf`     — Gaussian Random Field generator
+- `:dtype`   — Arithmetic precision (e.g., 64 for Float64)
+- `:basis`   — Shape function type and options
+- `:fwrk`    — Deformation framework and transfer scheme
+- `:bcs`     — Boundary condition settings
+- `:grf`     — Gaussian Random Field generator options
 - `:plast`   — Plasticity onset and flow law
-- `:nonloc`  — Non-local regularization
+- `:nonloc`  — Non-local regularization options
 - `:plot`    — Plotting options
-- `:perf`    — Performance mode
+- `:perf`    — Performance mode options
 """
 function require(in::Symbol=:instr)
     if in == :instr

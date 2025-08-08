@@ -28,13 +28,13 @@ function inicmp(mesh,cmp,instr,ni;ℓ₀=0.0)
     return ni,size(xp,1),(;xp=xp,coh0=coh0,cohr=cohr,phi=phi,)
 end
 
-@views function plotStuff(mp,t,type,ctr,title)
+@views function plotStuff(mpts,t,type,ctr,title)
     xlab,ylab = L"$x-$direction",L"$z-$direction"
     gr(size=(2*250,2*125),legend=true,markersize=2.5,markershape=:circle,markerstrokewidth=0.0,markerstrokecolor=:match,)
     temp = title
     if type == "P"
-        p = -mp.σ[end,:]/1e3
-        scatter(mp.x[:,1],mp.x[:,2],zcolor=p,
+        p = -mpts.σ[end,:]/1e3
+        scatter(mpts.x[:,1],mpts.x[:,2],zcolor=p,
             xlabel = xlab,
             ylabel = ylab,
             label=L"$\sigma_{zz}$",
@@ -65,21 +65,21 @@ function compactTest(dim,nel,varPlot,ν,E,ρ0,l0; kwargs...)
     cmp = setup_cmpr(length(L),instr)
     tg      = ceil((1.0/cmp.c)*(2.0*l0)*40.0)
     T,te    = 1.25*tg,1.25*tg   
-    # mesh & mp setup
+    # mesh & mpts setup
     mesh     = setup_mesh(nel,L,instr)    
     setgeom = inicmp(mesh,cmp,instr,ni;ℓ₀=l0) 
-    mp     = setup_mps(mesh,cmp,instr;define=setgeom)                                        
-    z0      = copy(mp.x[:,end])
+    mpts     = setup_mps(mesh,cmp,instr;define=setgeom)                                        
+    z0      = copy(mpts.x[:,end])
     # action
-    out = ϵp23De!(mp,mesh,cmp,g,T,te,tg,instr)    
+    out = ϵp23De!(mpts,mesh,cmp,g,T,te,tg,instr)    
     # analytics
     if mesh.dim==2
-        xN,yN = abs.(mp.σᵢ[2,:]),z0
+        xN,yN = abs.(mpts.σᵢ[2,:]),z0
     elseif mesh.dim==3
-        xN,yN = abs.(mp.σᵢ[3,:]),z0
+        xN,yN = abs.(mpts.σᵢ[3,:]),z0
     end
     xA,yA = abs.(cmp.ρ0.*g.*(l0.-z0)),z0
-    err   = sum(sqrt.((xN.-xA).^2).*mp.Ω₀)/(abs(g[end])*cmp.ρ0*l0*sum(mp.Ω₀)) 
+    err   = sum(sqrt.((xN.-xA).^2).*mpts.Ω₀)/(abs(g[end])*cmp.ρ0*l0*sum(mpts.Ω₀)) 
 
     return (xN,yN,xA,yA),mesh.h,err 
 end
