@@ -27,10 +27,10 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
     T0    = instr[:dtype].T0  
     T1,T2 = first(T0),last(T0) 
     L,nel = T2.(L),T1.(nel) 
-    # mesh & mp initial conditions
+    # mesh & mpts initial conditions
     mesh  = setup_mesh(nel,L,instr)
     cmpr  = setup_cmpr(mesh,instr;)                       
-    mp    = setup_mpts(mesh,cmpr;define=geom_slump(mesh,cmpr,instr))
+    mpts    = setup_mpts(mesh,cmpr;define=geom_slump(mesh,cmpr,instr))
     # time parameters
     time  = setup_time(T2; te=10.0,tg=10.0,tep=5.0) 
     # plot initial cohesion field
@@ -42,10 +42,10 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
         tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
         file    = joinpath(paths[:plot],"$(mesh.dim)d_coh0_phi0.png"),
     )
-    get_plot_field(mp,mesh,opts);save_plot(opts)
+    get_plot_field(mpts,mesh,opts);save_plot(opts)
     # display summary
-    @info ic_log(mesh,mp,time)
-    return (;mesh,mp,cmpr,time),(;instr,paths)
+    @info ic_log(mesh,mpts,time)
+    return (;mesh,mpts,cmpr,time),(;instr,paths)
 end
 
 """
@@ -81,7 +81,7 @@ end
 """
     slump!(ic::NamedTuple, cfg::NamedTuple; workflow::String="elastodynamic") -> NamedTuple
 
-Runs the explicit solution workflow for the slump problem, mutating the input initial conditions and configuration.
+Run the explicit solution workflow for the slump problem, mutating the input initial conditions and configuration.
 Use this when you want changes to `ic` and `cfg` to persist after the simulation.
 
 # Arguments

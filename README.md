@@ -1,4 +1,5 @@
 # ϵlastσPlasm.jl 👻
+
 [![Build Status](https://github.com/ewyser/ElastoPlasm.jl/workflows/CI/badge.svg)](https://github.com/ewyser/ElastoPlasm.jl/actions)
 [![Documentation](https://github.com/ewyser/ElastoPlasm.jl/actions/workflows/docs.yaml/badge.svg)](https://github.com/ewyser/ElastoPlasm.jl/actions/workflows/docs.yaml)
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://ewyser.github.io/ElastoPlasm.jl/stable)
@@ -14,28 +15,70 @@
 [![](https://img.shields.io/badge/Apple-Metal-purple.svg?logo=apple)](https://developer.apple.com/metal/)
 --->
 
-## Overview
-This package is an evolution of the somewhat cumbersome-to-use [`ep2-3De v1.0`](https://github.com/ewyser/ep2-3De), and is entirely written in **Julia**. It is designed for **rapid prototyping** while maintaining **reasonable production capabilities**. It addresses the following key aspects:
+---
+
+## ✨ Overview
+
+**ϵlastσPlasm.jl** is the spiritual successor to the somewhat cumbersome [`ep2-3De v1.0`](https://github.com/ewyser/ep2-3De), now reborn in pure **Julia** 🦀. Designed for **rapid prototyping** ⚡ and **serious production** 🏭, it brings:
 
 - **Updated Lagrangian explicit formulation** for elastoplastic simulations.
-- Supports both **finite** and **infinitesimal deformation** frameworks:
-  - **Finite deformation**: employs logarithmic strains and Kirchhoff stresses.
-  - **Infinitesimal deformation**: based on a **Jaumann rate** formulation.
-- Compatible with multiple **shape function bases**:
-    - Standard linear shape function $N_n(\boldsymbol{x}_p)$
-    - GIMP shape function $S_n(\boldsymbol{x}_p)$
-    - Boundary-modified cubic B-spline shape function $\phi_n(\boldsymbol{x}_p)$
-- Provides mappings between nodes (denoted $n$ or $v$) and material points (denoted $p$), using:
-    - FLIP with augmented mUSL procedure
-    - TPIC with standard USL procedure
+- **Finite** and **infinitesimal deformation** frameworks:
+  - **Finite deformation**: logarithmic strains & Kirchhoff stresses.
+  - **Infinitesimal deformation**: Jaumann rate formulation.
+- Multiple **shape function bases**:
+    - Linear: $N_n(\boldsymbol{x}_p)$
+    - GIMP: $S_n(\boldsymbol{x}_p)$
+    - Cubic B-spline: $\phi_n(\boldsymbol{x}_p)$
+- Node ($n$ or $v$) ↔ Material point ($p$) mappings:
+    - FLIP with augmented mUSL
+    - TPIC with standard USL
 
-## How to ```plasming``` ?  
+---
 
-0. (opt.) Get Julia [here](https://julialang.org/downloads/) and follow instructions for installation
+## 🛠️ Installation
 
-1. Clone [```ElastoPlasm.jl```](https://github.com/ewyser/elastoPlasm.jl/tree/main)  and ```cd``` to your local repo 
+1. **Install Julia:** [Download here](https://julialang.org/downloads/) and follow the instructions.
+2. **Clone the repo:**
+   ```sh
+   git clone https://github.com/ewyser/ElastoPlasm.jl.git
+   cd ElastoPlasm.jl
+   ```
+3. **Start Julia** (on macOS, drag & drop `start_macOS.sh` in the terminal).
+   ```sh
+   julia --project=. 
+   ```
+4. **Quick Start:**
+    ```julia
+    using Pkg
+    Pkg.instantiate()
+    using ElastoPlasm
+    ┌ Welcome to ϵlastσPlasm 👻 v0.4.2
+    │ New comer ? Try this out
+    │   L,nel  = [64.1584,64.1584/4.0],[40,10];
+    │   ic,cfg = ic_slump(L,nel);
+    └   out    = slump(ic,cfg; workflow="all-in-one");
+    # plasming begins here!
+    ```
 
-2. Launch Julia (on macOS, drag & drop ```start_macOS.sh``` in the terminal) and enter pkg mode ``` ] ```, then ```activate .``` the project ```ElastoPlasm``` and ```instantiate``` its environment and related packages.
+---
 
-4. Once ```ElastoPlasm``` has been correctly instantiated, you can ```using ElastoPlasm```
+## 📚 Documentation
+
+- [**Stable Docs**](https://ewyser.github.io/ElastoPlasm.jl/stable) 📖
+- [**GitHub Actions**](https://github.com/ewyser/ElastoPlasm.jl/actions) 🛡️
+
+---
+
+## ✍️ Contributing
+
+Contributions, issues, and feature requests are welcome!  
+Feel free to check the [issues page](https://github.com/ewyser/ElastoPlasm.jl/issues) or open a [pull request](https://github.com/ewyser/ElastoPlasm.jl/pulls).
+
+---
+
+## 🧠 Philosophy
+
+ϵlastσPlasm.jl aims to be simple, modular, and fun to use. Happy plasming! 🎉
+
+---
 

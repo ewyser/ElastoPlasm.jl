@@ -26,23 +26,23 @@ function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80 )
         x,z         = x.+0.5.*mesh.L[1],a.*x
         xlt,zlt,clt = Float64[],Float64[],Float64[]
         pos         = Float64 
-        for mp ∈ eachindex(xp)
+        for mpts ∈ eachindex(xp)
             for p ∈ eachindex(z)
-                Δx,Δz = xp[mp]-x[p],zp[mp]-z[p]
+                Δx,Δz = xp[mpts]-x[p],zp[mpts]-z[p]
                 nx,nz = a,-1.0
                 if (Δx*nx+Δz*nz)>0
                     pos = 1
                 else
                     pos = 0
                 end
-                if zp[mp]<wl 
+                if zp[mpts]<wl 
                     pos = 1
                 end
             end
             if pos==1
-                push!(xlt, xp[mp]) # push!(inArray, What), incremental construction of an array of arbitrary size
-                push!(zlt, zp[mp]) # push!(inArray, What), incremental construction of an array of arbitrary size
-                push!(clt, c[mp])
+                push!(xlt, xp[mpts]) # push!(inArray, What), incremental construction of an array of arbitrary size
+                push!(zlt, zp[mpts]) # push!(inArray, What), incremental construction of an array of arbitrary size
+                push!(clt, c[mpts])
             end
         end
     elseif mesh.dim == 3
@@ -65,10 +65,10 @@ function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80 )
         xlt,ylt,zlt = Float64[],Float64[],Float64[]
         clt         = Float64[]
         pos         = Float64 
-        for mp ∈ eachindex(xp)
+        for mpts ∈ eachindex(xp)
             for p ∈ eachindex(z)
-                Δx = xp[mp]-x[p]
-                Δz = zp[mp]-z[p]
+                Δx = xp[mpts]-x[p]
+                Δz = zp[mpts]-z[p]
                 nx = a
                 nz = -1.0
                 s  = Δx*nx+Δz*nz        
@@ -77,15 +77,15 @@ function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80 )
                 else
                     pos = 0
                 end
-                if zp[mp]<wl 
+                if zp[mpts]<wl 
                     pos = 1
                 end
             end
             if pos==1
-                push!(xlt, xp[mp]) 
-                push!(ylt, yp[mp]) 
-                push!(zlt, zp[mp]) 
-                push!(clt, c[mp])
+                push!(xlt, xp[mpts]) 
+                push!(ylt, yp[mpts]) 
+                push!(zlt, zp[mpts]) 
+                push!(clt, c[mpts])
             end
         end
     end

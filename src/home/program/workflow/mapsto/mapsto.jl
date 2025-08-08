@@ -1,4 +1,4 @@
-function init_mapsto(dim::Number,instr::Dict) 
+function init_mapsto(dim::Number,instr::NamedTuple) 
     if instr[:fwrk][:deform] == "finite"
         kernel0 = transform(CPU())
     else
@@ -32,15 +32,15 @@ function init_mapsto(dim::Number,instr::Dict)
         return throw(ArgumentError("$(instr[:fwrk][:trsfr]) is an unsupported transfer scheme"))
     end    
 end
-function mapsto(mp::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::Dict) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # maps material point to node
-    p2n(mp,mesh,g,instr)
+    p2n(mpts,mesh,g,instr)
     # solve Eulerian momentum equation
     solve(mesh,dt,instr)
     # maps back solution to material point
-    n2p(mp,mesh,dt,instr)
+    n2p(mpts,mesh,dt,instr)
     if instr[:fwrk][:trsfr] == "musl"
-        augm(mp,mesh,dt,instr)
+        augm(mpts,mesh,dt,instr)
     end
     return nothing
 end
@@ -64,7 +64,7 @@ end
 
 
 #=
-@views function mapstoN!(mp,mesh,g)
+@views function mapstoN!(mpts,mesh,g)
     # initialize nodal quantities
     mesh.mᵢ  .= 0.0
     mesh.p  .= 0.0
@@ -72,15 +72,15 @@ end
     # mapping back to mesh
     for dim ∈ 1:mesh.dim
         lk = ReentrantLock()
-        @threads for p ∈ 1:mp.nmp
+        @threads for p ∈ 1:mpts.nmp
             # accumulation
             lock(lk) do 
                 if dim == 1 
-                    mesh.mᵢ[mp.p2n[:,p]].+= mp.ϕ∂ϕ[:,p,1].*mp.m[p] 
+                    mesh.mᵢ[mpts.p2n[:,p]].+= mpts.ϕ∂ϕ[:,p,1].*mpts.m[p] 
                 end
-                mesh.p[  mp.p2n[:,p],dim].+= mp.ϕ∂ϕ[:,p,1].*(mp.m[p]*mp.v[p,dim])
-                mesh.oobf[mp.p2n[:,p],dim].+= mp.ϕ∂ϕ[:,p,1].*(mp.m[p]*g[dim]      )
-                mesh.oobf[mp.p2n[:,p],dim].-= mp.V[p].*(mp.B[dim:mesh.dim:end,:,p]*mp.σ[:,p]) 
+                mesh.p[  mpts.p2n[:,p],dim].+= mpts.ϕ∂ϕ[:,p,1].*(mpts.m[p]*mpts.v[p,dim])
+                mesh.oobf[mpts.p2n[:,p],dim].+= mpts.ϕ∂ϕ[:,p,1].*(mpts.m[p]*g[dim]      )
+                mesh.oobf[mpts.p2n[:,p],dim].-= mpts.V[p].*(mpts.B[dim:mesh.dim:end,:,p]*mpts.σ[:,p]) 
             end
         end
     end

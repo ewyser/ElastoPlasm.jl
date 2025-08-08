@@ -1,4 +1,4 @@
-function init_update(instr::Dict)
+function init_update(instr::NamedTuple)
     if instr[:fwrk][:deform] == "finite"
         kernel1 = finite_deform(CPU())
     elseif instr[:fwrk][:deform] == "infinitesimal"
@@ -40,12 +40,12 @@ function init_update(instr::Dict)
     end
     return (;deform! = kernel1,domain! = kernel2,ΔJn! = kernel3a,ΔJs! = kernel3b,ΔJp! = kernel3c,)
 end
-function update(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::Dict) where {T1,T2}
+function update(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # get incremental deformation tensor
-    instr[:cairn][:elastoplast][:update].deform!(ndrange=mp.nmp,mp,mesh,dt);sync(CPU())
+    instr[:cairn][:elastoplast][:update].deform!(ndrange=mpts.nmp,mpts,mesh,dt);sync(CPU())
     # update material point's domain
     if instr[:basis][:which] == "gimpm"
-        instr[:cairn][:elastoplast][:update].domain!(ndrange=mp.nmp,mp);sync(CPU())
+        instr[:cairn][:elastoplast][:update].domain!(ndrange=mpts.nmp,mpts);sync(CPU())
     end
     # volumetric locking correction
     if instr[:fwrk][:locking]
@@ -54,11 +54,11 @@ function update(mp::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::Dict) where {T1
         # calculate dimensional cst.
         dim     = T2(1.0)/mesh.dim
         # mapping to mesh 
-        instr[:cairn][:elastoplast][:update].ΔJn!(ndrange=mp.nmp,mp,mesh);sync(CPU())
+        instr[:cairn][:elastoplast][:update].ΔJn!(ndrange=mpts.nmp,mpts,mesh);sync(CPU())
         # compute nodal determinant of incremental deformation 
         instr[:cairn][:elastoplast][:update].ΔJs!(ndrange=mesh.nno[end],mesh);sync(CPU())
         # compute determinant Jbar 
-        instr[:cairn][:elastoplast][:update].ΔJp!(ndrange=mp.nmp,mp,mesh,dim);sync(CPU())
+        instr[:cairn][:elastoplast][:update].ΔJp!(ndrange=mpts.nmp,mpts,mesh,dim);sync(CPU())
     end  
     return nothing
 end

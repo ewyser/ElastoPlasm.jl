@@ -23,7 +23,7 @@
         end
     end
 end
-@views function solve(mesh,dt::T2,instr::Dict) where {T2}
+@views function solve(mesh,dt::T2,instr::NamedTuple) where {T2}
     # viscous damping
     η      = T2(0.1)
     # initialize

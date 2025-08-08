@@ -3,7 +3,7 @@ export set_paths, config_plot
 """
     set_paths(new_dir::String, path::String; interactive::Bool=true) -> Dict{Symbol, String}
 
-Creates and manages subdirectories within a specified base path, optionally allowing interactive selection of which folders to generate.
+Create and manage subdirectories within a specified base path for simulation output, with optional interactive selection of which folders to generate.
 
 # Arguments
 - `new_dir::String`: Name of the main directory to create within the base path.
@@ -63,11 +63,11 @@ end
 
 export config_plot
 """
-    config_plot(titf=12, gf=12, tickf=10, lf=10, lw=2, fs=:box, l=nothing, g=false)
+    config_plot(; titf=12, gf=12, tickf=10, lf=10, lw=2, fs=:box, l=nothing, g=false)
 
-Configures the default styling parameters for plots, allowing customization of fonts, line widths, frame style, labels, and grid visibility.
+Configure the default styling parameters for plots, allowing customization of fonts, line widths, frame style, labels, and grid visibility.
 
-# Arguments
+# Keyword Arguments
 - `titf`: Font size for the plot title (default: `12`).
 - `gf`: Font size for guide elements, such as axis labels and legends (default: `12`).
 - `tickf`: Font size for tick labels (default: `10`).
@@ -85,7 +85,7 @@ Configures the default styling parameters for plots, allowing customization of f
 config_plot(titf=14, gf=12, tickf=8, lf=12, lw=3, fs=:box, l="My Plot", g=true)
 ```
 """
-function config_plot(titf=12,gf=12,tickf=10,lf=10,lw=2,fs=:box,l=nothing,g=false)
+function config_plot(; titf=12, gf=12, tickf=10, lf=10, lw=2, fs=:box, l=nothing, g=false)
     default(
         fontfamily  = "Computer Modern",
         titlefont   = titf, 

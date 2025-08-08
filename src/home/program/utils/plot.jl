@@ -1,10 +1,34 @@
-@views function what_plot_field(mp,mesh,opts)
+"""
+    what_plot_field(mpts, mesh, opts)
+
+Select and prepare a field for plotting from the material point and mesh data, based on the `opts` specification.
+
+# Arguments
+- `mpts`: Material point data structure.
+- `mesh`: Mesh data structure.
+- `opts`: Options named tuple or dictionary specifying what to plot and plot settings (e.g., `what`, `dims`, `tit`, `backend`).
+
+# Returns
+- `p`: Plot object for the selected field.
+
+# Behavior
+- Supports fields: pressure (`P`), plastic strain (`epII`), volumetric plastic strain (`epV`), displacement (`du`), initial vertical position (`z0`), initial cohesion (`coh0`), and initial friction angle (`phi0`).
+- Throws an error if the requested field is not defined.
+
+# Example
+```julia
+opts = (;what="P", dims=(500,250), tit="", backend=gr())
+p = what_plot_field(mpts, mesh, opts)
+display(p)
+```
+"""
+@views function what_plot_field(mpts,mesh,opts)
     if opts.what == "P"
-        if size(mp.s.σᵢ,1) == 3
-            d   = -(mp.s.σᵢ[1,:]+mp.s.σᵢ[2,:])/2/1e3
+        if size(mpts.s.σᵢ,1) == 3
+            d   = -(mpts.s.σᵢ[1,:]+mpts.s.σᵢ[2,:])/2/1e3
             lab = L"$p=-\left(\sigma_{xx,p}+\sigma_{yy,p}\right)/2$"
-        elseif size(mp.s.σᵢ,1) == 6
-            d   = -(mp.s.σᵢ[1,:]+mp.s.σᵢ[2,:]+mp.s.σᵢ[3,:])/3/1e3
+        elseif size(mpts.s.σᵢ,1) == 6
+            d   = -(mpts.s.σᵢ[1,:]+mpts.s.σᵢ[2,:]+mpts.s.σᵢ[3,:])/3/1e3
             lab = L"$p=-\left(\sigma_{xx,p}+\sigma_{yy,p}+\sigma_{zz,p}\right)/3$"
         end            
         tit   = "pressure"
@@ -15,7 +39,7 @@
             cblim = (minimum(d),maximum(d))
         end
     elseif opts.what == "epII"
-        d     = mp.s.ϵpII[1,:]
+        d     = mpts.s.ϵpII[1,:]
         lab   = L"$\epsilon_{\mathrm{II}}^{\mathrm{acc}}$"
         tit   = "plastic strain"
         cb    = :viridis
@@ -25,7 +49,7 @@
             cblim = (0.0,maximum(d))
         end
     elseif opts.what == "epV"
-        d     = mp.s.ϵpV
+        d     = mpts.s.ϵpV
         lab   = L"$\epsilon_{p}^{\mathrm{vol}}$"
         tit   = "volumetric plastic strain"
         cb    = :seismic
@@ -35,7 +59,7 @@
             cblim = (-maximum(abs.(d)),maximum(abs.(d)))
         end
     elseif opts.what == "du"
-        d     = sqrt.(mp.s.u[1,:].^2+mp.s.u[2,:].^2)
+        d     = sqrt.(mpts.s.u[1,:].^2+mpts.s.u[2,:].^2)
         lab   = L"$\Delta u$"
         tit   = "displacement"
         cb    = :viridis
@@ -45,20 +69,20 @@
             cblim = (0.0,maximum(d))
         end
     elseif opts.what == "z0"
-        d     = mp.z₀
+        d     = mpts.z₀
         lab   = L"$z_p(t_0)$"
         tit   = "initial vertical position"
         cb    = palette(:grayC,5) 
         cblim = (0.0,maximum(d))
     elseif opts.what == "coh0"
-        d     = mp.s.c₀./1e3
+        d     = mpts.s.c₀./1e3
         lab   = L"c_0(x_p) [kPa]"
         tit   = "initial cohesion field"
         cb    = :vik
         coh0  = sum(d)/length(d)
         cblim = (coh0-coh0/2,coh0+coh0/2)
     elseif opts.what == "phi0"
-        d     = mp.s.ϕ
+        d     = mpts.s.ϕ
         lab   = L"$\phi_0(x_p)$"
         tit   = "initial friction angle"
         cb    = :viridis
@@ -71,9 +95,9 @@
     opts.backend
     p = plot(
         if mesh.dim == 2
-            mp.x[1,:],mp.x[2,:]
+            mpts.x[1,:],mpts.x[2,:]
         elseif mesh.dim == 3
-            mp.x[1,:],mp.x[3,:]
+            mpts.x[1,:],mpts.x[3,:]
         end,
         seriestype  = :scatter,
         marker_z    = d,
@@ -90,11 +114,31 @@
     return p
 end
 
-function get_plot_field(mp,mesh,opts; P::Vector{Any}=[]) 
+"""
+    get_plot_field(mpts, mesh, opts; P=Vector{{Any}}())
+
+Generate and display plots for all fields specified in `opts[:what]`.
+
+# Arguments
+- `mpts`: Material point data structure.
+- `mesh`: Mesh data structure.
+- `opts`: Options named tuple or dictionary specifying what to plot and plot settings (e.g., `what`, `dims`).
+- `P`: (Optional) Vector to collect plot objects.
+
+# Returns
+- Displays the plot(s) and returns nothing.
+
+# Example
+```julia
+opts = (;what=["P", "epII"], dims=(500,500))
+get_plot_field(mpts, mesh, opts)
+```
+"""
+function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[]) 
     # plotting
     for (k,variable) ∈ enumerate(opts[:what])
         opts = (;opts...,what=variable)
-        p0   = what_plot_field(mp,mesh,(;opts...,what=variable))
+        p0   = what_plot_field(mpts,mesh,(;opts...,what=variable))
         push!(P,p0)
     end
     scale = length(P) 
@@ -103,6 +147,23 @@ function get_plot_field(mp,mesh,opts; P::Vector{Any}=[])
     return display(P)
 end
 
+"""
+    save_plot(opts)
+
+Save the current plot to a file specified in `opts.file` and log the output path.
+
+# Arguments
+- `opts`: Options named tuple or dictionary containing the `file` path for saving the plot.
+
+# Returns
+- Logs the generated file path and returns nothing.
+
+# Example
+```julia
+opts = (;file="output.png")
+save_plot(opts)
+```
+"""
 function save_plot(opts)
     savefig(opts.file)
     return @info "Generated fig: \n\e[32m+ $(trunc_path(opts.file))\e[0m"
