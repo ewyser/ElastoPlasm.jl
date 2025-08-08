@@ -1,20 +1,4 @@
-"""
-    get_version() -> String
 
-Return the current project version as a string, as specified in the Julia project file.
-
-# Returns
-- `String`: The project version.
-
-# Example
-```julia
-v = get_version()
-println(v)
-```
-"""
-function get_version()
-    return string(Pkg.project().version)
-end
 
 """
     get_vals(mesh, mpts, it) -> Vector{Tuple{String, Any}}
@@ -42,29 +26,4 @@ function get_vals(mesh,mpts,it)
             ("iteration(s)",it),
             ]
     return vals
-end
-
-"""
-    msg(message)
-
-Print a styled message to the console in red, bold, and blinking text if supported.
-
-# Arguments
-- `message`: The message string to display.
-
-# Returns
-- Nothing. Prints the message to the console.
-
-# Example
-```julia
-msg("This is a warning message.")
-```
-"""
-function msg(message)
-    message = "└ "*message
-    try
-        return printstyled(message,color=:red,bold=true,blink=true)
-    catch
-        return printstyled(message,color=:blink)
-    end
 end
