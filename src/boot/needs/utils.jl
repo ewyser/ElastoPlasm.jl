@@ -18,7 +18,7 @@ println.(msgs)
 ```
 """
 function superList(lists::Vector{String}; root::String=info.sys.root, tree::Bool=false,)
-	sucess = ["Welcome to ϵlastσPlasm 👻 \nsuperInc() jls parser:"]
+	sucess = ["superInc() jls parser:"]
 	for (k,dir) ∈ enumerate(lists)
 		incs = superInc(joinpath(root,dir))
 		if tree
@@ -153,6 +153,50 @@ function trunc_path(full_path::AbstractString; anchor::AbstractString="ElastoPla
 	parts = splitpath(full_path)
 	idx = findfirst(==(anchor), parts)
 	return isnothing(idx) ? full_path : joinpath(parts[idx:end]...)
+end
+
+"""
+    get_version() -> String
+
+Return the current project version as a string, as specified in the Julia project file.
+
+# Returns
+- `String`: The project version.
+
+# Example
+```julia
+v = get_version()
+println(v)
+```
+"""
+function get_version()
+    return string(Pkg.project().version)
+end
+
+"""
+    welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_version())")
+
+Prints a styled welcome message to the console, highlighting "Welcome" and vertical bars in green and bold.
+
+# Arguments
+- `greeting::String`: The greeting message to display at the top (default: "Welcome to ϵlastσPlasm 👻 v$(get_version())").
+
+# Returns
+- `Nothing`. Prints the welcome message to the console.
+
+# Example
+```julia
+welcome_log()
+welcome_log(greeting="Hello from ElastoPlasm!")
+```
+"""
+function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_version())",)
+    printstyled("┌ $greeting\n", color=:green, bold=true)
+    printstyled("│", color=:green, bold=true); println(" New comer ? Try this out")
+    printstyled("│", color=:green, bold=true); println("   L,nel  = [64.1584,64.1584/4.0],[40,10];")
+    printstyled("│", color=:green, bold=true); println("   ic,cfg = ic_slump(L,nel);")
+    printstyled("└", color=:green, bold=true); println("   out    = slump(ic,cfg; workflow=\"all-in-one\");")
+    return nothing
 end
 
 """

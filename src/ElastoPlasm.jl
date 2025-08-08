@@ -5,12 +5,6 @@ const ROOT = @__DIR__
 # include boot file
 include(joinpath(ROOT,"boot/boot.jl"))
 
-@info """New comer ?
-- copy-paste the following:
-  L,nel  = [64.1584,64.1584/4.0],[40,10];
-  ic,cfg = ic_slump(L,nel);
-  out    = slump(ic,cfg; workflow="all-in-one");
-- wait for the simulation to end
-"""
+welcome_log() # TODO(!pending): find a way to force this to be called when `using ElastoPlasm`
 
 end # module elastoPlasm
