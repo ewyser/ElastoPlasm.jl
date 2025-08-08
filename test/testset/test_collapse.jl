@@ -4,18 +4,18 @@
     dim  = length(nel)
     ν, E, ρ0, l0 = 0.0, 1.0e4, 80.0, 50.0
     ic, cfg = ic_collapse(nel, ν, E, ρ0, l0; fid = "test/collapse", plot = (; status=true, freq=1.0, what=["P"], dims=(500.0,250.0) ))
-    z0      = copy(ic.mp.x[end, :])
+    z0      = copy(ic.mpts.x[end, :])
     out     = collapse(ic, cfg)
-    mesh,mp,cmpr = out.ic.mesh, out.ic.mp, out.ic.cmpr
+    mesh,mpts,cmpr = out.ic.mesh, out.ic.mpts, out.ic.cmpr
 
     # Numeric and analytic solution
     idx = mesh.dim == 2 ? 2 : 3
-    xnum = abs.(mp.s.σᵢ[idx, :])
+    xnum = abs.(mpts.s.σᵢ[idx, :])
     ynum = z0
     x = abs.(cmpr.ρ0 * 9.81 * (l0 .- z0))
     y = z0
 
-    err = sum(sqrt.((xnum .- x).^2) .* mp.Ω₀) / (9.81 * cmpr.ρ0 * l0 * sum(mp.Ω₀))
+    err = sum(sqrt.((xnum .- x).^2) .* mpts.Ω₀) / (9.81 * cmpr.ρ0 * l0 * sum(mpts.Ω₀))
     
     @test isa(err,AbstractFloat)
 

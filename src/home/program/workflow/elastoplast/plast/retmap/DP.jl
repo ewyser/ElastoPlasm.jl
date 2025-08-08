@@ -30,71 +30,71 @@ end
     end
     return σn 
 end
-@views @kernel inbounds = true function finite_DP(mp::Point{T1,T2},cmp::NamedTuple) where {T1,T2}
+@views @kernel inbounds = true function finite_DP(mpts::Point{T1,T2},cmp::NamedTuple) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp 
-        mp.s.Δλ[p] = T2(0.0)
-        ψ,nstr   = T2(0.0*π/180.0),size(mp.s.σᵢ,1)
+    if p≤mpts.nmp 
+        mpts.s.Δλ[p] = T2(0.0)
+        ψ,nstr   = T2(0.0*π/180.0),size(mpts.s.σᵢ,1)
 
         # closed-form solution return-mapping for D-P
-        c = mp.s.c₀[p]+cmp.Hp*mp.s.ϵpII[2,p]
-        if c<mp.s.cᵣ[p] 
-            c = mp.s.cᵣ[p] 
+        c = mpts.s.c₀[p]+cmp.Hp*mpts.s.ϵpII[2,p]
+        if c<mpts.s.cᵣ[p] 
+            c = mpts.s.cᵣ[p] 
         end
-        P,τ0,τII = σTr(mp.s.τᵢ[:,p],nstr)
-        η,ηB,ξ   = materialParam(mp.s.ϕ[p],ψ,c,nstr)
+        P,τ0,τII = σTr(mpts.s.τᵢ[:,p],nstr)
+        η,ηB,ξ   = materialParam(mpts.s.ϕ[p],ψ,c,nstr)
         σm,τP    = ξ/η,ξ-η*(ξ/η)
         fs,ft    = τII+η*P-ξ,P-σm         
         αP,h     = sqrt(T2(1.0)+η^2)-η,τII-τP-(sqrt(T2(1.0)+η^2))*(P-σm)  
         if fs>T2(0.0) && P<σm || h>T2(0.0) && P≥σm 
             Δλ             = fs/(cmp.Gc+cmp.Kc*η*ηB)
             Pn,τn          = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
-            mp.s.Δλ[p]     = Δλ
-            mp.s.τᵢ[:,p]  .= σn(Pn,τ0,τn,τII,nstr)
-            mp.s.ϵpII[1,p]+= Δλ*sqrt(T2(1/3)+T2(2/9)*ηB^2)
+            mpts.s.Δλ[p]     = Δλ
+            mpts.s.τᵢ[:,p]  .= σn(Pn,τ0,τn,τII,nstr)
+            mpts.s.ϵpII[1,p]+= Δλ*sqrt(T2(1/3)+T2(2/9)*ηB^2)
         end
         if h≤0.0 && P≥σm
             Δλ             = (P-σm)/cmp.Kc
             Pn             = σm-P
-            mp.s.Δλ[p]     = Δλ
-            mp.s.τᵢ[:,p]  .= σn(Pn,τ0,T2(0.0),τII,nstr)
-            mp.s.ϵpII[1,p]+= sqrt(T2(2.0))*Δλ/T2(3.0)
+            mpts.s.Δλ[p]     = Δλ
+            mpts.s.τᵢ[:,p]  .= σn(Pn,τ0,T2(0.0),τII,nstr)
+            mpts.s.ϵpII[1,p]+= sqrt(T2(2.0))*Δλ/T2(3.0)
         end
         # update strain tensor & left cauchy green deformation tensor
-        mp.s.ϵᵢⱼ[:,:,p].= mutate(cmp.Del\mp.s.τᵢ[:,p],T2(0.5),:tensor)
-        λ,n             = eigen(mp.s.ϵᵢⱼ[:,:,p],sortby=nothing)
-        mp.s.Bᵢⱼ[:,:,p].= n*diagm(exp.(T2(2.0).*λ))*n'
+        mpts.s.ϵᵢⱼ[:,:,p].= mutate(cmp.Del\mpts.s.τᵢ[:,p],T2(0.5),:tensor)
+        λ,n             = eigen(mpts.s.ϵᵢⱼ[:,:,p],sortby=nothing)
+        mpts.s.Bᵢⱼ[:,:,p].= n*diagm(exp.(T2(2.0).*λ))*n'
     end
 end
-@views @kernel inbounds = true function infinitesimal_DP(mp::Point{T1,T2},cmp::NamedTuple) where {T1,T2}
+@views @kernel inbounds = true function infinitesimal_DP(mpts::Point{T1,T2},cmp::NamedTuple) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp 
-        mp.s.Δλ[p] = T2(0.0)
-        ψ,nstr   = T2(0.0*π/180.0),size(mp.s.σᵢ,1)
+    if p≤mpts.nmp 
+        mpts.s.Δλ[p] = T2(0.0)
+        ψ,nstr   = T2(0.0*π/180.0),size(mpts.s.σᵢ,1)
 
         # closed-form solution return-mapping for D-P
-        c   = mp.s.c₀[p]+cmp.Hp*mp.s.ϵpII[2,p]
-        if c<mp.s.cᵣ[p] 
-            c = mp.s.cᵣ[p] 
+        c   = mpts.s.c₀[p]+cmp.Hp*mpts.s.ϵpII[2,p]
+        if c<mpts.s.cᵣ[p] 
+            c = mpts.s.cᵣ[p] 
         end
-        P,τ0,τII = σTr(mp.s.σᵢ[:,p],nstr)
-        η,ηB,ξ   = materialParam(mp.s.ϕ[p],ψ,c,nstr)
+        P,τ0,τII = σTr(mpts.s.σᵢ[:,p],nstr)
+        η,ηB,ξ   = materialParam(mpts.s.ϕ[p],ψ,c,nstr)
         σm,τP    = ξ/η,ξ-η*(ξ/η)
         fs,ft    = τII+η*P-ξ,P-σm         
         αP,h     = sqrt(T2(1.0)+η^2)-η,τII-τP-(sqrt(T2(1.0)+η^2))*(P-σm)  
         if fs>T2(0.0) && P<σm || h>T2(0.0) && P≥σm 
             Δλ             = fs/(cmp.Gc+cmp.Kc*η*ηB)
-            mp.s.Δλ[p]     = Δλ
+            mpts.s.Δλ[p]     = Δλ
             Pn,τn          = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
-            mp.s.σᵢ[:,p]  .= σn(Pn,τ0,τn,τII,nstr)
-            mp.s.ϵpII[1,p]+= Δλ*sqrt(T2(1/3)+T2(2/9)*ηB^2)
+            mpts.s.σᵢ[:,p]  .= σn(Pn,τ0,τn,τII,nstr)
+            mpts.s.ϵpII[1,p]+= Δλ*sqrt(T2(1/3)+T2(2/9)*ηB^2)
         end
         if h≤T2(0.0) && P≥σm
             Δλ             = (P-σm)/cmp.Kc
-            mp.s.Δλ[p]     = Δλ
+            mpts.s.Δλ[p]     = Δλ
             Pn             = σm-P
-            mp.s.σᵢ[:,p]  .= σn(Pn,τ0,T2(0.0),τII,nstr)
-            mp.s.ϵpII[1,p]+= sqrt(T2(2.0))*Δλ/T2(3.0)
+            mpts.s.σᵢ[:,p]  .= σn(Pn,τ0,T2(0.0),τII,nstr)
+            mpts.s.ϵpII[1,p]+= sqrt(T2(2.0))*Δλ/T2(3.0)
         end
     end
 end

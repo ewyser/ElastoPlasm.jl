@@ -48,16 +48,16 @@ function init_shpfun(dim::Number,instr::Dict;what::String="nothing")
     end
     return (;tplgy! = kernel1, ϕ∂ϕ! = kernel2, δ! = kernel3)
 end
-function shpfun(mp::Point{T1,T2},mesh::Mesh{T1,T2},instr::Dict) where {T1,T2} 
+function shpfun(mpts::Point{T1,T2},mesh::Mesh{T1,T2},instr::Dict) where {T1,T2} 
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
-    instr[:cairn][:shpfun].tplgy!(mp,mesh; ndrange=(mp.nmp));sync(CPU())
+    instr[:cairn][:shpfun].tplgy!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     # initialize shapefunctions
-    mp.ϕ∂ϕ .= T2(0.0)
+    mpts.ϕ∂ϕ .= T2(0.0)
     # calculate shape functions
-    instr[:cairn][:shpfun].ϕ∂ϕ!(mp,mesh; ndrange=(mp.nmp));sync(CPU())
+    instr[:cairn][:shpfun].ϕ∂ϕ!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     # calculate identity shape functions
     if instr[:fwrk][:trsfr] == "tpic"
-        instr[:cairn][:shpfun].δ!(mp,mesh; ndrange=(mp.nmp));sync(CPU())
+        instr[:cairn][:shpfun].δ!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     end
     return nothing
 end

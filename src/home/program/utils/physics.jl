@@ -1,10 +1,10 @@
 """
-    get_dt(mp, mesh, yd, t, time) -> Float64
+    get_dt(mpts, mesh, yd, t, time) -> Float64
 
 Computes the adaptive time step for the simulation based on mesh spacing and material point velocities.
 
 # Arguments
-- `mp`: Material point data structure, must contain `vmax`.
+- `mpts`: Material point data structure, must contain `vmax`.
 - `mesh`: Mesh data structure, must contain `h`.
 - `yd`: Small offset added to velocity for stability.
 - `t`: Current simulation time.
@@ -15,12 +15,12 @@ Computes the adaptive time step for the simulation based on mesh spacing and mat
 
 # Example
 ```julia
-dt = get_dt(mp, mesh, 1e-6, t, time)
+dt = get_dt(mpts, mesh, 1e-6, t, time)
 ```
 """
-function get_dt(mp::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
+function get_dt(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
     # calculte dt
-    cmax = mesh.h./(mp.vmax.+cmpr[:c]); mp.vmax.=T2(0.0) 
+    cmax = mesh.h./(mpts.vmax.+cmpr[:c]); mpts.vmax.=T2(0.0) 
     dt   = min(T2(0.5)*maximum(cmax),ΔT-time.t[1])
     return dt::T2
 end
@@ -55,31 +55,32 @@ function get_g(mesh::Mesh{T1,T2}; G::T2=9.81) where {T1,T2}
 end
 
 """
-    get_spacetime(mp, mesh, cmpr, instr, t, tg, te, time) -> Tuple{Vector{Float64}, Float64}
+    get_spacetime(mpts, mesh, cmpr, time, ΔT) -> Tuple{Vector, Float64}
 
-Updates simulation state, including plasticity status, adaptive time step, and gravity vector.
+Update simulation state, including plasticity status, adaptive time step, and gravity vector, for the current time step.
 
 # Arguments
-- `mp`: Material point data structure.
+- `mpts`: Material point data structure.
 - `mesh`: Mesh data structure.
 - `cmpr`: Compression or constitutive model data.
-- `instr`: Instruction/configuration dictionary.
-- `t`: Current simulation time.
-- `tg`: Gravity ramp duration.
-- `te`: End time for gravity ramp.
-- `time`: Total simulation time.
+- `time`: Named tuple with current and phase times.
+- `ΔT`: End time for the current phase or time window.
 
 # Returns
-- `(g, dt)`: Tuple containing the gravity vector and computed time step.
+- `(g, dt)`: Tuple containing the gravity vector and computed time step for the current time.
+
+# Behavior
+- Computes the adaptive time step using `get_dt`.
+- Ramps up gravity linearly until the end of the gravity phase, then applies full gravity.
 
 # Example
 ```julia
-g, dt = get_spacetime(mp, mesh, cmpr, instr, t, tg, te, time)
+g, dt = get_spacetime(mpts, mesh, cmpr, time, ΔT)
 ```
 """
-function get_spacetime(mp::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
+function get_spacetime(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
     # calculte dt
-    dt = get_dt(mp,mesh,cmpr,time,ΔT)
+    dt = get_dt(mpts,mesh,cmpr,time,ΔT)
     # ramp-up gravity
     if time.t[1] <= time.tg 
         g = get_g(mesh; G = T2(9.81*time.t[1]/time.tg))

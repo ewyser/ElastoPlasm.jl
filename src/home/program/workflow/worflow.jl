@@ -1,6 +1,26 @@
 export elastoplasm,elastoplastic!,elastodynamic!              
 
-function elastodynamic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,instr::Dict) where {T1,T2}
+"""
+    elastodynamic!(mpts::Point{T1,T2}, mesh, cmpr::NamedTuple, time::NamedTuple, instr::Dict)
+
+Run the explicit elastodynamic workflow for the given mesh, material points, constitutive model, and simulation configuration.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh`: Mesh data structure.
+- `cmpr::NamedTuple`: Constitutive model parameters.
+- `time::NamedTuple`: Time stepping configuration.
+- `instr::Dict`: Simulation instructions and options.
+
+# Behavior
+- Advances the simulation in time using an explicit MPM cycle, updating material points and mesh.
+- Plots and saves results at specified intervals.
+- Displays a progress bar.
+
+# Returns
+- `nothing`
+"""
+function elastodynamic!(mpts::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,instr::Dict) where {T1,T2}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr[:plot][:freq]:time.te)))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving elastodynamic...",barlen=10)
@@ -9,23 +29,43 @@ function elastodynamic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,
             # set clock on/off
             tic = time_ns()
             # adaptative dt & linear increase of gravity
-            g,dt = get_spacetime(mp,mesh,cmpr,time,T)
+            g,dt = get_spacetime(mpts,mesh,cmpr,time,T)
             # mpm cycle
-            shpfun(mp,mesh,instr)
-            mapsto(mp,mesh,g,dt,instr)    
-            elasto(mp,mesh,cmpr,dt,instr)
+            shpfun(mpts,mesh,instr)
+            mapsto(mpts,mesh,g,dt,instr)    
+            elasto(mpts,mesh,cmpr,dt,instr)
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
         # plot/save
-        savlot(mp,mesh,time.t[1],instr)
+        savlot(mpts,mesh,time.t[1],instr)
         # update progress bar
-        next!(prog;showvalues = get_vals(mesh,mp,it))
+        next!(prog;showvalues = get_vals(mesh,mpts,it))
     end
     finish!(prog)
     return nothing
 end  
-function elastoplastic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,instr::Dict) where {T1,T2}
+"""
+    elastoplastic!(mpts::Point{T1,T2}, mesh, cmpr::NamedTuple, time::NamedTuple, instr::Dict)
+
+Run the explicit elastoplastic workflow for the given mesh, material points, constitutive model, and simulation configuration.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh`: Mesh data structure.
+- `cmpr::NamedTuple`: Constitutive model parameters.
+- `time::NamedTuple`: Time stepping configuration.
+- `instr::Dict`: Simulation instructions and options.
+
+# Behavior
+- Advances the simulation in time using an explicit MPM cycle with elastoplastic update.
+- Plots and saves results at specified intervals.
+- Displays a progress bar.
+
+# Returns
+- `nothing`
+"""
+function elastoplastic!(mpts::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,instr::Dict) where {T1,T2}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr[:plot][:freq]:time.t[2])))
     g         = get_g(mesh; G = T2(9.81))
     # action
@@ -35,37 +75,55 @@ function elastoplastic!(mp::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,
             # set clock on/off
             tic = time_ns()
             # adaptative dt & linear increase of gravity
-            dt  = get_dt(mp,mesh,cmpr,time,T)
+            dt  = get_dt(mpts,mesh,cmpr,time,T)
             # mpm cycle
-            shpfun(mp,mesh,instr)
-            mapsto(mp,mesh,g,dt,instr)    
-            elastoplast(mp,mesh,cmpr,dt,instr)
+            shpfun(mpts,mesh,instr)
+            mapsto(mpts,mesh,g,dt,instr)    
+            elastoplast(mpts,mesh,cmpr,dt,instr)
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
         # plot/save
-        savlot(mp,mesh,time.t[1],instr)
+        savlot(mpts,mesh,time.t[1],instr)
         # update progress bar
-        next!(prog;showvalues = get_vals(mesh,mp,it))
+        next!(prog;showvalues = get_vals(mesh,mpts,it))
     end
     finish!(prog)
     return nothing
 end  
 
+"""
+    elastoplasm(ic::NamedTuple, cfg::NamedTuple; mode::String="elastodynamic") -> NamedTuple
+
+Run the main simulation workflow for the given initial conditions and configuration.
+
+# Arguments
+- `ic::NamedTuple`: Initial conditions (mesh, mpts, cmpr, time).
+- `cfg::NamedTuple`: Simulation configuration (instr, paths).
+- `mode::String`: (Optional) Workflow mode: "elastodynamic", "elastoplastic", or "all-in-one" (default: "elastodynamic").
+
+# Behavior
+- Runs the selected workflow, logging progress and saving results.
+- Handles postprocessing and output file naming.
+- Returns a named tuple with the input initial conditions and configuration.
+
+# Returns
+- `NamedTuple`: Contains the input `ic` and `cfg`.
+"""
 function elastoplasm(ic::NamedTuple,cfg::NamedTuple; mode::String="elastodynamic")
-    # unpack mesh, mp, cmpr, instr, paths as aliases
-    mesh,mp,cmpr = ic[:mesh]  , ic[:mp]    , (ic[:cmpr])
+    # unpack mesh, mpts, cmpr, instr, paths as aliases
+    mesh,mpts,cmpr = ic[:mesh]  , ic[:mpts]    , (ic[:cmpr])
     instr,paths  = cfg[:instr], cfg[:paths]
     time         = ic[:time]
     # action
     @info elastoplasm_log(instr; msg = mode) 
     if mode == "elastodynamic"
-        elastodynamic!(mp,mesh,cmpr,time,instr)
+        elastodynamic!(mpts,mesh,cmpr,time,instr)
     elseif mode == "elastoplastic"
-        elastoplastic!(mp,mesh,cmpr,time,instr)
+        elastoplastic!(mpts,mesh,cmpr,time,instr)
     elseif mode == "all-in-one"
-        elastodynamic!(mp,mesh,cmpr,time,instr)
-        elastoplastic!(mp,mesh,cmpr,time,instr)
+        elastodynamic!(mpts,mesh,cmpr,time,instr)
+        elastoplastic!(mpts,mesh,cmpr,time,instr)
     else
         @error "Invalid workflow: $(mode). Choose 'elastodynamic', 'elastoplastic' or 'all-in-one'."
         return false
@@ -73,7 +131,7 @@ function elastoplasm(ic::NamedTuple,cfg::NamedTuple; mode::String="elastodynamic
     sleep(1.0)
     # postprocessing
     opts = (;
-        file = joinpath(paths[:plot],"$(mesh.dim)d_$(mode)_$(mp.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf][:status])_$(first(instr[:nonloc])).png"),
+        file = joinpath(paths[:plot],"$(mesh.dim)d_$(mode)_$(mpts.nmp)_$(mesh.nel[end])_$(join(instr[:plot][:what]))_$(instr[:basis][:which])_$(instr[:fwrk][:deform])_$(instr[:fwrk][:trsfr])_$(instr[:fwrk][:locking])_$(cmpr[:cmType])_$(instr[:perf][:status])_$(first(instr[:nonloc])).png"),
     );save_plot(opts)
     # return success message
     exit_log("(✓) Done! exiting...\n")

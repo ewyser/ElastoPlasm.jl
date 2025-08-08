@@ -33,18 +33,18 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     T0    = instr[:dtype].T0  
     T1,T2 = first(T0),last(T0) 
     L,nel = T2.(L),T1.(nel) 
-    # mesh & mp initial conditions
+    # mesh & mpts initial conditions
     ni    = T1(2)
     mesh  = setup_mesh(nel, L, instr)
     cmpr  = setup_cmpr(mesh,instr; E=T2(E), ν=T2(ν), ρ0=T2(ρ0))
-    mp    = setup_mpts(mesh, cmpr; define=geom_collapse(mesh, cmpr, ni; ℓ₀=l0))
+    mpts    = setup_mpts(mesh, cmpr; define=geom_collapse(mesh, cmpr, ni; ℓ₀=l0))
     # time parameters
     tg    = ceil((1.0/cmpr.c)*(2.0*l0)*40.0)
     te    = 1.25*tg
     time  = setup_time(T2; te=te,tg=tg) 
     # display summary
-    @info ic_log(mesh,mp,time)
-    return (;mesh, mp, cmpr, time), (;instr, paths)
+    @info ic_log(mesh,mpts,time)
+    return (;mesh, mpts, cmpr, time), (;instr, paths)
 end
 
 """
@@ -79,7 +79,7 @@ end
 """
     collapse!(ic::NamedTuple, cfg::NamedTuple) -> NamedTuple
 
-Runs the explicit solution workflow for the collapse problem, mutating the input initial conditions and configuration.
+Run the explicit solution workflow for the collapse problem, mutating the input initial conditions and configuration.
 Use this when you want changes to `ic` and `cfg` to persist after the simulation.
 
 # Arguments
