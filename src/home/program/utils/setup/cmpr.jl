@@ -1,3 +1,23 @@
+"""
+    D(E, ν, ndim) -> Kc, Gc, D
+
+Compute the bulk modulus, shear modulus, and elastic stiffness matrix for a given Young's modulus, Poisson's ratio, and spatial dimension.
+
+# Arguments
+- `E`: Young's modulus (Pa).
+- `ν`: Poisson's ratio.
+- `ndim`: Number of spatial dimensions (1, 2, or 3).
+
+# Returns
+- `Kc`: Bulk modulus.
+- `Gc`: Shear modulus.
+- `D`: Elastic stiffness matrix (Voigt notation).
+
+# Example
+```julia
+Kc, Gc, D = D(1.0e6, 0.3, 2)
+```
+"""
 function D(E,ν,ndim)
     Kc,Gc = E/(3.0*(1.0-2.0*ν)),E/(2.0*(1.0+ν))                                # bulk & shear modulus               [Pa]
     if ndim == 1
@@ -21,6 +41,28 @@ function D(E,ν,ndim)
     end
     return Kc,Gc,D
 end
+
+"""
+    setup_cmpr(mesh::Mesh{T1,T2}, instr::Dict; E::T2=1.0e6, ν::T2=0.3, ρ0::T2=2700.0) -> NamedTuple
+
+Set up the constitutive model parameters for a simulation, including elastic and plastic properties, based on mesh and instruction dictionary.
+
+# Arguments
+- `mesh::Mesh{T1,T2}`: Mesh object containing dimension information.
+- `instr::Dict`: Simulation instruction dictionary (must include plasticity and nonlocal settings).
+- `E::T2=1.0e6`: (Optional) Young's modulus (Pa).
+- `ν::T2=0.3`: (Optional) Poisson's ratio.
+- `ρ0::T2=2700.0`: (Optional) Initial density (kg/m³).
+
+# Returns
+- `NamedTuple`: Constitutive model parameters, including elastic, plastic, and nonlocal properties.
+
+# Example
+```julia
+cmp = setup_cmpr(mesh, instr; E=2.0e6, ν=0.25, ρ0=2500.0)
+println(cmp.Kc)  # Bulk modulus
+```
+"""
 function setup_cmpr(mesh::Mesh{T1,T2},instr::Dict; E::T2=T2(1.0e6),ν::T2=T2(0.3),ρ0::T2= T2(2700.0)) where {T1,T2}
     # independant physical constant          
     K,G,Del = D(E,ν,mesh.dim)                                                   # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]    

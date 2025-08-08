@@ -18,57 +18,57 @@ end
     f    = ξn-κ
     return f,n
 end
-@views @kernel inbounds = true function finite_J2(mp,cmpr,instr; ftol::Real= 1e-9,ηmax::Int= 20) # Borja (1990); De Souza Neto (2008)
+@views @kernel inbounds = true function finite_J2(mpts,cmpr,instr; ftol::Real= 1e-9,ηmax::Int= 20) # Borja (1990); De Souza Neto (2008)
     p = @index(Global)
-    if p≤mp.nmp 
+    if p≤mpts.nmp 
         # calculate yield function
-        κ   = max(mp.cᵣ[p],mp.c₀[p]+cmpr.Hp*mp.ϵpII[2,p])
-        f,n = yield_J2(mp.τᵢ[:,p],κ)
+        κ   = max(mpts.cᵣ[p],mpts.c₀[p]+cmpr.Hp*mpts.ϵpII[2,p])
+        f,n = yield_J2(mpts.τᵢ[:,p],κ)
         # return mapping using CPA (non-quadratic convergence)
         if f>0.0 
-            γ0,σ0,ηit = copy(mp.ϵpII[2,p]),copy(mp.τᵢ[:,p]),1
+            γ0,σ0,ηit = copy(mpts.ϵpII[2,p]),copy(mpts.τᵢ[:,p]),1
             while abs(f)>ftol && ηit<ηmax
                 ∂f∂σ = n
                 Δλ   = f/(∂f∂σ'*cmpr.Del*∂f∂σ)
                 Δσ   = (Δλ*cmpr.Del*∂f∂σ)        
                 σ0 .-= Δσ 
                 γ0  += Δλ
-                κ    = max(mp.cᵣ[p],mp.c₀[p]+cmpr.Hp*γ0)
+                κ    = max(mpts.cᵣ[p],mpts.c₀[p]+cmpr.Hp*γ0)
                 f,n  = yield_J2(σ0,κ)
                 ηit +=1
             end
-            mp.ϵpII[p,1] = γ0
-            mp.τᵢ[:,p]  .= σ0
+            mpts.ϵpII[p,1] = γ0
+            mpts.τᵢ[:,p]  .= σ0
             # update strain tensor & left cauchy green deformation tensor
-            mp.ϵᵢⱼ[:,:,p].= mutate(cmpr.Del\mp.τᵢ[:,p],0.5,:tensor)
-            λ,n           = eigen(mp.ϵᵢⱼ[:,:,p],sortby=nothing)
-            mp.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
+            mpts.ϵᵢⱼ[:,:,p].= mutate(cmpr.Del\mpts.τᵢ[:,p],0.5,:tensor)
+            λ,n           = eigen(mpts.ϵᵢⱼ[:,:,p],sortby=nothing)
+            mpts.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
             # update plastic corrector increment
             ηmax = max(ηit,ηmax)
         end        
     end
 end
-@views @kernel inbounds = true function infinitesimal_J2(mp,cmpr,instr; ftol::Real= 1e-9,ηmax::Int= 20) # Borja (1990); De Souza Neto (2008)
+@views @kernel inbounds = true function infinitesimal_J2(mpts,cmpr,instr; ftol::Real= 1e-9,ηmax::Int= 20) # Borja (1990); De Souza Neto (2008)
     p = @index(Global)
-    if p≤mp.nmp 
+    if p≤mpts.nmp 
         # calculate yield function
-        κ   = max(mp.cᵣ[p],mp.c₀[p]+cmpr.Hp*mp.ϵpII[2,p])
-        f,n = yield_J2(mp.σᵢ[:,p],κ)
+        κ   = max(mpts.cᵣ[p],mpts.c₀[p]+cmpr.Hp*mpts.ϵpII[2,p])
+        f,n = yield_J2(mpts.σᵢ[:,p],κ)
         # return mapping using CPA (non-quadratic convergence)
         if f>0.0 
-            γ0,σ0,ηit = copy(mp.ϵpII[2,p]),copy(mp.σᵢ[:,p]),1
+            γ0,σ0,ηit = copy(mpts.ϵpII[2,p]),copy(mpts.σᵢ[:,p]),1
             while abs(f)>ftol && ηit<ηmax
                 ∂f∂σ = n
                 Δλ   = f/(∂f∂σ'*cmpr.Del*∂f∂σ)
                 Δσ   = (Δλ*cmpr.Del*∂f∂σ)        
                 σ0 .-= Δσ 
                 γ0  += Δλ
-                κ    = max(mp.cᵣ[p],mp.c₀[p]+cmpr.Hp*γ0)
+                κ    = max(mpts.cᵣ[p],mpts.c₀[p]+cmpr.Hp*γ0)
                 f,n  = yield_J2(σ0,κ)
                 ηit +=1
             end
-            mp.ϵpII[p,1] = γ0
-            mp.σᵢ[:,p]  .= σ0
+            mpts.ϵpII[p,1] = γ0
+            mpts.σᵢ[:,p]  .= σ0
             # update plastic corrector increment
             ηmax = max(ηit,ηmax)
         end        

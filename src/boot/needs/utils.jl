@@ -156,13 +156,13 @@ function trunc_path(full_path::AbstractString; anchor::AbstractString="ElastoPla
 end
 
 """
-    ic_log(mesh, mp, time) -> String
+    ic_log(mesh, mpts, time) -> String
 
 Generates a summary log string for the initial simulation setup, including mesh, material points, and time parameters.
 
 # Arguments
 - `mesh`: Mesh object containing element information.
-- `mp`: Material point object containing number of points.
+- `mpts`: Material point object containing number of points.
 - `time`: Named tuple with time parameters (`t`, `te`, `tg`, `tep`).
 
 # Returns
@@ -170,16 +170,16 @@ Generates a summary log string for the initial simulation setup, including mesh,
 
 # Example
 ```julia
-summary = ic_log(mesh, mp, time)
+summary = ic_log(mesh, mpts, time)
 println(summary)
 ```
 """
-function ic_log(mesh,mp,time)
+function ic_log(mesh,mpts,time)
     # build the list of constant log lines
     logs = [
         "Summary:",
         "- elements: $(mesh.nel[end])",
-        "- material points: $(mp.nmp)", 
+        "- material points: $(mpts.nmp)", 
         "- simulation time ∈ $(time.t) s:",
     ]
     # add optional lines
@@ -217,7 +217,7 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
     # build the list of log lines
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
-        "- $(nthreads()) active thread(s)",
+        "└ $(nthreads()) active thread(s)",
         "- $msg workflow",
         "- $(instr[:fwrk][:deform]) strain formulation",
         "- $(instr[:basis][:which]) calculation cycle",
@@ -226,7 +226,7 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
     if instr[:fwrk][:locking]
         push!(logs, "- F-bar locking mitigation")
     end
-    if instr[:nonloc][:status] && msg == "elastoplastic"
+    if instr[:nonloc][:status] && msg ∈ ["elastoplastic","all-in-one"]
         push!(logs, "- non-local plastic regularization")
     end
     return join(logs,"\n")
@@ -235,13 +235,13 @@ end
 """
     exit_log(message::String)
 
-Prints a styled exit message to the console. Uses green, bold, and blinking text if supported.
+Print a styled exit message to the console, using green, bold, and blinking text if supported by the terminal.
 
 # Arguments
-- `message::String`: The message to display.
+- `message::String`: The message to display at program exit.
 
 # Returns
-- Nothing. Prints the message to the console.
+- `Nothing`. Prints the message to the console.
 
 # Example
 ```julia

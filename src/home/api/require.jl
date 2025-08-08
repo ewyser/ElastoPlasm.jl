@@ -1,75 +1,80 @@
 export require
 """
-    require(in::Symbol=:instr) -> Dict
+    require(in::Symbol = :instr) -> NamedTuple
 
-Returns a reference configuration dictionary for simulation instructions or API routines.
+Return a reference configuration named tuple for simulation instructions or API routines.
 
 # Arguments
-- `in::Symbol`: The configuration type to load defaults for. Only `:instr` is supported.
+- `in::Symbol`: The configuration type to load defaults for. Only `:instr` is currently supported.
 
 # Returns
-- `Dict`: A dictionary containing default configuration values for simulation, including precision, basis, deformation framework, mapping scheme, locking mitigation, random field generator, plasticity, non-local regularization, plotting options, and performance mode.
+- `NamedTuple`: A named tuple containing default configuration values for simulation, including precision, basis, deformation framework, mapping scheme, locking mitigation, random field generator, plasticity, non-local regularization, plotting options, and performance mode.
 
 # Behavior
-- If `in == :instr`, returns a dictionary with all default simulation options.
+- If `in == :instr`, returns a named tuple with all default simulation options.
 - Throws an error for unsupported symbols.
 
 # Example
 ```julia
 cfg = require(:instr)
+println(cfg.basis.which)  # prints the default basis type
 ```
 
 # Supported keys and their purpose
-- `:dtype`   — Arithmetic precision
-- `:basis`   — Shape function type
-- `:fwrk`    — Deformation framework
-- `:trsfr`   — Mapping scheme
-- `:vollock` — Volumetric locking mitigation
-- `:grf`     — Gaussian Random Field generator
+- `:dtype`   — Arithmetic precision (e.g., 64 for Float64)
+- `:basis`   — Shape function type and options
+- `:fwrk`    — Deformation framework and transfer scheme
+- `:bcs`     — Boundary condition settings
+- `:grf`     — Gaussian Random Field generator options
 - `:plast`   — Plasticity onset and flow law
-- `:nonloc`  — Non-local regularization
+- `:nonloc`  — Non-local regularization options
 - `:plot`    — Plotting options
-- `:perf`    — Performance mode
+- `:perf`    — Performance mode options
 """
 function require(in::Symbol=:instr)
     if in == :instr
-        instr = Dict(
-            :dtype => 64,
-            :basis => (;
-                        which="bsmpm",
-                        how=nothing,
-                        ghost=false,
+        return (;
+            dtype = 64,
+            basis = (;
+                which="bsmpm",
+                how=nothing,
+                ghost=false,
             ),
-            :fwrk  => (;
-                        deform = "finite",
-                        trsfr = "musl",
-                        locking = true,
+            fwrk  = (;
+                deform = "finite",
+                trsfr = "musl",
+                locking = true,
             ),
-            :bcs   => (;
-                        dirichlet = :roller,
+            bcs   = (;
+                dirichlet = :roller,
             ),
-            :grf   => (;
-                        status = false,
-                        covariance = "gaussian",
-                        param = (; Iₓ= [2.5,2.5,2.5], Nₕ = 5000, kₘ = 100,),
+            grf   = (;
+                status = false,
+                covariance = "gaussian",
+                param = (; 
+                    Iₓ= [2.5,2.5,2.5], 
+                    Nₕ = 5000, 
+                    kₘ = 100,
+                ),
             ),
-            :plast => (;
-                        status = false,
-                        constitutive = "DP",
+            plast = (;
+                status = false,
+                constitutive = "DP",
             ),
-            :nonloc=> (;
-                        status=true,
-                        ls=0.5,
+            nonloc = (;
+                status=true,
+                ls=0.5,
             ),
-            :plot  => (;
-                        status=true,
-                        freq=1.0,
-                        what=["epII"],
-                        dims=(500.0,250.0),
+            plot  = (;
+                status=true,
+                freq=1.0,
+                what=["epII"],
+                dims=(500.0,250.0),
             ),
-            :perf    => false,
+            perf  = (;
+                status=false,
+            ),
         )
-        return instr
     else
         throw(error("UnsupportedSymbol: $(in)"))
         return nothing

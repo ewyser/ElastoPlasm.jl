@@ -1,52 +1,52 @@
-@views @kernel inbounds = true function undeformed(mp::Point{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function undeformed(mpts::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp 
-        mp.ℓ[:,p].= mp.ℓ₀[:,p]
+    if p≤mpts.nmp 
+        mpts.ℓ[:,p].= mpts.ℓ₀[:,p]
     end
 end
-@views @kernel inbounds = true function ΔUᵢᵢ(mp::Point{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function ΔUᵢᵢ(mpts::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp 
+    if p≤mpts.nmp 
         # update material point's domain length using symmetric material stretch tensor U
-        λ,n        = eigen(mp.ΔFᵢⱼ[:,:,p]'*mp.ΔFᵢⱼ[:,:,p],sortby=nothing)
+        λ,n        = eigen(mpts.ΔFᵢⱼ[:,:,p]'*mpts.ΔFᵢⱼ[:,:,p],sortby=nothing)
         ΔU         = (n*diagm(sqrt.(λ))*n')
-        mp.ℓ[:,p].= diag(ΔU).*mp.ℓ[:,p]
+        mpts.ℓ[:,p].= diag(ΔU).*mpts.ℓ[:,p]
     end
 end
-@views @kernel inbounds = true function Uᵢᵢ(mp::Point{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function Uᵢᵢ(mpts::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp 
+    if p≤mpts.nmp 
         # update material point's domain length using symmetric material stretch tensor U
-        λ,n        = eigen(mp.Fᵢⱼ[:,:,p]'*mp.Fᵢⱼ[:,:,p],sortby=nothing)
+        λ,n        = eigen(mpts.Fᵢⱼ[:,:,p]'*mpts.Fᵢⱼ[:,:,p],sortby=nothing)
         U          = (n*diagm(sqrt.(λ))*n')
-        mp.ℓ[:,p].= diag(U).*mp.ℓ₀[:,p]
+        mpts.ℓ[:,p].= diag(U).*mpts.ℓ₀[:,p]
     end
 end
-@views @kernel inbounds = true function detΔFᵢᵢ(mp::Point{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function detΔFᵢᵢ(mpts::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp 
+    if p≤mpts.nmp 
         # update material point's domain length using diagonal terms of deformation gradient
-        mp.ℓ[:,p].= mp.ℓ[:,p].*det(mp.ΔFᵢⱼ[:,:,p])
+        mpts.ℓ[:,p].= mpts.ℓ[:,p].*det(mpts.ΔFᵢⱼ[:,:,p])
     end
 end
-@views @kernel inbounds = true function detFᵢᵢ(mp::Point{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function detFᵢᵢ(mpts::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp 
+    if p≤mpts.nmp 
         # update material point's domain length using diagonal terms of deformation gradient
-        mp.ℓ[:,p].= mp.ℓ₀[:,p].*det(mp.Fᵢⱼ[:,:,p])
+        mpts.ℓ[:,p].= mpts.ℓ₀[:,p].*det(mpts.Fᵢⱼ[:,:,p])
     end
 end
-@views @kernel inbounds = true function ΔFᵢᵢ(mp::Point{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function ΔFᵢᵢ(mpts::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp 
+    if p≤mpts.nmp 
         # update material point's domain length using diagonal terms of deformation gradient
-        mp.ℓ[:,p].= mp.ℓ[:,p].*diag(mp.ΔFᵢⱼ[:,:,p])
+        mpts.ℓ[:,p].= mpts.ℓ[:,p].*diag(mpts.ΔFᵢⱼ[:,:,p])
     end
 end
-@views @kernel inbounds = true function Fᵢᵢ(mp::Point{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function Fᵢᵢ(mpts::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mp.nmp 
+    if p≤mpts.nmp 
         # update material point's domain length using diagonal terms of deformation gradient
-        mp.ℓ[:,p].= mp.ℓ₀[:,p].*diag(mp.Fᵢⱼ[:,:,p])
+        mpts.ℓ[:,p].= mpts.ℓ₀[:,p].*diag(mpts.Fᵢⱼ[:,:,p])
     end
 end

@@ -7,7 +7,7 @@ function shpfunCheck(shp,instr,paths)
     nel    = mesh.nel[end]
     nmp    = length(xp)
     # constructor
-    mp = (
+    mpts = (
         ndim   = mesh.dim,
         nmp  = nmp,
         x    = xp,
@@ -20,17 +20,17 @@ function shpfunCheck(shp,instr,paths)
     )
     instr[:cairn] = (;shpfun = init_shpfun(mesh.dim,instr[:basis]),)
     # calculate tplgy and shpfun
-    shpfun(mp,mesh,instr)
-    # extract and store value of mp.ϕ∂ϕ
+    shpfun(mpts,mesh,instr)
+    # extract and store value of mpts.ϕ∂ϕ
     xp,ϕ,∂ϕ = zeros(nmp,nel+1),zeros(nmp,nel+1),zeros(nmp,nel+1)  
     PoU = zeros(Float64,nmp)
-    for mp ∈ 1:nmp
-        ϕ∂ϕ = mp.ϕ∂ϕ[:,mp,:]
-        for (k,nn) ∈ enumerate(mp.p2n[:,mp]) if nn<0 continue end
-            xp[mp,nn] = mp.x[mp]  
-            ϕ[mp,nn]  = ϕ∂ϕ[k,1]  
-            ∂ϕ[mp,nn] = ϕ∂ϕ[k,2]  
-            PoU[mp]  +=ϕ∂ϕ[k,1]
+    for mpts ∈ 1:nmp
+        ϕ∂ϕ = mpts.ϕ∂ϕ[:,mpts,:]
+        for (k,nn) ∈ enumerate(mpts.p2n[:,mpts]) if nn<0 continue end
+            xp[mpts,nn] = mpts.x[mpts]  
+            ϕ[mpts,nn]  = ϕ∂ϕ[k,1]  
+            ∂ϕ[mpts,nn] = ϕ∂ϕ[k,2]  
+            PoU[mpts]  +=ϕ∂ϕ[k,1]
         end
     end
 
@@ -68,7 +68,7 @@ function shpfunCheck(shp,instr,paths)
     p1 = plot!(xp0,ϕ0,seriestype = :scatter,markershape= :square,markersize = 2*2.25, markercolor=colors,)
 
     p2 = plot(
-        mp.x,PoU,
+        mpts.x,PoU,
         seriestype = :line,
         color      = :black,
         xlabel     = L"$x-$direction [m]",

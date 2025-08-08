@@ -1,3 +1,27 @@
+"""
+    setup_mpts(mesh::Mesh{T1,T2}, cmp::NamedTuple; define::Tuple=(nothing, nothing)) -> Point{T1,T2}
+
+Construct the material point system (mpts) for a simulation, initializing all relevant fields and connectivity.
+
+# Arguments
+- `mesh::Mesh{T1,T2}`: Mesh object containing geometry and topology.
+- `cmp::NamedTuple`: Constitutive model parameters.
+- `define::Tuple=(nothing, nothing)`: (Optional) Tuple containing geometry definition (e.g., number of intervals, number of material points, geometry struct).
+
+# Returns
+- `Point{T1,T2}`: Material point data structure with all fields initialized for simulation.
+
+# Behavior
+- Initializes material point positions, volumes, densities, and all state variables.
+- Sets up connectivity arrays and phase properties (solid and liquid).
+- Handles both 2D and 3D cases.
+
+# Example
+```julia
+mpts = setup_mpts(mesh, cmp; define=(ni, nmp, geom))
+println(mpts.nmp)  # Number of material points
+```
+"""
 function setup_mpts(mesh::Mesh{T1,T2},cmp::NamedTuple;define::Tuple=(nothing,nothing)) where {T1,T2}
     # non-dimensional constant                                                   
     if mesh.dim == 2 
@@ -15,7 +39,7 @@ function setup_mpts(mesh::Mesh{T1,T2},cmp::NamedTuple;define::Tuple=(nothing,not
     ρ0 = ones(nmp) .* cmp[:ρ0]
     m  = (1.0 .- n0).*cmp[:ρ0].*v0
     # constructor
-    mp = (
+    mpts = (
         ndim = mesh.dim,
         nmp  = nmp,
         vmax = zeros(mesh.dim),
@@ -70,57 +94,57 @@ function setup_mpts(mesh::Mesh{T1,T2},cmp::NamedTuple;define::Tuple=(nothing,not
     )
 
     s = Solid{T1,T2}(
-        T2.(mp.s.u)    ,
-        T2.(mp.s.v)    ,
-        T2.(mp.s.p)    ,
+        T2.(mpts.s.u)    ,
+        T2.(mpts.s.v)    ,
+        T2.(mpts.s.p)    ,
         # mechanical properties
-        T2.(mp.s.ρ₀)   ,
-        T2.(mp.s.ρ)    ,
-        T2.(mp.s.m)    ,
-        T2.(mp.s.c₀)   ,
-        T2.(mp.s.cᵣ)   ,
-        T2.(mp.s.ϕ)    ,
-        T2.(mp.s.Δλ)   ,
-        T2.(mp.s.ϵpII) ,
-        T2.(mp.s.ϵpV)  ,
-        T2.(mp.s.ΔJ)   ,
-        T2.(mp.s.J)    ,
+        T2.(mpts.s.ρ₀)   ,
+        T2.(mpts.s.ρ)    ,
+        T2.(mpts.s.m)    ,
+        T2.(mpts.s.c₀)   ,
+        T2.(mpts.s.cᵣ)   ,
+        T2.(mpts.s.ϕ)    ,
+        T2.(mpts.s.Δλ)   ,
+        T2.(mpts.s.ϵpII) ,
+        T2.(mpts.s.ϵpV)  ,
+        T2.(mpts.s.ΔJ)   ,
+        T2.(mpts.s.J)    ,
         # tensor in voigt notation
-        T2.(mp.s.σᵢ)   ,
-        T2.(mp.s.τᵢ)   ,
+        T2.(mpts.s.σᵢ)   ,
+        T2.(mpts.s.τᵢ)   ,
         # tensor in matrix notation
-        T2.(mp.s.δᵢⱼ)  ,
-        T2.(mp.s.∇vᵢⱼ) ,
-        T2.(mp.s.∇uᵢⱼ) ,
-        T2.(mp.s.ΔFᵢⱼ) ,
-        T2.(mp.s.Fᵢⱼ)  ,
-        T2.(mp.s.Bᵢⱼ)  ,
-        T2.(mp.s.ϵᵢⱼ)  ,
-        T2.(mp.s.ωᵢⱼ)  ,
-        T2.(mp.s.σJᵢⱼ) ,
+        T2.(mpts.s.δᵢⱼ)  ,
+        T2.(mpts.s.∇vᵢⱼ) ,
+        T2.(mpts.s.∇uᵢⱼ) ,
+        T2.(mpts.s.ΔFᵢⱼ) ,
+        T2.(mpts.s.Fᵢⱼ)  ,
+        T2.(mpts.s.Bᵢⱼ)  ,
+        T2.(mpts.s.ϵᵢⱼ)  ,
+        T2.(mpts.s.ωᵢⱼ)  ,
+        T2.(mpts.s.σJᵢⱼ) ,
     )
     l = Liquid{T1,T2}(
 
     )
     out = Point{T1,T2}(
         # general information
-        T1(mp.ndim) ,
-        T1(mp.nmp)  ,
-        T2.(mp.vmax) ,
+        T1(mpts.ndim) ,
+        T1(mpts.nmp)  ,
+        T2.(mpts.vmax) ,
         # basis-related quantities
-        T2.(mp.ϕ∂ϕ)  ,
-        T2.(mp.δnp)  ,
+        T2.(mpts.ϕ∂ϕ)  ,
+        T2.(mpts.δnp)  ,
         # connectivity
-        T1.(mp.e2p)  ,
-        T1.(mp.p2p)  ,
-        T1.(mp.p2e)  ,
-        T1.(mp.p2n)  ,
+        T1.(mpts.e2p)  ,
+        T1.(mpts.p2p)  ,
+        T1.(mpts.p2e)  ,
+        T1.(mpts.p2n)  ,
         # material point properties
-        T2.(mp.x)    ,
-        T2.(mp.ℓ₀)   ,
-        T2.(mp.ℓ)    ,
-        T2.(mp.Ω₀)   ,
-        T2.(mp.Ω)    ,
+        T2.(mpts.x)    ,
+        T2.(mpts.ℓ₀)   ,
+        T2.(mpts.ℓ)    ,
+        T2.(mpts.Ω₀)   ,
+        T2.(mpts.Ω)    ,
         # solid phase
         s       ,
         # liquid phase
