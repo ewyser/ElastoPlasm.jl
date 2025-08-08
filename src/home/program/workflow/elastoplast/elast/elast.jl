@@ -42,7 +42,7 @@ end
     end  
 end
 
-function init_elast(instr::Dict)
+function init_elast(instr::NamedTuple)
     if instr[:perf][:status]
         kernel1 = ELAST(CPU())
     else
@@ -57,7 +57,7 @@ function init_elast(instr::Dict)
 end
 
 
-function elast(mpts::Point{T1,T2},cmpr::NamedTuple,instr::Dict) where {T1,T2}
+function elast(mpts::Point{T1,T2},cmpr::NamedTuple,instr::NamedTuple) where {T1,T2}
     instr[:cairn][:elastoplast][:elast].elast!(ndrange=mpts.nmp,mpts,cmpr.Del);sync(CPU())
     return nothing
 end

@@ -129,7 +129,7 @@ end
         end
     end
 end
-function p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},instr::Dict) where {T1,T2}
+function p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},instr::NamedTuple) where {T1,T2}
     # get cauchy stress 
     if instr[:fwrk][:deform] == "finite"
         instr[:cairn][:mapsto][:map].σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())

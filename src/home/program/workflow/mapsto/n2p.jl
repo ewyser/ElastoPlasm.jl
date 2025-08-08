@@ -32,7 +32,7 @@ end
         end
     end  
 end
-function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::Dict) where {T1,T2}
+function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # mapping to material point
     instr[:cairn][:mapsto][:map].n2p!(ndrange=mpts.nmp,mpts,mesh,dt);sync(CPU())
     return nothing

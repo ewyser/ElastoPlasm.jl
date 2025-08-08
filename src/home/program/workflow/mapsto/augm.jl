@@ -43,7 +43,7 @@ end
         end
     end
 end
-function augm(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::Dict) where {T1,T2}
+function augm(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # initialize for DM
     mesh.p.= T2(0.0)
     mesh.v.= T2(0.0)

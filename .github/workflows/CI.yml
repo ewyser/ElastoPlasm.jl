@@ -1,9 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - dev
   pull_request:
     branches:
       - main
@@ -14,7 +11,7 @@ env:
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} on ${{ matrix.os }} (${{ github.event_name }})
+    name: Julia ${{ matrix.version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     permissions:

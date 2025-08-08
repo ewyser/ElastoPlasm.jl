@@ -21,7 +21,7 @@ function init_plast(instr)
     end 
     return (;nonloc! = kernel1, retmap! = kernel2,) 
 end
-function plast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,instr::Dict) where {T1,T2}
+function plast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,instr::NamedTuple) where {T1,T2}
     # nonlocal regularization
     if instr[:nonloc][:status]
         ls             = T2(instr[:nonloc][:ls])

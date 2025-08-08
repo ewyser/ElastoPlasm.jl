@@ -1,4 +1,4 @@
-function init_mapsto(dim::Number,instr::Dict) 
+function init_mapsto(dim::Number,instr::NamedTuple) 
     if instr[:fwrk][:deform] == "finite"
         kernel0 = transform(CPU())
     else
@@ -32,7 +32,7 @@ function init_mapsto(dim::Number,instr::Dict)
         return throw(ArgumentError("$(instr[:fwrk][:trsfr]) is an unsupported transfer scheme"))
     end    
 end
-function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::Dict) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # maps material point to node
     p2n(mpts,mesh,g,instr)
     # solve Eulerian momentum equation

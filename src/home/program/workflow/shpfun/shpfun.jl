@@ -1,4 +1,4 @@
-function init_shpfun(dim::Number,instr::Dict;what::String="nothing")
+function init_shpfun(dim::Number,instr::NamedTuple;what::String="nothing")
     # topology function
     if dim == 1
         kernel1 = p2e2n_1d(CPU())
@@ -48,7 +48,7 @@ function init_shpfun(dim::Number,instr::Dict;what::String="nothing")
     end
     return (;tplgy! = kernel1, ϕ∂ϕ! = kernel2, δ! = kernel3)
 end
-function shpfun(mpts::Point{T1,T2},mesh::Mesh{T1,T2},instr::Dict) where {T1,T2} 
+function shpfun(mpts::Point{T1,T2},mesh::Mesh{T1,T2},instr::NamedTuple) where {T1,T2} 
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
     instr[:cairn][:shpfun].tplgy!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     # initialize shapefunctions
