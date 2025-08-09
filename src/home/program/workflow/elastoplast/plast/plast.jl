@@ -1,3 +1,14 @@
+"""
+    init_plast(instr)
+
+Initialize plasticity and nonlocal kernels based on the instruction set.
+
+# Arguments
+- `instr`: Instruction/configuration dictionary.
+
+# Returns
+- Named tuple with nonlocal and return-mapping kernel functions.
+"""
 function init_plast(instr)
     kernel1 = nonlocal(CPU())
     if instr[:plast][:constitutive] == "MC"
@@ -21,6 +32,20 @@ function init_plast(instr)
     end 
     return (;nonloc! = kernel1, retmap! = kernel2,) 
 end
+"""
+    plast(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, cmpr::NamedTuple, instr::NamedTuple) where {T1,T2}
+
+Apply nonlocal regularization and plastic return-mapping for material points.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `cmpr::NamedTuple`: Constitutive model parameters.
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+
+# Returns
+- `nothing`. Updates fields in-place.
+"""
 function plast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,instr::NamedTuple) where {T1,T2}
     # nonlocal regularization
     if instr[:nonloc][:status]

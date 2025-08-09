@@ -1,3 +1,22 @@
+"""
+    e2n(ndim::T1, nno::Vector{T1}, nel::Vector{T1}, nn::T1) where {T1}
+
+Construct the element-to-node connectivity matrix for a structured mesh.
+
+# Arguments
+- `ndim::T1`: Number of spatial dimensions.
+- `nno::Vector{T1}`: Number of nodes in each direction and total.
+- `nel::Vector{T1}`: Number of elements in each direction and total.
+- `nn::T1`: Total number of nodes.
+
+# Returns
+- `e2n::Matrix{T1}`: Element-to-node connectivity matrix.
+
+# Example
+```julia
+e2n_mat = e2n(2, [11, 11, 121], [10, 10, 100], 121)
+```
+"""
 function e2n(ndim::T1,nno::Vector{T1},nel::Vector{T1},nn::T1) where {T1}
 	iel,e2n =1,zeros(T1,nn,nel[end])
     gnum = collect(T1(1):nno[end])

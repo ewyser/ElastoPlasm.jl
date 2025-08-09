@@ -6,16 +6,11 @@ Generate a configuration named tuple for simulation or API routines by merging u
 
 # Arguments
 - `type::Symbol`: The configuration type (e.g., `:instr`) to load defaults for.
-- `kwargs::Any`: Dictionary of user-supplied keyword arguments to override defaults.
+- `kwargs::Any`: Dictionary or named tuple of user-supplied keyword arguments to override defaults.
 - `dim::Number=2`: (Optional) Spatial dimension, used for kernel initialization (only relevant for `:instr`).
 
 # Returns
-- `NamedTuple`: A named tuple containing the merged configuration. For `:instr`, this includes kernels and precision settings.
-
-# Behavior
-- For `type == :instr`, merges `kwargs` with required defaults, sets precision, and attaches kernel functions for shape functions, mapping, and constitutive updates.
-- For other types, merges `kwargs` with defaults and returns the result.
-- Warns about any unused keyword arguments.
+- `NamedTuple`: Merged configuration. For `:instr`, includes kernels and precision settings.
 
 # Example
 ```julia
@@ -27,6 +22,11 @@ println(cfg.cairn.shpfun)  # prints the initialized shape function kernel
 cfg = kwargser(:instr, (;fwrk = (deform="infinitesimal", trsfr="tpic", locking=false)))
 println(cfg.fwrk.deform)  # prints "infinitesimal"
 ```
+
+# Notes
+- For `type == :instr`, merges `kwargs` with required defaults, sets precision, and attaches kernel functions for shape functions, mapping, and constitutive updates.
+- For other types, merges `kwargs` with defaults and returns the result.
+- Warns about any unused keyword arguments.
 """
 function kwargser(type::Symbol, kwargs::Any; dim::Number=2)
     ref    = require(type)

@@ -1,3 +1,16 @@
+"""
+    set_roller_dirichlet(nno, xn, xB)
+
+Set roller Dirichlet boundary conditions for a mesh.
+
+# Arguments
+- `nno`: Number of nodes in each direction and total.
+- `xn`: Matrix of nodal coordinates.
+- `xB`: Boundary coordinates.
+
+# Returns
+- `bc::Matrix{Bool}`: Boolean matrix indicating roller boundary conditions.
+"""
 function set_roller_dirichlet(nno,xn,xB)
     bc = zeros(Bool,size(xB,1),nno[end])
     if size(xB,1) == 1
@@ -17,6 +30,19 @@ function set_roller_dirichlet(nno,xn,xB)
     end
     return bc
 end
+"""
+    set_roller_fixed(nno, xn, xB)
+
+Set roller fixed boundary conditions for a mesh.
+
+# Arguments
+- `nno`: Number of nodes in each direction and total.
+- `xn`: Matrix of nodal coordinates.
+- `xB`: Boundary coordinates.
+
+# Returns
+- `bc::Matrix{Bool}`: Boolean matrix indicating fixed boundary conditions.
+"""
 function set_roller_fixed(nno,xn,xB)
     bc = zeros(Bool,size(xB,1),nno[end])
     if size(xB,1) == 1
@@ -39,6 +65,22 @@ function set_roller_fixed(nno,xn,xB)
     return bc
 end
 
+"""
+    get_bc(xn::Matrix{T2}, nno::Vector{T1}, ndim::T1; ghosts::Vector{T2}=[T2(0.0)], set::Symbol=:roller) where {T1,T2}
+
+Compute boundary condition matrix and boundary coordinates for a mesh.
+
+# Arguments
+- `xn::Matrix{T2}`: Matrix of nodal coordinates.
+- `nno::Vector{T1}`: Number of nodes in each direction and total.
+- `ndim::T1`: Number of spatial dimensions.
+- `ghosts::Vector{T2}`: Optional, size of ghost cells to add at boundaries (default: `[T2(0.0)]`).
+- `set::Symbol`: Type of boundary condition to set (`:roller` or `:fixed`).
+
+# Returns
+- `bc::Matrix{Bool}`: Boolean matrix indicating boundary conditions.
+- `xB::Matrix{T2}`: Boundary coordinates.
+"""
 function get_bc(xn::Matrix{T2},nno::Vector{T1},ndim::T1; ghosts::Vector{T2}=[T2(0.0)], set::Symbol=:roller) where {T1,T2}
     l  = minimum(xn,dims=2).+ghosts
     L  = maximum(xn,dims=2).-ghosts

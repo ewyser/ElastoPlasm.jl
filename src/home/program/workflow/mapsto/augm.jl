@@ -1,3 +1,15 @@
+"""
+    augm_momentum(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}) where {T1,T2}
+
+Accumulate material point momentum to mesh nodes for DM augmentation.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+
+# Returns
+- Updates mesh fields in-place.
+"""
 @kernel inbounds = true function augm_momentum(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp
@@ -11,6 +23,17 @@
         end
     end
 end
+"""
+    augm_velocity(mesh::Mesh{T1,T2}) where {T1,T2}
+
+Update mesh node velocities for DM augmentation.
+
+# Arguments
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+
+# Returns
+- Updates mesh velocities in-place.
+"""
 @kernel inbounds = true function augm_velocity(mesh::Mesh{T1,T2}) where {T1,T2}
     no = @index(Global)
     if no≤mesh.nno[end] 
@@ -28,6 +51,19 @@ end
         end
     end
 end
+"""
+    augm_displacement(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, dt::T2) where {T1,T2}
+
+Update material point displacements from mesh node velocities for DM augmentation.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `dt::T2`: Time step.
+
+# Returns
+- Updates material point displacements in-place.
+"""
 @views @kernel inbounds = true function augm_displacement(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
     p = @index(Global)
     # flip update
@@ -43,6 +79,20 @@ end
         end
     end
 end
+"""
+    augm(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, dt::T2, instr::NamedTuple) where {T1,T2}
+
+Perform DM augmentation: accumulate, solve, and update displacements.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `dt::T2`: Time step.
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+
+# Returns
+- `nothing`. Updates fields in-place.
+"""
 function augm(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # initialize for DM
     mesh.p.= T2(0.0)

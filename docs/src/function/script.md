@@ -6,5 +6,5 @@ CollapsedDocStrings = true
 
 ```@autodocs
 Modules = [ElastoPlasm]
-Pages   = ["collapse.jl", "slump.jl", "allocTest.jl", "cmpTest.jl", "e2eTest.jl", "shpTest.jl"]
+Pages   = ["collapse.jl", "slump.jl", "basis.jl", "cmpTest.jl", "shpTest.jl", "allocTest.jl", "e2eTest.jl"]
 ```

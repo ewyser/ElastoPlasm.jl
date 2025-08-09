@@ -1,3 +1,22 @@
+"""
+    e2e(ndim::T1, nel::Vector{T1}, h::Vector{T2}, instr) where {T1,T2}
+
+Construct the element-to-element connectivity matrix for a structured mesh.
+
+# Arguments
+- `ndim::T1`: Number of spatial dimensions.
+- `nel::Vector{T1}`: Number of elements in each direction.
+- `h::Vector{T2}`: Element size in each direction.
+- `instr`: Instruction dictionary containing nonlocal support information.
+
+# Returns
+- `e2e::SparseMatrixCSC{T1}`: Element-to-element connectivity matrix.
+
+# Example
+```julia
+e2e_mat = e2e(2, [10, 10], [0.1, 0.1], Dict(:nonloc => Dict(:ls => [0.2, 0.2])))
+```
+"""
 function e2e(ndim::T1,nel::Vector{T1},h::Vector{T2},instr) where {T1,T2}
     e2e  = spzeros(T1,nel[end],nel[end])
     nnel = ceil.(T1,instr[:nonloc][:ls]./h)

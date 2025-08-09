@@ -1,3 +1,16 @@
+"""
+    mutate(ϵ, Χ, type)
+
+Convert between tensor and Voigt notation for strain or stress, or mutate tensor forms.
+
+# Arguments
+- `ϵ`: Strain or stress tensor or vector.
+- `Χ`: Scaling factor (e.g., 1.0 or 2.0).
+- `type`: Either `:tensor` or `:voigt` for conversion type.
+
+# Returns
+- `ϵmut`: Mutated tensor or vector in the requested form.
+"""
 @views function mutate(ϵ,Χ,type)
     if type == :tensor # α = 1/2 when ϵ := strain, α = 1.0 when ϵ := stress
         if size(ϵ) == (3,)
@@ -17,6 +30,18 @@
     end
     return ϵmut
 end
+"""
+    finite_elast(mpts::Point{T1,T2}, Del) where {T1,T2}
+
+Kernel for finite deformation elasticity update at material points.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `Del`: Elasticity matrix.
+
+# Returns
+- Updates stress and strain fields in-place.
+"""
 @views @kernel inbounds = true function finite_elast(mpts::Point{T1,T2},Del) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp 
@@ -29,6 +54,18 @@ end
         mpts.s.τᵢ[:,p]    = Del*mutate(mpts.s.ϵᵢⱼ[:,:,p],T2(2.0),:voigt)
     end
 end
+"""
+    infinitesimal_elast(mpts::Point{T1,T2}, Del) where {T1,T2}
+
+Kernel for infinitesimal (small strain) elasticity update at material points.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `Del`: Elasticity matrix.
+
+# Returns
+- Updates stress and strain fields in-place.
+"""
 @views @kernel inbounds = true function infinitesimal_elast(mpts::Point{T1,T2},Del) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp 
@@ -42,6 +79,17 @@ end
     end  
 end
 
+"""
+    init_elast(instr::NamedTuple)
+
+Initialize the elasticity kernel based on the deformation framework and performance mode.
+
+# Arguments
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+
+# Returns
+- Named tuple with the selected elasticity kernel.
+"""
 function init_elast(instr::NamedTuple)
     if instr[:perf][:status]
         kernel1 = ELAST(CPU())
@@ -57,6 +105,19 @@ function init_elast(instr::NamedTuple)
 end
 
 
+"""
+    elast(mpts::Point{T1,T2}, cmpr::NamedTuple, instr::NamedTuple) where {T1,T2}
+
+Dispatch and execute the elasticity kernel for the current simulation step.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `cmpr::NamedTuple`: Constitutive model parameters.
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+
+# Returns
+- `nothing`. Updates fields in-place.
+"""
 function elast(mpts::Point{T1,T2},cmpr::NamedTuple,instr::NamedTuple) where {T1,T2}
     instr[:cairn][:elastoplast][:elast].elast!(ndrange=mpts.nmp,mpts,cmpr.Del);sync(CPU())
     return nothing
@@ -112,6 +173,19 @@ end
 
 
 
+"""
+    ELAST(mpts, Del, instr)
+
+General elasticity kernel dispatcher for finite or infinitesimal deformation frameworks.
+
+# Arguments
+- `mpts`: Material point data structure.
+- `Del`: Elasticity matrix.
+- `instr`: Instruction/configuration dictionary.
+
+# Returns
+- Updates stress and strain fields in-place.
+"""
 @views @kernel inbounds = true function ELAST(mpts,Del,instr)
     p = @index(Global)
     # deformation framework dispatcher

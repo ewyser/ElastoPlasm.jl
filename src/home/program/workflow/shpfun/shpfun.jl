@@ -1,3 +1,16 @@
+"""
+    init_shpfun(dim::Number, instr::NamedTuple; what::String="nothing")
+
+Initialize shape function and topology kernels for the MPM algorithm.
+
+# Arguments
+- `dim::Number`: Spatial dimension (1, 2, or 3).
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+- `what::String`: (Optional) Additional selector for kernel type.
+
+# Returns
+- Named tuple of kernel functions for topology, shape function, and delta function.
+"""
 function init_shpfun(dim::Number,instr::NamedTuple;what::String="nothing")
     # topology function
     if dim == 1
@@ -48,6 +61,19 @@ function init_shpfun(dim::Number,instr::NamedTuple;what::String="nothing")
     end
     return (;tplgy! = kernel1, ϕ∂ϕ! = kernel2, δ! = kernel3)
 end
+"""
+    shpfun(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, instr::NamedTuple) where {T1,T2}
+
+Initialize and compute shape functions and topological relations for material points.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+
+# Returns
+- `nothing`. Updates fields in-place.
+"""
 function shpfun(mpts::Point{T1,T2},mesh::Mesh{T1,T2},instr::NamedTuple) where {T1,T2} 
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
     instr[:cairn][:shpfun].tplgy!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())

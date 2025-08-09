@@ -1,4 +1,20 @@
 #= =#
+"""
+    nonlocal(W, w, mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, ls::T2, type::String) where {T1,T2}
+
+Apply nonlocal averaging for regularization of plastic strain at material points.
+
+# Arguments
+- `W`: Vector of normalization weights.
+- `w`: Matrix of pairwise weights.
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `ls::T2`: Nonlocal length scale.
+- `type::String`: Operation type ("tplgy", "p->q", or "p<-q").
+
+# Returns
+- Updates weights and plastic strain fields in-place.
+"""
 @views @kernel inbounds = true function nonlocal(W,w,mpts::Point{T1,T2},mesh::Mesh{T1,T2},ls::T2,type::String) where {T1,T2}
     p = @index(Global)
 

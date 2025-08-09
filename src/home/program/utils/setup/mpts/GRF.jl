@@ -1,3 +1,17 @@
+"""
+    RFS(xp, zp, coh0, cohr, phi0, phir)
+
+Generate random fields for cohesion and friction angle using exponential covariance.
+
+# Arguments
+- `xp`, `zp`: Coordinates of material points.
+- `coh0`, `cohr`: Mean and residual cohesion values.
+- `phi0`, `phir`: Mean and residual friction angle values.
+
+# Returns
+- `c`: Cohesion field (vector).
+- `ϕ`: Friction angle field (vector).
+"""
 function RFS(xp,zp,coh0,cohr,phi0,phir)
     # parameters
     θx,θz     = 20.0,2.0
@@ -35,6 +49,20 @@ end
     Λ  = diagm(eigvals(C))
     c  = (Q*Λ.^(0.5)*randn(Float64,nmp)).+μ    
     =#
+"""
+    GRFS_gauss(xl, coh0, cohr, ni, Δx)
+
+Gaussian Random Field Simulator for cohesion using Gaussian covariance.
+
+# Arguments
+- `xl`: Grid coordinates.
+- `coh0`, `cohr`: Mean and residual cohesion values.
+- `ni`: Number of intervals.
+- `Δx`: Grid spacing.
+
+# Returns
+- `coh`: Cohesion field (array).
+"""
 function GRFS_gauss(xl,coh0,cohr,ni,Δx)
     # =====================================================================
     # GRFS: Gaussian Random Field Simulator - Gaussian covariance

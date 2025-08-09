@@ -6,5 +6,5 @@ CollapsedDocStrings = true
 
 ```@autodocs
 Modules = [ElastoPlasm]
-Pages   = ["physics.jl", "plot.jl", "savlot.jl", "utilities.jl", "cm.jl", "mesh.jl", "mps.jl", "e2e.jl", "e2n.jl", "geom.jl", "getbc.jl", "GRF.jl", "inicollapse.jl", "inislump.jl", "plasming.jl", "elastoplast.jl", "elast.jl", "nonlocal.jl", "plast.jl", "DP.jl", "J2.jl", "MCRetMap.jl", "deform.jl", "domain.jl", "update.jl", "volumetric.jl", "augm.jl", "mapsto.jl", "n2p.jl", "p2n.jl", "solve.jl", "shpfun.jl", "tplgy.jl", "bsmpm.jl", "delta.jl", "gimpm.jl", "smpm.jl"]
+Pages   = ["plot.jl", "utilities.jl", "time.jl", "mesh.jl", "e2n.jl", "e2e.jl", "get_bc.jl", "geom.jl", "geom_slump.jl", "geom_collapse.jl", "GRF.jl", "cmpr.jl", "mpts.jl", "savlot.jl", "physics.jl", "n2p.jl", "solve.jl", "augm.jl", "p2n.jl", "mapsto.jl", "shpfun.jl", "gimpm.jl", "smpm.jl", "delta.jl", "bsmpm.jl", "tplgy.jl", "worflow.jl", "domain.jl", "deform.jl", "update.jl", "volumetric.jl", "elastoplast.jl", "elast.jl", "nonlocal.jl", "MCRetMap.jl", "J2.jl", "DP.jl", "plast.jl"]
 ```

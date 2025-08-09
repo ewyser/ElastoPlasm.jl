@@ -21,11 +21,11 @@ println.(msgs)
 function superInc(lists::Vector{String}; root::String=info.sys.root, tree::Bool=false,)
     sucess = ["superInc() jls parser:"]
     for (k,dir) ∈ enumerate(lists)
-        dict = superDict(joinpath(root,dir))
+        dict = superDir(joinpath(root,dir))
         # Collect and include all .jl files in this subtree
         function collect_and_include_jls(d)
             files = String[]
-            for (k,v) in d
+            for (k,v) ∈ d
                 if isa(v, Dict)
                     append!(files, collect_and_include_jls(v))
                 elseif endswith(k, ".jl")
@@ -39,14 +39,15 @@ function superInc(lists::Vector{String}; root::String=info.sys.root, tree::Bool=
         if tree
             push!(sucess, join(tree(collect(keys(dict)))))
         end
-        push!(info.sys.lib, ("$(dir)" => jls_files))
+        # Store the nested dictionary for each directory for more granularity
+        push!(info.sys.lib, ("$(dir)" => dict))
         push!(sucess, "✓ $(dir)")
     end
     return sucess
 end
 
 """
-    superDict(DIR::String) -> Dict
+    superDir(DIR::String) -> Dict
 
 Recursively builds a nested Dict representing the directory structure and `.jl` files.
 
@@ -62,12 +63,12 @@ tree = superDict("src/boot")
 println(tree)
 ```
 """
-function superDict(DIR::String)
+function superDir(DIR::String)
     d = Dict{String,Any}()
-    for entry in readdir(DIR; join=true)
+    for entry ∈ readdir(DIR; join=true)
         name = splitpath(entry)[end]
         if isdir(entry)
-            d[name] = superDict(entry)
+            d[name] = superDir(entry)
         elseif endswith(name, ".jl")
             d[name] = entry
         end

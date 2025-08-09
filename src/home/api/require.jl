@@ -8,11 +8,7 @@ Return a reference configuration named tuple for simulation instructions or API 
 - `in::Symbol`: The configuration type to load defaults for. Only `:instr` is currently supported.
 
 # Returns
-- `NamedTuple`: A named tuple containing default configuration values for simulation, including precision, basis, deformation framework, mapping scheme, locking mitigation, random field generator, plasticity, non-local regularization, plotting options, and performance mode.
-
-# Behavior
-- If `in == :instr`, returns a named tuple with all default simulation options.
-- Throws an error for unsupported symbols.
+- `NamedTuple`: Default configuration values for simulation, including precision, basis, deformation framework, mapping scheme, locking mitigation, random field generator, plasticity, non-local regularization, plotting options, and performance mode.
 
 # Example
 ```julia
@@ -20,7 +16,11 @@ cfg = require(:instr)
 println(cfg.basis.which)  # prints the default basis type
 ```
 
-# Supported keys and their purpose
+# Notes
+- If `in == :instr`, returns a named tuple with all default simulation options.
+- Throws an error for unsupported symbols.
+
+# Supported keys
 - `:dtype`   — Arithmetic precision (e.g., 64 for Float64)
 - `:basis`   — Shape function type and options
 - `:fwrk`    — Deformation framework and transfer scheme

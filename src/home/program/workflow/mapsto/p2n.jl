@@ -1,3 +1,14 @@
+"""
+    transform(mpts::Point{T1,T2}) where {T1,T2}
+
+Transform Kirchhoff to Cauchy stress at material points.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+
+# Returns
+- Updates stress in-place.
+"""
 @views @kernel inbounds = true function transform(mpts::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
     # deformation framework dispatcher
@@ -8,6 +19,19 @@
         end
     end   
 end
+"""
+    flip_1d_p2n(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, g::Vector{T2}) where {T1,T2}
+
+Project 1D material point data to mesh nodes (FLIP scheme).
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `g::Vector{T2}`: Gravity vector.
+
+# Returns
+- Updates mesh fields in-place.
+"""
 @kernel inbounds = true function flip_1d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp 
@@ -28,6 +52,19 @@ end
         end
     end
 end
+"""
+    flip_2d_p2n(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, g::Vector{T2}) where {T1,T2}
+
+Project 2D material point data to mesh nodes (FLIP scheme).
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `g::Vector{T2}`: Gravity vector.
+
+# Returns
+- Updates mesh fields in-place.
+"""
 @kernel inbounds = true function flip_2d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp
@@ -49,6 +86,19 @@ end
         end
     end
 end
+"""
+    flip_3d_p2n(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, g::Vector{T2}) where {T1,T2}
+
+Project 3D material point data to mesh nodes (FLIP scheme).
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `g::Vector{T2}`: Gravity vector.
+
+# Returns
+- Updates mesh fields in-place.
+"""
 @kernel inbounds = true function flip_3d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp

@@ -10,7 +10,7 @@ Plot and display simulation fields at the current time step, if plotting is enab
 - `instr::NamedTuple`: Simulation instruction dictionary, must contain plotting options in `:plot`.
 
 # Returns
-- Displays the plot(s) if plotting is enabled, otherwise returns `nothing`.
+- `Nothing`. Displays the plot(s) if plotting is enabled, otherwise returns `nothing`.
 
 # Example
 ```julia

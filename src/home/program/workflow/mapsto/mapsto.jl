@@ -1,3 +1,15 @@
+"""
+    init_mapsto(dim::Number, instr::NamedTuple)
+
+Initialize mapping and transfer kernels for the MPM algorithm based on dimension and instruction set.
+
+# Arguments
+- `dim::Number`: Spatial dimension (1, 2, or 3).
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+
+# Returns
+- `Dict`: Dictionary of mapping and augmentation kernels.
+"""
 function init_mapsto(dim::Number,instr::NamedTuple) 
     if instr[:fwrk][:deform] == "finite"
         kernel0 = transform(CPU())
@@ -32,6 +44,21 @@ function init_mapsto(dim::Number,instr::NamedTuple)
         return throw(ArgumentError("$(instr[:fwrk][:trsfr]) is an unsupported transfer scheme"))
     end    
 end
+"""
+    mapsto(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, g::Vector{T2}, dt::T2, instr::NamedTuple) where {T1,T2}
+
+Perform a full MPM update: project material points to nodes, solve, and map back.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `g::Vector{T2}`: Gravity vector.
+- `dt::T2`: Time step.
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+
+# Returns
+- `nothing`. Updates fields in-place.
+"""
 function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # maps material point to node
     p2n(mpts,mesh,g,instr)

@@ -1,3 +1,19 @@
+#="""
+    geom_collapse(mesh, cmp, ni; ℓ₀=0.0)
+
+Initialize geometry and material point fields for a column collapse problem.
+
+# Arguments
+- `mesh`: Mesh object with geometry and boundary info.
+- `cmp`: Material parameters (Dict or NamedTuple).
+- `ni`: Number of intervals per element.
+- `ℓ₀`: Optional, domain height (default: 0.0).
+
+# Returns
+- `ni`: Number of intervals per element.
+- `nmp`: Number of material points.
+- `fields`: NamedTuple with coordinates and material properties.
+"""=#
 function geom_collapse(mesh,cmp,ni;ℓ₀=0.0)
     @info "Init elastic collumn geometry"
     coh0,cohr,phi0= cmp[:c0],cmp[:cr],cmp[:ϕ0]
