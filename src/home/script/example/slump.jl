@@ -30,7 +30,7 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
     # mesh & mpts initial conditions
     mesh  = setup_mesh(nel,L,instr)
     cmpr  = setup_cmpr(mesh,instr;)                       
-    mpts    = setup_mpts(mesh,cmpr;define=geom_slump(mesh,cmpr,instr))
+    mpts  = setup_mpts(mesh,cmpr;define=geom_slump(mesh,cmpr,instr))
     # time parameters
     time  = setup_time(T2; te=10.0,tg=10.0,tep=5.0) 
     # plot initial cohesion field

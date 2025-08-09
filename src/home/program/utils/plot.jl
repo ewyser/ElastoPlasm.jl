@@ -26,10 +26,10 @@ display(p)
     if opts.what == "P"
         if size(mpts.s.σᵢ,1) == 3
             d   = -(mpts.s.σᵢ[1,:]+mpts.s.σᵢ[2,:])/2/1e3
-            lab = L"$p=-\left(\sigma_{xx,p}+\sigma_{yy,p}\right)/2$"
+            lab = L"$p=-\sigma_{ii,p}/2$"*" [kPa]"
         elseif size(mpts.s.σᵢ,1) == 6
             d   = -(mpts.s.σᵢ[1,:]+mpts.s.σᵢ[2,:]+mpts.s.σᵢ[3,:])/3/1e3
-            lab = L"$p=-\left(\sigma_{xx,p}+\sigma_{yy,p}+\sigma_{zz,p}\right)/3$"
+            lab = L"$p=-\sigma_{ii,p}/3$"*" [kPa]"
         end            
         tit   = "pressure"
         cb    = :viridis
@@ -40,7 +40,7 @@ display(p)
         end
     elseif opts.what == "epII"
         d     = mpts.s.ϵpII[1,:]
-        lab   = L"$\epsilon_{\mathrm{II}}^{\mathrm{acc}}$"
+        lab   = L"$\epsilon_{\mathrm{II}}^{\mathrm{acc}}$"*" [-]"
         tit   = "plastic strain"
         cb    = :viridis
         if minimum(d) == maximum(d)
@@ -60,7 +60,7 @@ display(p)
         end
     elseif opts.what == "du"
         d     = sqrt.(mpts.s.u[1,:].^2+mpts.s.u[2,:].^2)
-        lab   = L"$\Delta u$"
+        lab   = L"$\Delta u$"*" [m]"
         tit   = "displacement"
         cb    = :viridis
         if minimum(d) == maximum(d)
@@ -70,29 +70,40 @@ display(p)
         end
     elseif opts.what == "z0"
         d     = mpts.z₀
-        lab   = L"$z_p(t_0)$"
+        lab   = L"$z_p(t_0)$"*" [m]"
         tit   = "initial vertical position"
         cb    = palette(:grayC,5) 
         cblim = (0.0,maximum(d))
     elseif opts.what == "coh0"
         d     = mpts.s.c₀./1e3
-        lab   = L"c_0(x_p) [kPa]"
+        lab   = L"c_0(x_p)"*" [kPa]"
         tit   = "initial cohesion field"
         cb    = :vik
         coh0  = sum(d)/length(d)
         cblim = (coh0-coh0/2,coh0+coh0/2)
     elseif opts.what == "phi0"
         d     = mpts.s.ϕ
-        lab   = L"$\phi_0(x_p)$"
+        lab   = L"$\phi_0(x_p)$"*" [rad]"
         tit   = "initial friction angle"
         cb    = :viridis
         cblim = (minimum(d),maximum(d)) 
+    elseif opts.what == "n0"
+        d     = mpts.n
+        lab   = L"$\n_{0}(x_p)$"*" [-]"
+        tit   = "initial porosity"
+        cb    = :viridis
+        cblim = (0.0,1.0) 
+    elseif opts.what == "n"
+        d     = mpts.n
+        lab   = L"$\n(x_p)$"*" [-]"
+        tit   = "porosity"
+        cb    = :viridis
+        cblim = (0.0,1.0) 
     else
         throw(error("UndefinedPlotOption: $(opts.what)"))
     end
 
     # plotting
-    opts.backend
     p = plot(
         if mesh.dim == 2
             mpts.x[1,:],mpts.x[2,:]
@@ -101,8 +112,8 @@ display(p)
         end,
         seriestype  = :scatter,
         marker_z    = d,
-        xlabel      = L"$x-$direction [m]",
-        ylabel      = L"$z-$direction [m]",
+        xlabel      = L"$x-$direction"*" [m]",
+        ylabel      = L"$z-$direction"*" [m]",
         label       = lab,
         color       = cb,
         clim        = cblim,
@@ -136,6 +147,7 @@ get_plot_field(mpts, mesh, opts)
 """
 function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[]) 
     # plotting
+    config_plot(); opts.backend
     for (k,variable) ∈ enumerate(opts[:what])
         opts = (;opts...,what=variable)
         p0   = what_plot_field(mpts,mesh,(;opts...,what=variable))
@@ -143,8 +155,8 @@ function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[])
     end
     scale = length(P) 
     sx,sy = opts[:dims][1],scale*opts[:dims][2]
-    P     = plot(P...;layout=(scale,1),size=(sx,sy))
-    return display(P)
+    fig   = display(plot(P...;layout=(scale,1),size=(sx,sy)))
+    return fig
 end
 
 """
