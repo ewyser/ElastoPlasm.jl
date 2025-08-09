@@ -11,18 +11,18 @@ Construct the mesh and associated nodal and topological data structures for a si
 # Returns
 - `Mesh`: Mesh object containing geometry, nodal quantities, topology, and boundary conditions.
 
-# Behavior
-- Sets up mesh geometry, nodal coordinates, and boundary conditions.
-- Initializes nodal quantities (mass, force, acceleration, etc.) and mesh-to-node topology.
-- Handles ghost nodes if required by the basis.
-
 # Example
 ```julia
 mesh = setup_mesh([40, 10], [64.0, 16.0], instr)
 println(mesh.nel)
 ```
+
+# Notes
+- Sets up mesh geometry, nodal coordinates, and boundary conditions.
+- Initializes nodal quantities (mass, force, acceleration, etc.) and mesh-to-node topology.
+- Handles ghost nodes if required by the basis.
 """
-function setup_mesh(nel::Vector{T1},L::Vector{T2},instr) where {T1,T2}
+function setup_mesh(nel::Vector{T1},L::Vector{T2},instr::NamedTuple) where {T1,T2}
     if instr[:basis][:ghost]
         buffer = T2(2.0)
     else
@@ -31,7 +31,7 @@ function setup_mesh(nel::Vector{T1},L::Vector{T2},instr) where {T1,T2}
     # mesh & boundary conditions                                      
     ndim,nn,h  = get_geom(nel,L,instr)
     xn,nel,nno = get_coords(ndim,L,h; ghosts=buffer.*h)
-    status,xB  = get_bc(xn,nno,ndim ; ghosts=buffer.*h, set=instr[:bcs].dirichlet)
+    status,xB  = get_bc(xn,instr; ghosts=buffer.*h)
     # constructor
     mesh = (;
         dim  = ndim,

@@ -1,3 +1,20 @@
+#="""
+    geom_slump(mesh, cmp, instr; ni=2, lz=12.80)
+
+Initialize geometry and material point fields for a slump test problem.
+
+# Arguments
+- `mesh`: Mesh object with geometry and boundary info.
+- `cmp`: Material parameters (Dict or NamedTuple).
+- `instr`: Instruction dictionary (may include GRF options).
+- `ni`: Number of intervals per element (default: 2).
+- `lz`: Domain height (default: 12.80).
+
+# Returns
+- `ni`: Number of intervals per element.
+- `nmp`: Number of material points.
+- `fields`: NamedTuple with coordinates and material properties.
+"""=#
 function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80 )
     #@info "Init slump geometry"
     coh0,cohr,phi0,phir,rho0 = cmp[:c0],cmp[:cr],cmp[:ϕ0],cmp[:ϕr],cmp[:ρ0]

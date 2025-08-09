@@ -1,3 +1,16 @@
+"""
+    euler(mesh, dt::T2, η) where {T2}
+
+Solve the Eulerian momentum equation on the mesh with viscous damping.
+
+# Arguments
+- `mesh`: Mesh data structure.
+- `dt::T2`: Time step.
+- `η`: Damping coefficient.
+
+# Returns
+- Updates mesh fields in-place.
+"""
 @views @kernel inbounds = true function euler(mesh,dt::T2,η) where {T2}
     no = @index(Global)
     if no≤mesh.nno[end] 
@@ -23,6 +36,19 @@
         end
     end
 end
+"""
+    solve(mesh, dt::T2, instr::NamedTuple) where {T2}
+
+Solve the mesh momentum equation using the backend-agnostic kernel.
+
+# Arguments
+- `mesh`: Mesh data structure.
+- `dt::T2`: Time step.
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+
+# Returns
+- `nothing`. Updates mesh fields in-place.
+"""
 @views function solve(mesh,dt::T2,instr::NamedTuple) where {T2}
     # viscous damping
     η      = T2(0.1)

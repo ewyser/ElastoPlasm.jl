@@ -28,4 +28,4 @@ lists = ["home/api","home/program","home/script"]
 add_backend!(Val(:x86_64),info)
 
 # include .jl files
-@info join(superList(lists),"\n")
+@info join(superInc(lists),"\n")

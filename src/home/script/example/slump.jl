@@ -44,7 +44,7 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
     )
     get_plot_field(mpts,mesh,opts);save_plot(opts)
     # display summary
-    @info ic_log(mesh,mpts,time)
+    @info ic_log(mesh,mpts,time,instr)
     return (;mesh,mpts,cmpr,time),(;instr,paths)
 end
 

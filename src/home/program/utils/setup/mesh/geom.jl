@@ -1,3 +1,23 @@
+"""
+    get_geom(nel::Vector{T1}, L::Vector{T2}, instr) where {T1,T2}
+
+Compute mesh geometry parameters based on the number of elements, domain size, and basis type.
+
+# Arguments
+- `nel::Vector{T1}`: Number of elements in each spatial direction.
+- `L::Vector{T2}`: Length of the domain in each spatial direction.
+- `instr`: Instruction dictionary containing basis information.
+
+# Returns
+- `ndim::T1`: Number of spatial dimensions.
+- `nn::T1`: Number of nodes.
+- `h::Vector{T2}`: Element size in each direction.
+
+# Example
+```julia
+ndim, nn, h = get_geom([10, 10], [1.0, 1.0], Dict(:basis => Dict(:which => "bsmpm")))
+```
+"""
 function get_geom(nel::Vector{T1},L::Vector{T2},instr) where {T1,T2}
     if instr[:basis][:which] == "bsmpm"
         ndim,nn,h = length(L),4^length(L),min.(L./nel,L./4)
@@ -7,6 +27,27 @@ function get_geom(nel::Vector{T1},L::Vector{T2},instr) where {T1,T2}
     return T1(ndim),T1(nn),T2.(h)
 end
 
+"""
+    get_coords(ndim::T1, L::Vector{T2}, h::Vector{T2}; ghosts::Vector{T2}=[T2(0.0)]) where {T1,T2}
+
+Generate nodal coordinates and mesh topology for 1D, 2D, or 3D domains.
+
+# Arguments
+- `ndim::T1`: Number of spatial dimensions.
+- `L::Vector{T2}`: Length of the domain in each spatial direction.
+- `h::Vector{T2}`: Element size in each direction.
+- `ghosts::Vector{T2}`: Optional, size of ghost cells to add at boundaries (default: `[T2(0.0)]`).
+
+# Returns
+- `x::Matrix{T2}`: Matrix of nodal coordinates (each column is a node).
+- `nel::Vector{Int}`: Number of elements in each direction and total.
+- `nno::Vector{Int}`: Number of nodes in each direction and total.
+
+# Example
+```julia
+x, nel, nno = get_coords(2, [1.0, 1.0], [0.1, 0.1])
+```
+"""
 function get_coords(ndim::T1,L::Vector{T2},h::Vector{T2}; ghosts::Vector{T2}=[T2(0.0)]) where {T1,T2}
     if ndim == 1
         x0  = [0.0-ghosts[1],L[1]+ghosts[1]]

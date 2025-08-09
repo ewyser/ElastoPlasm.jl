@@ -11,16 +11,16 @@ Construct the material point system (mpts) for a simulation, initializing all re
 # Returns
 - `Point{T1,T2}`: Material point data structure with all fields initialized for simulation.
 
-# Behavior
-- Initializes material point positions, volumes, densities, and all state variables.
-- Sets up connectivity arrays and phase properties (solid and liquid).
-- Handles both 2D and 3D cases.
-
 # Example
 ```julia
 mpts = setup_mpts(mesh, cmp; define=(ni, nmp, geom))
 println(mpts.nmp)  # Number of material points
 ```
+
+# Notes
+- Initializes material point positions, volumes, densities, and all state variables.
+- Sets up connectivity arrays and phase properties (solid and liquid).
+- Handles both 2D and 3D cases.
 """
 function setup_mpts(mesh::Mesh{T1,T2},cmp::NamedTuple;define::Tuple=(nothing,nothing)) where {T1,T2}
     # non-dimensional constant                                                   

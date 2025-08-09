@@ -1,3 +1,16 @@
+"""
+    flip_nd_n2p(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, dt::T2) where {T1,T2}
+
+Update material point velocities and positions from mesh nodes (FLIP scheme, n-dim).
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `dt::T2`: Time step.
+
+# Returns
+- Updates material point fields in-place.
+"""
 @kernel inbounds = true function flip_nd_n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp    
@@ -14,6 +27,19 @@
         end
     end  
 end
+"""
+    pic_nd_n2p(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, dt::T2) where {T1,T2}
+
+Update material point velocities and positions from mesh nodes (PIC scheme, n-dim).
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `dt::T2`: Time step.
+
+# Returns
+- Updates material point fields in-place.
+"""
 @kernel inbounds = true function pic_nd_n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp    
@@ -32,6 +58,20 @@ end
         end
     end  
 end
+"""
+    n2p(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, dt::T2, instr::NamedTuple) where {T1,T2}
+
+Map mesh node solution back to material points using the selected transfer kernel.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `dt::T2`: Time step.
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+
+# Returns
+- `nothing`. Updates fields in-place.
+"""
 function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # mapping to material point
     instr[:cairn][:mapsto][:map].n2p!(ndrange=mpts.nmp,mpts,mesh,dt);sync(CPU())

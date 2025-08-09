@@ -11,19 +11,19 @@ Create and manage subdirectories within a specified base path for simulation out
 - `interactive::Bool=true`: If true, prompts the user to select which subdirectories to create; if false, creates all default subdirectories automatically.
 
 # Returns
-- `Dict{Symbol, String}`: Dictionary mapping subdirectory names (as symbols) to their absolute paths.
-
-# Behavior
-- Ensures the main directory exists within the base path.
-- Interactively or automatically creates subdirectories (e.g., `plot`, `dat`).
-- Cleans up specific file types in newly created subdirectories if they already existed.
-- Logs information about generated and cleaned paths.
+- `Dict{Symbol, String}`: Mapping subdirectory names (as symbols) to their absolute paths.
 
 # Example
 ```julia
 paths = set_paths("results", pwd(); interactive=false)
 println(paths[:plot])  # Absolute path to the plot subdirectory
 ```
+
+# Notes
+- Ensures the main directory exists within the base path.
+- Interactively or automatically creates subdirectories (e.g., `plot`, `dat`).
+- Cleans up specific file types in newly created subdirectories if they already existed.
+- Logs information about generated and cleaned paths.
 """
 function set_paths(new_dir::String, path::String; interactive::Bool=true)
     paths    = Dict{Symbol,Any}()
@@ -78,7 +78,7 @@ Configure the default styling parameters for plots, allowing customization of fo
 - `g`: Grid display option; `true` to show grid, `false` to hide (default: `false`).
 
 # Returns
-- `nothing`
+- `Nothing`. Configures plot defaults.
 
 # Example
 ```julia

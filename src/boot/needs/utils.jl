@@ -1,7 +1,8 @@
-"""
-    superList(lists::Vector{String}; root::String=info.sys.root, tree::Bool=false) -> Vector{String}
 
-Loads and parses a list of module directories, optionally displaying a tree structure of included files.
+"""
+    superInc(lists::Vector{String}; root::String=info.sys.root, tree::Bool=false) -> Vector{String}
+
+Recursively includes all `.jl` files in the given directories and their subdirectories, optionally displaying a tree structure of included files.
 
 # Arguments
 - `lists::Vector{String}`: List of directory names to include.
@@ -13,55 +14,66 @@ Loads and parses a list of module directories, optionally displaying a tree stru
 
 # Example
 ```julia
-msgs = superList(["src/boot", "src/home"])
+msgs = superInc(["src/boot", "src/home"])
 println.(msgs)
 ```
 """
-function superList(lists::Vector{String}; root::String=info.sys.root, tree::Bool=false,)
-	sucess = ["superInc() jls parser:"]
-	for (k,dir) ∈ enumerate(lists)
-		incs = superInc(joinpath(root,dir))
-		if tree
-			relative = Vector{String}()
-			for path ∈ incs.paths
-				push!(relative,last(split(path,"/ElastoPlasm.jl")))
-			end
-			push!(sucess,join(tree(relative)))	
-		end
-		push!(info.sys.lib,("$(dir)" => incs.jls))
-		push!(sucess      ,"✓ $(dir)"  )
-	end
-	return sucess
+function superInc(lists::Vector{String}; root::String=info.sys.root, tree::Bool=false,)
+    sucess = ["superInc() jls parser:"]
+    for (k,dir) ∈ enumerate(lists)
+        dict = superDir(joinpath(root,dir))
+        # Collect and include all .jl files in this subtree
+        function collect_and_include_jls(d)
+            files = String[]
+            for (k,v) ∈ d
+                if isa(v, Dict)
+                    append!(files, collect_and_include_jls(v))
+                elseif endswith(k, ".jl")
+                    include(v)
+                    push!(files, k)
+                end
+            end
+            return files
+        end
+        jls_files = collect_and_include_jls(dict)
+        if tree
+            push!(sucess, join(tree(collect(keys(dict)))))
+        end
+        # Store the nested dictionary for each directory for more granularity
+        push!(info.sys.lib, ("$(dir)" => dict))
+        push!(sucess, "✓ $(dir)")
+    end
+    return sucess
 end
 
 """
-    superInc(DIR::String) -> NamedTuple
+    superDir(DIR::String) -> Dict
 
-Recursively includes all `.jl` files in the given directory and its subdirectories.
+Recursively builds a nested Dict representing the directory structure and `.jl` files.
 
 # Arguments
-- `DIR::String`: Directory to search for Julia files.
+- `DIR::String`: Directory to search for Julia files and subdirectories.
 
 # Returns
-- `NamedTuple`: Contains `jls` (filenames) and `paths` (absolute paths).
+- `Dict`: Nested dictionary where keys are directory or file names. `.jl` files map to their absolute paths.
 
 # Example
 ```julia
-incs = superInc("src/boot")
-println(incs.jls)
+tree = superDict("src/boot")
+println(tree)
 ```
 """
-function superInc(DIR::String)
-	jls,paths = Vector{String}(),Vector{String}()
-	for (root, dirs, files) ∈ walkdir(DIR)
-		for file ∈ files
-			f = joinpath(root,file)
-			if last(splitext(f)) == ".jl" 
-				include(f); push!(jls,file); push!(paths,f)
-			end
-		end
-	end
-	return incs = (; jls = jls, paths = paths,)
+function superDir(DIR::String)
+    d = Dict{String,Any}()
+    for entry ∈ readdir(DIR; join=true)
+        name = splitpath(entry)[end]
+        if isdir(entry)
+            d[name] = superDir(entry)
+        elseif endswith(name, ".jl")
+            d[name] = entry
+        end
+    end
+    return d
 end
 
 """
@@ -90,9 +102,9 @@ function tree(sucess, prefix="\n\t", level=0, max_level=1)
     n,printout = length(sucess),[]
     for (i, name) ∈ enumerate(sucess)
         connector = i == n ? "└── " : "├── "
-		push!(printout,prefix*connector*name)
+        push!(printout,prefix*connector*name)
     end
-	return printout
+    return printout
 end
 
 """
@@ -113,22 +125,22 @@ println.(msgs)
 ```
 """
 function rootflush(info)
-	if !isdir(info.sys.out)
-		msg = ["Creating:\n+ $(trunc_path(info.sys.out))"]
-		mkdir(info.sys.out) 
-	else
-		msg,files = ["Nothing to flush at /dump"],readdir(info.sys.out;join=true)
-		if !isempty(files)
-			msg = ["Flushing:"]
-			for file ∈ files
-				if !occursin(info.mpi.glob,file) 
-					rm(file,recursive=true)  
-					push!(msg,"\e[31m- $(trunc_path(file))\e[0m")
-				end
-			end
-		end
-	end
-	return msg
+    if !isdir(info.sys.out)
+        msg = ["Creating:\n+ $(trunc_path(info.sys.out))"]
+        mkdir(info.sys.out) 
+    else
+        msg,files = ["Nothing to flush at /dump"],readdir(info.sys.out;join=true)
+        if !isempty(files)
+            msg = ["Flushing:"]
+            for file ∈ files
+                if !occursin(info.mpi.glob,file) 
+                    rm(file,recursive=true)  
+                    push!(msg,"\e[31m- $(trunc_path(file))\e[0m")
+                end
+            end
+        end
+    end
+    return msg
 end
 
 """
@@ -150,9 +162,9 @@ trunc_path("C:/Users/lili8/Documents/GitHub/ElastoPlasm.jl/dump/slump", "ElastoP
 ```
 """
 function trunc_path(full_path::AbstractString; anchor::AbstractString="ElastoPlasm.jl")
-	parts = splitpath(full_path)
-	idx = findfirst(==(anchor), parts)
-	return isnothing(idx) ? full_path : joinpath(parts[idx:end]...)
+    parts = splitpath(full_path)
+    idx = findfirst(==(anchor), parts)
+    return isnothing(idx) ? full_path : joinpath(parts[idx:end]...)
 end
 
 """
@@ -218,10 +230,11 @@ summary = ic_log(mesh, mpts, time)
 println(summary)
 ```
 """
-function ic_log(mesh,mpts,time)
+function ic_log(mesh,mpts,time,instr)
     # build the list of constant log lines
     logs = [
-        "Summary:",
+        "Summary: ",
+        "- $(instr.dtype.precision)",
         "- elements: $(mesh.nel[end])",
         "- material points: $(mpts.nmp)", 
         "- simulation time ∈ $(time.t) s:",

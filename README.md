@@ -19,7 +19,7 @@
 
 ## ✨ Overview
 
-**ϵlastσPlasm.jl** is the spiritual successor to the somewhat cumbersome [`ep2-3De v1.0`](https://github.com/ewyser/ep2-3De), now reborn in pure **Julia** 🦀. Designed for **rapid prototyping** ⚡ and **serious production** 🏭, it brings:
+**ϵlastσPlasm.jl** is the spiritual successor to the somewhat cumbersome [`ep2-3De v1.0`](https://github.com/ewyser/ep2-3De), now reborn in pure **Julia** 🦑. Designed for **rapid prototyping** and **serious production**, it brings:
 
 - **Updated Lagrangian explicit formulation** for elastoplastic simulations.
 - **Finite** and **infinitesimal deformation** frameworks:
@@ -59,13 +59,6 @@
     └   out    = slump(ic,cfg; workflow="all-in-one");
     # plasming begins here!
     ```
-
----
-
-## 📚 Documentation
-
-- [**Stable Docs**](https://ewyser.github.io/ElastoPlasm.jl/stable) 📖
-- [**GitHub Actions**](https://github.com/ewyser/ElastoPlasm.jl/actions) 🛡️
 
 ---
 

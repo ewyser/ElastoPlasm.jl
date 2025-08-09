@@ -6,14 +6,10 @@ Select and prepare a field for plotting from the material point and mesh data, b
 # Arguments
 - `mpts`: Material point data structure.
 - `mesh`: Mesh data structure.
-- `opts`: Options named tuple or dictionary specifying what to plot and plot settings (e.g., `what`, `dims`, `tit`, `backend`).
+- `opts`: Named tuple or dictionary specifying what to plot and plot settings (e.g., `what`, `dims`, `tit`, `backend`).
 
 # Returns
-- `p`: Plot object for the selected field.
-
-# Behavior
-- Supports fields: pressure (`P`), plastic strain (`epII`), volumetric plastic strain (`epV`), displacement (`du`), initial vertical position (`z0`), initial cohesion (`coh0`), and initial friction angle (`phi0`).
-- Throws an error if the requested field is not defined.
+- `Plot`: Plot object for the selected field.
 
 # Example
 ```julia
@@ -21,6 +17,10 @@ opts = (;what="P", dims=(500,250), tit="", backend=gr())
 p = what_plot_field(mpts, mesh, opts)
 display(p)
 ```
+
+# Notes
+- Supports fields: pressure (`P`), plastic strain (`epII`), volumetric plastic strain (`epV`), displacement (`du`), initial vertical position (`z0`), initial cohesion (`coh0`), and initial friction angle (`phi0`).
+- Throws an error if the requested field is not defined.
 """
 @views function what_plot_field(mpts,mesh,opts)
     if opts.what == "P"
@@ -122,11 +122,11 @@ Generate and display plots for all fields specified in `opts[:what]`.
 # Arguments
 - `mpts`: Material point data structure.
 - `mesh`: Mesh data structure.
-- `opts`: Options named tuple or dictionary specifying what to plot and plot settings (e.g., `what`, `dims`).
+- `opts`: Named tuple or dictionary specifying what to plot and plot settings (e.g., `what`, `dims`).
 - `P`: (Optional) Vector to collect plot objects.
 
 # Returns
-- Displays the plot(s) and returns nothing.
+- `Nothing`. Displays the plot(s).
 
 # Example
 ```julia
@@ -153,10 +153,10 @@ end
 Save the current plot to a file specified in `opts.file` and log the output path.
 
 # Arguments
-- `opts`: Options named tuple or dictionary containing the `file` path for saving the plot.
+- `opts`: Named tuple or dictionary containing the `file` path for saving the plot.
 
 # Returns
-- Logs the generated file path and returns nothing.
+- `Nothing`. Logs the generated file path.
 
 # Example
 ```julia

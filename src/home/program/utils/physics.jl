@@ -1,21 +1,21 @@
 """
-    get_dt(mpts, mesh, yd, t, time) -> Float64
+    get_dt(mpts, mesh, cmpr, time, ΔT) -> Float64
 
-Computes the adaptive time step for the simulation based on mesh spacing and material point velocities.
+Compute the adaptive time step for the simulation based on mesh spacing and material point velocities.
 
 # Arguments
 - `mpts`: Material point data structure, must contain `vmax`.
 - `mesh`: Mesh data structure, must contain `h`.
-- `yd`: Small offset added to velocity for stability.
-- `t`: Current simulation time.
-- `time`: Total simulation time.
+- `cmpr`: Constitutive model parameters (must include wave speed `c`).
+- `time`: Named tuple with current and phase times.
+- `ΔT`: End time for the current phase or time window.
 
 # Returns
 - `Float64`: The computed time step, limited by remaining simulation time.
 
 # Example
 ```julia
-dt = get_dt(mpts, mesh, 1e-6, t, time)
+dt = get_dt(mpts, mesh, cmpr, time, ΔT)
 ```
 """
 function get_dt(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
@@ -26,21 +26,20 @@ function get_dt(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::Name
 end
 
 """
-    get_g(t::Float64, tg::Float64, ndim::Int64) -> Vector{Float64}
+    get_g(mesh::Mesh{T1,T2}; G::T2=9.81) -> Vector{T2}
 
-Calculates the gravity vector for the current time, ramping up to full gravity over duration `tg`.
+Calculate the gravity vector for the mesh, with magnitude `G` in the negative last direction.
 
 # Arguments
-- `t::Float64`: Current simulation time.
-- `tg::Float64`: Gravity ramp duration.
-- `ndim::Int64`: Number of spatial dimensions.
+- `mesh::Mesh{T1,T2}`: Mesh object containing dimension information.
+- `G::T2=9.81`: (Optional) Gravity magnitude (default: 9.81).
 
 # Returns
-- `Vector{Float64}`: Gravity vector for the current time and dimension.
+- `Vector{T2}`: Gravity vector for the mesh dimension.
 
 # Example
 ```julia
-g = get_g(t, tg, 2)
+g = get_g(mesh)
 ```
 """
 function get_g(mesh::Mesh{T1,T2}; G::T2=9.81) where {T1,T2}
@@ -62,21 +61,21 @@ Update simulation state, including plasticity status, adaptive time step, and gr
 # Arguments
 - `mpts`: Material point data structure.
 - `mesh`: Mesh data structure.
-- `cmpr`: Compression or constitutive model data.
+- `cmpr`: Constitutive model parameters.
 - `time`: Named tuple with current and phase times.
 - `ΔT`: End time for the current phase or time window.
 
 # Returns
 - `(g, dt)`: Tuple containing the gravity vector and computed time step for the current time.
 
-# Behavior
-- Computes the adaptive time step using `get_dt`.
-- Ramps up gravity linearly until the end of the gravity phase, then applies full gravity.
-
 # Example
 ```julia
 g, dt = get_spacetime(mpts, mesh, cmpr, time, ΔT)
 ```
+
+# Notes
+- Computes the adaptive time step using `get_dt`.
+- Ramps up gravity linearly until the end of the gravity phase, then applies full gravity.
 """
 function get_spacetime(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
     # calculte dt

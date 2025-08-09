@@ -1,55 +1,57 @@
-function set_roller_dirichlet(nno,xn,xB)
-    bc = zeros(Bool,size(xB,1),nno[end])
-    if size(xB,1) == 1
+"""
+    set_roller_dirichlet(nno, xn, xB)
 
-    elseif size(xB,1) == 2
-        idx       = findall(x-> x ∈ xB[1,:],xn[1,:])
-        idz       = findall(x-> x ∈ xB[2,:],xn[2,:])
-        bc[1,idx].= true
-        bc[2,idz].= true
-    elseif size(xB,1) == 3
-        idx = findall(x-> x ∈ xB[1,:],xn[1,:])
-        idy = findall(x-> x ∈ xB[2,:],xn[2,:])
-        idz = findall(x-> x ∈ xB[3,:],xn[3,:])
-        bc[1,idx].= true
-        bc[2,idy].= true
-        bc[3,idz].= true
-    end
-    return bc
-end
-function set_roller_fixed(nno,xn,xB)
-    bc = zeros(Bool,size(xB,1),nno[end])
-    if size(xB,1) == 1
+Set roller Dirichlet boundary conditions for a mesh.
 
-    elseif size(xB,1) == 2
-        idx      = findall(x-> x ∈ xB[1,:],xn[1,:])
-        idz      = findall(x-> x ∈ xB[2,:],xn[2,:])
-        id       = unique(vcat(idx,idz))
-        bc[1,id].= true
-        bc[2,id].= true
-    elseif size(xB,1) == 3
-        idx = findall(x-> x ∈ xB[1,:],xn[1,:])
-        idy = findall(x-> x ∈ xB[2,:],xn[2,:])
-        idz = findall(x-> x ∈ xB[3,:],xn[3,:])
-        id  = unique(vcat(idx,idy,idz))
-        bc[1,id].= true
-        bc[2,id].= true
-        bc[3,id].= true
+# Arguments
+- `nno`: Number of nodes in each direction and total.
+- `xn`: Matrix of nodal coordinates.
+- `xB`: Boundary coordinates.
+
+# Returns
+- `bc::Matrix{Bool}`: Boolean matrix indicating roller boundary conditions.
+"""
+function set_dirichlet(bc,xn,lower_upper_lim,dim; node::Symbol=:roller)
+    id = findall(x-> x ∈ lower_upper_lim,xn[dim,:])
+    if node == :roller
+        bc[dim,id].= true
+    elseif node == :fixed
+        bc[:  ,id].= true
     end
-    return bc
+    return nothing
 end
 
-function get_bc(xn::Matrix{T2},nno::Vector{T1},ndim::T1; ghosts::Vector{T2}=[T2(0.0)], set::Symbol=:roller) where {T1,T2}
-    l  = minimum(xn,dims=2).+ghosts
-    L  = maximum(xn,dims=2).-ghosts
+"""
+    get_bc(xn::Matrix{T2}, instr::NamedTuple; ghosts::Vector{T2}=[T2(0.0)]) where {T2}
 
-    xB = hcat(l,L)
-    if set == :roller
-        bc = set_roller_dirichlet(nno,xn,xB)
-    elseif set == :fixed
-        bc = set_fixed_dirichlet(nno,xn,xB)
-    else
-        throw(error("UnsupportedBC: $(set)"))
+Compute the boundary condition matrix and boundary coordinates for a mesh, using boundary condition types specified in `instr.bcs.dirichlet`.
+
+# Arguments
+- `xn::Matrix{T2}`: Matrix of nodal coordinates (size: ndim × nno).
+- `instr::NamedTuple`: Instruction/configuration named tuple, must contain `bcs.dirichlet` as a matrix of Symbols (e.g., `:roller`, `:fixed`).
+- `ghosts::Vector{T2}`: Optional, size of ghost cells to add at boundaries (default: `[T2(0.0)]`).
+
+# Returns
+- `bc::Matrix{Bool}`: Boolean matrix (ndim × nno) indicating where boundary conditions are applied.
+- `xB::Matrix{T2}`: Matrix (ndim × 2) of minimum and maximum boundary coordinates (with ghosts applied).
+
+# Example
+```julia
+bc, xB = get_bc(xn, instr; ghosts=[0.0])
+```
+"""
+function get_bc(xn::Matrix{T2},instr::NamedTuple; ghosts::Vector{T2}=[T2(0.0)]) where {T2}
+    xB = hcat(
+        minimum(xn,dims=2).+ghosts,
+        maximum(xn,dims=2).-ghosts
+    )
+    ndim = size(xn,1)
+    nno  = size(xn,2)
+    bc   = zeros(Bool,ndim,nno[end])
+    for dim ∈ 1:ndim
+        for (k,limit) ∈ enumerate(xB[dim,:])
+            set_dirichlet(bc,xn,limit,dim; node = instr.bcs.dirichlet[dim,k]) 
+        end
     end
     return bc,xB
 end
