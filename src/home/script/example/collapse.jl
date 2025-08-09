@@ -19,7 +19,7 @@ Initializes the mesh, material points, constitutive model, and simulation config
 
 # Example
 ```julia
-ic, cfg = ic_collapse([5, 10], 0.0, 1.0e4, 80.0, 10.0; plot=(status=true, freq=1.0))
+ic, cfg = ic_collapse([5, 10], 0.0, 1.0e4, 80.0, 10.0; plot = (; status=true, freq=1.0, what=["P"], dims=(500.0,250.0) ));
 ```
 """
 function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
@@ -29,6 +29,8 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     L = dim == 2 ? [10.0, 1.25*l0] : [10.0, 10.0, 1.25*l0]
     # Simulation instructions
     instr = kwargser(:instr, kwargs; dim=dim)
+    instr = merge(instr, (bcs = (;dirichlet=[:roller :roller;:fixed :roller]),))
+
     paths = set_paths(fid, info.sys.out; interactive=false)
     T0    = instr[:dtype].T0  
     T1,T2 = first(T0),last(T0) 
@@ -43,7 +45,7 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     te    = 1.25*tg
     time  = setup_time(T2; te=te,tg=tg) 
     # display summary
-    @info ic_log(mesh,mpts,time)
+    @info ic_log(mesh,mpts,time,instr)
     return (;mesh, mpts, cmpr, time), (;instr, paths)
 end
 
@@ -62,7 +64,7 @@ This function is suitable for workflows where you do not want to mutate the inpu
 
 # Example
 ```julia
-result = collapse(ic, cfg)
+result = collapse(ic, cfg);
 if result.success
     println("Simulation completed successfully!")
 end

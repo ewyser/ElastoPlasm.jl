@@ -230,10 +230,11 @@ summary = ic_log(mesh, mpts, time)
 println(summary)
 ```
 """
-function ic_log(mesh,mpts,time)
+function ic_log(mesh,mpts,time,instr)
     # build the list of constant log lines
     logs = [
-        "Summary:",
+        "Summary: ",
+        "- $(instr.dtype.precision)",
         "- elements: $(mesh.nel[end])",
         "- material points: $(mpts.nmp)", 
         "- simulation time ∈ $(time.t) s:",

@@ -46,7 +46,10 @@ function require(in::Symbol=:instr)
                 locking = true,
             ),
             bcs   = (;
-                dirichlet = :roller,
+                dirichlet = [
+                    :roller :roller;
+                    :roller :roller;
+                    :roller :roller], # for 2d, this translates to [lower_x upper_x;lower_y upper_y]
             ),
             grf   = (;
                 status = false,
