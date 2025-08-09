@@ -1,3 +1,4 @@
+
 """
     setup_mpts(mesh::Mesh{T1,T2}, cmp::NamedTuple; define::Tuple=(nothing, nothing)) -> Point{T1,T2}
 
@@ -46,6 +47,7 @@ function setup_mpts(mesh::Mesh{T1,T2},cmp::NamedTuple;define::Tuple=(nothing,not
         x    = copy(xp),
         z₀   = copy(xp[end,:]),
         n₀   = copy(n0),
+        n    = copy(n0),
         ℓ₀   = copy(l0), 
         ℓ    = copy(l0),
         Ω₀   = vec(copy(v0)),
@@ -143,6 +145,8 @@ function setup_mpts(mesh::Mesh{T1,T2},cmp::NamedTuple;define::Tuple=(nothing,not
         T2.(mpts.x)    ,
         T2.(mpts.ℓ₀)   ,
         T2.(mpts.ℓ)    ,
+        T2.(mpts.n₀)   ,
+        T2.(mpts.n)    ,
         T2.(mpts.Ω₀)   ,
         T2.(mpts.Ω)    ,
         # solid phase
