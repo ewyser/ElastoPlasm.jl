@@ -41,9 +41,9 @@ function kwargser(type::Symbol, kwargs::Any; dim::Number=2)
     end
     # Set precision
     if instr.dtype == 64
-        instr = merge(instr, (dtype = (;T0=(Int64,Float64),bits=Int64(64),precision="FP64"),))
+        instr = merge(instr, (dtype = (;T0=(Int64,Float64),bits=Int64(64),precision="FP64 precision"),))
     elseif instr.dtype == 32
-        instr = merge(instr, (dtype = (;T0=(Int32,Float32),bits=Int32(32),precision="FP32"),))
+        instr = merge(instr, (dtype = (;T0=(Int32,Float32),bits=Int32(32),precision="FP32 precision"),))
     end
     # Add cairns (abstract kernels) to instr set
     if type == :instr
