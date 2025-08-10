@@ -41,9 +41,9 @@
     end
 
     cases  = [
-        (; which = "bsmpm", how = nothing     , ghost = false),
-        (; which = "gimpm", how = "undeformed", ghost = true ),
-        #(; which = "smpm" , how = nothing     , ghost = true ),
+        (; which = "bsmpm", how = nothing, ghost = false),
+        (; which = "gimpm", how = "Uii"  , ghost = true ),
+        (; which = "smpm" , how = nothing, ghost = true ),
     ]
     viz  = (; status=false, freq=1.0, what=["P"], dims=(500.0,250.0) )
     fwrk = (; deform = "finite",trsfr = "musl",locking = false,damping = 0.5)
