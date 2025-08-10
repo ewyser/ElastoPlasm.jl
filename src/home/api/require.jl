@@ -44,6 +44,7 @@ function require(in::Symbol=:instr)
                 deform = "finite",
                 trsfr = "musl",
                 locking = true,
+                damping = 0.1
             ),
             bcs   = (;
                 dirichlet = [

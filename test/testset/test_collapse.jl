@@ -42,50 +42,58 @@
 
     cases  = [
         (; which = "bsmpm", how = nothing     , ghost = false),
-        #(; which = "gimpm", how = "undeformed", ghost = true ),
+        (; which = "gimpm", how = "undeformed", ghost = true ),
         #(; which = "smpm" , how = nothing     , ghost = true ),
     ]
-    viz = (; status=false, freq=1.0, what=["P"], dims=(500.0,250.0) )
+    viz  = (; status=false, freq=1.0, what=["P"], dims=(500.0,250.0) )
+    fwrk = (; deform = "finite",trsfr = "musl",locking = false,damping = 0.5)
 
-    nels = [[5, 10],[5, 20]]
+
+    nels = [[5, 5],[5, 10],[5, 20],[5, 40],[5, 80]]
     nk   = length(nels)+1;
     test = (; error = zeros(nk), h = zeros(nk), filename = [],)
     test.error[1],test.h[1] = Inf,Inf
-    for basis ∈ cases
-        @info "Testing with $(basis.which) basis"
-        # 2d elastic collapse tests
-        for (k,nel) ∈ enumerate(nels)
-            @testset "- 2d geometry with $(basis.which) basis and nel = $nel" verbose = true begin
-                l0      = 50.0
-                ic, cfg = ic_collapse(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse", plot = viz, basis = basis,)
-                err     = elastic_collapse(ic,cfg,l0)
-                test.error[k+1] = err
-                test.h[k+1]     = minimum(ic.mesh.h)
-                test.filename
-                @test test.error[k+1] < test.error[k] 
+    for (j, basis) ∈ enumerate(cases)
+        @testset "- 2d geometry with $(basis.which) basis" verbose = true begin
+            # 2d elastic collapse tests
+            for (k,nel) ∈ enumerate(nels)
+                @testset "- nel = $nel" verbose = true begin
+                    l0      = 50.0
+                    ic, cfg = ic_collapse(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse", plot = viz, basis = basis, fwrk = fwrk)
+                    err     = elastic_collapse(ic,cfg,l0)
+                    test.error[k+1] = err
+                    test.h[k+1]     = ic.mesh.h[end]
+                    @test test.error[k+1] < test.error[k] 
 
-                if k == nk-1
-                    @info "fdsfsdfdsfdsfsdfsdfsdfsd"
-                    opts = (;
-                        dims    = (250,250),
-                        backend = gr(legend=true,markersize=2.0,markershape=:circle,markerstrokewidth=0.75,),
-                        tit     = "Unnamed",
-                        file    = joinpath(cfg[:paths][:plot],"2d_elastic_column_collapse_convergence.png"),
-                    )
-                    config_plot()
-                    opts.backend
-
-                    p = plot(
-                        test.h,test.error,
-                        seriestype =:line, 
-                        xlabel     = L"$x-$direction"*" [m]",
-                        ylabel     = L"$z-$direction"*" [m]",
-                        label      ="$(length(nel))D $(cfg[:instr][:basis][:which]), $(cfg[:instr][:fwrk][:trsfr]) mapping",
-                        title      = "$(opts.tit)",
-                        size       = opts.dims,
-                    )
-                    display(plot(p; layout=(1,1), size=(450,250)))
-                    save_plot(opts)
+                    if k == nk-1
+                        opts = (;
+                            dims    = (250,250),
+                            backend = gr(legend=true,markersize=2.0,markershape=:circle,markerstrokewidth=0.75,),
+                            tit     = "Convergence for elastic collapse",
+                            file    = joinpath(cfg[:paths][:plot],"2d_elastic_column_collapse_convergence.png"),
+                        )
+                        config_plot()
+                        opts.backend
+                        if j == 1
+                            get_plot = plot
+                        else
+                            get_plot = plot!
+                        end
+                        p = get_plot(
+                            1.0./test.h,test.error,
+                            seriestype =:line, 
+                            xlabel     = L"h^{-1} \,\, [\mathrm{m}^{-1}]",
+                            ylabel     = L"\epsilon"*" [-]",
+                            yscale     = :log10,
+                            label      ="$(length(nel))D $(cfg[:instr][:basis][:which]), $(cfg[:instr][:fwrk][:trsfr]) mapping",
+                            title      = "$(opts.tit)",
+                            size       = opts.dims,
+                        )
+                        display(plot(p; layout=(1,1), size=(450,250)))
+                        if j == length(cases)
+                            save_plot(opts)
+                        end
+                    end
                 end
             end
         end
