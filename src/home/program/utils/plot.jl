@@ -1,3 +1,5 @@
+export  save_plot,get_plot_field,what_plot_field
+
 """
     what_plot_field(mpts, mesh, opts)
 
@@ -32,6 +34,16 @@ display(p)
             lab = L"$p=-\sigma_{ii,p}/3$"*" [kPa]"
         end            
         tit   = "pressure"
+        cb    = :viridis
+        if minimum(d) == maximum(d)
+            cblim = (-1.0,1.0)
+        else
+            cblim = (minimum(d),maximum(d))
+        end
+    elseif opts.what == "sigxx"
+        d     = mpts.s.σᵢ[1,:]/1e3
+        lab   = L"$\sigma_{xx}$"*" [kPa]"
+        tit   = "stress tensor x-component"
         cb    = :viridis
         if minimum(d) == maximum(d)
             cblim = (-1.0,1.0)

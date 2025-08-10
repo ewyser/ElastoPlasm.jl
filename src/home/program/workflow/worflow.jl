@@ -130,9 +130,11 @@ function elastoplasm(ic::NamedTuple,cfg::NamedTuple; mode::String="elastodynamic
     end
     sleep(1.0)
     # postprocessing
-    opts = (;
-        file = joinpath(paths[:plot],"$(mesh.dim)d_$(mode)_$(join(instr[:plot][:what])).png"),
-    );save_plot(opts)
+    if instr[:plot][:status]
+        opts = (;
+            file = joinpath(paths[:plot],"$(mesh.dim)d_$(mode)_$(join(instr[:plot][:what])).png"),
+        );save_plot(opts)
+    end
     # return success message
     exit_log("(✓) Done! exiting...\n")
     return out = (; ic,cfg,)

@@ -51,7 +51,7 @@ Solve the mesh momentum equation using the backend-agnostic kernel.
 """
 @views function solve(mesh,dt::T2,instr::NamedTuple) where {T2}
     # viscous damping
-    η      = T2(0.1)
+    η      = T2(instr.fwrk.damping)
     # initialize
     mesh.f.= T2(0.0)
     mesh.a.= T2(0.0)
