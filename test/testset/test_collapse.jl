@@ -12,7 +12,7 @@
         x = abs.(cmpr.ρ0 * 9.81 * (l0 .- z0))
         y = z0
         err = sum(sqrt.((xnum .- x).^2) .* mpts.Ω₀) / (9.81 * cmpr.ρ0 * l0 * sum(mpts.Ω₀))
-        
+        #=
         config_plot()
         gr(size=(500,300),legend=true,markersize=2.5,markershape=:circle,markerstrokewidth=0.0,markerstrokecolor=:match,)
         p1 = plot(
@@ -36,6 +36,7 @@
         )
         display(plot(p1; layout = (1, 1), size = (500, 300), dpi = 120))
         savefig(joinpath(cfg.paths[:plot],"$(dim)d_numeric_analytic_$(basename(@__FILE__)).png"))
+        =#
         return err
     end
 
@@ -44,29 +45,56 @@
         #(; which = "gimpm", how = "undeformed", ghost = true ),
         #(; which = "smpm" , how = nothing     , ghost = true ),
     ]
-    viz = (; status=true, freq=1.0, what=["P"], dims=(500.0,250.0) )
+    viz = (; status=false, freq=1.0, what=["P"], dims=(500.0,250.0) )
 
-    Error = zeros(4); Error[1] = Inf
-
+    nels = [[5, 10],[5, 20]]
+    nk   = length(nels)+1;
+    test = (; error = zeros(nk), h = zeros(nk),)
+    test.error[1],test.h[1] = Inf,Inf
+    CFG = nothing
     for basis ∈ cases
         @info "Testing with $(basis.which) basis"
         # 2d elastic collapse tests
-        for (k,nel) ∈ enumerate([[5, 10],[5, 20],[5, 40]])
+        for (k,nel) ∈ enumerate(nels)
             @testset "- 2d geometry with $(basis.which) basis and nel = $nel" verbose = true begin
                 l0      = 50.0
                 ic, cfg = ic_collapse(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse", plot = viz, basis = basis,)
-                Error[k+1] = elastic_collapse(ic,cfg,l0)
-                @test Error[k+1] < Error[k] 
+                err     = elastic_collapse(ic,cfg,l0)
+                test.error[k+1] = err
+                test.h[k+1]     = minimum(ic.mesh.h)
+                CFG = cfg
+                @test test.error[k+1] < test.error[k] 
             end
         end
-        
+        println(CFG)
+        opts = (;
+            dims    = (250,250),
+            backend = gr(legend=true,markersize=2.0,markershape=:circle,markerstrokewidth=0.75,),
+            tit     = "Unnamed",
+            file    = joinpath(CFG[:paths][:plot],"2d_elastic_column_collapse_convergence.png"),
+        )
+        config_plot()
+        opts.backend
 
-        # 3d slump tests
-        # TODO: Add 3d elastic collapse tests
+        p = plot(
+            out.h,out.error,
+            seriestype =:line, 
+            xlabel     = L"$x-$direction"*" [m]",
+            ylabel     = L"$z-$direction"*" [m]",
+            label      ="$(dim)D $(basistype), $(mapping) mapping",
+            title      = "$tit $(opts.tit)",
+            size       = opts.dims,
+        )
+        display(plot(p; layout=(1,1), size=(450,250)))
+        save_plot(opts)
+
+
+        #==#
     end
 
 
-
+        # 3d slump tests
+        # TODO: Add 3d elastic collapse tests
 
 
 end
