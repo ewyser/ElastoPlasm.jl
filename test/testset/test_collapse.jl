@@ -49,9 +49,8 @@
 
     nels = [[5, 10],[5, 20]]
     nk   = length(nels)+1;
-    test = (; error = zeros(nk), h = zeros(nk),)
+    test = (; error = zeros(nk), h = zeros(nk), filename = [],)
     test.error[1],test.h[1] = Inf,Inf
-    CFG = nothing
     for basis ∈ cases
         @info "Testing with $(basis.which) basis"
         # 2d elastic collapse tests
@@ -62,32 +61,34 @@
                 err     = elastic_collapse(ic,cfg,l0)
                 test.error[k+1] = err
                 test.h[k+1]     = minimum(ic.mesh.h)
-                CFG = cfg
+                test.filename
                 @test test.error[k+1] < test.error[k] 
+
+                if k == nk-1
+                    @info "fdsfsdfdsfdsfsdfsdfsdfsd"
+                    opts = (;
+                        dims    = (250,250),
+                        backend = gr(legend=true,markersize=2.0,markershape=:circle,markerstrokewidth=0.75,),
+                        tit     = "Unnamed",
+                        file    = joinpath(cfg[:paths][:plot],"2d_elastic_column_collapse_convergence.png"),
+                    )
+                    config_plot()
+                    opts.backend
+
+                    p = plot(
+                        test.h,test.error,
+                        seriestype =:line, 
+                        xlabel     = L"$x-$direction"*" [m]",
+                        ylabel     = L"$z-$direction"*" [m]",
+                        label      ="$(length(nel))D $(cfg[:instr][:basis][:which]), $(cfg[:instr][:fwrk][:trsfr]) mapping",
+                        title      = "$(opts.tit)",
+                        size       = opts.dims,
+                    )
+                    display(plot(p; layout=(1,1), size=(450,250)))
+                    save_plot(opts)
+                end
             end
         end
-        println(CFG)
-        opts = (;
-            dims    = (250,250),
-            backend = gr(legend=true,markersize=2.0,markershape=:circle,markerstrokewidth=0.75,),
-            tit     = "Unnamed",
-            file    = joinpath(CFG[:paths][:plot],"2d_elastic_column_collapse_convergence.png"),
-        )
-        config_plot()
-        opts.backend
-
-        p = plot(
-            out.h,out.error,
-            seriestype =:line, 
-            xlabel     = L"$x-$direction"*" [m]",
-            ylabel     = L"$z-$direction"*" [m]",
-            label      ="$(dim)D $(basistype), $(mapping) mapping",
-            title      = "$tit $(opts.tit)",
-            size       = opts.dims,
-        )
-        display(plot(p; layout=(1,1), size=(450,250)))
-        save_plot(opts)
-
 
         #==#
     end
