@@ -37,8 +37,8 @@ function setup_mpts(mesh::Mesh{T1,T2},cmp::NamedTuple;define::Tuple=(nothing,not
     n0 = 0.0.*ones(nmp)
     l0 = ones(size(xp)).*0.5.*(mesh.h./ni)
     v0 = prod(2 .* l0; dims=1)
-    ρ0 = ones(nmp) .* cmp[:ρ0]
-    m  = (1.0 .- n0).*cmp[:ρ0].*v0
+    ρ0 = fill(cmp[:ρ0],nmp)
+    m  = cmp[:ρ0].*v0
     # constructor
     mpts = (
         ndim = mesh.dim,
