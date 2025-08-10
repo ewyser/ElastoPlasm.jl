@@ -23,22 +23,21 @@ println(mpts.nmp)  # Number of material points
 - Sets up connectivity arrays and phase properties (solid and liquid).
 - Handles both 2D and 3D cases.
 """
-function setup_mpts(mesh::Mesh{T1,T2},cmp::NamedTuple;define::Tuple=(nothing,nothing)) where {T1,T2}
+function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2}
     # non-dimensional constant                                                   
     if mesh.dim == 2 
         nstr = 3 
     elseif mesh.dim == 3 
         nstr = 6 
     end
-    # material geometry
-    ni,nmp,geom = define
-    xp = geom.xp 
+    # unpack material geometry
+    ni,nmp,xp = geom.ni,geom.nmp,geom.xp 
     # scalars & vectors
-    n0 = 0.0.*ones(nmp)
+    n0 = zeros(nmp)
     l0 = ones(size(xp)).*0.5.*(mesh.h./ni)
     v0 = prod(2 .* l0; dims=1)
-    ρ0 = fill(cmp[:ρ0],nmp)
-    m  = cmp[:ρ0].*v0
+    ρ0 = fill(cmpr[:ρ0],nmp)
+    m  = cmpr[:ρ0].*v0
     # constructor
     mpts = (
         ndim = mesh.dim,
