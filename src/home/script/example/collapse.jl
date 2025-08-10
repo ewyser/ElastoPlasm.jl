@@ -36,14 +36,20 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     T1,T2 = first(T0),last(T0) 
     L,nel = T2.(L),T1.(nel) 
     # mesh & mpts initial conditions
-    ni    = T1(2)
-    mesh  = setup_mesh(nel, L, instr)
-    cmpr  = setup_cmpr(mesh,instr; E=T2(E), ν=T2(ν), ρ0=T2(ρ0))
-    mpts    = setup_mpts(mesh, cmpr; define=geom_collapse(mesh, cmpr, ni; ℓ₀=l0))
+    h       = [L[end]/nel[end],L[end]/nel[end]]
+    nel     = [5,nel[end]]
+    L       = [5*h[end],L[end]]
+    ndim,nn = length(L),4^length(L)
+    ni      = T1(2)
+
+    geom  = (; ndim = T1(ndim), nn = T1(nn), h =T2.(h), nel = T1.(nel), L = T2.(L))
+    mesh  = setup_mesh(instr     ; geom = geom     )
+    cmpr  = setup_cmpr(mesh      ; E=T2(E), ν=T2(ν), ρ0=T2(ρ0))
+    mpts  = setup_mpts(mesh, cmpr; geom = get_collapse(mesh, cmpr, ni; ℓ₀=l0))
     # time parameters
     tg    = ceil((1.0/cmpr.c)*(2.0*l0)*40.0)
     te    = tg
-    time  = setup_time(T2; te=te,tg=tg) 
+    time  = setup_time(instr; te=te,tg=tg) 
     # display summary
     @info ic_log(mesh,mpts,time,instr)
     return (;mesh, mpts, cmpr, time), (;instr, paths)

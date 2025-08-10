@@ -14,7 +14,7 @@ Initialize geometry and material point fields for a column collapse problem.
 - `nmp`: Number of material points.
 - `fields`: NamedTuple with coordinates and material properties.
 """=#
-function geom_collapse(mesh,cmp,ni;ℓ₀=0.0)
+function get_collapse(mesh,cmp,ni;ℓ₀=0.0)
     @info "Init elastic collumn geometry"
     coh0,cohr,phi0= cmp[:c0],cmp[:cr],cmp[:ϕ0]
     if mesh.dim == 2
@@ -44,5 +44,5 @@ function geom_collapse(mesh,cmp,ni;ℓ₀=0.0)
     coh0 = ones(nmp).*coh0
     cohr = ones(nmp).*cohr
     phi  = ones(nmp).*phi0
-    return ni,nmp,(;xp=xp,coh0=coh0,cohr=cohr,phi=phi,)
+    return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,ni=ni,nmp=nmp)
 end
