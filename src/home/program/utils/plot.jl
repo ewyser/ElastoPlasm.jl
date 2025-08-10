@@ -40,6 +40,16 @@ display(p)
         else
             cblim = (minimum(d),maximum(d))
         end
+    elseif opts.what == "sigxx"
+        d     = mpts.s.σᵢ[1,:]/1e3
+        lab   = L"$\sigma_{xx}$"*" [kPa]"
+        tit   = "stress tensor x-component"
+        cb    = :viridis
+        if minimum(d) == maximum(d)
+            cblim = (-1.0,1.0)
+        else
+            cblim = (minimum(d),maximum(d))
+        end
     elseif opts.what == "epII"
         d     = mpts.s.ϵpII[1,:]
         lab   = L"$\epsilon_{\mathrm{II}}^{\mathrm{acc}}$"*" [-]"
