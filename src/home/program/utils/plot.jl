@@ -50,6 +50,16 @@ display(p)
         else
             cblim = (minimum(d),maximum(d))
         end
+    elseif opts.what == "epsxx"
+        d     = mpts.s.ϵᵢⱼ[1,1,:]
+        lab   = L"$\epsilon_{xx}$"*" [-]"
+        tit   = "strain tensor x-component"
+        cb    = :viridis
+        if minimum(d) == maximum(d)
+            cblim = (-1.0,1.0)
+        else
+            cblim = (minimum(d),maximum(d))
+        end        
     elseif opts.what == "epII"
         d     = mpts.s.ϵpII[1,:]
         lab   = L"$\epsilon_{\mathrm{II}}^{\mathrm{acc}}$"*" [-]"
