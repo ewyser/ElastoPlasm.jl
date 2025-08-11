@@ -127,6 +127,13 @@ display(p)
         tit   = "deformation determinant"
         cb    = :seismic
         cblim = (0.0,2.0) 
+    elseif opts.what == "ms"
+        d     = mpts.s.ρ.*mpts.Ω
+        lab   = L"m_{s}(x_p)"*" [-]"
+        tit   = "solid mass"
+        cb    = :viridis
+        cblim = (0.0,maximum(d)) 
+
     else        
         throw(error("UndefinedPlotOption: $(opts.what)"))
     end

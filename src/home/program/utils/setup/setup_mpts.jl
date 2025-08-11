@@ -60,7 +60,6 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
 
             ρ₀   = vec(copy(ρ0)),
             ρ    = vec(copy(ρ0)),
-            m    = vec(copy(m)),
             c₀   = vec(copy(geom.coh0)),
             cᵣ   = vec(copy(geom.cohr)),
             ϕ    = vec(copy(geom.phi)),            
@@ -101,7 +100,6 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
         # mechanical properties
         T2.(mpts.s.ρ₀)   ,
         T2.(mpts.s.ρ)    ,
-        T2.(mpts.s.m)    ,
         T2.(mpts.s.c₀)   ,
         T2.(mpts.s.cᵣ)   ,
         T2.(mpts.s.ϕ)    ,
@@ -122,7 +120,7 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
         T2.(mpts.s.ωᵢⱼ)  ,
         T2.(mpts.s.σJᵢⱼ) ,
     )
-    l = Liquid{T1,T2}(
+    f = Liquid{T1,T2}(
 
     )
     out = Point{T1,T2}(
@@ -150,8 +148,8 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
         T2.(mpts.J)    ,        
         # solid phase
         s       ,
-        # liquid phase
-        l       ,
+        # fluid phase
+        f       ,
     )
     return out 
 end

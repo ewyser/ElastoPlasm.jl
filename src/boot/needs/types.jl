@@ -42,7 +42,6 @@ struct Solid{T1,T2}
     # mechanical properties
     ρ₀   ::Vector{T2}
     ρ    ::Vector{T2}
-    m    ::Vector{T2}
     c₀   ::Vector{T2}
     cᵣ   ::Vector{T2}
     ϕ    ::Vector{T2}
@@ -98,7 +97,7 @@ struct Point{T1,T2}
     # solid phase
     s    ::Solid{T1,T2}
     # liquid phase
-    l    ::Liquid{T1,T2}
+    f    ::Liquid{T1,T2}
 end
 @adapt_struct Point
 
@@ -126,8 +125,6 @@ struct Field{T1,T2}
     mᵢ   ::Vector{T2}
     Mᵢⱼ  ::Matrix{T2}
     oobf ::Matrix{T2}
-    D    ::Matrix{T2}
-    f    ::Matrix{T2}
     a    ::Matrix{T2}
     p    ::Matrix{T2}
     v    ::Matrix{T2}

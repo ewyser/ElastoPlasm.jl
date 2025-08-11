@@ -16,12 +16,16 @@ Update material point velocities and positions from mesh nodes (FLIP scheme, n-d
     if p≤mpts.nmp    
         # flip update
         for dim ∈ 1:mesh.dim
+            δa = T2(0.0)
+            δv = T2(0.0)
             for nn ∈ 1:mesh.nn
                 no = mpts.p2n[nn,p]
                 if iszero(no) continue end
-                mpts.s.v[dim,p]+= dt*(mpts.ϕ∂ϕ[nn,p,1]*mesh.a[dim,no])
-                mpts.x[dim,p]  += dt*(mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no])
+                δa += mpts.ϕ∂ϕ[nn,p,1]*mesh.a[dim,no]
+                δv += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
             end
+            mpts.s.v[dim,p]+= dt*δa
+            mpts.x[dim,p]  += dt*δv
             # find maximum velocity component over mps
             @atom mpts.vmax[dim] = max(mpts.vmax[dim],abs(mpts.s.v[dim,p]))
         end

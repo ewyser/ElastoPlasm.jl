@@ -18,7 +18,7 @@ Accumulate material point momentum to mesh nodes for DM augmentation.
             for nn ∈ 1:mesh.nn
                 no = mpts.p2n[nn,p]
                 if iszero(no) continue end
-                @atom mesh.p[dim,no]+= mpts.ϕ∂ϕ[nn,p,1]*(mpts.s.m[p]*mpts.s.v[dim,p])
+                @atom mesh.p[dim,no]+= mpts.ϕ∂ϕ[nn,p,1]*((mpts.s.ρ[p]*mpts.Ω[p])*mpts.s.v[dim,p])
             end
         end
     end
