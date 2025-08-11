@@ -1,5 +1,5 @@
 #="""
-    geom_slump(mesh, cmp, instr; ni=2, lz=12.80)
+    get_slump(mesh, cmp, instr; ni=2, lz=12.80)
 
 Initialize geometry and material point fields for a slump test problem.
 
@@ -15,29 +15,13 @@ Initialize geometry and material point fields for a slump test problem.
 - `nmp`: Number of material points.
 - `fields`: NamedTuple with coordinates and material properties.
 """=#
-function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80 )
+function get_slump(mesh,cmpr,instr; ni = 2, lz = 12.80 )
     #@info "Init slump geometry"
-    coh0,cohr,phi0,phir,rho0 = cmp[:c0],cmp[:cr],cmp[:ϕ0],cmp[:ϕr],cmp[:ρ0]
-
-    wl = 0.15*lz
+    out = mpts_populate(mesh,cmpr,instr; ni=ni)
+    wl  = 0.15*lz
+    id  = findall(x -> x ≤ lz-(0.5*mesh.h[end]/ni), out.x[:,end])
     if mesh.dim == 2
-        x          = collect(mesh.xB[1,1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[1,2])
-        z          = collect(mesh.xB[2,1]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:lz-0.5*mesh.h[2]/ni)
-        nmp        = [length(x),length(z),length(x)*length(z)]
-        xp         = repeat(reshape(x,1     ,nmp[1]),nmp[2],1     )
-        zp         = repeat(reshape(z,nmp[2],1     ),1     ,nmp[1])
-
-        if instr[:grf][:status]
-            if instr[:grf][:covariance] == "gaussian"
-                c = GRFS_gauss(xp,coh0,cohr,ni,mesh.h[1])
-            end
-            if instr[:grf][:covariance] == "exponential"
-
-            end
-        else 
-            c = ones(size(xp)).*coh0 
-        end
-        xp,zp,c     = vec(xp),vec(zp),vec(c)
+        xp,zp,c     = out.x[id,1],out.x[id,2],out.c0[id]
         x           = LinRange(minimum(xp),maximum(xp),200)
         a           = -1.25
         x,z         = x.+0.5.*mesh.L[1],a.*x
@@ -63,19 +47,7 @@ function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80 )
             end
         end
     elseif mesh.dim == 3
-        x          = collect(mesh.xB[1,1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[1,2]         )
-        y          = collect(mesh.xB[2,1]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:mesh.xB[2,2]         )
-        z          = collect(mesh.xB[3,1]+(0.5*mesh.h[3]/ni):mesh.h[3]/ni:lz-0.5*mesh.h[3]/ni)
-        nmp        = [length(x),length(y),length(z),length(x)*length(y)*length(z)]
-        xp         = repeat(reshape(x,1     ,nmp[1],1     ),nmp[3],1     ,nmp[2])
-        yp         = repeat(reshape(y,1     ,1     ,nmp[2]),nmp[3],nmp[1],1     )
-        zp         = repeat(reshape(z,nmp[3],1     ,1     ),1     ,nmp[1],nmp[2])
-        if instr[:grf][:status]
-            c = GRFS_gauss(xp,coh0,cohr,ni,mesh.h[1])
-        else 
-            c = ones(size(xp)).*coh0 
-        end  
-        xp,yp,zp,c  = vec(xp),vec(yp),vec(zp),vec(c)
+        xp,yp,zp,c  = out.x[id,1],out.x[id,2],out.x[id,3],out.c0[id]
         x           = LinRange(minimum(xp),maximum(xp),200)
         a           = -1.25
         x,z         = x.+0.5.*mesh.L[1],a.*x
@@ -115,9 +87,9 @@ function geom_slump(mesh,cmp,instr; ni = 2, lz = 12.80 )
     nmp    = size(xp,2)
     id     = shuffle(collect(1:nmp))
     coh0   = clt
-    cohr   = ones(nmp).*cohr
-    phi    = ones(nmp).*phi0
-    phi[xp[end,:].<=2*wl] .= phir
+    cohr   = ones(nmp).*cmpr[:cr]
+    phi    = ones(nmp).*cmpr[:ϕ0]
+    phi[xp[end,:].<=2*wl] .= cmpr[:ϕr]
 
-    return ni,nmp,(;xp=xp,coh0=coh0,cohr=cohr,phi=phi,)
+    return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,ni=ni,nmp=nmp)
 end

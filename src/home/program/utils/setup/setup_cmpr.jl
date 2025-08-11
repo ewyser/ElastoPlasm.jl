@@ -63,7 +63,7 @@ cmp = setup_cmpr(mesh, instr; E=2.0e6, ν=0.25, ρ0=2500.0)
 println(cmp.Kc)  # Bulk modulus
 ```
 """
-function setup_cmpr(mesh::Mesh{T1,T2},instr::NamedTuple; E::T2=T2(1.0e6),ν::T2=T2(0.3),ρ0::T2= T2(2700.0)) where {T1,T2}
+function setup_cmpr(mesh::Mesh{T1,T2}; E::T2=T2(1.0e6),ν::T2=T2(0.3),ρ0::T2= T2(2700.0)) where {T1,T2}
     # independant physical constant          
     K,G,Del = D(E,ν,mesh.dim)                                                   # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]    
     c       = sqrt((K+4.0/3.0*G)/ρ0)                                            # elastic wave speed [m/s]
@@ -72,8 +72,6 @@ function setup_cmpr(mesh::Mesh{T1,T2},instr::NamedTuple; E::T2=T2(1.0e6),ν::T2=
     Hp      = -30.0e3                                                           # softening modulus
     # constitutive model param.
     cmp = (;
-        cmType   = instr[:plast][:constitutive], 
-        nonlocal = instr[:nonloc],
         E   = T2(E), 
         ν   = T2(ν), 
         Kc  = T2(K), 

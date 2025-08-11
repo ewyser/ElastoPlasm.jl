@@ -14,7 +14,7 @@
         for case ∈ cases
             kwargs = Dict(
                 :basis  => basis,
-                :fwrk   => (; deform = case[:deformation], trsfr = case[:transfer], locking = case[:locking]),
+                :fwrk   => (; deform = case[:deformation], trsfr = case[:transfer], locking = case[:locking], damping = 0.1,),
                 :nonloc => (; status = false, ls = 0.5),
                 :plot   => plot,
                 :grf    => grf,

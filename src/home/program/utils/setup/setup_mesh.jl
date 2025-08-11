@@ -1,3 +1,4 @@
+
 """
     setup_mesh(nel::Vector{T1}, L::Vector{T2}, instr) -> Mesh
 
@@ -22,14 +23,18 @@ println(mesh.nel)
 - Initializes nodal quantities (mass, force, acceleration, etc.) and mesh-to-node topology.
 - Handles ghost nodes if required by the basis.
 """
-function setup_mesh(nel::Vector{T1},L::Vector{T2},instr::NamedTuple) where {T1,T2}
+function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
+    # unpack arithmetic precision
+    T1,T2 = first(instr[:dtype].T0),last(instr[:dtype].T0) 
+    # add ghost points if needed
     if instr[:basis][:ghost]
         buffer = T2(2.0)
     else
         buffer = T2(0.0)
     end
-    # mesh & boundary conditions                                      
-    ndim,nn,h  = get_geom(nel,L,instr)
+    # mesh & boundary conditions   
+    ndim       = geom.ndim                                  
+    L,nel,nn,h = geom.L,geom.nel,geom.nn,geom.h
     xn,nel,nno = get_coords(ndim,L,h; ghosts=buffer.*h)
     status,xB  = get_bc(xn,instr; ghosts=buffer.*h)
     # constructor

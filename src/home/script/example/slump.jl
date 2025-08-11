@@ -24,15 +24,12 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
     # init & kwargs
     instr = kwargser(:instr,kwargs;dim=length(L))
     paths = set_paths(fid,info.sys.out;interactive=false)  
-    T0    = instr[:dtype].T0  
-    T1,T2 = first(T0),last(T0) 
-    L,nel = T2.(L),T1.(nel) 
     # mesh & mpts initial conditions
-    mesh  = setup_mesh(nel,L,instr)
-    cmpr  = setup_cmpr(mesh,instr;)                       
-    mpts    = setup_mpts(mesh,cmpr;define=geom_slump(mesh,cmpr,instr))
+    mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)     )
+    cmpr  = setup_cmpr(mesh                                         )                       
+    mpts  = setup_mpts(mesh,cmpr ; geom = get_slump(mesh,cmpr,instr))
     # time parameters
-    time  = setup_time(T2; te=10.0,tg=10.0,tep=5.0) 
+    time  = setup_time(instr     ; te=10.0,tg=10.0,tep=5.0) 
     # plot initial cohesion field
     ms = 0.4*instr[:plot][:dims][1]/mesh.nel[1]
     opts = (;

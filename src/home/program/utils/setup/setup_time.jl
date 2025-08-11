@@ -18,7 +18,8 @@ time = setup_time(Float64; te=10.0, tg=5.0, tep=2.0)
 println(time.t)  # [0.0, 12.0]
 ```
 """
-function setup_time(ϵ::Type=Float64; te=0.0,tg=0.0,tep=0.0)
+function setup_time(instr::NamedTuple; te=0.0,tg=0.0,tep=0.0)
+    ϵ = last(instr[:dtype].T0)
     time  = (; 
         t = ϵ.([0.0,te+tep]), 
         te = ϵ(te), 
