@@ -14,9 +14,11 @@
         mpts.s.ΔFᵢⱼ[:,:,p].= mpts.s.δᵢⱼ+(dt.*mpts.s.∇vᵢⱼ[:,:,p])
         mpts.s.Fᵢⱼ[:,:,p] .= mpts.s.ΔFᵢⱼ[:,:,p]*mpts.s.Fᵢⱼ[:,:,p]
         # update material point's volume
-        mpts.s.ΔJ[p]       = det(mpts.s.ΔFᵢⱼ[:,:,p])
-        mpts.s.J[p]        = det(mpts.s.Fᵢⱼ[:,:,p])
-        mpts.Ω[p]          = mpts.s.J[p]*mpts.Ω₀[p]
+        mpts.ΔJ[p]       = det(mpts.s.ΔFᵢⱼ[:,:,p])
+        mpts.J[p]        = det(mpts.s.Fᵢⱼ[:,:,p])
+        mpts.Ω[p]        = mpts.J[p]*mpts.Ω₀[p]
+        # update material point's positivity-preserving porosity
+        mpts.n[p]        = T2(1.0)-T2(1.0)/mpts.J[p]*(T2(1.0)-mpts.n₀[p])
     end
 end
 @views @kernel inbounds = true function infinitesimal_deform(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}

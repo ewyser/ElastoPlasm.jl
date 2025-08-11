@@ -13,7 +13,7 @@ Transform Kirchhoff to Cauchy stress at material points.
     p = @index(Global)
     # deformation framework dispatcher
     if p ≤ mpts.nmp 
-        J = mpts.s.J[p]
+        J = mpts.J[p]
         for c ∈ 1:size(mpts.s.σᵢ,1)
             mpts.s.σᵢ[c,p] = mpts.s.τᵢ[c,p]/J
         end

@@ -49,8 +49,6 @@ struct Solid{T1,T2}
     Δλ   ::Vector{T2}
     ϵpII ::Matrix{T2}
     ϵpV  ::Vector{T2}
-    ΔJ   ::Vector{T2}
-    J    ::Vector{T2}
     # tensor in voigt notation
     σᵢ   ::Matrix{T2}
     τᵢ   ::Matrix{T2}
@@ -95,6 +93,8 @@ struct Point{T1,T2}
     n    ::Vector{T2}    
     Ω₀   ::Vector{T2}
     Ω    ::Vector{T2}
+    ΔJ   ::Vector{T2}
+    J    ::Vector{T2}
     # solid phase
     s    ::Solid{T1,T2}
     # liquid phase

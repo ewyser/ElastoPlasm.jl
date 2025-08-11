@@ -107,11 +107,17 @@ display(p)
         cblim = (0.0,1.0) 
     elseif opts.what == "n"
         d     = mpts.n
-        lab   = L"$\n(x_p)$"*" [-]"
+        lab   = L"n(x_p)"*" [-]"
         tit   = "porosity"
-        cb    = :viridis
-        cblim = (0.0,1.0) 
-    else
+        cb    = :seismic
+        cblim = (-1.0,1.0) 
+    elseif opts.what == "J"
+        d     = mpts.J
+        lab   = L"J(x_p)"*" [-]"
+        tit   = "deformation determinant"
+        cb    = :seismic
+        cblim = (0.0,2.0) 
+    else        
         throw(error("UndefinedPlotOption: $(opts.what)"))
     end
 
@@ -130,7 +136,7 @@ display(p)
         color       = cb,
         clim        = cblim,
         ylim        = (-10.0,20.0),
-        title       = "$tit $(opts.tit)",
+        title       = "$tit, at $(opts.tit)",
         aspect_ratio= 1,
         size        = opts.dims,
     )
