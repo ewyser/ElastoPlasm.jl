@@ -114,10 +114,10 @@ function collapse!(ic::NamedTuple, cfg::NamedTuple)
 end
 
 #=
-    plot = (;status=true,freq=1.0,what=["P"],dims=(500.0,250.0),)
+    plot = (;status=true,freq=1.0,what=["epsxx"],dims=(500.0,250.0),)
     nel  = [5,10]
     # initial parameters 
-    ν,E,ρ0,l0 = 0.0,1.0e4,80.0,10.0
+    ν,E,ρ0,l0 = 0.0,1.0e4,80.0,50.0
     ic, cfg = ic_collapse(nel, ν, E, ρ0, l0; plot);
     out = collapse(ic, cfg);
 =#
