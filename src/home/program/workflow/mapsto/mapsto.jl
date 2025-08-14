@@ -16,7 +16,6 @@ function init_mapsto(dim::Number,instr::NamedTuple)
     else
         kernel0 = nothing
     end
-    kernel2 = euler(CPU())
     if instr[:fwrk][:trsfr] == "musl"
         if dim == 1
             kernel1 = flip_1d_p2n(CPU())
@@ -25,21 +24,25 @@ function init_mapsto(dim::Number,instr::NamedTuple)
         elseif dim == 3
             kernel1 = flip_3d_p2n(CPU())
         end
-        kernel3 = flip_nd_n2p(CPU())
         kernel3a = augm_momentum(CPU())
         kernel3b = augm_velocity(CPU())
         kernel3c = augm_displacement(CPU())
-        return Dict(:map  => (;σᵢ! = kernel0, p2n! = kernel1 , solve! = kernel2 , n2p! = kernel3, ), 
+        return Dict(:map  => (;σᵢ! = kernel0, p2n! = kernel1 , solve! = euler(CPU()) , n2p! = flip_nd_n2p(CPU()), ), 
                     :augm => (;p2n! = kernel3a, solve! = kernel3b, Δu!  = kernel3c,),)
     elseif instr[:fwrk][:trsfr] == "tpic"
         if dim == 2
             kernel1 = tpic_2d_p2n(CPU())
-            kernel3 = pic_nd_n2p(CPU())
         elseif dim == 3
             kernel1 = tpic_3d_p2n(CPU())
-            kernel3 = pic_nd_n2p(CPU())
         end
-        return Dict(:map  => (;σᵢ! = kernel0, p2n! = kernel1, solve! = kernel2, n2p! = kernel3, ),)
+        return Dict(:map  => (;σᵢ! = kernel0, p2n! = kernel1, solve! = euler(CPU()), n2p! = pic_nd_n2p(CPU()), ),)
+    elseif instr[:fwrk][:trsfr] == "apic"
+        if dim == 2
+            kernel1 = apic_2d_p2n(CPU())
+        elseif dim == 3
+            nothing
+        end
+        return Dict(:map  => (;σᵢ! = kernel0, p2n! = kernel1, solve! = euler(CPU()), n2p! = pic_nd_n2p(CPU()), Bᵢⱼ! = Bij(CPU()) ),)
     else
         return throw(ArgumentError("$(instr[:fwrk][:trsfr]) is an unsupported transfer scheme"))
     end    
@@ -66,8 +69,5 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr:
     solve(mesh,dt,instr)
     # maps back solution to material point
     n2p(mpts,mesh,dt,instr)
-    if instr[:fwrk][:trsfr] == "musl"
-        augm(mpts,mesh,dt,instr)
-    end
     return nothing
 end

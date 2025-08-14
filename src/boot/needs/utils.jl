@@ -289,6 +289,7 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
         "└ $(nthreads()) active thread(s)",
         "- $msg workflow",
         "- $(instr[:fwrk][:deform]) strain formulation",
+        "- $(instr[:fwrk][:trsfr]) mapping scheme",
         "- $(instr[:basis][:which]) calculation cycle",
     ]
     # add optional lines only if the corresponding flags are true

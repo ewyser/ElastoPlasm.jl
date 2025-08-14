@@ -19,6 +19,9 @@ Transform Kirchhoff to Cauchy stress at material points.
         end
     end   
 end
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# FLIP transfer scheme, see Nakamura etal, 2023, https://doi.org/10.1016/j.cma.2022.115720
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 """
     flip_1d_p2n(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, g::Vector{T2}) where {T1,T2}
 
@@ -126,6 +129,27 @@ end
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # TPIC transfer scheme, see Nakamura etal, 2023, https://doi.org/10.1016/j.cma.2022.115720
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+@kernel inbounds = true function tpic_1d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+    p = @index(Global)
+    if p≤mpts.nmp
+        # buffering 
+        ms ,Ω       = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
+        vx          = mpts.s.v[1,p]        
+        σxx,σxy     = mpts.s.σᵢ[1,p]       ,mpts.s.σᵢ[2,p] 
+        ∇vxx,∇vxy   = mpts.s.∇vᵢⱼ[1,1,p]  ,mpts.s.∇vᵢⱼ[1,2,p]
+        for nn ∈ 1:mesh.nn
+            # buffering 
+            no    = mpts.p2n[nn,p]
+            N,∂Nx = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2]
+            δx    = mpts.Δnp[nn,1,p]
+            # accumulation
+            if iszero(no) continue end
+            @atom mesh.mᵢ[no]    += N * ms
+            @atom mesh.p[1,no]   += N * ms * (vx + ∇vxx * δx + ∇vxy * δy)
+            @atom mesh.oobf[1,no]-= Ω * (∂Nx * σxy + ∂Ny * σyy) - N * (ms * g[1])
+        end
+    end
+end
 @kernel inbounds = true function tpic_2d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp
@@ -139,7 +163,7 @@ end
             # buffering 
             no        = mpts.p2n[nn,p]
             N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
-            δx,δy     = mpts.δnp[nn,1,p],mpts.δnp[nn,2,p]
+            δx,δy     = mpts.Δnp[nn,1,p],mpts.Δnp[nn,2,p]
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]    += N * ms
@@ -165,7 +189,7 @@ end
             # buffering
             no            = mpts.p2n[nn,p]
             N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3],mpts.ϕ∂ϕ[nn,p,4]
-            δx,δy,δz      = mpts.δnp[nn,1,p],mpts.δnp[nn,2,p],mpts.δnp[nn,3,p]
+            δx,δy,δz      = mpts.Δnp[nn,1,p],mpts.Δnp[nn,2,p],mpts.Δnp[nn,3,p]
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]    += N * ms
@@ -178,6 +202,9 @@ end
         end
     end
 end
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Generic p2n function calling specialized p2n! kernel
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 function p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},instr::NamedTuple) where {T1,T2}
     # get cauchy stress 
     if instr[:fwrk][:deform] == "finite"
@@ -190,4 +217,66 @@ function p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},instr::NamedTupl
     # mapping to mesh
     instr[:cairn][:mapsto][:map].p2n!(ndrange=mpts.nmp,mpts,mesh,g);sync(CPU())
     return nothing
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# APIC transfer scheme, see Nakamura etal, 2023, https://doi.org/10.1016/j.cma.2022.115720
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+@kernel inbounds = true function apic_2d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+    p = @index(Global)
+    if p≤mpts.nmp
+        # buffering 
+        ms ,Ω       = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
+        σxx,σyy,σxy = mpts.s.σᵢ[1,p]       ,mpts.s.σᵢ[2,p]     ,mpts.s.σᵢ[3,p]
+        for nn ∈ 1:mesh.nn
+            # buffering 
+            no        = mpts.p2n[nn,p]
+            N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
+            # accumulation
+            if iszero(no) continue end
+            mesh.mᵢ[no]    += N * ms
+            if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
+                D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p]) 
+            else
+                D⁻¹ =  mpts.δᵢⱼ # or handle singular case appropriately 
+            end
+            mesh.p[:,no]  .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
+            mesh.oobf[1,no]-= Ω * (∂Nx * σxx + ∂Ny * σxy)
+            mesh.oobf[2,no]-= Ω * (∂Nx * σxy + ∂Ny * σyy) - N * (ms * g[2])
+        end
+    end
+end
+@kernel inbounds = true function apic_3d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+    p = @index(Global)
+
 end

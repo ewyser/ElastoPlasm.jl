@@ -67,12 +67,11 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
             ϵpII = zeros(2,nmp),
             ϵpV  = zeros(nmp), 
             # tensor in matrix notation
-            δᵢⱼ  = Matrix(1.0I,mesh.dim,mesh.dim), 
             ∇vᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
             ∇uᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
             ΔFᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
             Fᵢⱼ  = repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp),
-            Bᵢⱼ  = repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp),
+            bᵢⱼ  = repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp),
             ϵᵢⱼ  = zeros(mesh.dim,mesh.dim,nmp),
             ωᵢⱼ  = zeros(mesh.dim,mesh.dim,nmp),
             σJᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
@@ -84,13 +83,18 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
 
         ),
         # additional quantities
-        ϕ∂ϕ  = zeros(mesh.nn,nmp ,mesh.dim+1   ),
-        δnp  = zeros(mesh.nn,mesh.dim,nmp      ),
+        ϕ∂ϕ  = zeros(mesh.nn,nmp ,mesh.dim+1),
+        Δnp  = zeros(mesh.nn,mesh.dim,nmp   ),
+        # utils
+        δᵢⱼ  = Matrix(1.0I,mesh.dim,mesh.dim), 
+        # APIC
+        Bᵢⱼ  = zeros(mesh.dim,mesh.dim,nmp  ),
+        Dᵢⱼ  = zeros(mesh.dim,mesh.dim,nmp  ),        
         # connectivity
         e2p  = spzeros(Int,nmp,mesh.nel[end]),
-        p2p  = spzeros(Int,nmp,nmp),
-        p2e  = zeros(Int,nmp),
-        p2n  = zeros(Int,mesh.nn,nmp),
+        p2p  = spzeros(Int,nmp,nmp          ),
+        p2e  = zeros(Int,nmp                ),
+        p2n  = zeros(Int,mesh.nn,nmp        ),
     )
 
     s = Solid{T1,T2}(
@@ -110,12 +114,11 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
         T2.(mpts.s.σᵢ)   ,
         T2.(mpts.s.τᵢ)   ,
         # tensor in matrix notation
-        T2.(mpts.s.δᵢⱼ)  ,
         T2.(mpts.s.∇vᵢⱼ) ,
         T2.(mpts.s.∇uᵢⱼ) ,
         T2.(mpts.s.ΔFᵢⱼ) ,
         T2.(mpts.s.Fᵢⱼ)  ,
-        T2.(mpts.s.Bᵢⱼ)  ,
+        T2.(mpts.s.bᵢⱼ)  ,
         T2.(mpts.s.ϵᵢⱼ)  ,
         T2.(mpts.s.ωᵢⱼ)  ,
         T2.(mpts.s.σJᵢⱼ) ,
@@ -130,12 +133,17 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
         T2.(mpts.vmax) ,
         # basis-related quantities
         T2.(mpts.ϕ∂ϕ)  ,
-        T2.(mpts.δnp)  ,
+        T2.(mpts.Δnp)  ,
+        # APIC-related
+        T2.(mpts.Bᵢⱼ)  ,
+        T2.(mpts.Dᵢⱼ)  ,    
         # connectivity
         T1.(mpts.e2p)  ,
         T1.(mpts.p2p)  ,
         T1.(mpts.p2e)  ,
         T1.(mpts.p2n)  ,
+        # utils
+        T2.(mpts.δᵢⱼ)  ,
         # material point properties
         T2.(mpts.x)    ,
         T2.(mpts.ℓ₀)   ,

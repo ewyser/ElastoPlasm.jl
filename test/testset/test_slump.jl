@@ -5,10 +5,14 @@
             Dict(:deformation => "finite",       :transfer => "musl", :locking => false),
             Dict(:deformation => "finite",       :transfer => "tpic", :locking => true ),
             Dict(:deformation => "finite",       :transfer => "tpic", :locking => false),
+            Dict(:deformation => "finite",       :transfer => "apic", :locking => true ),
+            Dict(:deformation => "finite",       :transfer => "apic", :locking => false),
             Dict(:deformation => "infinitesimal",:transfer => "musl", :locking => true ),
             Dict(:deformation => "infinitesimal",:transfer => "musl", :locking => false),
             Dict(:deformation => "infinitesimal",:transfer => "tpic", :locking => true ),
             Dict(:deformation => "infinitesimal",:transfer => "tpic", :locking => false),
+            Dict(:deformation => "infinitesimal",:transfer => "apic", :locking => true ),
+            Dict(:deformation => "infinitesimal",:transfer => "apic", :locking => false),
         ]
         prog = Progress(length(cases)+1;dt=0.5,desc=msg,barlen=10);
         for case ∈ cases
