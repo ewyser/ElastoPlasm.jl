@@ -1,40 +1,7 @@
 """
-    flip_nd_n2p(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, dt::T2) where {T1,T2}
+    nd_n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,C_pf::T2) where {T1,T2}
 
-Update material point velocities and positions from mesh nodes (FLIP scheme, n-dim).
-
-# Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
-- `mesh::Mesh{T1,T2}`: Mesh data structure.
-- `dt::T2`: Time step.
-
-# Returns
-- Updates material point fields in-place.
-"""
-@kernel inbounds = true function flip_nd_n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
-    p = @index(Global)
-    if p≤mpts.nmp    
-        # flip update
-        for dim ∈ 1:mesh.dim
-            δa = T2(0.0)
-            δv = T2(0.0)
-            for nn ∈ 1:mesh.nn
-                no = mpts.p2n[nn,p]
-                if iszero(no) continue end
-                δa += mpts.ϕ∂ϕ[nn,p,1]*mesh.a[dim,no]
-                δv += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
-            end
-            mpts.s.v[dim,p]+= dt*δa
-            mpts.x[dim,p]  += dt*δv
-            # find maximum velocity component over mps
-            @atom mpts.vmax[dim] = max(mpts.vmax[dim],abs(mpts.s.v[dim,p]))
-        end
-    end  
-end
-"""
-    pic_nd_n2p(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, dt::T2) where {T1,T2}
-
-Update material point velocities and positions from mesh nodes (PIC scheme, n-dim).
+Update material point velocities and positions from mesh nodes using PIC-FLIP scheme.
 
 # Arguments
 - `mpts::Point{T1,T2}`: Material point data structure.
@@ -44,24 +11,34 @@ Update material point velocities and positions from mesh nodes (PIC scheme, n-di
 # Returns
 - Updates material point fields in-place.
 """
-@kernel inbounds = true function pic_nd_n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
+@kernel inbounds = true function picflip_n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,C_pf::T2) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp    
-        # pic update
         for dim ∈ 1:mesh.dim
-            δv = T2(0.0)
+            # pic update
+            δvPIC = T2(0.0)
             for nn ∈ 1:mesh.nn
                 no = mpts.p2n[nn,p]
                 if iszero(no) continue end
-                δv += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
+                δvPIC += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
             end
-            mpts.s.v[dim,p] = δv 
-            mpts.x[dim,p]  += dt*δv
-            # find maximum velocity component over mps
-            @atom mpts.vmax[dim] = max(mpts.vmax[dim],abs(mpts.s.v[dim,p]))
+            # flip update
+            δaFLIP = δvFLIP = T2(0.0)
+            for nn ∈ 1:mesh.nn
+                no = mpts.p2n[nn,p]
+                if iszero(no) continue end
+                δaFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.a[dim,no]
+                δvFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
+            end
+        # picflip update for material point's velocity and position
+        mpts.s.v[dim,p] = C_pf*(mpts.s.v[dim,p]+dt*δaFLIP) + (T2(1.0)-C_pf)*δvPIC
+        mpts.x[dim,p]  += dt*δvPIC
+        # find maximum velocity component over mps
+        @atom mpts.vmax[dim] = max(mpts.vmax[dim],abs(mpts.s.v[dim,p]))
         end
     end  
 end
+
 """
     n2p(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, dt::T2, instr::NamedTuple) where {T1,T2}
 
@@ -78,8 +55,13 @@ Map mesh node solution back to material points using the selected transfer kerne
 """
 function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # mapping to material point
-    instr[:cairn][:mapsto][:map].n2p!(ndrange=mpts.nmp,mpts,mesh,dt);sync(CPU())
-    if instr[:fwrk][:trsfr] == "musl"
+    instr[:cairn][:mapsto][:map].n2p!(ndrange=mpts.nmp,mpts,mesh,dt,T2(instr[:fwrk][:C_pf]));sync(CPU())
+    # (for APIC) compute Bᵢⱼ for material points
+    if instr[:fwrk][:trsfr] == "apic"
+        instr[:cairn][:mapsto][:map].Bᵢⱼ!(ndrange=mpts.nmp,mpts,mesh);sync(CPU())
+    end
+    # (if musl) reproject nodal velocities
+    if instr[:fwrk][:musl]
         # initialize for DM
         mesh.p.= T2(0.0)
         mesh.v.= T2(0.0)
@@ -87,8 +69,6 @@ function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) wher
         instr[:cairn][:mapsto][:augm].p2n!(ndrange=mpts.nmp,mpts,mesh);sync(CPU())
         # solve for nodal incremental displacement
         instr[:cairn][:mapsto][:augm].solve!(ndrange=mesh.nno[end],mesh);sync(CPU())
-        # update material point's displacement
-        instr[:cairn][:mapsto][:augm].Δu!(ndrange=mpts.nmp,mpts,mesh,dt);sync(CPU())
     elseif instr[:fwrk][:trsfr] == "apic"
         instr[:cairn][:mapsto][:map].Bᵢⱼ!(ndrange=mpts.nmp,mpts,mesh);sync(CPU())
     end

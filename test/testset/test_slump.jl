@@ -1,14 +1,14 @@
 @testset "+ $(basename(@__FILE__))" verbose = true begin
     function iter_slump(ic,cfg,basis,plot,grf,msg)
         cases = [
-            Dict(:deformation => "finite",       :transfer => "musl", :locking => true ),
-            Dict(:deformation => "finite",       :transfer => "musl", :locking => false),
+            Dict(:deformation => "finite",       :transfer => "std" , :locking => true ),
+            Dict(:deformation => "finite",       :transfer => "std" , :locking => false),
             Dict(:deformation => "finite",       :transfer => "tpic", :locking => true ),
             Dict(:deformation => "finite",       :transfer => "tpic", :locking => false),
             Dict(:deformation => "finite",       :transfer => "apic", :locking => true ),
             Dict(:deformation => "finite",       :transfer => "apic", :locking => false),
-            Dict(:deformation => "infinitesimal",:transfer => "musl", :locking => true ),
-            Dict(:deformation => "infinitesimal",:transfer => "musl", :locking => false),
+            Dict(:deformation => "infinitesimal",:transfer => "std" , :locking => true ),
+            Dict(:deformation => "infinitesimal",:transfer => "std" , :locking => false),
             Dict(:deformation => "infinitesimal",:transfer => "tpic", :locking => true ),
             Dict(:deformation => "infinitesimal",:transfer => "tpic", :locking => false),
             Dict(:deformation => "infinitesimal",:transfer => "apic", :locking => true ),
@@ -18,13 +18,20 @@
         for case ∈ cases
             kwargs = Dict(
                 :basis  => basis,
-                :fwrk   => (; deform = case[:deformation], trsfr = case[:transfer], locking = case[:locking], damping = 0.1,),
+                :fwrk   => (; deform = case[:deformation], trsfr = case[:transfer], musl = true, C_pf = 0.99, locking = case[:locking], damping = 0.1,),
                 :nonloc => (; status = false, ls = 0.5),
                 :plot   => plot,
                 :grf    => grf,
             )
             instr = kwargser(:instr,kwargs;dim=ic.mesh.dim)
-            cfg = (;instr = instr, paths = cfg.paths)
+            
+            cfg = (;
+                instr = instr, 
+                paths = cfg.paths, 
+                misc = (;
+                    file = "$(ic.mesh.dim)d_$(instr[:fwrk][:trsfr])-mapping_$(instr[:fwrk][:deform])-deformation_$(instr[:fwrk][:locking])-locking"
+                ),
+            )
 
             @testset "$(basename(@__FILE__)) executes with: $(instr[:fwrk].deform), $(instr[:fwrk].trsfr), $(instr[:fwrk].locking)" begin
                 status = false
