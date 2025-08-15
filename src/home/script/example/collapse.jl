@@ -50,7 +50,10 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     time  = setup_time(instr; te=te,tg=tg) 
     # display summary
     @info ic_log(mesh,mpts,time,instr)
-    return (;mesh, mpts, cmpr, time), (;instr, paths)
+    misc = (;
+        file = "$(mesh.dim)d_$(instr[:fwrk][:trsfr])"
+    )
+    return (;mesh,mpts,cmpr,time),(;instr,paths,misc)
 end
 
 """

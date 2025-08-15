@@ -112,9 +112,9 @@ Run the main simulation workflow for the given initial conditions and configurat
 """
 function elastoplasm(ic::NamedTuple,cfg::NamedTuple; mode::String="elastodynamic")
     # unpack mesh, mpts, cmpr, instr, paths as aliases
-    mesh,mpts,cmpr = ic[:mesh]  , ic[:mpts]    , (ic[:cmpr])
-    instr,paths  = cfg[:instr], cfg[:paths]
-    time         = ic[:time]
+    mesh,mpts,cmpr   = ic[:mesh]  , ic[:mpts]  , (ic[:cmpr])
+    time             = ic[:time]
+    instr,paths,misc = cfg[:instr], cfg[:paths], cfg[:misc]
     # action
     @info elastoplasm_log(instr; msg = mode) 
     if mode == "elastodynamic"
@@ -132,10 +132,12 @@ function elastoplasm(ic::NamedTuple,cfg::NamedTuple; mode::String="elastodynamic
     # postprocessing
     if instr[:plot][:status]
         opts = (;
-            file = joinpath(paths[:plot],"$(mesh.dim)d_$(instr[:fwrk][:trsfr])_$(mode).png"),
+            file = joinpath(paths[:plot],"$(misc[:file]).png"),
         );save_plot(opts)
     end
     # return success message
     exit_log("(✓) Done! exiting...\n")
     return out = (; ic,cfg,)
 end
+
+#file = joinpath(paths[:plot],"$(mesh.dim)d_$(instr[:fwrk][:trsfr])_$(mode).png"),

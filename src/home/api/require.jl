@@ -36,13 +36,15 @@ function require(in::Symbol=:instr)
         return (;
             dtype = 64,
             basis = (;
-                which="bsmpm",
-                how=nothing,
-                ghost=false,
+                which = "bsmpm",
+                how = nothing,
+                ghost = false,
             ),
             fwrk  = (;
                 deform = "finite",
-                trsfr = "musl",
+                trsfr = "std",
+                C_pf = 1.0, 
+                musl = true,
                 locking = true,
                 damping = 0.1
             ),
