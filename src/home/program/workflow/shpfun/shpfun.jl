@@ -12,6 +12,7 @@ Initialize shape function and topology kernels for the MPM algorithm.
 - Named tuple of kernel functions for topology, shape function, and delta function.
 """
 function init_shpfun(dim::Number,instr::NamedTuple;what::String="nothing")
+    kernel3,kernel4 = nothing,nothing
     # topology function
     if dim == 1
         kernel1 = p2e2n_1d(CPU())
@@ -49,17 +50,13 @@ function init_shpfun(dim::Number,instr::NamedTuple;what::String="nothing")
         return throw(ArgumentError("$(instr[:basis][:which]) is not a supported shape function basis"))
     end
     if instr[:fwrk][:trsfr] == "tpic"
-        if dim == 1
-            kernel3 = δ_1d(CPU())    
-        elseif dim == 2
-            kernel3 = δ_2d(CPU())
-        elseif dim == 3
-            kernel3 = δ_3d(CPU())
-        end
-    else
+        kernel3 = Δnp_nd(CPU())   
+        kernel4 = nothing  
+    elseif instr[:fwrk][:trsfr] == "apic"
         kernel3 = nothing
+        kernel4 = Dij_nd(CPU()) 
     end
-    return (;tplgy! = kernel1, ϕ∂ϕ! = kernel2, δ! = kernel3)
+    return (;tplgy! = kernel1, ϕ∂ϕ! = kernel2, Δₙₚ! = kernel3, Dᵢⱼ! = kernel4,)
 end
 """
     shpfun(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, instr::NamedTuple) where {T1,T2}
@@ -83,7 +80,9 @@ function shpfun(mpts::Point{T1,T2},mesh::Mesh{T1,T2},instr::NamedTuple) where {T
     instr[:cairn][:shpfun].ϕ∂ϕ!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     # calculate identity shape functions
     if instr[:fwrk][:trsfr] == "tpic"
-        instr[:cairn][:shpfun].δ!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
+        instr[:cairn][:shpfun].Δₙₚ!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
+    elseif instr[:fwrk][:trsfr] == "apic"
+        instr[:cairn][:shpfun].Dᵢⱼ!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     end
     return nothing
 end

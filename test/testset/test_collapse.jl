@@ -45,8 +45,8 @@
         (; which = "gimpm", how = "undeformed", ghost = true ),
         #(; which = "smpm" , how = nothing     , ghost = true ),
     ]
-    viz  = (; status=false, freq=1.0, what=["sigxx"], dims=(500.0,250.0) )
-    fwrk = (; deform = "finite",trsfr = "musl",locking = false,damping = 0.5)
+    viz  = (; status=true, freq=1.0, what=["sigxx"], dims=(500.0,250.0) )
+    fwrk = (; deform = "finite",trsfr = "musl",locking = false,damping = 0.1)
 
 
     nels = [[5, 5],[5, 10],[5, 20],[5, 40],[5, 80]]

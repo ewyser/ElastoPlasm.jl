@@ -202,12 +202,22 @@ welcome_log()
 welcome_log(greeting="Hello from ElastoPlasm!")
 ```
 """
-function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_version())",)
+function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_version())", showcase::String = "slumping") 
     printstyled("┌ $greeting\n", color=:green, bold=true)
-    printstyled("│", color=:green, bold=true); println(" New comer ? Try this out")
-    printstyled("│", color=:green, bold=true); println("   L,nel  = [64.1584,64.1584/4.0],[40,10];")
-    printstyled("│", color=:green, bold=true); println("   ic,cfg = ic_slump(L,nel);")
-    printstyled("└", color=:green, bold=true); println("   out    = slump(ic,cfg; workflow=\"all-in-one\");")
+    printstyled("│", color=:green, bold=true); println(" New comer ? Try $(showcase) out")
+    if showcase == "slumping"
+        printstyled("│", color=:green, bold=true); println("   L,nel  = [64.1584,64.1584/4.0],[40,10];")
+        printstyled("│", color=:green, bold=true); println("   ic,cfg = ic_slump(L,nel);")
+        printstyled("└", color=:green, bold=true); println("   out    = slump(ic,cfg; workflow=\"all-in-one\");")
+    elseif showcase == "collapsing"
+        printstyled("│", color=:green, bold=true); println("   plot      = (; status=true, freq=1.0, what=[\"sigxx\"], dims=(500.0,250.0) );")
+        printstyled("│", color=:green, bold=true); println("   nel       = [5,10];")
+        printstyled("│", color=:green, bold=true); println("   ic, cfg   = ic_collapse(nel,0.0,1.0e4,80.0,50.0; plot);")
+        printstyled("└", color=:green, bold=true); println("   out       = collapse(ic, cfg);")
+    else
+        printstyled("└", color=:green, bold=true); println("   ...$(showcase) ?!? \e[5m¯\\_(ツ)_/¯\e[0m")
+    end
+
     return nothing
 end
 
@@ -277,6 +287,7 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
         "└ $(nthreads()) active thread(s)",
         "- $msg workflow",
         "- $(instr[:fwrk][:deform]) strain formulation",
+        "- $(instr[:fwrk][:trsfr]) mapping scheme",
         "- $(instr[:basis][:which]) calculation cycle",
     ]
     # add optional lines only if the corresponding flags are true

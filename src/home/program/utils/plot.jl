@@ -50,6 +50,16 @@ display(p)
         else
             cblim = (minimum(d),maximum(d))
         end
+    elseif opts.what == "epsxx"
+        d     = mpts.s.ϵᵢⱼ[1,1,:]
+        lab   = L"$\epsilon_{xx}$"*" [-]"
+        tit   = "strain tensor x-component"
+        cb    = :viridis
+        if minimum(d) == maximum(d)
+            cblim = (-1.0,1.0)
+        else
+            cblim = (minimum(d),maximum(d))
+        end        
     elseif opts.what == "epII"
         d     = mpts.s.ϵpII[1,:]
         lab   = L"$\epsilon_{\mathrm{II}}^{\mathrm{acc}}$"*" [-]"
@@ -107,11 +117,24 @@ display(p)
         cblim = (0.0,1.0) 
     elseif opts.what == "n"
         d     = mpts.n
-        lab   = L"$\n(x_p)$"*" [-]"
+        lab   = L"n(x_p)"*" [-]"
         tit   = "porosity"
+        cb    = :seismic
+        cblim = (-1.0,1.0) 
+    elseif opts.what == "J"
+        d     = mpts.J
+        lab   = L"J(x_p)"*" [-]"
+        tit   = "deformation determinant"
+        cb    = :seismic
+        cblim = (0.0,2.0) 
+    elseif opts.what == "ms"
+        d     = mpts.s.ρ.*mpts.Ω
+        lab   = L"m_{s}(x_p)"*" [-]"
+        tit   = "solid mass"
         cb    = :viridis
-        cblim = (0.0,1.0) 
-    else
+        cblim = (0.0,maximum(d)) 
+
+    else        
         throw(error("UndefinedPlotOption: $(opts.what)"))
     end
 
@@ -130,7 +153,7 @@ display(p)
         color       = cb,
         clim        = cblim,
         ylim        = (-10.0,20.0),
-        title       = "$tit $(opts.tit)",
+        title       = "$tit, at $(opts.tit)",
         aspect_ratio= 1,
         size        = opts.dims,
     )

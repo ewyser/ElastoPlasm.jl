@@ -46,9 +46,9 @@ Kernel for finite deformation elasticity update at material points.
     p = @index(Global)
     if p ≤ mpts.nmp 
         # update left cauchy-green tensor
-        mpts.s.Bᵢⱼ[:,:,p].= mpts.s.ΔFᵢⱼ[:,:,p]*mpts.s.Bᵢⱼ[:,:,p]*mpts.s.ΔFᵢⱼ[:,:,p]'
+        mpts.s.bᵢⱼ[:,:,p].= mpts.s.ΔFᵢⱼ[:,:,p]*mpts.s.bᵢⱼ[:,:,p]*mpts.s.ΔFᵢⱼ[:,:,p]'
         # compute logarithmic strain tensor
-        λ,n             = eigen(mpts.s.Bᵢⱼ[:,:,p],sortby=nothing)
+        λ,n             = eigen(mpts.s.bᵢⱼ[:,:,p],sortby=nothing)
         mpts.s.ϵᵢⱼ[:,:,p].= T2(0.5).*(n*diagm(log.(λ))*n')
         # krichhoff stress tensor
         mpts.s.τᵢ[:,p]    = Del*mutate(mpts.s.ϵᵢⱼ[:,:,p],T2(2.0),:voigt)
@@ -70,7 +70,7 @@ Kernel for infinitesimal (small strain) elasticity update at material points.
     p = @index(Global)
     if p ≤ mpts.nmp 
         # calculate elastic strains & spins
-        mpts.s.ϵᵢⱼ[:,:,p] .= T2(0.5).*(mpts.s.ΔFᵢⱼ[:,:,p]+mpts.s.ΔFᵢⱼ[:,:,p]').-mpts.s.δᵢⱼ[:,:] 
+        mpts.s.ϵᵢⱼ[:,:,p] .= T2(0.5).*(mpts.s.ΔFᵢⱼ[:,:,p]+mpts.s.ΔFᵢⱼ[:,:,p]').-mpts.δᵢⱼ[:,:] 
         mpts.s.ωᵢⱼ[:,:,p] .= T2(0.5).*(mpts.s.ΔFᵢⱼ[:,:,p]-mpts.s.ΔFᵢⱼ[:,:,p]')
         # update cauchy stress tensor
         mpts.s.σJᵢⱼ[:,:,p].= mutate(mpts.s.σᵢ[:,p],T2(1.0),:tensor)
@@ -192,9 +192,9 @@ General elasticity kernel dispatcher for finite or infinitesimal deformation fra
     if instr[:fwrk] == "finite"
         if p ≤ mpts.nmp 
             # update left cauchy-green tensor
-            mpts.s.Bᵢⱼ[:,:,p].= mpts.s.ΔFᵢⱼ[:,:,p]*mpts.s.Bᵢⱼ[:,:,p]*mpts.s.ΔFᵢⱼ[:,:,p]'
+            mpts.s.bᵢⱼ[:,:,p].= mpts.s.ΔFᵢⱼ[:,:,p]*mpts.s.bᵢⱼ[:,:,p]*mpts.s.ΔFᵢⱼ[:,:,p]'
             # compute logarithmic strain tensor
-            λ,n             = eigen(mpts.s.Bᵢⱼ[:,:,p],sortby=nothing)
+            λ,n             = eigen(mpts.s.bᵢⱼ[:,:,p],sortby=nothing)
             mpts.s.ϵᵢⱼ[:,:,p].= 0.5.*(n*diagm(log.(λ))*n')
             # krichhoff stress tensor
             mpts.s.τᵢ[:,p]    = Del*mutate(mpts.s.ϵᵢⱼ[:,:,p],2.0,:voigt)
