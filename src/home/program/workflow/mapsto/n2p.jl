@@ -62,9 +62,9 @@ function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) wher
     end
     # (if musl) reproject nodal velocities
     if instr[:fwrk][:musl]
-        # initialize for DM
-        mesh.p.= T2(0.0)
-        mesh.v.= T2(0.0)
+        # reset nodal quantities
+        fill!(mesh.mv,T2(0.0))
+        fill!(mesh.v ,T2(0.0))
         # accumulate material point contributions
         instr[:cairn][:mapsto][:augm].p2n!(ndrange=mpts.nmp,mpts,mesh);sync(CPU())
         # solve for nodal incremental displacement

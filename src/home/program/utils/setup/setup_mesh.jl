@@ -38,62 +38,33 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
     xn,nel,nno = get_coords(ndim,L,h; ghosts=buffer.*h)
     status,xB  = get_bc(xn,instr; ghosts=buffer.*h)
     # constructor
-    mesh = (;
-        dim  = ndim,
-        nel  = nel,
-        nno  = nno,
-        nn   = nn,
-        L    = L,
-        h    = h, # mᵢ Mᵢⱼ
-        # nodal quantities
-        x₀   = vec(minimum(xn,dims=2)     ),
-        x    = xn                          ,
-        mᵢ   = zeros(nno[end]             ), # lumped mass vector
-        Mᵢⱼ  = zeros(nno[end],nno[end]    ), # consistent mass matrix
-        oobf = zeros(ndim,nno[end]        ),
-        D    = zeros(ndim,nno[end]        ),
-        f    = zeros(ndim,nno[end]        ),
-        a    = zeros(ndim,nno[end]        ),
-        p    = zeros(ndim,nno[end]        ),
-        v    = zeros(ndim,nno[end]        ),
-        Δu   = zeros(ndim,nno[end]        ),
-        ΔJ   = zeros(ndim,nno[end]        ),
-        bij  = zeros(ndim,ndim,nno[end]   ),
-        # mesh-to-node topology
-        e2n  = e2n(ndim,nno,nel,nn        ),
-        e2e  = e2e(ndim,nel,h,instr),
-        xB   = xB                          ,
-    )
     bcs = Boundary{Bool}(
         status
     )
-    out = Mesh{T1,T2,Bool,NamedTuple}(
-        T1(mesh.dim), 
-        T1.(mesh.nel), 
-        T1.(mesh.nno), 
-        T1(mesh.nn), 
-        T2.(mesh.L), 
-        T2.(mesh.h), 
+    mesh = Mesh{T1,T2,Bool,NamedTuple}(
+        T1(ndim                         ), # dim
+        T1.(nel                         ), # nel
+        T1.(nno                         ), # nno
+        T1(nn                           ), # nn
+        T2.(L                           ), # L
+        T2.(h                           ), # h
         # nodal quantities
-        T2.(mesh.x₀), 
-        T2.(mesh.x), 
-        T2.(mesh.mᵢ), 
-        T2.(mesh.Mᵢⱼ),
-        T2.(mesh.oobf), 
-        T2.(mesh.D), 
-        T2.(mesh.f), 
-        T2.(mesh.a), 
-        T2.(mesh.p), 
-        T2.(mesh.v), 
-        T2.(mesh.Δu), 
-        T2.(mesh.ΔJ), 
-        T2.(mesh.bij),
+        T2.(vec(minimum(xn,dims=2)     )), # x₀
+        T2.(xn                          ), # x
+        T2.(zeros(nno[end]             )), # mᵢ
+        T2.(zeros(nno[end],nno[end]    )), # Mᵢⱼ
+        T2.(zeros(ndim,nno[end]        )), # oobf
+        T2.(zeros(ndim,nno[end]        )), # f
+        T2.(zeros(ndim,nno[end]        )), # a
+        T2.(zeros(ndim,nno[end]        )), # p
+        T2.(zeros(ndim,nno[end]        )), # v
+        T2.(zeros(ndim,nno[end]        )), # ΔJ
         # mesh-to-node topology
-        T1.(mesh.e2n), 
-        T1.(mesh.e2e), 
-        T2.(mesh.xB), 
+        T1.(e2n(ndim,nno,nel,nn        )), # e2n
+        T1.(e2e(ndim,nel,h,instr       )), # e2e
+        T2.(xB                          ), # xB
         # mesh boundary conditions
-        bcs
+        bcs                                # bcs
     )
-    return out
+    return mesh
 end

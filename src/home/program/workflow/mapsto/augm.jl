@@ -18,7 +18,7 @@ Accumulate material point momentum to mesh nodes for DM augmentation.
             for nn ∈ 1:mesh.nn
                 no = mpts.p2n[nn,p]
                 if iszero(no) continue end
-                @atom mesh.p[dim,no]+= mpts.ϕ∂ϕ[nn,p,1]*((mpts.s.ρ[p]*mpts.Ω[p])*mpts.s.v[dim,p])
+                @atom mesh.mv[dim,no]+= mpts.ϕ∂ϕ[nn,p,1]*((mpts.s.ρ[p]*mpts.Ω[p])*mpts.s.v[dim,p])
             end
         end
     end
@@ -45,37 +45,9 @@ Update mesh node velocities for DM augmentation.
                 if mesh.bcs.status[dim,no]
                     mesh.v[dim,no] = T2(0.0)                                         
                 else
-                    mesh.v[dim,no] = mesh.p[dim,no]*(T2(1.0)/mesh.mᵢ[no])  
+                    mesh.v[dim,no] = mesh.mv[dim,no]*(T2(1.0)/mesh.mᵢ[no])  
                 end
             end
-        end
-    end
-end
-"""
-    augm_displacement(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, dt::T2) where {T1,T2}
-
-Update material point displacements from mesh node velocities for DM augmentation.
-
-# Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
-- `mesh::Mesh{T1,T2}`: Mesh data structure.
-- `dt::T2`: Time step.
-
-# Returns
-- Updates material point displacements in-place.
-"""
-@views @kernel inbounds = true function augm_displacement(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
-    p = @index(Global)
-    # flip update
-    if p≤mpts.nmp
-        for dim ∈ 1:mesh.dim 
-            Δu = T2(0.0)
-            for nn ∈ 1:mesh.nn
-                no = mpts.p2n[nn,p]
-                if iszero(no) continue end
-                Δu += dt*(mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no])
-            end
-            mpts.s.u[dim,p]+= Δu
         end
     end
 end

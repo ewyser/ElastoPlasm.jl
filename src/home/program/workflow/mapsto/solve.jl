@@ -26,13 +26,13 @@ Solve the Eulerian momentum equation on the mesh with viscous damping.
                     # cache mass node & norm of out-of-balance force
                     mᵢ = (T2(1.0)/mesh.mᵢ[no])
                     # calculate damping
-                    D  = η*norm(mesh.oobf[:,no])*sign(mesh.p[dim,no]*mᵢ)       #(2,)
-                    if (abs(mesh.p[dim,no]*mᵢ)) ≥ T2(1.0e-3)
+                    D  = η*norm(mesh.oobf[:,no])*sign(mesh.mv[dim,no]*mᵢ)       #(2,)
+                    if (abs(mesh.mv[dim,no]*mᵢ)) ≥ T2(1.0e-3)
                         mesh.oobf[dim,no] = mesh.oobf[dim,no]-D                #(2,)
                     end
                     # forward euler solution
                     mesh.a[dim,no] = mesh.oobf[dim,no]*mᵢ                      #(2,)
-                    mesh.v[dim,no] = (mesh.p[dim,no]+dt*mesh.oobf[dim,no])*mᵢ  #(2,)  
+                    mesh.v[dim,no] = (mesh.mv[dim,no]+dt*mesh.oobf[dim,no])*mᵢ #(2,)  
                 end
             end
         end

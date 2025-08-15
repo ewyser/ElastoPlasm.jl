@@ -39,125 +39,66 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
     ρ0 = fill(cmpr[:ρ0],nmp)
     m  = cmpr[:ρ0].*v0
     # constructor
-    mpts = (
-        ndim = mesh.dim,
-        nmp  = nmp,
-        vmax = zeros(mesh.dim),
-        x    = copy(xp),
-        z₀   = copy(xp[end,:]),
-        n₀   = copy(n0),
-        n    = copy(n0),
-        ℓ₀   = copy(l0), 
-        ℓ    = copy(l0),
-        Ω₀   = vec(copy(v0)),
-        Ω    = vec(copy(v0)),
-        ΔJ   = ones(nmp),
-        J    = ones(nmp),        
-        s = (;
-            u    = zeros(size(xp)), 
-            v    = zeros(size(xp)),
-            p    = zeros(size(xp)),
-
-            ρ₀   = vec(copy(ρ0)),
-            ρ    = vec(copy(ρ0)),
-            c₀   = vec(copy(geom.coh0)),
-            cᵣ   = vec(copy(geom.cohr)),
-            ϕ    = vec(copy(geom.phi)),            
-            Δλ   = zeros(nmp),
-            ϵpII = zeros(2,nmp),
-            ϵpV  = zeros(nmp), 
-            # tensor in matrix notation
-            ∇vᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
-            ∇uᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
-            ΔFᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
-            Fᵢⱼ  = repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp),
-            bᵢⱼ  = repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp),
-            ϵᵢⱼ  = zeros(mesh.dim,mesh.dim,nmp),
-            ωᵢⱼ  = zeros(mesh.dim,mesh.dim,nmp),
-            σJᵢⱼ = zeros(mesh.dim,mesh.dim,nmp),
-            # tensor in voigt notation
-            σᵢ   = zeros(nstr,nmp),
-            τᵢ   = zeros(nstr,nmp),
-        ),
-        l = (;
-
-        ),
-        # additional quantities
-        ϕ∂ϕ  = zeros(mesh.nn,nmp ,mesh.dim+1),
-        Δnp  = zeros(mesh.nn,mesh.dim,nmp   ),
-        # utils
-        δᵢⱼ  = Matrix(1.0I,mesh.dim,mesh.dim), 
-        # APIC
-        Bᵢⱼ  = zeros(mesh.dim,mesh.dim,nmp  ),
-        Dᵢⱼ  = zeros(mesh.dim,mesh.dim,nmp  ),        
-        # connectivity
-        e2p  = spzeros(Int,nmp,mesh.nel[end]),
-        p2p  = spzeros(Int,nmp,nmp          ),
-        p2e  = zeros(Int,nmp                ),
-        p2n  = zeros(Int,mesh.nn,nmp        ),
-    )
-
     s = Solid{T1,T2}(
-        T2.(mpts.s.u)    ,
-        T2.(mpts.s.v)    ,
-        T2.(mpts.s.p)    ,
+        T2.(zeros(size(xp)))                               , # u
+        T2.(zeros(size(xp)))                               , # v
         # mechanical properties
-        T2.(mpts.s.ρ₀)   ,
-        T2.(mpts.s.ρ)    ,
-        T2.(mpts.s.c₀)   ,
-        T2.(mpts.s.cᵣ)   ,
-        T2.(mpts.s.ϕ)    ,
-        T2.(mpts.s.Δλ)   ,
-        T2.(mpts.s.ϵpII) ,
-        T2.(mpts.s.ϵpV)  ,
+        T2.(vec(copy(ρ0)))                                 , # ρ₀
+        T2.(vec(copy(ρ0)))                                 , # ρ
+        T2.(vec(copy(geom.coh0)))                          , # c₀
+        T2.(vec(copy(geom.cohr)))                          , # cᵣ
+        T2.(vec(copy(geom.phi)))                           , # ϕ
+        T2.(zeros(nmp))                                    , # Δλ
+        T2.(zeros(2,nmp))                                  , # ϵpII
+        T2.(zeros(nmp))                                    , # ϵpV
         # tensor in voigt notation
-        T2.(mpts.s.σᵢ)   ,
-        T2.(mpts.s.τᵢ)   ,
+        T2.(zeros(nstr,nmp))                               , # σᵢ
+        T2.(zeros(nstr,nmp))                               , # τᵢ
         # tensor in matrix notation
-        T2.(mpts.s.∇vᵢⱼ) ,
-        T2.(mpts.s.∇uᵢⱼ) ,
-        T2.(mpts.s.ΔFᵢⱼ) ,
-        T2.(mpts.s.Fᵢⱼ)  ,
-        T2.(mpts.s.bᵢⱼ)  ,
-        T2.(mpts.s.ϵᵢⱼ)  ,
-        T2.(mpts.s.ωᵢⱼ)  ,
-        T2.(mpts.s.σJᵢⱼ) ,
+        T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # ∇vᵢⱼ
+        T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # ∇uᵢⱼ
+        T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # ΔFᵢⱼ
+        T2.(repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp)), # Fᵢⱼ 
+        T2.(repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp)), # bᵢⱼ
+        T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # ϵᵢⱼ
+        T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # ωᵢⱼ
+        T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # σJᵢⱼ
     )
     f = Liquid{T1,T2}(
 
     )
-    out = Point{T1,T2}(
+    mpts = Point{T1,T2}(
         # general information
-        T1(mpts.ndim) ,
-        T1(mpts.nmp)  ,
-        T2.(mpts.vmax) ,
+        T1(mesh.dim)                         , # ndim
+        T1(nmp)                              , # nmp
+        T2.(zeros(mesh.dim))                 , # vmax
         # basis-related quantities
-        T2.(mpts.ϕ∂ϕ)  ,
-        T2.(mpts.Δnp)  ,
+        T2.(zeros(mesh.nn,nmp ,mesh.dim+1))  , # ϕ∂ϕ
+        T2.(zeros(mesh.nn,mesh.dim,nmp   ))  , # Δnp
         # APIC-related
-        T2.(mpts.Bᵢⱼ)  ,
-        T2.(mpts.Dᵢⱼ)  ,    
+        T2.(zeros(mesh.dim,mesh.dim,nmp  ))  , # Bᵢⱼ
+        T2.(zeros(mesh.dim,mesh.dim,nmp  ))  , # Dᵢⱼ  
         # connectivity
-        T1.(mpts.e2p)  ,
-        T1.(mpts.p2p)  ,
-        T1.(mpts.p2e)  ,
-        T1.(mpts.p2n)  ,
+        T1.(spzeros(Int,nmp,mesh.nel[end]))  , # e2p
+        T1.(spzeros(Int,nmp,nmp          ))  , # p2p
+        T1.(zeros(Int,nmp                ))  , # p2e
+        T1.(zeros(Int,mesh.nn,nmp        ))  , # p2n
         # utils
-        T2.(mpts.δᵢⱼ)  ,
+        T2.(Matrix(1.0I,mesh.dim,mesh.dim))  , # δᵢⱼ
         # material point properties
-        T2.(mpts.x)    ,
-        T2.(mpts.ℓ₀)   ,
-        T2.(mpts.ℓ)    ,
-        T2.(mpts.n₀)   ,
-        T2.(mpts.n)    ,
-        T2.(mpts.Ω₀)   ,
-        T2.(mpts.Ω)    ,
-        T2.(mpts.ΔJ)   ,
-        T2.(mpts.J)    ,        
+        T2.(copy(xp))                        , # x
+        T2.(copy(l0))                        , # ℓ₀
+        T2.(copy(l0))                        , # ℓ
+        T2.(copy(n0))                        , # n₀
+        T2.(copy(n0))                        , # n
+        T2.(vec(copy(v0)))                   , # Ω₀
+        T2.(vec(copy(v0)))                   , # Ω
+        T2.(ones(nmp))                       , # ΔJ
+        T2.(ones(nmp))                       , # J
         # solid phase
-        s       ,
+        s                                    , #
         # fluid phase
-        f       ,
+        f                                    , #
     )
-    return out 
+    return mpts 
 end

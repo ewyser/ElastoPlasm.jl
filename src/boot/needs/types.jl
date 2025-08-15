@@ -38,7 +38,6 @@ abstract type MaterialPoint{T1, T2} <: AbstractLagrangian end
 struct Solid{T1,T2}
     u    ::Matrix{T2}
     v    ::Matrix{T2}
-    p    ::Matrix{T2}
     # mechanical properties
     ρ₀   ::Vector{T2}
     ρ    ::Vector{T2}
@@ -132,7 +131,6 @@ struct Field{T1,T2}
     a    ::Matrix{T2}
     p    ::Matrix{T2}
     v    ::Matrix{T2}
-    Δu   ::Matrix{T2}
     ΔJ   ::Matrix{T2}
     bij  ::Array{T2,3}
 end
@@ -151,14 +149,11 @@ struct Mesh{T1,T2,B,NT}
     mᵢ   ::Vector{T2}
     Mᵢⱼ  ::Matrix{T2}
     oobf ::Matrix{T2}
-    D    ::Matrix{T2}
     f    ::Matrix{T2}
     a    ::Matrix{T2}
-    p    ::Matrix{T2}
+    mv   ::Matrix{T2}
     v    ::Matrix{T2}
-    Δu   ::Matrix{T2}
     ΔJ   ::Matrix{T2}
-    bij  ::Array{T2,3}
     # mesh-to-node topology
     e2n  ::Matrix{T1}
     e2e  ::SparseMatrixCSC{T1,T1}

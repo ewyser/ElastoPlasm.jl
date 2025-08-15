@@ -49,7 +49,7 @@ Project 1D material point data to mesh nodes (FLIP scheme).
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]  += N * ms
-            @atom mesh.p[no]   += N * px
+            @atom mesh.mv[no]  += N * px
             @atom mesh.oobf[no]-= Ω * (∂Nx * σxx)
             @atom mesh.oobf[no]+= N * (ms * g[1])
         end
@@ -69,8 +69,8 @@ end
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]    += N * ms
-            @atom mesh.p[1,no]   += N * px
-            @atom mesh.p[2,no]   += N * py
+            @atom mesh.mv[1,no]  += N * px
+            @atom mesh.mv[2,no]  += N * py
             @atom mesh.oobf[1,no]-= Ω * (∂Nx * σxx + ∂Ny * σxy)
             @atom mesh.oobf[2,no]-= Ω * (∂Nx * σxy + ∂Ny * σyy) - N * (ms * g[2])
         end
@@ -91,9 +91,9 @@ end
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]    += N * ms
-            @atom mesh.p[1,no]   += N * px
-            @atom mesh.p[2,no]   += N * py
-            @atom mesh.p[3,no]   += N * pz
+            @atom mesh.mv[1,no]  += N * px
+            @atom mesh.mv[2,no]  += N * py
+            @atom mesh.mv[3,no]  += N * pz
             @atom mesh.oobf[1,no]-= Ω * ( ∂Nx * σxx + ∂Ny * σyx + ∂Nz * σzx)
             @atom mesh.oobf[2,no]-= Ω * ( ∂Nx * σyx + ∂Ny * σyy + ∂Nz * σzy)
             @atom mesh.oobf[3,no]-= Ω * ( ∂Nx * σzx + ∂Ny * σzy + ∂Nz * σzz) - N * (ms * g[3])
@@ -132,7 +132,7 @@ Project 1D material point data to mesh nodes (TPIC scheme).
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]    += N * ms
-            @atom mesh.p[1,no]   += N * ms * (vx + ∇vxx * δx)
+            @atom mesh.mv[1,no]  += N * ms * (vx + ∇vxx * δx)
             @atom mesh.oobf[1,no]-= Ω * (∂Nx * σxy) - N * (ms * g[1])
         end
     end
@@ -154,8 +154,8 @@ end
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]    += N * ms
-            @atom mesh.p[1,no]   += N * ms * (vx + ∇vxx * δx + ∇vxy * δy)
-            @atom mesh.p[2,no]   += N * ms * (vy + ∇vyx * δx + ∇vyy * δy)
+            @atom mesh.mv[1,no]  += N * ms * (vx + ∇vxx * δx + ∇vxy * δy)
+            @atom mesh.mv[2,no]  += N * ms * (vy + ∇vyx * δx + ∇vyy * δy)
             @atom mesh.oobf[1,no]-= Ω * (∂Nx * σxx + ∂Ny * σxy)
             @atom mesh.oobf[2,no]-= Ω * (∂Nx * σxy + ∂Ny * σyy) - N * (ms * g[2])
         end
@@ -180,9 +180,9 @@ end
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]    += N * ms
-            @atom mesh.p[1,no]   += N * ms * (vx + ∇vxx * δx + ∇vxy * δy + ∇vxz * δz)
-            @atom mesh.p[2,no]   += N * ms * (vy + ∇vyx * δx + ∇vyy * δy + ∇vyz * δz)
-            @atom mesh.p[3,no]   += N * ms * (vz + ∇vzx * δx + ∇vzy * δy + ∇vzz * δz)
+            @atom mesh.mv[1,no]  += N * ms * (vx + ∇vxx * δx + ∇vxy * δy + ∇vxz * δz)
+            @atom mesh.mv[2,no]  += N * ms * (vy + ∇vyx * δx + ∇vyy * δy + ∇vyz * δz)
+            @atom mesh.mv[3,no]  += N * ms * (vz + ∇vzx * δx + ∇vzy * δy + ∇vzz * δz)
             @atom mesh.oobf[1,no]-= Ω * ( ∂Nx * σxx + ∂Ny * σyx + ∂Nz * σzx)
             @atom mesh.oobf[2,no]-= Ω * ( ∂Nx * σyx + ∂Ny * σyy + ∂Nz * σzy)
             @atom mesh.oobf[3,no]-= Ω * ( ∂Nx * σzx + ∂Ny * σzy + ∂Nz * σzz) - N * (ms * g[3])
@@ -223,7 +223,7 @@ Project 1D material point data to mesh nodes (APIC scheme).
             else
                 D⁻¹ =  mpts.δᵢⱼ
             end
-            mesh.p[:,no]  .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
+            mesh.mv[:,no] .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
             mesh.oobf[1,no]-= Ω * (∂Nx * σxx) - N * (ms * g[1])
         end
     end
@@ -246,7 +246,7 @@ end
             else
                 D⁻¹ =  mpts.δᵢⱼ
             end
-            mesh.p[:,no]  .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
+            mesh.mv[:,no] .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
             mesh.oobf[1,no]-= Ω * (∂Nx * σxx + ∂Ny * σxy)
             mesh.oobf[2,no]-= Ω * (∂Nx * σxy + ∂Ny * σyy) - N * (ms * g[2])
         end
@@ -271,7 +271,7 @@ end
             else
                 D⁻¹ =  mpts.δᵢⱼ
             end
-            mesh.p[:,no]  .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
+            mesh.mv[:,no] .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
             @atom mesh.oobf[1,no]-= Ω * ( ∂Nx * σxx + ∂Ny * σyx + ∂Nz * σzx)
             @atom mesh.oobf[2,no]-= Ω * ( ∂Nx * σyx + ∂Ny * σyy + ∂Nz * σzy)
             @atom mesh.oobf[3,no]-= Ω * ( ∂Nx * σzx + ∂Ny * σzy + ∂Nz * σzz) - N * (ms * g[3])
@@ -286,10 +286,10 @@ function p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},instr::NamedTupl
     if instr[:fwrk][:deform] == "finite"
         instr[:cairn][:mapsto][:map].σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
     end
-    # initialize nodal quantities
-    mesh.mᵢ  .= T2(0.0)
-    mesh.p   .= T2(0.0)
-    mesh.oobf.= T2(0.0)
+    # reset nodal quantities
+    fill!(mesh.mᵢ  ,T2(0.0))
+    fill!(mesh.mv  ,T2(0.0))
+    fill!(mesh.oobf,T2(0.0))
     # mapping to mesh
     instr[:cairn][:mapsto][:map].p2n!(ndrange=mpts.nmp,mpts,mesh,g);sync(CPU())
     return nothing
