@@ -11,38 +11,46 @@ Initialize mapping and transfer kernels for the MPM algorithm based on dimension
 - `Dict`: Dictionary of mapping and augmentation kernels.
 """
 function init_mapsto(dim::Number,instr::NamedTuple) 
+    mapsto = Dict(:map => Dict(),)
     if instr[:fwrk][:deform] == "finite"
-        kernel0 = transform(CPU())
-    else
-        kernel0 = nothing
+        mapsto[:map][:σᵢ!] = transform(CPU())
     end
-    kernel2 = euler(CPU())
-    if instr[:fwrk][:trsfr] == "musl"
+    if instr[:fwrk][:trsfr] == "std"
         if dim == 1
-            kernel1 = flip_1d_p2n(CPU())
+            mapsto[:map][:p2n!] = std_1d_p2n(CPU()) 
         elseif dim == 2
-            kernel1 = flip_2d_p2n(CPU())
+            mapsto[:map][:p2n!] = std_2d_p2n(CPU())
         elseif dim == 3
-            kernel1 = flip_3d_p2n(CPU())
+            mapsto[:map][:p2n!] = std_3d_p2n(CPU())
         end
-        kernel3 = flip_nd_n2p(CPU())
-        kernel3a = augm_momentum(CPU())
-        kernel3b = augm_velocity(CPU())
-        kernel3c = augm_displacement(CPU())
-        return Dict(:map  => (;σᵢ! = kernel0, p2n! = kernel1 , solve! = kernel2 , n2p! = kernel3, ), 
-                    :augm => (;p2n! = kernel3a, solve! = kernel3b, Δu!  = kernel3c,),)
     elseif instr[:fwrk][:trsfr] == "tpic"
-        if dim == 2
-            kernel1 = tpic_2d_p2n(CPU())
-            kernel3 = pic_nd_n2p(CPU())
+        if dim == 1
+            mapsto[:map][:p2n!] = tpic_1d_p2n(CPU())
+        elseif dim == 2
+            mapsto[:map][:p2n!] = tpic_2d_p2n(CPU())
         elseif dim == 3
-            kernel1 = tpic_3d_p2n(CPU())
-            kernel3 = pic_nd_n2p(CPU())
+            mapsto[:map][:p2n!] = tpic_3d_p2n(CPU())
         end
-        return Dict(:map  => (;σᵢ! = kernel0, p2n! = kernel1, solve! = kernel2, n2p! = kernel3, ),)
+    elseif instr[:fwrk][:trsfr] == "apic"
+        if dim == 1
+            nothing # APIC is not yet defined for 1D
+        elseif dim == 2
+            mapsto[:map][:p2n!] = apic_2d_p2n(CPU())
+        elseif dim == 3
+            mapsto[:map][:p2n!] = apic_3d_p2n(CPU())
+        end
+        mapsto[:map][:Bᵢⱼ!] = Bij(CPU())
     else
         return throw(ArgumentError("$(instr[:fwrk][:trsfr]) is an unsupported transfer scheme"))
-    end    
+    end
+    mapsto[:map][:solve!] = euler(CPU())
+    mapsto[:map][:n2p!]   = picflip_n2p(CPU())
+    if instr[:fwrk][:musl] 
+        mapsto[:augm]          = Dict()
+        mapsto[:augm][:p2n!]   = augm_momentum(CPU())
+        mapsto[:augm][:solve!] = augm_velocity(CPU())
+    end
+    return Dict(:map => (; mapsto[:map]...), :augm => (; mapsto[:augm]...))
 end
 """
     mapsto(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, g::Vector{T2}, dt::T2, instr::NamedTuple) where {T1,T2}
@@ -66,8 +74,5 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr:
     solve(mesh,dt,instr)
     # maps back solution to material point
     n2p(mpts,mesh,dt,instr)
-    if instr[:fwrk][:trsfr] == "musl"
-        augm(mpts,mesh,dt,instr)
-    end
     return nothing
 end

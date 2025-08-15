@@ -42,7 +42,7 @@ end
             # update strain tensor & left cauchy green deformation tensor
             mpts.ϵᵢⱼ[:,:,p].= mutate(cmpr.Del\mpts.τᵢ[:,p],0.5,:tensor)
             λ,n           = eigen(mpts.ϵᵢⱼ[:,:,p],sortby=nothing)
-            mpts.Bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
+            mpts.bᵢⱼ[:,:,p].= n*diagm(exp.(2.0.*λ))*n'
             # update plastic corrector increment
             ηmax = max(ηit,ηmax)
         end        

@@ -29,8 +29,6 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     L = dim == 2 ? [10.0, 1.25*l0] : [10.0, 10.0, 1.25*l0]
     # Simulation instructions
     instr = kwargser(:instr, kwargs; dim=dim)
-    instr = merge(instr, (bcs = (;dirichlet=[:roller :roller;:fixed :roller]),))
-
     paths = set_paths(fid, info.sys.out; interactive=false)
     T0    = instr[:dtype].T0  
     T1,T2 = first(T0),last(T0) 
@@ -52,7 +50,10 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     time  = setup_time(instr; te=te,tg=tg) 
     # display summary
     @info ic_log(mesh,mpts,time,instr)
-    return (;mesh, mpts, cmpr, time), (;instr, paths)
+    misc = (;
+        file = "$(mesh.dim)d_$(instr[:fwrk][:trsfr])"
+    )
+    return (;mesh,mpts,cmpr,time),(;instr,paths,misc)
 end
 
 """
@@ -112,12 +113,3 @@ function collapse!(ic::NamedTuple, cfg::NamedTuple)
     # return output with success flag
     return out = (; out..., success=true,)
 end
-
-#=
-    plot = (;status=true,freq=1.0,what=["P"],dims=(500.0,250.0),)
-    nel  = [5,10]
-    # initial parameters 
-    ν,E,ρ0,l0 = 0.0,1.0e4,80.0,10.0
-    ic, cfg = ic_collapse(nel, ν, E, ρ0, l0; plot);
-    out = collapse(ic, cfg);
-=#
