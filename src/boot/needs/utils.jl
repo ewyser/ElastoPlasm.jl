@@ -211,10 +211,8 @@ function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_ve
         printstyled("└", color=:green, bold=true); println("   out    = slump(ic,cfg; workflow=\"all-in-one\");")
     elseif showcase == "collapsing"
         printstyled("│", color=:green, bold=true); println("   plot      = (; status=true, freq=1.0, what=[\"sigxx\"], dims=(500.0,250.0) );")
-        printstyled("│", color=:green, bold=true); println("   fwrk      = (; deform = \"finite\",trsfr = \"musl\",locking = false,damping = 0.0);")
         printstyled("│", color=:green, bold=true); println("   nel       = [5,10];")
-        printstyled("│", color=:green, bold=true); println("   ν,E,ρ0,l0 = 0.0,1.0e4,80.0,50.0;")
-        printstyled("│", color=:green, bold=true); println("   ic, cfg   = ic_collapse(nel, ν, E, ρ0, l0; plot,fwrk);")
+        printstyled("│", color=:green, bold=true); println("   ic, cfg   = ic_collapse(nel,0.0,1.0e4,80.0,50.0; plot);")
         printstyled("└", color=:green, bold=true); println("   out       = collapse(ic, cfg);")
     else
         printstyled("└", color=:green, bold=true); println("   ...$(showcase) ?!? \e[5m¯\\_(ツ)_/¯\e[0m")
@@ -289,6 +287,7 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
         "└ $(nthreads()) active thread(s)",
         "- $msg workflow",
         "- $(instr[:fwrk][:deform]) strain formulation",
+        "- $(instr[:fwrk][:trsfr]) mapping scheme",
         "- $(instr[:basis][:which]) calculation cycle",
     ]
     # add optional lines only if the corresponding flags are true

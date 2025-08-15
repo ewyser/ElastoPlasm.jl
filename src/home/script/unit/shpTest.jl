@@ -13,7 +13,7 @@ function shpfunCheck(shp,instr,paths)
         x    = xp,
         ℓ    = ones(nmp).*3.0.*L./nmp,
         ϕ∂ϕ  = zeros(mesh.nn,nmp ,mesh.dim+1   ),
-        δnp  = zeros(mesh.nn,mesh.dim,nmp      ),
+        Δnp  = zeros(mesh.nn,mesh.dim,nmp      ),
         # connectivity
         p2e  = zeros(Int64,nmp),
         p2n  = zeros(Int64,mesh.nn,nmp),

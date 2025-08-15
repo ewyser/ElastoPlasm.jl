@@ -52,12 +52,11 @@ struct Solid{T1,T2}
     σᵢ   ::Matrix{T2}
     τᵢ   ::Matrix{T2}
     # tensor in matrix notation
-    δᵢⱼ  ::Matrix{T2}
     ∇vᵢⱼ ::Array{T2,3}
     ∇uᵢⱼ ::Array{T2,3}
     ΔFᵢⱼ ::Array{T2,3}
     Fᵢⱼ  ::Array{T2,3}
-    Bᵢⱼ  ::Array{T2,3}
+    bᵢⱼ  ::Array{T2,3}
     ϵᵢⱼ  ::Array{T2,3}
     ωᵢⱼ  ::Array{T2,3}
     σJᵢⱼ ::Array{T2,3}
@@ -78,12 +77,17 @@ struct Point{T1,T2}
     vmax ::Vector{T2}
     # basis-related quantities
     ϕ∂ϕ  ::Array{T2,3}
-    δnp  ::Array{T2,3}
+    Δnp  ::Array{T2,3}
+    # APIC-related
+    Bᵢⱼ  ::Array{T2,3}
+    Dᵢⱼ  ::Array{T2,3}
     # connectivity
     e2p  ::Matrix{T1}
     p2p  ::Matrix{T1}
     p2e  ::Vector{T1}
     p2n  ::Matrix{T1}
+    # utils
+    δᵢⱼ  ::Matrix{T2}
     # material point properties
     x    ::Matrix{T2}
     ℓ₀   ::Matrix{T2}

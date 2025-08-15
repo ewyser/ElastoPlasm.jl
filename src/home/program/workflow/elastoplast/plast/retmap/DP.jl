@@ -63,7 +63,7 @@ end
         # update strain tensor & left cauchy green deformation tensor
         mpts.s.ϵᵢⱼ[:,:,p].= mutate(cmp.Del\mpts.s.τᵢ[:,p],T2(0.5),:tensor)
         λ,n             = eigen(mpts.s.ϵᵢⱼ[:,:,p],sortby=nothing)
-        mpts.s.Bᵢⱼ[:,:,p].= n*diagm(exp.(T2(2.0).*λ))*n'
+        mpts.s.bᵢⱼ[:,:,p].= n*diagm(exp.(T2(2.0).*λ))*n'
     end
 end
 @views @kernel inbounds = true function infinitesimal_DP(mpts::Point{T1,T2},cmp::NamedTuple) where {T1,T2}

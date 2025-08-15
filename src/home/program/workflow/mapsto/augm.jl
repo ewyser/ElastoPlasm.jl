@@ -79,29 +79,3 @@ Update material point displacements from mesh node velocities for DM augmentatio
         end
     end
 end
-"""
-    augm(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, dt::T2, instr::NamedTuple) where {T1,T2}
-
-Perform DM augmentation: accumulate, solve, and update displacements.
-
-# Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
-- `mesh::Mesh{T1,T2}`: Mesh data structure.
-- `dt::T2`: Time step.
-- `instr::NamedTuple`: Instruction/configuration dictionary.
-
-# Returns
-- `nothing`. Updates fields in-place.
-"""
-function augm(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
-    # initialize for DM
-    mesh.p.= T2(0.0)
-    mesh.v.= T2(0.0)
-    # accumulate material point contributions
-    instr[:cairn][:mapsto][:augm].p2n!(ndrange=mpts.nmp,mpts,mesh);sync(CPU())
-    # solve for nodal incremental displacement
-    instr[:cairn][:mapsto][:augm].solve!(ndrange=mesh.nno[end],mesh);sync(CPU())
-    # update material point's displacement
-    instr[:cairn][:mapsto][:augm].Δu!(ndrange=mpts.nmp,mpts,mesh,dt);sync(CPU())
-    return nothing
-end
