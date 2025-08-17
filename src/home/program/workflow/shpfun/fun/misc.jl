@@ -2,11 +2,11 @@
     p = @index(Global)
     # calculate delta functions for tpic
     if p ≤ mpts.nmp
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             # compute delta functions
-            for i ∈ 1:mesh.dim
+            for i ∈ 1:mesh.prprt.dim
                 mpts.Δnp[nn,i,p] = mesh.x[i,no]-mpts.x[i,p]
             end
         end
@@ -16,7 +16,7 @@ end
     p = @index(Global)
     # calculate delta functions for tpic
     if p ≤ mpts.nmp
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             # compute Dᵢⱼ tensor

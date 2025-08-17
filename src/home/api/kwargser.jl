@@ -50,11 +50,7 @@ function kwargser(type::Symbol, kwargs::Any; dim::Number=2)
         cairn = (
             shpfun = init_shpfun(dim, instr),
             mapsto = init_mapsto(dim, instr),
-            elastoplast = (
-                update = init_update(instr),
-                elast  = init_elast(instr),
-                plast  = init_plast(instr),
-            )
+            update = init_update(instr),
         )
         instr = merge(instr, (cairn = cairn,))
     end

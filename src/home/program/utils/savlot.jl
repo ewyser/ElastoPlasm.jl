@@ -19,7 +19,7 @@ savlot(mpts, mesh, t, instr)
 """
 @views function savlot(mpts::Point{T1,T2},mesh::Mesh{T1,T2},t::T2,instr::NamedTuple) where {T1,T2}
     if instr[:plot][:status]
-        ms = 0.4*instr[:plot][:dims][1]/mesh.nel[1]
+        ms = 0.4*instr[:plot][:dims][1]/mesh.prprt.nel[1]
         opts = (;
             dims  = instr[:plot][:dims],
             what = instr[:plot][:what],

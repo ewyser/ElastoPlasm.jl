@@ -23,7 +23,7 @@ end
 # FLIP transfer scheme, see Nakamura etal, 2023, https://doi.org/10.1016/j.cma.2022.115720
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 """
-    flip_1d_p2n(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, g::Vector{T2}) where {T1,T2}
+    std_1d_p2n(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, g::Vector{T2}) where {T1,T2}
 
 Project 1D material point data to mesh nodes (FLIP scheme).
 
@@ -35,14 +35,14 @@ Project 1D material point data to mesh nodes (FLIP scheme).
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function std_1d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function std_1d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp 
+    if p ≤ mpts.nmp 
         # buffering 
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         px    = ms*mpts.s.v[p]
         σxx   = mpts.s.σᵢ[1,p]
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             # buffering 
             no        = mpts.p2n[nn,p]
             N,∂Nx     = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2]
@@ -55,14 +55,35 @@ Project 1D material point data to mesh nodes (FLIP scheme).
         end
     end
 end
-@kernel inbounds = true function std_2d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function std_1d_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp
+    if p ≤ mpts.nmp
         # buffering 
-        ms ,Ω       = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        px ,py      = ms*mpts.s.v[1,p],ms*mpts.s.v[2,p]
-        σxx,σyy,σxy = mpts.s.σᵢ[1,p] ,mpts.s.σᵢ[2,p] ,mpts.s.σᵢ[3,p]
-        for nn ∈ 1:mesh.nn
+        ms ,Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        c  ,T  = mpts.t.c[p]          , mpts.t.T[p]
+        qx     = mpts.t.q[1,p]        
+        γ      = T2(0.0) # heat source
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering 
+            no     = mpts.p2n[nn,p]
+            N, ∂Nx = mpts.ϕ∂ϕ[nn,p,1], mpts.ϕ∂ϕ[nn,p,2]
+            # accumulation
+            if iszero(no) continue end
+            @atom mesh.cᵢ[no]  += N * ms * c
+            @atom mesh.mcT[no] += N * ms * c * T
+            @atom mesh.oobq[no]+= Ω * (∂Nx * qx)
+            #@atom mesh.oobq[no]+= Ω * γ * N
+        end
+    end
+end
+@kernel inbounds = true function std_2d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        # buffering 
+        ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        px , py       = ms*mpts.s.v[1,p]     , ms*mpts.s.v[2,p]
+        σxx, σyy, σxy = mpts.s.σᵢ[1,p]       , mpts.s.σᵢ[2,p] , mpts.s.σᵢ[3,p]
+        for nn ∈ 1:mesh.prprt.nn
             # buffering 
             no        = mpts.p2n[nn,p]
             N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
@@ -76,18 +97,39 @@ end
         end
     end
 end
-@kernel inbounds = true function std_3d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function std_2d_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp
+    if p ≤ mpts.nmp
         # buffering 
-        ms ,Ω       = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        px ,py ,pz  = ms*mpts.s.v[1,p],ms*mpts.s.v[2,p],ms*mpts.s.v[3,p]
-        σxx,σyy,σzz = mpts.s.σᵢ[1,p]  ,mpts.s.σᵢ[2,p]  ,mpts.s.σᵢ[3,p]
-        σyx,σzy,σzx = mpts.s.σᵢ[6,p]  ,mpts.s.σᵢ[4,p]  ,mpts.s.σᵢ[5,p]
-        for nn ∈ 1:mesh.nn
+        ms , Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        c  , T  = mpts.t.c[p]          , mpts.t.T[p]
+        qx , qy = mpts.t.q[1,p]        , mpts.t.q[2,p]
+        γ       = T2(0.0) # heat source
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering 
+            no        = mpts.p2n[nn,p]
+            N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
+            # accumulation
+            if iszero(no) continue end
+            @atom mesh.cᵢ[no]  += N * ms * c
+            @atom mesh.mcT[no] += N * ms * c * T
+            @atom mesh.oobq[no]+= Ω * (∂Nx * qx + ∂Ny * qy)
+            #@atom mesh.oobq[no]+= Ω * γ * N
+        end
+    end
+end
+@kernel inbounds = true function std_3d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        # buffering 
+        ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        px , py , pz  = ms*mpts.s.v[1,p]     , ms*mpts.s.v[2,p], ms*mpts.s.v[3,p]
+        σxx, σyy, σzz = mpts.s.σᵢ[1,p]       , mpts.s.σᵢ[2,p]  , mpts.s.σᵢ[3,p]
+        σyx, σzy, σzx = mpts.s.σᵢ[6,p]       , mpts.s.σᵢ[4,p]  , mpts.s.σᵢ[5,p]
+        for nn ∈ 1:mesh.prprt.nn
             # buffering
             no            = mpts.p2n[nn,p]
-            N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3],mpts.ϕ∂ϕ[nn,p,4]
+            N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1], mpts.ϕ∂ϕ[nn,p,2], mpts.ϕ∂ϕ[nn,p,3], mpts.ϕ∂ϕ[nn,p,4]
             # accumulation
             if iszero(no) continue end
             @atom mesh.mᵢ[no]    += N * ms
@@ -97,6 +139,27 @@ end
             @atom mesh.oobf[1,no]-= Ω * ( ∂Nx * σxx + ∂Ny * σyx + ∂Nz * σzx)
             @atom mesh.oobf[2,no]-= Ω * ( ∂Nx * σyx + ∂Ny * σyy + ∂Nz * σzy)
             @atom mesh.oobf[3,no]-= Ω * ( ∂Nx * σzx + ∂Ny * σzy + ∂Nz * σzz) - N * (ms * g[3])
+        end
+    end
+end
+@kernel inbounds = true function std_3d_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2}) where {T1,T2}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        # buffering 
+        ms , Ω      = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        c  , T      = mpts.t.c[p]          , mpts.t.T[p]
+        qx , qy, qz = mpts.t.q[1,p]        , mpts.t.q[2,p], mpts.t.q[3,p]
+        γ           = T2(0.0) # heat source
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering 
+            no            = mpts.p2n[nn,p]
+            N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1], mpts.ϕ∂ϕ[nn,p,2], mpts.ϕ∂ϕ[nn,p,3], mpts.ϕ∂ϕ[nn,p,4]
+            # accumulation
+            if iszero(no) continue end
+            @atom mesh.cᵢ[no]  += N * ms * c
+            @atom mesh.mcT[no] += N * ms * c * T
+            @atom mesh.oobq[no]+= Ω * (∂Nx * qx + ∂Ny * qy + ∂Nz * qz)
+            #@atom mesh.oobq[no]+= Ω * γ * N
         end
     end
 end
@@ -113,18 +176,18 @@ Project 1D material point data to mesh nodes (TPIC scheme).
 - `mesh::Mesh{T1,T2}`: Mesh data structure.
 - `g::Vector{T2}`: Gravity vector.
 
-# Returns
+# Returns 
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function tpic_1d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function tpic_1d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp
+    if p ≤ mpts.nmp
         # buffering 
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         vx    = mpts.s.v[1,p]        
         σxx   = mpts.s.σᵢ[1,p] 
         ∇vxx  = mpts.s.∇vᵢⱼ[1,1,p]
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             # buffering 
             no    = mpts.p2n[nn,p]
             N,∂Nx = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2]
@@ -137,16 +200,16 @@ Project 1D material point data to mesh nodes (TPIC scheme).
         end
     end
 end
-@kernel inbounds = true function tpic_2d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function tpic_2d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp
+    if p ≤ mpts.nmp
         # buffering 
         ms ,Ω       = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         vx ,vy      = mpts.s.v[1,p]        ,mpts.s.v[2,p]
         σxx,σyy,σxy = mpts.s.σᵢ[1,p]       ,mpts.s.σᵢ[2,p]   ,mpts.s.σᵢ[3,p]
         ∇vxx,∇vxy   = mpts.s.∇vᵢⱼ[1,1,p]  ,mpts.s.∇vᵢⱼ[1,2,p]
         ∇vyx,∇vyy   = mpts.s.∇vᵢⱼ[2,1,p]  ,mpts.s.∇vᵢⱼ[2,2,p]
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             # buffering 
             no        = mpts.p2n[nn,p]
             N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
@@ -161,9 +224,9 @@ end
         end
     end
 end
-@kernel inbounds = true function tpic_3d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function tpic_3d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp
+    if p ≤ mpts.nmp
         # buffering 
         ms  ,Ω          = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         vx  ,vy  ,vz    = mpts.s.v[1,p]        ,mpts.s.v[2,p]  ,mpts.s.v[3,p]
@@ -172,7 +235,7 @@ end
         ∇vxx,∇vxy,∇vxz = mpts.s.∇vᵢⱼ[1,1,p]   ,mpts.s.∇vᵢⱼ[1,2,p],mpts.s.∇vᵢⱼ[1,3,p]
         ∇vyx,∇vyy,∇vyz = mpts.s.∇vᵢⱼ[2,1,p]   ,mpts.s.∇vᵢⱼ[2,2,p],mpts.s.∇vᵢⱼ[2,3,p]
         ∇vzx,∇vzy,∇vzz = mpts.s.∇vᵢⱼ[3,1,p]   ,mpts.s.∇vᵢⱼ[3,2,p],mpts.s.∇vᵢⱼ[3,3,p]
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             # buffering
             no            = mpts.p2n[nn,p]
             N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3],mpts.ϕ∂ϕ[nn,p,4]
@@ -205,13 +268,13 @@ Project 1D material point data to mesh nodes (APIC scheme).
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function apic_1d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function apic_1d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp
+    if p ≤ mpts.nmp
         # buffering 
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         σxx   = mpts.s.σᵢ[1,p]       
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             # buffering 
             no    = mpts.p2n[nn,p]
             N,∂Nx = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2]
@@ -228,13 +291,13 @@ Project 1D material point data to mesh nodes (APIC scheme).
         end
     end
 end
-@kernel inbounds = true function apic_2d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function apic_2d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp
+    if p ≤ mpts.nmp
         # buffering 
         ms ,Ω       = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         σxx,σyy,σxy = mpts.s.σᵢ[1,p]       ,mpts.s.σᵢ[2,p]     ,mpts.s.σᵢ[3,p]
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             # buffering 
             no        = mpts.p2n[nn,p]
             N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
@@ -252,14 +315,14 @@ end
         end
     end
 end
-@kernel inbounds = true function apic_3d_p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function apic_3d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp
+    if p ≤ mpts.nmp
         # buffering 
         ms  ,Ω        = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         σxx ,σyy ,σzz = mpts.s.σᵢ[1,p]       ,mpts.s.σᵢ[2,p] ,mpts.s.σᵢ[3,p]
         σyx ,σzy ,σzx = mpts.s.σᵢ[6,p]       ,mpts.s.σᵢ[4,p] ,mpts.s.σᵢ[5,p]
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             # buffering
             no            = mpts.p2n[nn,p]
             N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3],mpts.ϕ∂ϕ[nn,p,4]
@@ -278,23 +341,6 @@ end
         end
     end
 end
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Generic p2n function calling specialized p2n! kernel
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-function p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},instr::NamedTuple) where {T1,T2}
-    # get cauchy stress 
-    if instr[:fwrk][:deform] == "finite"
-        instr[:cairn][:mapsto][:map].σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
-    end
-    # reset nodal quantities
-    fill!(mesh.mᵢ  ,T2(0.0))
-    fill!(mesh.mv  ,T2(0.0))
-    fill!(mesh.oobf,T2(0.0))
-    # mapping to mesh
-    instr[:cairn][:mapsto][:map].p2n!(ndrange=mpts.nmp,mpts,mesh,g);sync(CPU())
-    return nothing
-end
-
 
 
 

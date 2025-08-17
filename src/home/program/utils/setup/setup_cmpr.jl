@@ -117,15 +117,20 @@ cmp = setup_cmpr(mesh; E=2.0e6, ν=0.25, ρ0=2500.0)
 println(cmp.Kc)  # Bulk modulus
 ```
 """
-function setup_cmpr(mesh::Mesh{T1,T2}; E::T2=T2(1.0e6),ν::T2=T2(0.3),ρ0::T2= T2(2700.0)) where {T1,T2}
+function setup_cmpr(mesh::Mesh{T1,T2}; 
+    E::T2=T2(1.0e6),
+    ν::T2=T2(0.3),
+    ρ0::T2= T2(2700.0),
+    ) where {T1,T2}
     # independant physical constant          
-    K,G,Del = get_elastic_stiffness(E,ν,mesh.dim)                               # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]    
+    K,G,Del = get_elastic_stiffness(E,ν,mesh.prprt.dim)                         # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]    
     c       = sqrt((K+4.0/3.0*G)/ρ0)                                            # elastic wave speed [m/s]
     c0,cr   = 20.0e3,4.0e3                                                      # cohesion [Pa]
     ϕ0,ϕr,ψ0= 20.0*π/180,7.5*π/180,0.0                                          # friction angle [Rad], dilation angle [Rad]                                                              
     Hp      = -30.0e3                                                           # softening modulus
     # constitutive model param.
     cmp = (;
+        # solid phase
         E   = T2(E), 
         ν   = T2(ν), 
         Kc  = T2(K), 
@@ -138,6 +143,10 @@ function setup_cmpr(mesh::Mesh{T1,T2}; E::T2=T2(1.0e6),ν::T2=T2(0.3),ρ0::T2= T
         ϕr  = T2(ϕr),
         ρ0  = T2(ρ0),
         c   = T2(c),
+        # thermal phase
+        specific_heat_capacity = T2(10.0),   # J/(kg·K)
+        thermal_conductivity   = T2(3000.0), # W/(m·K)
+        initial_temperature    = T2(293.15), # K, 20°C in Kelvin
     )
     return cmp::NamedTuple
 end
