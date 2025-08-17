@@ -7,7 +7,7 @@
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             for i ∈ 1:mesh.dim , j ∈ 1:mesh.dim
-                mpts.s.∇vᵢⱼ[i,j,p]+= mpts.ϕ∂ϕ[nn,p,j+1]*mesh.v[i,no]
+                mpts.s.∇vᵢⱼ[i,j,p]+= mpts.ϕ∂ϕ[nn,p,j+1]*mesh.s.v[i,no]
             end
         end
         # compute incremental deformation and update
@@ -31,7 +31,7 @@ end
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             for i ∈ 1:mesh.dim , j ∈ 1:mesh.dim
-                mpts.s.∇vᵢⱼ[i,j,p]+= mpts.ϕ∂ϕ[nn,p,j+1]*mesh.v[i,no]
+                mpts.s.∇vᵢⱼ[i,j,p]+= mpts.ϕ∂ϕ[nn,p,j+1]*mesh.s.v[i,no]
             end
         end
         # compute incremental deformation and update

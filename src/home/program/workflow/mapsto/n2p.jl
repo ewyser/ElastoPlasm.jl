@@ -20,15 +20,15 @@ Update material point velocities and positions from mesh nodes using PIC-FLIP sc
             for nn ∈ 1:mesh.nn
                 no = mpts.p2n[nn,p]
                 if iszero(no) continue end
-                δvPIC += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
+                δvPIC += mpts.ϕ∂ϕ[nn,p,1]*mesh.s.v[dim,no]
             end
             # flip update
             δaFLIP = δvFLIP = T2(0.0)
             for nn ∈ 1:mesh.nn
                 no = mpts.p2n[nn,p]
                 if iszero(no) continue end
-                δaFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.a[dim,no]
-                δvFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
+                δaFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.s.a[dim,no]
+                δvFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.s.v[dim,no]
             end
         # picflip update for material point's velocity and position
         mpts.s.v[dim,p] = C_pf*(mpts.s.v[dim,p]+dt*δaFLIP) + (T2(1.0)-C_pf)*δvPIC
@@ -63,8 +63,8 @@ function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) wher
     # (if musl) reproject nodal velocities
     if instr[:fwrk][:musl]
         # reset nodal quantities
-        fill!(mesh.mv,T2(0.0))
-        fill!(mesh.v ,T2(0.0))
+        fill!(mesh.s.mv,T2(0.0))
+        fill!(mesh.s.v ,T2(0.0))
         # accumulate material point contributions
         instr[:cairn][:mapsto][:augm].p2n!(ndrange=mpts.nmp,mpts,mesh);sync(CPU())
         # solve for nodal incremental displacement

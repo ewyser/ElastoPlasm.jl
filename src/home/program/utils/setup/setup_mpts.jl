@@ -39,7 +39,7 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
     ρ0 = fill(cmpr[:ρ0],nmp)
     m  = cmpr[:ρ0].*v0
     # constructor
-    s = Solid{T1,T2}(
+    s = MaterialPointSolidPhase{T1,T2}(
         T2.(zeros(size(xp)))                               , # u
         T2.(zeros(size(xp)))                               , # v
         # mechanical properties
@@ -64,9 +64,13 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
         T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # ωᵢⱼ
         T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # σJᵢⱼ
     )
-    f = Liquid{T1,T2}(
+    f = MaterialPointFluidPhase{T1,T2}(
 
     )
+    t = MaterialPointThermalPhase{T1,T2}(
+
+    )
+
     mpts = Point{T1,T2}(
         # general information
         T1(mesh.dim)                         , # ndim
@@ -79,6 +83,7 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
         T2.(zeros(mesh.dim,mesh.dim,nmp  ))  , # Bᵢⱼ
         T2.(zeros(mesh.dim,mesh.dim,nmp  ))  , # Dᵢⱼ  
         # connectivity
+        T1(mesh.nn)                          , # nn
         T1.(spzeros(Int,nmp,mesh.nel[end]))  , # e2p
         T1.(spzeros(Int,nmp,nmp          ))  , # p2p
         T1.(zeros(Int,nmp                ))  , # p2e
@@ -99,6 +104,8 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
         s                                    , #
         # fluid phase
         f                                    , #
+        # thermal phase
+        t                                    , #
     )
     return mpts 
 end

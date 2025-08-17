@@ -285,7 +285,7 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "└ $(nthreads()) active thread(s)",
-        "- $msg workflow",
+        "- $msg problem",
         "- $(instr[:fwrk][:deform]) strain formulation",
         "- $(instr[:fwrk][:trsfr]) mapping scheme",
         "- $(instr[:basis][:which]) calculation cycle",

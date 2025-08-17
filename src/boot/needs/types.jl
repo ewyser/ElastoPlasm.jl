@@ -30,12 +30,17 @@ Base.@kwdef mutable struct Self
     mpi ::Distributed
 end
 
-export Point,Liquid,Solid
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Material Point Types and subtypes
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+export Point,SolidMaterialPointPhase,FluidMaterialPointPhase,ThermalMaterialPointPhase
 
 abstract type AbstractLagrangian end
 abstract type MaterialPoint{T1, T2} <: AbstractLagrangian end
+abstract type MaterialPointPhase{T1, T2} <: MaterialPoint{T1,T2} end
 
-struct Solid{T1,T2}
+struct MaterialPointSolidPhase{T1,T2} <: MaterialPointPhase{T1,T2}
     u    ::Matrix{T2}
     v    ::Matrix{T2}
     # mechanical properties
@@ -60,19 +65,27 @@ struct Solid{T1,T2}
     ωᵢⱼ  ::Array{T2,3}
     σJᵢⱼ ::Array{T2,3}
 end
-@adapt_struct Solid
+@adapt_struct MaterialPointSolidPhase
 
-struct Liquid{T1,T2}
+struct MaterialPointFluidPhase{T1,T2} <: MaterialPointPhase{T1,T2}
     # Add concrete fields as needed, e.g.:
-    # p    ::Vector{T2}
     # v    ::Matrix{T2}
 end
-@adapt_struct Liquid
+@adapt_struct MaterialPointFluidPhase
 
-struct Point{T1,T2}
+struct MaterialPointThermalPhase{T1,T2} <: MaterialPointPhase{T1,T2}
+    #c   ::Vector{T2} # specific heat capacity vector
+    #k   ::Vector{T2} # thermal conductivity vector
+    #q   ::Matrix{T2} # heat flux array
+    #T   ::Vector{T2} # temperature vector
+end
+@adapt_struct MaterialPointThermalPhase
+
+struct Point{T1,T2} <: MaterialPoint{T1,T2}
     # general information
     ndim ::T1
     nmp  ::T1
+    # CFL-related quantity
     vmax ::Vector{T2}
     # basis-related quantities
     ϕ∂ϕ  ::Array{T2,3}
@@ -81,6 +94,7 @@ struct Point{T1,T2}
     Bᵢⱼ  ::Array{T2,3}
     Dᵢⱼ  ::Array{T2,3}
     # connectivity
+    nn   ::T1
     e2p  ::Matrix{T1}
     p2p  ::Matrix{T1}
     p2e  ::Vector{T1}
@@ -98,45 +112,50 @@ struct Point{T1,T2}
     ΔJ   ::Vector{T2}
     J    ::Vector{T2}
     # solid phase
-    s    ::Solid{T1,T2}
-    # liquid phase
-    f    ::Liquid{T1,T2}
+    s    ::MaterialPointSolidPhase{T1,T2}
+    # fluid phase
+    f    ::MaterialPointFluidPhase{T1,T2}
+    # thermal phase
+    t    ::MaterialPointThermalPhase{T1,T2}
 end
 @adapt_struct Point
+
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Mesh Types and subtypes
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 export Mesh
 
 abstract type AbstractEulerian end
-abstract type UniformCartesian{T1, T2} <: AbstractEulerian end
-abstract type NonUniformCartesian{T1, T2} <: AbstractEulerian end
+abstract type CartesianMesh{T1, T2}  <: AbstractEulerian end
+abstract type UniformMesh{T1, T2}    <: CartesianMesh{T1, T2} end
+abstract type NonUniformMesh{T1, T2} <: CartesianMesh{T1, T2} end
+abstract type MeshPhase{T1, T2}      <: CartesianMesh{T1,T2} end
 
 struct Boundary{B}
     status::Matrix{B}
 end
 @adapt_struct Boundary
 
-struct Topology{T1,T2}
-    e2n  ::Matrix{T1}
-    e2e  ::SparseMatrixCSC{T1,T1}
-    xB   ::Vector{T2}
-end
-@adapt_struct Topology
-
-struct Field{T1,T2}
-    x₀   ::Vector{T2}
-    x    ::Matrix{T2}
-    mᵢ   ::Vector{T2}
+struct MeshSolidPhase{T1,T2} <: MeshPhase{T1,T2}
+    mᵢ   ::Vector{T2} # consistent lumped mass matrix
     Mᵢⱼ  ::Matrix{T2}
-    oobf ::Matrix{T2}
-    a    ::Matrix{T2}
-    p    ::Matrix{T2}
-    v    ::Matrix{T2}
-    ΔJ   ::Matrix{T2}
-    bij  ::Array{T2,3}
+    oobf ::Matrix{T2} # out-of-balance mechanical load
+    a    ::Matrix{T2} # acceleration
+    mv   ::Matrix{T2} # momentum
+    v    ::Matrix{T2} # velocity
 end
-@adapt_struct Field
+@adapt_struct MeshSolidPhase
 
-struct Mesh{T1,T2,B,NT}
+struct MeshThermalPhase{T1,T2} <: MeshPhase{T1,T2}
+    #cᵢ   ::Vector{T2} # consistent lumped heat capacity matrix
+    #T    ::Vector{T2} # temperature
+    #oobq ::Vector{T2} # out-of-balance heat load
+end
+@adapt_struct MeshThermalPhase
+
+struct Mesh{T1,T2,B,NT} <: UniformMesh{T1, T2}
+    # general information
     dim  ::T1
     nel  ::Vector{T1}
     nno  ::Vector{T1}
@@ -146,15 +165,10 @@ struct Mesh{T1,T2,B,NT}
     # nodal quantities
     x₀   ::Vector{T2}
     x    ::Matrix{T2}
-    mᵢ   ::Vector{T2}
-    Mᵢⱼ  ::Matrix{T2}
-    oobf ::Matrix{T2}
-    f    ::Matrix{T2}
-    a    ::Matrix{T2}
-    mv   ::Matrix{T2}
-    v    ::Matrix{T2}
     ΔJ   ::Matrix{T2}
-    # mesh-to-node topology
+    # solid phase
+    s    ::MeshSolidPhase{T1,T2}
+    # connectivity
     e2n  ::Matrix{T1}
     e2e  ::SparseMatrixCSC{T1,T1}
     xB   ::Matrix{T2}

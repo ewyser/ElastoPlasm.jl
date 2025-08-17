@@ -103,41 +103,39 @@ Run the main simulation workflow for the given initial conditions and configurat
 - `mode::String`: (Optional) Workflow mode: "elastodynamic", "elastoplastic", or "all-in-one" (default: "elastodynamic").
 
 # Behavior
-- Runs the selected workflow, logging progress and saving results.
+- Runs the selected workflow problem, logging progress and saving results.
 - Handles postprocessing and output file naming.
 - Returns a named tuple with the input initial conditions and configuration.
 
 # Returns
 - `NamedTuple`: Contains the input `ic` and `cfg`.
 """
-function elastoplasm(ic::NamedTuple,cfg::NamedTuple; mode::String="elastodynamic")
+function elastoplasm(ic::NamedTuple,cfg::NamedTuple; problem::String="elastodynamic")
     # unpack mesh, mpts, cmpr, instr, paths as aliases
-    mesh,mpts,cmpr   = ic[:mesh]  , ic[:mpts]  , (ic[:cmpr])
-    time             = ic[:time]
-    instr,paths,misc = cfg[:instr], cfg[:paths], cfg[:misc]
+    mesh,mpts,cmpr = ic[:mesh]  , ic[:mpts]  , (ic[:cmpr])
+    instr,paths    = cfg[:instr], cfg[:paths]
+    time           = ic[:time]
     # action
-    @info elastoplasm_log(instr; msg = mode) 
-    if mode == "elastodynamic"
+    @info elastoplasm_log(instr; msg = problem)
+    if problem == "elastodynamic"
         elastodynamic!(mpts,mesh,cmpr,time,instr)
-    elseif mode == "elastoplastic"
+    elseif problem == "elastoplastic"
         elastoplastic!(mpts,mesh,cmpr,time,instr)
-    elseif mode == "all-in-one"
+    elseif problem == "all-in-one"
         elastodynamic!(mpts,mesh,cmpr,time,instr)
         elastoplastic!(mpts,mesh,cmpr,time,instr)
     else
-        @error "Invalid workflow: $(mode). Choose 'elastodynamic', 'elastoplastic' or 'all-in-one'."
+        throw(ArgumentError("Invalid workflow problem: $(problem). Choose 'elastodynamic', 'elastoplastic' or 'all-in-one'.")) 
         return false
     end
     sleep(1.0)
     # postprocessing
     if instr[:plot][:status]
         opts = (;
-            file = joinpath(paths[:plot],"$(misc[:file]).png"),
+            file = joinpath(paths[:plot],"$(mesh.dim)d_$(problem)_$(join(instr[:plot][:what])).png"),
         );save_plot(opts)
     end
     # return success message
     exit_log("(✓) Done! exiting...\n")
-    return out = (; ic,cfg,)
+    return (; ic,cfg,)::NamedTuple
 end
-
-#file = joinpath(paths[:plot],"$(mesh.dim)d_$(instr[:fwrk][:trsfr])_$(mode).png"),

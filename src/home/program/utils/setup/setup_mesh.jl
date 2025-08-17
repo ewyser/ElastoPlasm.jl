@@ -38,10 +38,19 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
     xn,nel,nno = get_coords(ndim,L,h; ghosts=buffer.*h)
     status,xB  = get_bc(xn,instr; ghosts=buffer.*h)
     # constructor
+    s = MeshSolidPhase{T1,T2}(
+        T2.(zeros(nno[end]             )), # mᵢ
+        T2.(zeros(nno[end],nno[end]    )), # Mᵢⱼ
+        T2.(zeros(ndim,nno[end]        )), # oobf
+        T2.(zeros(ndim,nno[end]        )), # a
+        T2.(zeros(ndim,nno[end]        )), # mv
+        T2.(zeros(ndim,nno[end]        )), # v
+    )
     bcs = Boundary{Bool}(
         status
     )
     mesh = Mesh{T1,T2,Bool,NamedTuple}(
+        # general information
         T1(ndim                         ), # dim
         T1.(nel                         ), # nel
         T1.(nno                         ), # nno
@@ -51,19 +60,14 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
         # nodal quantities
         T2.(vec(minimum(xn,dims=2)     )), # x₀
         T2.(xn                          ), # x
-        T2.(zeros(nno[end]             )), # mᵢ
-        T2.(zeros(nno[end],nno[end]    )), # Mᵢⱼ
-        T2.(zeros(ndim,nno[end]        )), # oobf
-        T2.(zeros(ndim,nno[end]        )), # f
-        T2.(zeros(ndim,nno[end]        )), # a
-        T2.(zeros(ndim,nno[end]        )), # p
-        T2.(zeros(ndim,nno[end]        )), # v
         T2.(zeros(ndim,nno[end]        )), # ΔJ
-        # mesh-to-node topology
+        # solid phase
+        s                                , # solid phase
+        # connectivity
         T1.(e2n(ndim,nno,nel,nn        )), # e2n
         T1.(e2e(ndim,nel,h,instr       )), # e2e
         T2.(xB                          ), # xB
-        # mesh boundary conditions
+        # boundary conditions
         bcs                                # bcs
     )
     return mesh

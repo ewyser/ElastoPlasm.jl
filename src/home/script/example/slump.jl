@@ -73,7 +73,7 @@ end
 function slump(ic::NamedTuple,cfg::NamedTuple; workflow::String="elastodynamic")
     @info "Explicit solution to slump problem"; config_plot()
     # forward-euler explicit workflow
-    out = elastoplasm(deepcopy(ic), deepcopy(cfg); mode = workflow)
+    out = elastoplasm(deepcopy(ic), deepcopy(cfg); problem = workflow)
     # return output with success flag
     return out = (; out..., success=true,)
 end
@@ -103,7 +103,7 @@ end
 function slump!(ic::NamedTuple,cfg::NamedTuple; workflow::String="elastodynamic")
     @info "Explicit solution to slump problem"; config_plot()
     # forward-euler explicit workflow
-    out = elastoplasm(ic, cfg; mode = workflow)
+    out = elastoplasm(ic, cfg; problem = workflow)
     # return output with success flag
     return out = (; out..., success=true,)
 end
