@@ -54,11 +54,11 @@ function update(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) w
         # calculate dimensional cst.
         dim     = T2(1.0)/mesh.dim
         # mapping to mesh 
-        instr[:cairn][:elastoplast][:update].ΔJn!(ndrange=mpts.nmp,mpts,mesh);sync(CPU())
+        instr[:cairn][:elastoplast][:update].ΔJn!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
         # compute nodal determinant of incremental deformation 
-        instr[:cairn][:elastoplast][:update].ΔJs!(ndrange=mesh.nno[end],mesh);sync(CPU())
+        instr[:cairn][:elastoplast][:update].ΔJs!(mesh; ndrange=mesh.nno[end]);sync(CPU())
         # compute determinant Jbar 
-        instr[:cairn][:elastoplast][:update].ΔJp!(ndrange=mpts.nmp,mpts,mesh,dim);sync(CPU())
+        instr[:cairn][:elastoplast][:update].ΔJp!(mpts,mesh,dim; ndrange=mpts.nmp);sync(CPU())
     end  
     return nothing
 end

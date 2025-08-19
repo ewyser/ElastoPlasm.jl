@@ -75,7 +75,7 @@ function shpfun(mpts::Point{T1,T2},mesh::Mesh{T1,T2},instr::NamedTuple) where {T
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
     instr[:cairn][:shpfun].tplgy!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     # initialize shapefunctions
-    mpts.ϕ∂ϕ .= T2(0.0)
+    fill!(mpts.ϕ∂ϕ,T2(0.0))
     # calculate shape functions
     instr[:cairn][:shpfun].ϕ∂ϕ!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     # calculate identity shape functions

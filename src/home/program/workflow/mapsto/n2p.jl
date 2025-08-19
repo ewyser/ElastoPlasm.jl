@@ -55,10 +55,10 @@ Map mesh node solution back to material points using the selected transfer kerne
 """
 function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # mapping to material point
-    instr[:cairn][:mapsto][:map].n2p!(ndrange=mpts.nmp,mpts,mesh,dt,T2(instr[:fwrk][:C_pf]));sync(CPU())
+    instr[:cairn][:mapsto][:map].n2p!(mpts,mesh,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
     # (for APIC) compute Bᵢⱼ for material points
     if instr[:fwrk][:trsfr] == "apic"
-        instr[:cairn][:mapsto][:map].Bᵢⱼ!(ndrange=mpts.nmp,mpts,mesh);sync(CPU())
+        instr[:cairn][:mapsto][:map].Bᵢⱼ!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
     end
     # (if musl) reproject nodal velocities
     if instr[:fwrk][:musl]
@@ -66,11 +66,11 @@ function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) wher
         fill!(mesh.s.mv,T2(0.0))
         fill!(mesh.s.v ,T2(0.0))
         # accumulate material point contributions
-        instr[:cairn][:mapsto][:augm].p2n!(ndrange=mpts.nmp,mpts,mesh);sync(CPU())
+        instr[:cairn][:mapsto][:augm].p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
         # solve for nodal incremental displacement
-        instr[:cairn][:mapsto][:augm].solve!(ndrange=mesh.nno[end],mesh);sync(CPU())
+        instr[:cairn][:mapsto][:augm].solve!(mesh; ndrange=mesh.nno[end]);sync(CPU())
     elseif instr[:fwrk][:trsfr] == "apic"
-        instr[:cairn][:mapsto][:map].Bᵢⱼ!(ndrange=mpts.nmp,mpts,mesh);sync(CPU())
+        instr[:cairn][:mapsto][:map].Bᵢⱼ!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
     end
     return nothing
 end

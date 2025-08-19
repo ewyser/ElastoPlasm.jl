@@ -55,12 +55,12 @@ function plast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,instr::Name
         mpts.s.ϵpII[2,:].= T2(0.0)
         W,w     = spzeros(T2,mpts.nmp),spzeros(T2,mpts.nmp,mpts.nmp)
         for proc ∈ ["tplgy","p->q","p<-q"]
-            instr[:cairn][:elastoplast][:plast].nonloc!(ndrange=mpts.nmp,W,w,mpts,mesh,ls,proc);sync(CPU())
+            instr[:cairn][:elastoplast][:plast].nonloc!(W,w,mpts,mesh,ls,proc; ndrange=mpts.nmp);sync(CPU())
         end
     else
         mpts.s.ϵpII[2,:].= mpts.s.ϵpII[1,:]
     end
     # plastic return-mapping dispatcher
-    instr[:cairn][:elastoplast][:plast].retmap!(ndrange=mpts.nmp,mpts,cmpr);sync(CPU())
+    instr[:cairn][:elastoplast][:plast].retmap!(mpts,cmpr; ndrange=mpts.nmp);sync(CPU())
     return nothing
 end

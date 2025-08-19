@@ -11,9 +11,9 @@ Solve the Eulerian momentum equation on the mesh with viscous damping.
 # Returns
 - Updates mesh fields in-place.
 """
-@views @kernel inbounds = true function euler(mesh::MeshSolidPhase{T1,T2},dt::T2,η::T2) where {T1,T2}
+@views @kernel inbounds = true function euler(::Val{:Solid},mesh::Mesh{T1,T2},dt::T2,η::T2) where {T1,T2}
     no = @index(Global)
-    if no≤size(mesh.mᵢ[no],1)
+    if no≤mesh.nno[end]
         if iszero(mesh.s.mᵢ[no])
             nothing         
         else
@@ -38,10 +38,10 @@ Solve the Eulerian momentum equation on the mesh with viscous damping.
         end
     end
 end
-@views @kernel inbounds = true function euler(mesh::MeshThermalPhase{T1,T2},dt::T2) where {T1,T2}
+@views @kernel inbounds = true function euler(::Val{:Thermal},mesh::Mesh{T1,T2},dt::T2) where {T1,T2}
     no = @index(Global)
     if no≤mesh.nno[end] 
-        if iszero(mesh.cᵢ[no])
+        if iszero(mesh.t.cᵢ[no])
             nothing         
         else
             # apply boundary contidions
@@ -49,9 +49,9 @@ end
                 #mesh.T[no] = T2(0.0)                                         
             else
                 # cache mass node & norm of out-of-balance force
-                cᵢ = (T2(1.0)/mesh.cᵢ[no])
+                cᵢ = (T2(1.0)/mesh.t.cᵢ[no])
                 # forward euler solution
-                mesh.T[no]+= dt*(mesh.oobq[dim,no]*cᵢ)                        #(2,)
+                mesh.t.T[no]+= dt*(mesh.t.oobq[dim,no]*cᵢ)                        #(2,)
             end
         end
     end
@@ -76,6 +76,6 @@ Solve the mesh momentum equation using the backend-agnostic kernel.
     fill!(mesh.s.a,T2(0.0))
     fill!(mesh.s.v,T2(0.0))
     # solve momentum equation on the mesh using backend-agnostic kernel
-    instr[:cairn][:mapsto][:map].solve!(ndrange=mesh.nno[end],mesh.s,dt,η);sync(CPU())
+    instr[:cairn][:mapsto][:map].solve!(Val(:Solid),mesh,dt,η; ndrange=mesh.nno[end]);sync(CPU())
     return nothing
 end

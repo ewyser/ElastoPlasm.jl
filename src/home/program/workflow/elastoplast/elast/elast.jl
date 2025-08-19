@@ -119,7 +119,7 @@ Dispatch and execute the elasticity kernel for the current simulation step.
 - `nothing`. Updates fields in-place.
 """
 function elast(mpts::Point{T1,T2},cmpr::NamedTuple,instr::NamedTuple) where {T1,T2}
-    instr[:cairn][:elastoplast][:elast].elast!(ndrange=mpts.nmp,mpts,cmpr.Del);sync(CPU())
+    instr[:cairn][:elastoplast][:elast].elast!(mpts,cmpr.Del; ndrange=mpts.nmp);sync(CPU())
     return nothing
 end
 
