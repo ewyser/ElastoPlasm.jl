@@ -245,7 +245,7 @@ function ic_log(mesh,mpts,time,instr)
     logs = [
         "Summary: ",
         "- $(instr.dtype.precision)",
-        "- elements: $(mesh.nel[end])",
+        "- elements: $(mesh.prprt.nel[end])",
         "- material points: $(mpts.nmp)", 
         "- simulation time ∈ $(time.t) s:",
     ]

@@ -22,7 +22,7 @@ println(vals)
 function get_vals(mesh,mpts,it)
     # save vals
     vals = [
-            ("nel,np",(round(Int64,prod(mesh.nel[1:end-1])),mpts.nmp)),
+            ("nel,np",(round(Int64,prod(mesh.prprt.nel[1:end-1])),mpts.nmp)),
             ("iteration(s)",it),
             ]
     return vals

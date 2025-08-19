@@ -20,7 +20,7 @@ Run the explicit elastodynamic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function elastodynamic!(mpts::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,instr::NamedTuple) where {T1,T2}
+function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,instr::NamedTuple) where {T1,T2}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr[:plot][:freq]:time.te)))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving elastodynamic...",barlen=10)
@@ -65,9 +65,9 @@ Run the explicit elastoplastic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function elastoplastic!(mpts::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTuple,instr::NamedTuple) where {T1,T2}
+function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,instr::NamedTuple) where {T1,T2}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr[:plot][:freq]:time.t[2])))
-    g         = get_g(mesh; G = T2(9.81))
+    g         = get_g(mesh.prprt; G = T2(9.81))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving elastoplastic...",barlen=10)
     for T ∈ checks
@@ -75,7 +75,7 @@ function elastoplastic!(mpts::Point{T1,T2},mesh,cmpr::NamedTuple,time::NamedTupl
             # set clock on/off
             tic = time_ns()
             # adaptative dt & linear increase of gravity
-            dt  = get_dt(mpts,mesh,cmpr,time,T)
+            dt  = get_dt(mpts,mesh.prprt,cmpr,time,T)
             # mpm cycle
             shpfun(mpts,mesh,instr)
             mapsto(mpts,mesh,g,dt,instr)    
@@ -132,7 +132,7 @@ function elastoplasm(ic::NamedTuple,cfg::NamedTuple; problem::String="elastodyna
     # postprocessing
     if instr[:plot][:status]
         opts = (;
-            file = joinpath(paths[:plot],"$(mesh.dim)d_$(problem)_$(join(instr[:plot][:what])).png"),
+            file = joinpath(paths[:plot],"$(cfg.misc.prefix)_$(problem)_$(join(instr[:plot][:what])).png"),
         );save_plot(opts)
     end
     # return success message

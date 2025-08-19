@@ -12,12 +12,12 @@ end
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             # compute basis functions
             ξ      = (mpts.x[p]-mesh.x[no])
-            ϕx,dϕx = N∂N(ξ,mesh.h[1]    )
+            ϕx,dϕx = N∂N(ξ,mesh.prprt.h[1])
             # convolution of basis function
             mpts.ϕ∂ϕ[nn,p,1] =  ϕx
             mpts.ϕ∂ϕ[nn,p,2] = dϕx
@@ -28,14 +28,14 @@ end
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             # compute basis functions
             ξ      = (mpts.x[1,p]-mesh.x[1,no]) 
             η      = (mpts.x[2,p]-mesh.x[2,no])
-            ϕx,dϕx = N∂N(ξ,mesh.h[1]        )
-            ϕz,dϕz = N∂N(η,mesh.h[2]        )
+            ϕx,dϕx = N∂N(ξ,mesh.prprt.h[1])
+            ϕz,dϕz = N∂N(η,mesh.prprt.h[2])
             # convolution of basis function
             mpts.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
             mpts.ϕ∂ϕ[nn,p,2] = dϕx*  ϕz                                        
@@ -47,16 +47,16 @@ end
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             # compute basis functions
             ξ      = (mpts.x[1,p]-mesh.x[1,no]) 
             η      = (mpts.x[2,p]-mesh.x[2,no])
             ζ      = (mpts.x[3,p]-mesh.x[3,no])
-            ϕx,dϕx = N∂N(ξ,mesh.h[1]        )
-            ϕy,dϕy = N∂N(η,mesh.h[2]        )
-            ϕz,dϕz = N∂N(ζ,mesh.h[3]        )
+            ϕx,dϕx = N∂N(ξ,mesh.prprt.h[1])
+            ϕy,dϕy = N∂N(η,mesh.prprt.h[2])
+            ϕz,dϕz = N∂N(ζ,mesh.prprt.h[3])
             # convolution of basis function
             mpts.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕy*  ϕz                                                                                
             mpts.ϕ∂ϕ[nn,p,2] = dϕx*  ϕy*  ϕz                                                                                

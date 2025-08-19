@@ -38,7 +38,21 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
     xn,nel,nno = get_coords(ndim,L,h; ghosts=buffer.*h)
     status,xB  = get_bc(xn,instr; ghosts=buffer.*h)
     # constructor
-    s = MeshSolidPhase{T1,T2}(
+    prop = MeshProperties{T1,T2}(
+        T1(ndim                         ), # dim
+        T1.(nel                         ), # nel
+        T1.(nno                         ), # nno
+        T1(nn                           ), # nn
+        T2.(L                           ), # L
+        T2.(h                           ), # h
+        T2.(xB                          ), # xB
+    )
+    bcs = MeshBoundary{Bool}(
+        status
+    )
+    s = MeshSolidPhase{T1,T2,Bool}(
+        prop,
+        bcs,
         T2.(zeros(nno[end]             )), # mᵢ
         T2.(zeros(nno[end],nno[end]    )), # Mᵢⱼ
         T2.(zeros(ndim,nno[end]        )), # oobf
@@ -46,17 +60,8 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
         T2.(zeros(ndim,nno[end]        )), # mv
         T2.(zeros(ndim,nno[end]        )), # v
     )
-    bcs = Boundary{Bool}(
-        status
-    )
     mesh = Mesh{T1,T2,Bool,NamedTuple}(
-        # general information
-        T1(ndim                         ), # dim
-        T1.(nel                         ), # nel
-        T1.(nno                         ), # nno
-        T1(nn                           ), # nn
-        T2.(L                           ), # L
-        T2.(h                           ), # h
+        prop,
         # nodal quantities
         T2.(vec(minimum(xn,dims=2)     )), # x₀
         T2.(xn                          ), # x
@@ -66,9 +71,6 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
         # connectivity
         T1.(e2n(ndim,nno,nel,nn        )), # e2n
         T1.(e2e(ndim,nel,h,instr       )), # e2e
-        T2.(xB                          ), # xB
-        # boundary conditions
-        bcs                                # bcs
     )
     return mesh
 end

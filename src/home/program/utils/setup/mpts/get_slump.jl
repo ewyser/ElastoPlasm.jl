@@ -1,10 +1,10 @@
 #="""
-    get_slump(mesh, cmp, instr; ni=2, lz=12.80)
+    get_slump(props, cmp, instr; ni=2, lz=12.80)
 
 Initialize geometry and material point fields for a slump test problem.
 
 # Arguments
-- `mesh`: Mesh object with geometry and boundary info.
+- `props`: props object with geometry and boundary info.
 - `cmp`: Material parameters (Dict or NamedTuple).
 - `instr`: Instruction dictionary (may include GRF options).
 - `ni`: Number of intervals per element (default: 2).
@@ -16,15 +16,16 @@ Initialize geometry and material point fields for a slump test problem.
 - `fields`: NamedTuple with coordinates and material properties.
 """=#
 function get_slump(mesh,cmpr,instr; ni = 2, lz = 12.80 )
+    props = mesh.prprt
     #@info "Init slump geometry"
-    out = mpts_populate(mesh,cmpr,instr; ni=ni)
+    out = mpts_populate(props,cmpr,instr; ni=ni)
     wl  = 0.15*lz
-    id  = findall(x -> x ≤ lz-(0.5*mesh.h[end]/ni), out.x[:,end])
-    if mesh.dim == 2
+    id  = findall(x -> x ≤ lz-(0.5*props.h[end]/ni), out.x[:,end])
+    if props.dim == 2
         xp,zp,c     = out.x[id,1],out.x[id,2],out.c0[id]
         x           = LinRange(minimum(xp),maximum(xp),200)
         a           = -1.25
-        x,z         = x.+0.5.*mesh.L[1],a.*x
+        x,z         = x.+0.5.*props.L[1],a.*x
         xlt,zlt,clt = Float64[],Float64[],Float64[]
         pos         = Float64 
         for mpts ∈ eachindex(xp)
@@ -46,11 +47,11 @@ function get_slump(mesh,cmpr,instr; ni = 2, lz = 12.80 )
                 push!(clt, c[mpts])
             end
         end
-    elseif mesh.dim == 3
+    elseif props.dim == 3
         xp,yp,zp,c  = out.x[id,1],out.x[id,2],out.x[id,3],out.c0[id]
         x           = LinRange(minimum(xp),maximum(xp),200)
         a           = -1.25
-        x,z         = x.+0.5.*mesh.L[1],a.*x
+        x,z         = x.+0.5.*props.L[1],a.*x
         xlt,ylt,zlt = Float64[],Float64[],Float64[]
         clt         = Float64[]
         pos         = Float64 
@@ -79,9 +80,9 @@ function get_slump(mesh,cmpr,instr; ni = 2, lz = 12.80 )
         end
     end
     
-    if mesh.dim == 2 
+    if props.dim == 2 
         xp = vcat(xlt',zlt') 
-    elseif mesh.dim == 3 
+    elseif props.dim == 3 
         xp = vcat(xlt',ylt',zlt') 
     end
     nmp    = size(xp,2)

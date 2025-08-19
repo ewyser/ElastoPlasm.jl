@@ -140,9 +140,9 @@ display(p)
 
     # plotting
     p = plot(
-        if mesh.dim == 2
+        if mesh.prprt.dim == 2
             mpts.x[1,:],mpts.x[2,:]
-        elseif mesh.dim == 3
+        elseif mesh.prprt.dim == 3
             mpts.x[1,:],mpts.x[3,:]
         end,
         seriestype  = :scatter,

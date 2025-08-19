@@ -24,17 +24,18 @@ println(mpts.nmp)  # Number of material points
 - Handles both 2D and 3D cases.
 """
 function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2}
+    props = mesh.prprt
     # non-dimensional constant                                                   
-    if mesh.dim == 2 
+    if props.dim == 2 
         nstr = 3 
-    elseif mesh.dim == 3 
+    elseif props.dim == 3 
         nstr = 6 
     end
     # unpack material geometry
     ni,nmp,xp = geom.ni,geom.nmp,geom.xp 
     # scalars & vectors
     n0 = 0.1.*ones(nmp)
-    l0 = ones(size(xp)).*0.5.*(mesh.h./ni)
+    l0 = ones(size(xp)).*0.5.*(props.h./ni)
     v0 = prod(2 .* l0; dims=1)
     ρ0 = fill(cmpr[:ρ0],nmp)
     m  = cmpr[:ρ0].*v0
@@ -55,14 +56,14 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
         T2.(zeros(nstr,nmp))                               , # σᵢ
         T2.(zeros(nstr,nmp))                               , # τᵢ
         # tensor in matrix notation
-        T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # ∇vᵢⱼ
-        T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # ∇uᵢⱼ
-        T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # ΔFᵢⱼ
-        T2.(repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp)), # Fᵢⱼ 
-        T2.(repeat(Matrix(1.0I,mesh.dim,mesh.dim),1,1,nmp)), # bᵢⱼ
-        T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # ϵᵢⱼ
-        T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # ωᵢⱼ
-        T2.(zeros(mesh.dim,mesh.dim,nmp))                  , # σJᵢⱼ
+        T2.(zeros(props.dim,props.dim,nmp))                  , # ∇vᵢⱼ
+        T2.(zeros(props.dim,props.dim,nmp))                  , # ∇uᵢⱼ
+        T2.(zeros(props.dim,props.dim,nmp))                  , # ΔFᵢⱼ
+        T2.(repeat(Matrix(1.0I,props.dim,props.dim),1,1,nmp)), # Fᵢⱼ 
+        T2.(repeat(Matrix(1.0I,props.dim,props.dim),1,1,nmp)), # bᵢⱼ
+        T2.(zeros(props.dim,props.dim,nmp))                  , # ϵᵢⱼ
+        T2.(zeros(props.dim,props.dim,nmp))                  , # ωᵢⱼ
+        T2.(zeros(props.dim,props.dim,nmp))                  , # σJᵢⱼ
     )
     f = MaterialPointFluidPhase{T1,T2}(
 
@@ -73,23 +74,23 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
 
     mpts = Point{T1,T2}(
         # general information
-        T1(mesh.dim)                         , # ndim
+        T1(props.dim)                         , # ndim
         T1(nmp)                              , # nmp
-        T2.(zeros(mesh.dim))                 , # vmax
+        T2.(zeros(props.dim))                 , # vmax
         # basis-related quantities
-        T2.(zeros(mesh.nn,nmp ,mesh.dim+1))  , # ϕ∂ϕ
-        T2.(zeros(mesh.nn,mesh.dim,nmp   ))  , # Δnp
+        T2.(zeros(props.nn,nmp ,props.dim+1))  , # ϕ∂ϕ
+        T2.(zeros(props.nn,props.dim,nmp   ))  , # Δnp
         # APIC-related
-        T2.(zeros(mesh.dim,mesh.dim,nmp  ))  , # Bᵢⱼ
-        T2.(zeros(mesh.dim,mesh.dim,nmp  ))  , # Dᵢⱼ  
+        T2.(zeros(props.dim,props.dim,nmp  ))  , # Bᵢⱼ
+        T2.(zeros(props.dim,props.dim,nmp  ))  , # Dᵢⱼ  
         # connectivity
-        T1(mesh.nn)                          , # nn
-        T1.(spzeros(Int,nmp,mesh.nel[end]))  , # e2p
+        T1(props.nn)                          , # nn
+        T1.(spzeros(Int,nmp,props.nel[end]))  , # e2p
         T1.(spzeros(Int,nmp,nmp          ))  , # p2p
         T1.(zeros(Int,nmp                ))  , # p2e
-        T1.(zeros(Int,mesh.nn,nmp        ))  , # p2n
+        T1.(zeros(Int,props.nn,nmp        ))  , # p2n
         # utils
-        T2.(Matrix(1.0I,mesh.dim,mesh.dim))  , # δᵢⱼ
+        T2.(Matrix(1.0I,props.dim,props.dim))  , # δᵢⱼ
         # material point properties
         T2.(copy(xp))                        , # x
         T2.(copy(l0))                        , # ℓ₀

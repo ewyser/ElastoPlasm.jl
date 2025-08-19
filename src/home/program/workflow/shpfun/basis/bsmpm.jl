@@ -80,12 +80,12 @@ end
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             # compute basis functions
-            ξ      = (mpts.x[p]-mesh.x[no])/mesh.h[1]
-            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[no],mesh.xB[1:2],mesh.h[1])
+            ξ      = (mpts.x[p]-mesh.x[no])/mesh.prprt.h[1]
+            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[no],mesh.prprt.xB[1:2],mesh.prprt.h[1])
             # convolution of basis function
             mpts.ϕ∂ϕ[nn,p,1] =  ϕx
             mpts.ϕ∂ϕ[nn,p,2] = dϕx
@@ -96,14 +96,14 @@ end
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             # compute basis functions
-            ξ      = (mpts.x[1,p]-mesh.x[1,no])/mesh.h[1]
-            η      = (mpts.x[2,p]-mesh.x[2,no])/mesh.h[2]
-            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[1,no],mesh.xB[1,:],mesh.h[1])
-            ϕz,dϕz = ϕ∂ϕ(η,mesh.x[2,no],mesh.xB[2,:],mesh.h[2])
+            ξ      = (mpts.x[1,p]-mesh.x[1,no])/mesh.prprt.h[1]
+            η      = (mpts.x[2,p]-mesh.x[2,no])/mesh.prprt.h[2]
+            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[1,no],mesh.prprt.xB[1,:],mesh.prprt.h[1])
+            ϕz,dϕz = ϕ∂ϕ(η,mesh.x[2,no],mesh.prprt.xB[2,:],mesh.prprt.h[2])
             #println("$(typeof(ξ)),$(typeof(η)),$(typeof(ϕx)),$(typeof(ϕz)),$(typeof(dϕx)),$(typeof(dϕz))")
             # convolution of basis function
             mpts.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
@@ -116,16 +116,16 @@ end
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             # compute basis functions
-            ξ      = (mpts.x[1,p]-mesh.x[1,no])/mesh.h[1]
-            η      = (mpts.x[2,p]-mesh.x[2,no])/mesh.h[2]
-            ζ      = (mpts.x[3,p]-mesh.x[3,no])/mesh.h[3]
-            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[1,no],mesh.xB[1,:],mesh.h[1])
-            ϕy,dϕy = ϕ∂ϕ(η,mesh.x[2,no],mesh.xB[2,:],mesh.h[2])
-            ϕz,dϕz = ϕ∂ϕ(ζ,mesh.x[3,no],mesh.xB[3,:],mesh.h[3])
+            ξ      = (mpts.x[1,p]-mesh.x[1,no])/mesh.prprt.h[1]
+            η      = (mpts.x[2,p]-mesh.x[2,no])/mesh.prprt.h[2]
+            ζ      = (mpts.x[3,p]-mesh.x[3,no])/mesh.prprt.h[3]
+            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[1,no],mesh.prprt.xB[1,:],mesh.prprt.h[1])
+            ϕy,dϕy = ϕ∂ϕ(η,mesh.x[2,no],mesh.prprt.xB[2,:],mesh.prprt.h[2])
+            ϕz,dϕz = ϕ∂ϕ(ζ,mesh.x[3,no],mesh.prprt.xB[3,:],mesh.prprt.h[3])
             # convolution of basis function
             mpts.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕy*  ϕz                                                                                
             mpts.ϕ∂ϕ[nn,p,2] = dϕx*  ϕy*  ϕz                                                                                

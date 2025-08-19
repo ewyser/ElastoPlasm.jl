@@ -11,24 +11,24 @@ Update material point velocities and positions from mesh nodes using PIC-FLIP sc
 # Returns
 - Updates material point fields in-place.
 """
-@kernel inbounds = true function picflip_n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,C_pf::T2) where {T1,T2}
+@kernel inbounds = true function picflip_n2p(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},dt::T2,C_pf::T2) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp    
-        for dim ∈ 1:mesh.dim
+        for dim ∈ 1:mesh.prprt.dim
             # pic update
             δvPIC = T2(0.0)
-            for nn ∈ 1:mesh.nn
+            for nn ∈ 1:mesh.prprt.nn
                 no = mpts.p2n[nn,p]
                 if iszero(no) continue end
-                δvPIC += mpts.ϕ∂ϕ[nn,p,1]*mesh.s.v[dim,no]
+                δvPIC += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
             end
             # flip update
             δaFLIP = δvFLIP = T2(0.0)
-            for nn ∈ 1:mesh.nn
+            for nn ∈ 1:mesh.prprt.nn
                 no = mpts.p2n[nn,p]
                 if iszero(no) continue end
-                δaFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.s.a[dim,no]
-                δvFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.s.v[dim,no]
+                δaFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.a[dim,no]
+                δvFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
             end
         # picflip update for material point's velocity and position
         mpts.s.v[dim,p] = C_pf*(mpts.s.v[dim,p]+dt*δaFLIP) + (T2(1.0)-C_pf)*δvPIC
@@ -55,22 +55,20 @@ Map mesh node solution back to material points using the selected transfer kerne
 """
 function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # mapping to material point
-    instr[:cairn][:mapsto][:map].n2p!(mpts,mesh,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
-    # (for APIC) compute Bᵢⱼ for material points
-    if instr[:fwrk][:trsfr] == "apic"
-        instr[:cairn][:mapsto][:map].Bᵢⱼ!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
-    end
+    instr[:cairn][:mapsto][:map].n2p!(mpts,mesh.s,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
     # (if musl) reproject nodal velocities
     if instr[:fwrk][:musl]
         # reset nodal quantities
         fill!(mesh.s.mv,T2(0.0))
         fill!(mesh.s.v ,T2(0.0))
         # accumulate material point contributions
-        instr[:cairn][:mapsto][:augm].p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+        instr[:cairn][:mapsto][:augm].p2n!(mpts,mesh.s; ndrange=mpts.nmp);sync(CPU())
         # solve for nodal incremental displacement
-        instr[:cairn][:mapsto][:augm].solve!(mesh; ndrange=mesh.nno[end]);sync(CPU())
-    elseif instr[:fwrk][:trsfr] == "apic"
-        instr[:cairn][:mapsto][:map].Bᵢⱼ!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+        instr[:cairn][:mapsto][:augm].solve!(mesh.s; ndrange=mesh.prprt.nno[end]);sync(CPU())
+    end
+    # (for APIC) compute Bᵢⱼ for material points
+    if instr[:fwrk][:trsfr] == "apic"
+        instr[:cairn][:mapsto][:map].Bᵢⱼ!(mpts,mesh.s; ndrange=mpts.nmp);sync(CPU())
     end
     return nothing
 end

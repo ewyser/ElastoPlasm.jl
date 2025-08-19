@@ -16,12 +16,12 @@ end
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             # compute basis functions
             ξ      = (mpts.x[p]-mesh.x[no]) 
-            ϕx,dϕx = S∂S(ξ,mesh.h[1],mpts.ℓ[p]) 
+            ϕx,dϕx = S∂S(ξ,mesh.prprt.h[1],mpts.ℓ[p]) 
             # convolution of basis function
             mpts.ϕ∂ϕ[nn,p,1] =  ϕx
             mpts.ϕ∂ϕ[nn,p,2] = dϕx
@@ -32,14 +32,14 @@ end
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             # compute basis functions
             ξ      = (mpts.x[1,p]-mesh.x[1,no]) 
             η      = (mpts.x[2,p]-mesh.x[2,no])
-            ϕx,dϕx = S∂S(ξ,mesh.h[1],mpts.ℓ[1,p]) 
-            ϕz,dϕz = S∂S(η,mesh.h[2],mpts.ℓ[2,p])
+            ϕx,dϕx = S∂S(ξ,mesh.prprt.h[1],mpts.ℓ[1,p]) 
+            ϕz,dϕz = S∂S(η,mesh.prprt.h[2],mpts.ℓ[2,p])
             # convolution of basis function
             mpts.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
             mpts.ϕ∂ϕ[nn,p,2] = dϕx*  ϕz                                        
@@ -51,16 +51,16 @@ end
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
-        for nn ∈ 1:mesh.nn
+        for nn ∈ 1:mesh.prprt.nn
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             # compute basis functions
             ξ      = (mpts.x[1,p]-mesh.x[1,no]) 
             η      = (mpts.x[2,p]-mesh.x[2,no])
             ζ      = (mpts.x[3,p]-mesh.x[3,no])
-            ϕx,dϕx = S∂S(ξ,mesh.h[1],mpts.ℓ[1,p])
-            ϕy,dϕy = S∂S(η,mesh.h[2],mpts.ℓ[2,p])
-            ϕz,dϕz = S∂S(ζ,mesh.h[3],mpts.ℓ[3,p])
+            ϕx,dϕx = S∂S(ξ,mesh.prprt.h[1],mpts.ℓ[1,p])
+            ϕy,dϕy = S∂S(η,mesh.prprt.h[2],mpts.ℓ[2,p])
+            ϕz,dϕz = S∂S(ζ,mesh.prprt.h[3],mpts.ℓ[3,p])
             # convolution of basis function
             mpts.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕy*  ϕz                                                                                
             mpts.ϕ∂ϕ[nn,p,2] = dϕx*  ϕy*  ϕz                                                                                

@@ -119,7 +119,7 @@ println(cmp.Kc)  # Bulk modulus
 """
 function setup_cmpr(mesh::Mesh{T1,T2}; E::T2=T2(1.0e6),ν::T2=T2(0.3),ρ0::T2= T2(2700.0)) where {T1,T2}
     # independant physical constant          
-    K,G,Del = get_elastic_stiffness(E,ν,mesh.dim)                               # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]    
+    K,G,Del = get_elastic_stiffness(E,ν,mesh.prprt.dim)                         # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]    
     c       = sqrt((K+4.0/3.0*G)/ρ0)                                            # elastic wave speed [m/s]
     c0,cr   = 20.0e3,4.0e3                                                      # cohesion [Pa]
     ϕ0,ϕr,ψ0= 20.0*π/180,7.5*π/180,0.0                                          # friction angle [Rad], dilation angle [Rad]                                                              

@@ -31,19 +31,19 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
     # time parameters
     time  = setup_time(instr     ; te=10.0,tg=10.0,tep=5.0) 
     # plot initial cohesion field
-    ms = 0.4*instr[:plot][:dims][1]/mesh.nel[1]
+    ms = 0.4*instr[:plot][:dims][1]/mesh.prprt.nel[1]
     opts = (;
         dims    = instr[:plot][:dims],
         what    = ["coh0","phi0"],
         backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
         tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
-        file    = joinpath(paths[:plot],"$(mesh.dim)d_coh0_phi0.png"),
+        file    = joinpath(paths[:plot],"$(mesh.prprt.dim)d_coh0_phi0.png"),
     )
     get_plot_field(mpts,mesh,opts);save_plot(opts)
     # display summary
     @info ic_log(mesh,mpts,time,instr)
     misc = (;
-        file = "$(mesh.dim)d_$(instr[:fwrk][:trsfr])"
+        prefix = "$(mesh.prprt.dim)d_$(instr[:fwrk][:trsfr])"
     )
     return (;mesh,mpts,cmpr,time),(;instr,paths,misc)
 end

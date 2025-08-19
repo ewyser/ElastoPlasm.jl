@@ -42,21 +42,21 @@ function init_update(instr::NamedTuple)
 end
 function update(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # get incremental deformation tensor
-    instr[:cairn][:elastoplast][:update].deform!(ndrange=mpts.nmp,mpts,mesh,dt);sync(CPU())
+    instr[:cairn][:elastoplast][:update].deform!(mpts,mesh.s,dt; ndrange=mpts.nmp);sync(CPU())
     # update material point's domain
     if instr[:basis][:which] == "gimpm"
-        instr[:cairn][:elastoplast][:update].domain!(ndrange=mpts.nmp,mpts);sync(CPU())
+        instr[:cairn][:elastoplast][:update].domain!(mpts; ndrange=mpts.nmp);sync(CPU())
     end
     # volumetric locking correction
     if instr[:fwrk][:locking]
         # init mesh quantities to zero
-        mesh.ΔJ.= T2(0.0)
+        fill!(mesh.ΔJ,T2(0.0))
         # calculate dimensional cst.
-        dim     = T2(1.0)/mesh.dim
+        dim     = T2(1.0)/mesh.prprt.dim
         # mapping to mesh 
         instr[:cairn][:elastoplast][:update].ΔJn!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
         # compute nodal determinant of incremental deformation 
-        instr[:cairn][:elastoplast][:update].ΔJs!(mesh; ndrange=mesh.nno[end]);sync(CPU())
+        instr[:cairn][:elastoplast][:update].ΔJs!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
         # compute determinant Jbar 
         instr[:cairn][:elastoplast][:update].ΔJp!(mpts,mesh,dim; ndrange=mpts.nmp);sync(CPU())
     end  

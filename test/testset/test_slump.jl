@@ -23,13 +23,13 @@
                 :plot   => plot,
                 :grf    => grf,
             )
-            instr = kwargser(:instr,kwargs;dim=ic.mesh.dim)
+            instr = kwargser(:instr,kwargs;dim=ic.mesh.prprt.dim)
             
             cfg = (;
                 instr = instr, 
                 paths = cfg.paths, 
                 misc = (;
-                    file = "$(ic.mesh.dim)d_$(instr[:fwrk][:trsfr])-mapping_$(instr[:fwrk][:deform])-deformation_$(instr[:fwrk][:locking])-locking"
+                    prefix = "$(ic.mesh.prprt.dim)d_$(instr[:fwrk][:trsfr])-mapping_$(instr[:fwrk][:deform])-deformation_$(instr[:fwrk][:locking])-locking"
                 ),
             )
 
