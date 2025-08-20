@@ -31,7 +31,7 @@ function mpts_populate(props,cmpr,instr; ni = 2,)
         nmp     = [length(x),length(z),length(x)*length(z)]
         xp      = repeat(reshape(x,1     ,nmp[1]),nmp[2],1     )
         zp      = repeat(reshape(z,nmp[2],1     ),1     ,nmp[1])
-        out[:x] = hcat(vec(xp),vec(zp))
+        out[:x] = vcat(vec(xp)',vec(zp)')
     elseif props.dim == 3
         x       = collect(props.xB[1,1]+(0.5*props.h[1]/ni):props.h[1]/ni:props.xB[1,2])
         y       = collect(props.xB[2,1]+(0.5*props.h[2]/ni):props.h[2]/ni:props.xB[2,2])
@@ -40,7 +40,7 @@ function mpts_populate(props,cmpr,instr; ni = 2,)
         xp      = repeat(reshape(x,1     ,nmp[1],1     ),nmp[3],1     ,nmp[2])
         yp      = repeat(reshape(y,1     ,1     ,nmp[2]),nmp[3],nmp[1],1     )
         zp      = repeat(reshape(z,nmp[3],1     ,1     ),1     ,nmp[1],nmp[2])
-        out[:x] = hcat(vec(xp),vec(yp),vec(zp))
+        out[:x] = vcat(vec(xp)',vec(yp)',vec(zp)')
     end
     if instr[:grf][:status]
         if instr[:grf][:covariance] == "gaussian"

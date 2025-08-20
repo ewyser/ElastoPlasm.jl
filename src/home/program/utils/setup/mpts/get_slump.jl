@@ -20,9 +20,9 @@ function get_slump(mesh,cmpr,instr; ni = 2, lz = 12.80 )
     #@info "Init slump geometry"
     out = mpts_populate(props,cmpr,instr; ni=ni)
     wl  = 0.15*lz
-    id  = findall(x -> x ≤ lz-(0.5*props.h[end]/ni), out.x[:,end])
+    id  = findall(x -> x ≤ lz-(0.5*props.h[end]/ni), out.x[end,:])
     if props.dim == 2
-        xp,zp,c     = out.x[id,1],out.x[id,2],out.c0[id]
+        xp,zp,c     = out.x[1,id],out.x[2,id],out.c0[id]
         x           = LinRange(minimum(xp),maximum(xp),200)
         a           = -1.25
         x,z         = x.+0.5.*props.L[1],a.*x
