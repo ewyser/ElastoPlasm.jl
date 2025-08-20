@@ -165,8 +165,10 @@ struct MeshThermalPhase{T1,T2,B} <: MeshPhase{T1,T2}
     prprt ::MeshProperties{T1,T2}
     bcs   ::MeshBoundary{B}
     cᵢ    ::Vector{T2} # consistent lumped heat capacity matrix
-    T     ::Vector{T2} # temperature
     oobq  ::Vector{T2} # out-of-balance heat load
+    Q     ::Vector{T2} # heat flux
+    mcT   ::Vector{T2} # heat capacity
+    T     ::Vector{T2} # temperature
 end
 @adapt_struct MeshThermalPhase
 

@@ -64,8 +64,10 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
         prop,
         bcs,
         T2.(zeros(nno[end]             )), # cᵢ
-        T2.(zeros(nno[end]             )), # T
         T2.(zeros(nno[end]             )), # oobq
+        T2.(zeros(nno[end]             )), # Q
+        T2.(zeros(nno[end]             )), # mcT
+        T2.(zeros(nno[end]             )), # T
     )
     mesh = Mesh{T1,T2,Bool,NamedTuple}(
         prop,

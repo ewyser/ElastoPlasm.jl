@@ -90,7 +90,8 @@ end
             N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
             # accumulation
             if iszero(no) continue end
-            @atom mesh.cᵢ[no]  += N * ms * cp
+            @atom mesh.cᵢ[no]  += N * ms * c
+            @atom mesh.mcT[no] += N * ms * c * T
             @atom mesh.oobq[no]+= Ω * (∂Nx * qx + ∂Ny * qy)
             @atom mesh.oobq[no]+= Ω * γ * N
         end
@@ -312,6 +313,14 @@ function p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},instr::NamedTupl
     fill!(mesh.s.oobf,T2(0.0))
     # mapping to mesh
     instr[:cairn][:mapsto][:map].p2n!(mpts,mesh.s,g; ndrange=mpts.nmp);sync(CPU())
+
+    # reset nodal quantities
+    fill!(mesh.t.cᵢ  ,T2(0.0))
+    fill!(mesh.t.mcT ,T2(0.0))
+    fill!(mesh.t.oobq,T2(0.0))
+    # mapping to mesh
+    instr[:cairn][:mapsto][:map].p2n!(mpts,mesh.t,g; ndrange=mpts.nmp);sync(CPU())
+
     return nothing
 end
 

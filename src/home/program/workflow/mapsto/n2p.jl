@@ -43,25 +43,24 @@ end
     if p≤mpts.nmp    
         for dim ∈ 1:mesh.prprt.dim
             # pic update
-            δvPIC = T2(0.0)
+            δQPIC = δTPIC = T2(0.0)
             for nn ∈ 1:mesh.prprt.nn
                 no = mpts.p2n[nn,p]
                 if iszero(no) continue end
-                δvPIC += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
+                δTPIC += mpts.ϕ∂ϕ[nn,p,1]*mesh.T[no]
             end
             # flip update
-            δaFLIP = δvFLIP = T2(0.0)
+            δQFLIP = δTFLIP = T2(0.0)
             for nn ∈ 1:mesh.prprt.nn
                 no = mpts.p2n[nn,p]
                 if iszero(no) continue end
-                δaFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.a[dim,no]
-                δvFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
+                δTFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.T[dim,no]
             end
-        # picflip update for material point's velocity and position
-        mpts.s.v[dim,p] = C_pf*(mpts.s.v[dim,p]+dt*δaFLIP) + (T2(1.0)-C_pf)*δvPIC
-        mpts.x[dim,p]  += dt*δvPIC
-        # find maximum velocity component over mps
-        @atom mpts.vmax[dim] = max(mpts.vmax[dim],abs(mpts.s.v[dim,p]))
+            # picflip update for material point's velocity and position
+            # mpts.t.q[dim,p] = -mpts.t.k[p]
+            if dim == 1
+                mpts.t.T[p] = C_pf*(mpts.t.T[p]+dt*δQFLIP) + (T2(1.0)-C_pf)*δQPIC
+            end
         end
     end  
 end
@@ -82,6 +81,8 @@ Map mesh node solution back to material points using the selected transfer kerne
 function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # mapping to material point
     instr[:cairn][:mapsto][:map].n2p!(mpts,mesh.s,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
+    
+    instr[:cairn][:mapsto][:map].n2p!(mpts,mesh.t,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
     # (if musl) reproject nodal velocities
     if instr[:fwrk][:musl]
         # reset nodal quantities

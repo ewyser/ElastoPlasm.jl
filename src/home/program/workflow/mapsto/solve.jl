@@ -51,7 +51,8 @@ end
                 # cache mass node & norm of out-of-balance force
                 cᵢ = (T2(1.0)/mesh.cᵢ[no])
                 # forward euler solution
-                mesh.T[no]+= dt*(mesh.oobq[dim,no]*cᵢ)                        #(2,)
+                mesh.Q[no] = mesh.oobq[dim,no]*cᵢ                        #(2,)
+                mesh.T[no] = (mesh.mcT[no]+dt*(mesh.oobq[dim,no]))*cᵢ                        #(2,)
             end
         end
     end
