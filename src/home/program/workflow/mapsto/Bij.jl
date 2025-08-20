@@ -22,5 +22,5 @@ Update material point velocities and positions from mesh nodes (PIC scheme, n-di
             Bᵢⱼ.+= mpts.ϕ∂ϕ[nn,p,1] .* (mesh.v[:,no] * mpts.Δnp[nn,:,p]')
         end
         mpts.Bᵢⱼ[:,:,p].= Bᵢⱼ
-    end  
+    end
 end

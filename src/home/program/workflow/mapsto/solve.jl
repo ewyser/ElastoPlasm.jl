@@ -40,19 +40,19 @@ Solve the Eulerian momentum equation on the mesh with viscous damping.
 end
 @views @kernel inbounds = true function euler(mesh::MeshThermalPhase{T1,T2},dt::T2) where {T1,T2}
     no = @index(Global)
-    if no≤mesh.nno[end] 
+    if no≤mesh.prprt.nno[end] 
         if iszero(mesh.cᵢ[no])
             nothing         
         else
             # apply boundary contidions
-            if mesh.bcs.status[dim,no]
+            if mesh.bcs.status[1,no]
                 #mesh.T[no] = T2(0.0)                                         
             else
                 # cache mass node & norm of out-of-balance force
                 cᵢ = (T2(1.0)/mesh.cᵢ[no])
                 # forward euler solution
-                mesh.Q[no] = mesh.oobq[dim,no]*cᵢ                        #(2,)
-                mesh.T[no] = (mesh.mcT[no]+dt*(mesh.oobq[dim,no]))*cᵢ                        #(2,)
+                mesh.dT[no] = mesh.oobq[no]*cᵢ                        #(1,)
+                mesh.T[no]  = (mesh.mcT[no]+dt*(mesh.oobq[no]))*cᵢ    #(1,)
             end
         end
     end
@@ -78,5 +78,13 @@ Solve the mesh momentum equation using the backend-agnostic kernel.
     fill!(mesh.s.v,T2(0.0))
     # solve momentum equation on the mesh using backend-agnostic kernel
     instr[:cairn][:mapsto][:map].solve!(mesh.s,dt,η; ndrange=mesh.prprt.nno[end]);sync(CPU())
+
+    #=
+    # initialize
+    fill!(mesh.t.dT,T2(0.0))
+    fill!(mesh.t.T,T2(0.0))
+    # solve momentum equation on the mesh using backend-agnostic kernel
+    instr[:cairn][:mapsto][:map].solve!(mesh.t,dt; ndrange=mesh.prprt.nno[end]);sync(CPU())
+    =#
     return nothing
 end

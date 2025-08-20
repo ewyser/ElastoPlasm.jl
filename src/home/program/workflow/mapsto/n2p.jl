@@ -43,26 +43,38 @@ end
     if p≤mpts.nmp    
         for dim ∈ 1:mesh.prprt.dim
             # pic update
-            δQPIC = δTPIC = T2(0.0)
+            δTPIC = T2(0.0)
             for nn ∈ 1:mesh.prprt.nn
                 no = mpts.p2n[nn,p]
                 if iszero(no) continue end
                 δTPIC += mpts.ϕ∂ϕ[nn,p,1]*mesh.T[no]
             end
             # flip update
-            δQFLIP = δTFLIP = T2(0.0)
+            δTFLIP = T2(0.0)
             for nn ∈ 1:mesh.prprt.nn
                 no = mpts.p2n[nn,p]
                 if iszero(no) continue end
-                δTFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.T[dim,no]
+                δTFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.dT[no]
             end
-            # picflip update for material point's velocity and position
-            # mpts.t.q[dim,p] = -mpts.t.k[p]
+            # picflip update for material point's temperature
             if dim == 1
-                mpts.t.T[p] = C_pf*(mpts.t.T[p]+dt*δQFLIP) + (T2(1.0)-C_pf)*δQPIC
-            end
+                mpts.t.T[p] = C_pf*(mpts.t.T[p]+dt*δTFLIP) + (T2(1.0)-C_pf)*δTPIC
+            end 
         end
     end  
+
+    if p ≤ mpts.nmp 
+        # compute heat flux
+        for dim ∈ 1:mesh.prprt.dim
+            dQᵢ = T2(0.0)
+            for nn ∈ 1:mesh.prprt.nn
+                no = mpts.p2n[nn,p]
+                if iszero(no) continue end
+                dQᵢ += mpts.ϕ∂ϕ[nn,p,dim+1]*mesh.T[no]
+            end    
+            mpts.t.q[dim,p] = -mpts.t.k[p]*dQᵢ
+        end
+    end
 end
 """
     n2p(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, dt::T2, instr::NamedTuple) where {T1,T2}
@@ -81,8 +93,6 @@ Map mesh node solution back to material points using the selected transfer kerne
 function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # mapping to material point
     instr[:cairn][:mapsto][:map].n2p!(mpts,mesh.s,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
-    
-    instr[:cairn][:mapsto][:map].n2p!(mpts,mesh.t,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
     # (if musl) reproject nodal velocities
     if instr[:fwrk][:musl]
         # reset nodal quantities
@@ -97,5 +107,8 @@ function n2p(mpts::Point{T1,T2},mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) wher
     if instr[:fwrk][:trsfr] == "apic"
         instr[:cairn][:mapsto][:map].Bᵢⱼ!(mpts,mesh.s; ndrange=mpts.nmp);sync(CPU())
     end
+    #=
+    instr[:cairn][:mapsto][:map].n2p!(mpts,mesh.t,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
+    =#
     return nothing
 end
