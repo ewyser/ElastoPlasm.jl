@@ -74,7 +74,7 @@ function require(in::Symbol=:instr)
             plot  = (;
                 status=true,
                 freq=1.0,
-                what=["epII"],
+                what=["T"],
                 dims=(500.0,250.0),
             ),
             perf  = (;

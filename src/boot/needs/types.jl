@@ -74,10 +74,10 @@ end
 @adapt_struct MaterialPointFluidPhase
 
 struct MaterialPointThermalPhase{T1,T2} <: MaterialPointPhase{T1,T2}
-    #c   ::Vector{T2} # specific heat capacity vector
-    #k   ::Vector{T2} # thermal conductivity vector
-    #q   ::Matrix{T2} # heat flux array
-    #T   ::Vector{T2} # temperature vector
+    c   ::Vector{T2} # specific heat capacity vector
+    k   ::Vector{T2} # thermal conductivity vector
+    q   ::Matrix{T2} # heat flux array
+    T   ::Vector{T2} # temperature vector
 end
 @adapt_struct MaterialPointThermalPhase
 
@@ -162,11 +162,11 @@ end
 @adapt_struct MeshSolidPhase
 
 struct MeshThermalPhase{T1,T2,B} <: MeshPhase{T1,T2}
-    #prprt ::MeshProperties{T1,T2}
-    #bcs   ::MeshBoundary{B}
-    #cᵢ   ::Vector{T2} # consistent lumped heat capacity matrix
-    #T    ::Vector{T2} # temperature
-    #oobq ::Vector{T2} # out-of-balance heat load
+    prprt ::MeshProperties{T1,T2}
+    bcs   ::MeshBoundary{B}
+    cᵢ    ::Vector{T2} # consistent lumped heat capacity matrix
+    T     ::Vector{T2} # temperature
+    oobq  ::Vector{T2} # out-of-balance heat load
 end
 @adapt_struct MeshThermalPhase
 
@@ -178,6 +178,8 @@ struct Mesh{T1,T2,B,NT} <: UniformMesh{T1, T2}
     ΔJ    ::Matrix{T2}
     # solid phase
     s     ::MeshSolidPhase{T1,T2,B} # phase ::Vector{MeshPhase{T1,T2}}
+    # thermal phase
+    t     ::MeshThermalPhase{T1,T2,B} # phase ::Vector{MeshPhase{T1,T2}}
     # connectivity
     e2n   ::Matrix{T1}
     e2e   ::SparseMatrixCSC{T1,T1}

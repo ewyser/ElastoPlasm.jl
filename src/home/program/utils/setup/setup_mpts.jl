@@ -38,7 +38,6 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
     l0 = ones(size(xp)).*0.5.*(props.h./ni)
     v0 = prod(2 .* l0; dims=1)
     ρ0 = fill(cmpr[:ρ0],nmp)
-    m  = cmpr[:ρ0].*v0
     # constructor
     s = MaterialPointSolidPhase{T1,T2}(
         T2.(zeros(size(xp)))                               , # u
@@ -65,12 +64,16 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
         T2.(zeros(props.dim,props.dim,nmp))                  , # ωᵢⱼ
         T2.(zeros(props.dim,props.dim,nmp))                  , # σJᵢⱼ
     )
+    t = MaterialPointThermalPhase{T1,T2}(
+        T2.(vec(copy(geom.c)))                            , # c::Vector{T2} specific heat capacity vector
+        T2.(vec(copy(geom.k)))                             , # k::Vector{T2} thermal conductivity vector
+        T2.(zeros(props.dim,nmp))                            , # q::Matrix{T2} heat flux array
+        T2.(vec(copy(geom.T)))                            , # T::Vector{T2} temperature vector
+    )
     f = MaterialPointFluidPhase{T1,T2}(
 
     )
-    t = MaterialPointThermalPhase{T1,T2}(
 
-    )
 
     mpts = Point{T1,T2}(
         # general information

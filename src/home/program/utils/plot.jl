@@ -133,7 +133,12 @@ display(p)
         tit   = "solid mass"
         cb    = :viridis
         cblim = (0.0,maximum(d)) 
-
+    elseif opts.what == "T"
+        d     = mpts.t.T
+        lab   = L"T(x_p)"*" [K]"
+        tit   = "temperature"
+        cb    = :viridis
+        cblim = (0.0,maximum(d)) 
     else        
         throw(error("UndefinedPlotOption: $(opts.what)"))
     end

@@ -60,6 +60,13 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
         T2.(zeros(ndim,nno[end]        )), # mv
         T2.(zeros(ndim,nno[end]        )), # v
     )
+    t = MeshThermalPhase{T1,T2,Bool}(
+        prop,
+        bcs,
+        T2.(zeros(nno[end]             )), # cᵢ
+        T2.(zeros(nno[end]             )), # T
+        T2.(zeros(nno[end]             )), # oobq
+    )
     mesh = Mesh{T1,T2,Bool,NamedTuple}(
         prop,
         # nodal quantities
@@ -68,6 +75,8 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
         T2.(zeros(ndim,nno[end]        )), # ΔJ
         # solid phase
         s                                , # solid phase
+        # thermal phase
+        t                                , # thermal phase
         # connectivity
         T1.(e2n(ndim,nno,nel,nn        )), # e2n
         T1.(e2e(ndim,nel,h,instr       )), # e2e

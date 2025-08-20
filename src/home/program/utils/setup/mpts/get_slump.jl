@@ -92,5 +92,11 @@ function get_slump(mesh,cmpr,instr; ni = 2, lz = 12.80 )
     phi    = ones(nmp).*cmpr[:ϕ0]
     phi[xp[end,:].<=2*wl] .= cmpr[:ϕr]
 
-    return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,ni=ni,nmp=nmp)
+
+    c      = ones(nmp).*cmpr[:specific_heat_capacity]
+    k      = ones(nmp).*cmpr[:thermal_conductivity]
+    T      = ones(nmp).*cmpr[:initial_temperature]
+    T[xp[end,:].<=2*wl] .= 3.0*cmpr[:initial_temperature]
+
+    return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,T=T,c=c,k=k,ni=ni,nmp=nmp)
 end

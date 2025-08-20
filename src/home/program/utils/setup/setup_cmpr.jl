@@ -126,6 +126,7 @@ function setup_cmpr(mesh::Mesh{T1,T2}; E::T2=T2(1.0e6),ν::T2=T2(0.3),ρ0::T2= T
     Hp      = -30.0e3                                                           # softening modulus
     # constitutive model param.
     cmp = (;
+        # solid phase
         E   = T2(E), 
         ν   = T2(ν), 
         Kc  = T2(K), 
@@ -138,6 +139,16 @@ function setup_cmpr(mesh::Mesh{T1,T2}; E::T2=T2(1.0e6),ν::T2=T2(0.3),ρ0::T2= T
         ϕr  = T2(ϕr),
         ρ0  = T2(ρ0),
         c   = T2(c),
+        # thermal phase
+        specific_heat_capacity = T2(1.0/ρ0),  # J/(kg·K)
+        thermal_conductivity   = T2(0.1),     # W/(m·K)
+        initial_temperature    = T2(293.15),  # K, 20°C in Kelvin
     )
     return cmp::NamedTuple
 end
+
+
+    #c   ::Vector{T2} # specific heat capacity vector
+    #k   ::Vector{T2} # thermal conductivity vector
+    #q   ::Matrix{T2} # heat flux array
+    #T   ::Vector{T2} # temperature vector
