@@ -24,7 +24,7 @@ display(p)
 - Supports fields: pressure (`P`), plastic strain (`epII`), volumetric plastic strain (`epV`), displacement (`du`), initial vertical position (`z0`), initial cohesion (`coh0`), and initial friction angle (`phi0`).
 - Throws an error if the requested field is not defined.
 """
-@views function what_plot_field(mpts,mesh,opts)
+@views function what_plot_field(mpts::MaterialPoint,opts)
     if opts.what == "P"
         if size(mpts.s.σᵢ,1) == 3
             d   = -(mpts.s.σᵢ[1,:]+mpts.s.σᵢ[2,:])/2/1e3
@@ -145,9 +145,9 @@ display(p)
 
     # plotting
     p = plot(
-        if mesh.prprt.dim == 2
+        if size(mpts.x,1) == 2
             mpts.x[1,:],mpts.x[2,:]
-        elseif mesh.prprt.dim == 3
+        elseif size(mpts.x,1) == 3
             mpts.x[1,:],mpts.x[3,:]
         end,
         seriestype  = :scatter,
@@ -162,6 +162,10 @@ display(p)
         aspect_ratio= 1,
         size        = opts.dims,
     )
+    return p
+end
+@views function what_plot_field(mesh::Mesh,opts)
+    # add mesh specific plotting
     return p
 end
 
@@ -185,13 +189,18 @@ opts = (;what=["P", "epII"], dims=(500,500))
 get_plot_field(mpts, mesh, opts)
 ```
 """
-function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[]) 
+function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[], type::String="mpts") 
     # plotting
     config_plot(); opts.backend
     for (k,variable) ∈ enumerate(opts[:what])
         opts = (;opts...,what=variable)
-        p0   = what_plot_field(mpts,mesh,(;opts...,what=variable))
-        push!(P,p0)
+        if type == "mpts"
+            p0   = what_plot_field(mpts,(;opts...,what=variable))
+            push!(P,p0)
+        elseif type == "mesh"
+            # add mesh specific plotting
+        end
+
     end
     scale = length(P) 
     sx,sy = opts[:dims][1],scale*opts[:dims][2]
