@@ -48,7 +48,7 @@ function get_slump(mesh,cmpr,instr; ni = 2, lz = 12.80 )
             end
         end
     elseif props.dim == 3
-        xp,yp,zp,c  = out.x[id,1],out.x[id,2],out.x[id,3],out.c0[id]
+        xp,yp,zp,c  = out.x[1,id],out.x[2,id],out.x[3,id],out.c0[id]
         x           = LinRange(minimum(xp),maximum(xp),200)
         a           = -1.25
         x,z         = x.+0.5.*props.L[1],a.*x
