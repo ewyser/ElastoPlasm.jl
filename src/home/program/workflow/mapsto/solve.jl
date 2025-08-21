@@ -1,10 +1,10 @@
 """
-    euler(mesh, dt::T2, η) where {T2}
+    euler(mesh::MeshSolidPhase{T1,T2},dt::T2,η::T2) where {T2}
 
-Solve the Eulerian momentum equation on the mesh with viscous damping.
+Solve the Eulerian momentum equation for solid phase on the mesh with viscous damping.
 
 # Arguments
-- `mesh`: Mesh data structure.
+- `mesh::MeshSolidPhase{T1,T2}`: Mesh data structure for solid phase.
 - `dt::T2`: Time step.
 - `η`: Damping coefficient.
 
@@ -38,6 +38,19 @@ Solve the Eulerian momentum equation on the mesh with viscous damping.
         end
     end
 end
+"""
+    euler(mesh::MeshThermalPhase{T1,T2},dt::T2,η::T2) where {T2}
+
+Solve the Eulerian momentum equation for thermal phase on the mesh with viscous damping.
+
+# Arguments
+- `mesh::MeshThermalPhase{T1,T2}`: Mesh data structure for thermal phase.
+- `dt::T2`: Time step.
+- `η`: Damping coefficient.
+
+# Returns
+- Updates mesh fields in-place.
+"""
 @views @kernel inbounds = true function euler(mesh::MeshThermalPhase{T1,T2},dt::T2) where {T1,T2}
     no = @index(Global)
     if no≤mesh.prprt.nno[end] 
@@ -58,33 +71,46 @@ end
     end
 end
 """
-    solve(mesh, dt::T2, instr::NamedTuple) where {T2}
+    solve(mesh::MeshSolidPhase{T1,T2}, dt::T2, instr::NamedTuple)
 
-Solve the mesh momentum equation using the backend-agnostic kernel.
+Solve the mesh momentum equation for solid phase using the backend-agnostic kernel.
 
 # Arguments
-- `mesh`: Mesh data structure.
+- `mesh::MeshSolidPhase{T1,T2}`: Mesh data structure.
 - `dt::T2`: Time step.
 - `instr::NamedTuple`: Instruction/configuration dictionary.
 
 # Returns
 - `nothing`. Updates mesh fields in-place.
 """
-@views function solve(mesh::Mesh{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
+function solve(mesh::MeshSolidPhase{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # viscous damping
-    η      = T2(instr.fwrk.damping)
+    η = T2(instr.fwrk.damping)
     # initialize
-    fill!(mesh.s.a,T2(0.0))
-    fill!(mesh.s.v,T2(0.0))
+    fill!(mesh.a,T2(0.0))
+    fill!(mesh.v,T2(0.0))
     # solve momentum equation on the mesh using backend-agnostic kernel
-    instr[:cairn][:mapsto][:map].solve!(mesh.s,dt,η; ndrange=mesh.prprt.nno[end]);sync(CPU())
+    instr[:cairn][:mapsto][:map].solve!(mesh,dt,η; ndrange=mesh.prprt.nno[end]);sync(CPU())
+    return nothing
+end
+"""
+    solve(mesh::MeshThermalPhase{T1,T2}, dt::T2, instr::NamedTuple)
 
-    #=
+Solve the mesh momentum equation for thermal phase using the backend-agnostic kernel.
+
+# Arguments
+- `mesh::MeshThermalPhase{T1,T2}`: Mesh data structure.
+- `dt::T2`: Time step.
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+
+# Returns
+- `nothing`. Updates mesh fields in-place.
+"""
+function solve(mesh::MeshThermalPhase{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # initialize
     fill!(mesh.t.dT,T2(0.0))
     fill!(mesh.t.T,T2(0.0))
     # solve momentum equation on the mesh using backend-agnostic kernel
-    instr[:cairn][:mapsto][:map].solve!(mesh.t,dt; ndrange=mesh.prprt.nno[end]);sync(CPU())
-    =#
+    instr[:cairn][:mapsto][:map].solve!(mesh,dt; ndrange=mesh.prprt.nno[end]);sync(CPU())
     return nothing
 end

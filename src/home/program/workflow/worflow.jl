@@ -32,7 +32,7 @@ function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,ti
             g,dt = get_spacetime(mpts,mesh,cmpr,time,T)
             # mpm cycle
             shpfun(mpts,mesh,instr)
-            mapsto(mpts,mesh,g,dt,instr)    
+            mapsto(mpts,mesh.s,g,dt,instr)    
             elasto(mpts,mesh,cmpr,dt,instr)
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
@@ -78,7 +78,7 @@ function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,ti
             dt  = get_dt(mpts,mesh.prprt,cmpr,time,T)
             # mpm cycle
             shpfun(mpts,mesh,instr)
-            mapsto(mpts,mesh,g,dt,instr)    
+            mapsto(mpts,mesh.s,g,dt,instr)    
             elastoplast(mpts,mesh,cmpr,dt,instr)
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
@@ -139,3 +139,73 @@ function elastoplasm(ic::NamedTuple,cfg::NamedTuple; problem::String="elastodyna
     exit_log("(✓) Done! exiting...\n")
     return (; ic,cfg,)::NamedTuple
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function thermodynamic!(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},cmpr::NamedTuple,time::NamedTuple,instr::NamedTuple) where {T1,T2}
+    it,checks = T1(0), T2.(sort(collect(time.t[1]:instr[:plot][:freq]:time.te)))
+    # action
+    prog = Progress(length(checks);dt=0.5,desc="Solving thermodynamic!...",barlen=10)
+    for T ∈ checks
+        while T > time.t[1]
+            # set clock on/off
+            tic = time_ns()
+            # adaptative dt & linear increase of gravity
+            g,dt = get_spacetime(mpts,mesh,cmpr,time,T)
+            # mpm cycle
+            shpfun(mpts,mesh       ,instr)
+            mapsto(mpts,mesh.t,g,dt,instr)    
+            # update sim parameters
+            time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
+        end
+        # plot/save
+        savlot(mpts,mesh,time.t[1],instr)
+        # update progress bar
+        next!(prog;showvalues = get_vals(mesh,mpts,it))
+    end
+    finish!(prog)
+    return nothing
+end  

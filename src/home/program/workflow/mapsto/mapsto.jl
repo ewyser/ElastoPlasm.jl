@@ -67,7 +67,7 @@ Perform a full MPM update: project material points to nodes, solve, and map back
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # maps material point to node
     p2n(mpts,mesh,g,instr)
     # solve Eulerian momentum equation

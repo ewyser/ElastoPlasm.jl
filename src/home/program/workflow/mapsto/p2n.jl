@@ -302,17 +302,17 @@ end
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Generic p2n function calling specialized p2n! kernel
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-function p2n(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},instr::NamedTuple) where {T1,T2}
+function p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},instr::NamedTuple) where {T1,T2}
     # get cauchy stress 
     if instr[:fwrk][:deform] == "finite"
         instr[:cairn][:mapsto][:map].σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
     end
     # reset nodal quantities
-    fill!(mesh.s.mᵢ  ,T2(0.0))
-    fill!(mesh.s.mv  ,T2(0.0))
-    fill!(mesh.s.oobf,T2(0.0))
+    fill!(mesh.mᵢ  ,T2(0.0))
+    fill!(mesh.mv  ,T2(0.0))
+    fill!(mesh.oobf,T2(0.0))
     # mapping to mesh
-    instr[:cairn][:mapsto][:map].p2n!(mpts,mesh.s,g; ndrange=mpts.nmp);sync(CPU())
+    instr[:cairn][:mapsto][:map].p2n!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
 
     #=
     # reset nodal quantities
