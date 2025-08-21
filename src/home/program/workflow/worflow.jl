@@ -124,6 +124,8 @@ function elastoplasm(ic::NamedTuple,cfg::NamedTuple; problem::String="elastodyna
     elseif problem == "all-in-one"
         elastodynamic!(mpts,mesh,cmpr,time,instr)
         elastoplastic!(mpts,mesh,cmpr,time,instr)
+    elseif problem == "thermodynamic"
+        thermodynamic!(mpts,mesh,cmpr,time,instr)
     else
         throw(ArgumentError("Invalid workflow problem: $(problem). Choose 'elastodynamic', 'elastoplastic' or 'all-in-one'.")) 
         return false
@@ -184,8 +186,27 @@ end
 
 
 
+"""
+    thermodynamic!(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},cmpr::NamedTuple,time::NamedTuple,instr::NamedTuple)
 
-function thermodynamic!(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},cmpr::NamedTuple,time::NamedTuple,instr::NamedTuple) where {T1,T2}
+Run the explicit thermodynamic workflow for the given mesh, material points, constitutive model, and simulation configuration.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::MeshThermalPhase{T1,T2}`: Mesh data structure.
+- `cmpr::NamedTuple`: Constitutive model parameters.
+- `time::NamedTuple`: Time stepping configuration.
+- `instr::NamedTuple`: Simulation instructions and options.
+
+# Behavior
+- Advances the simulation in time using an explicit MPM cycle with thermodynamic update.
+- Plots and saves results at specified intervals.
+- Displays a progress bar.
+
+# Returns
+- `nothing`
+"""
+function thermodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,instr::NamedTuple) where {T1,T2}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr[:plot][:freq]:time.te)))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving thermodynamic!...",barlen=10)

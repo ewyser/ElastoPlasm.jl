@@ -108,8 +108,8 @@ Solve the mesh momentum equation for thermal phase using the backend-agnostic ke
 """
 function solve(mesh::MeshThermalPhase{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # initialize
-    fill!(mesh.t.dT,T2(0.0))
-    fill!(mesh.t.T,T2(0.0))
+    fill!(mesh.dT,T2(0.0))
+    fill!(mesh.T,T2(0.0))
     # solve momentum equation on the mesh using backend-agnostic kernel
     instr[:cairn][:mapsto][:map].solve!(mesh,dt; ndrange=mesh.prprt.nno[end]);sync(CPU())
     return nothing

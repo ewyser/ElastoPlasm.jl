@@ -189,6 +189,18 @@ end
         tit   = "nocdal solid mass"
         cb    = :viridis
         cblim = (minimum(d),maximum(d))
+    elseif opts.what == "c"
+        d     = mesh.t.cᵢ
+        lab   = L"$c(x_n)$"*" [J/(kg·K)]" 
+        tit   = "nocdal specific heat capacity"
+        cb    = :viridis
+        cblim = (0.0,maximum(d))
+    elseif opts.what == "T"
+        d     = mesh.t.T
+        lab   = L"$T(x_n)$"*" [K]"
+        tit   = "nodal temperature"
+        cb    = :viridis
+        cblim = (0.0,maximum(d))        
     else        
         throw(error("UndefinedPlotOption: $(opts.what)"))
     end

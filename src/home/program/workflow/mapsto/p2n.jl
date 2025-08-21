@@ -313,18 +313,17 @@ function p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},instr:
     fill!(mesh.oobf,T2(0.0))
     # mapping to mesh
     instr[:cairn][:mapsto][:map].p2n!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
-
-    #=
-    # reset nodal quantities
-    fill!(mesh.t.cᵢ  ,T2(0.0))
-    fill!(mesh.t.mcT ,T2(0.0))
-    fill!(mesh.t.oobq,T2(0.0))
-    # mapping to mesh
-    instr[:cairn][:mapsto][:map].p2n!(mpts,mesh.t; ndrange=mpts.nmp);sync(CPU())
-    =#
     return nothing
 end
-
+function p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},g::Vector{T2},instr::NamedTuple) where {T1,T2}
+    # reset nodal quantities
+    fill!(mesh.cᵢ  ,T2(0.0))
+    fill!(mesh.mcT ,T2(0.0))
+    fill!(mesh.oobq,T2(0.0))
+    # mapping to mesh
+    instr[:cairn][:mapsto][:map].p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+    return nothing
+end
 
 
 

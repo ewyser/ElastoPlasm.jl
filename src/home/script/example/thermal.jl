@@ -6,6 +6,8 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
     @info "Setting up mesh & material point system for $(length(L))d thermal problem"
     # init & kwargs
     instr = kwargser(:instr,kwargs;dim=length(L))
+    instr.plot.what[1] = ("mesh","c")
+
     paths = set_paths(fid,info.sys.out;interactive=false)  
     # mesh & mpts initial conditions
     mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)     )
@@ -17,7 +19,7 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
     ms = 0.4*instr[:plot][:dims][1]/mesh.prprt.nel[1]
     opts = (;
         dims    = instr[:plot][:dims],
-        what    = ["T"],
+        what    = [("mpts","T"),],
         backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
         tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
         file    = joinpath(paths[:plot],"$(mesh.prprt.dim)d_T.png"),
@@ -38,3 +40,6 @@ function thermal(ic::NamedTuple,cfg::NamedTuple; workflow::String="thermodynamic
     # return output with success flag
     return out = (; out..., success=true,)
 end
+
+# ic, cfg = ic_thermal();
+# out = thermal(ic, cfg;);
