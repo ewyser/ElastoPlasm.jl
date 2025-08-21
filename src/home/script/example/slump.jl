@@ -34,7 +34,7 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
     ms = 0.4*instr[:plot][:dims][1]/mesh.prprt.nel[1]
     opts = (;
         dims    = instr[:plot][:dims],
-        what    = ["coh0","phi0"],
+        what    = [("mpts","coh0"),("mpts","phi0")],
         backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
         tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
         file    = joinpath(paths[:plot],"$(mesh.prprt.dim)d_coh0_phi0.png"),

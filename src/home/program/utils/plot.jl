@@ -165,7 +165,54 @@ display(p)
     return p
 end
 @views function what_plot_field(mesh::Mesh,opts)
-    # add mesh specific plotting
+    if opts.what == "v"
+        d     = sqrt.(mesh.s.v[1,:].^2 .+ mesh.s.v[2,:].^2)
+        lab   = L"$v(x_n)$"*" [m/s]"
+        tit   = "nodal solid velocity"
+        cb    = :viridis
+        cblim = (0.0,3.5)
+    elseif opts.what == "vx"
+        d     = mesh.s.v[1,:]
+        lab   = L"$v_x(x_n)$"*" [m/s]"
+        tit   = "nodal solid x-velocity"
+        cb    = :vik
+        cblim = (-1.5,1.5)   
+    elseif opts.what == "vz"
+        d     = mesh.s.v[2,:]
+        lab   = L"$v_z(x_n)$"*" [m/s]"
+        tit   = "nodal solid z-velocity"
+        cb    = :vik
+        cblim = (-1.5,1.5)                
+    elseif opts.what == "m"
+        d     = mesh.s.mᵢ
+        lab   = L"$m(x_n)$"*" [kg]"
+        tit   = "nocdal solid mass"
+        cb    = :viridis
+        cblim = (minimum(d),maximum(d))
+    else        
+        throw(error("UndefinedPlotOption: $(opts.what)"))
+    end
+    
+    if size(mesh.x,1) == 2
+        x = mesh.x[1,:][1:mesh.prprt.nno[2]:end]
+        z = mesh.x[2,:][1:mesh.prprt.nno[2]    ]
+    elseif size(mesh.x,1) == 3
+        x = mesh.x[1,:][1:mesh.prprt.nno[3]:end]
+        z = mesh.x[3,:][1:mesh.prprt.nno[3]    ]
+    end
+    d = reshape(d, mesh.prprt.nno[2], mesh.prprt.nno[1])
+    p = heatmap(
+        x, z, d,
+        xlabel       = L"$x-$direction [m]",
+        ylabel       = L"$z-$direction [m]",
+        label        = lab,
+        color        = cb,
+        clim         = cblim,
+        ylim         = (-10.0, 20.0),
+        title        = "$tit, at $(opts.tit)",
+        aspect_ratio = 1,
+        size         = opts.dims
+    )
     return p
 end
 
@@ -189,17 +236,17 @@ opts = (;what=["P", "epII"], dims=(500,500))
 get_plot_field(mpts, mesh, opts)
 ```
 """
-function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[], type::String="mpts") 
+function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[]) 
     # plotting
     config_plot(); opts.backend
     for (k,variable) ∈ enumerate(opts[:what])
-        opts = (;opts...,what=variable)
-        if type == "mpts"
-            p0   = what_plot_field(mpts,(;opts...,what=variable))
-            push!(P,p0)
-        elseif type == "mesh"
-            # add mesh specific plotting
+        opts = (;opts...,what=last(variable))
+        if first(variable) == "mpts"
+            p0   = what_plot_field(mpts,(;opts...,what=last(variable)))
+        elseif first(variable) == "mesh"
+            p0   = what_plot_field(mesh,(;opts...,what=last(variable)))
         end
+        push!(P,p0)
 
     end
     scale = length(P) 

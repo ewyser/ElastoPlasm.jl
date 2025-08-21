@@ -132,7 +132,7 @@ function elastoplasm(ic::NamedTuple,cfg::NamedTuple; problem::String="elastodyna
     # postprocessing
     if instr[:plot][:status]
         opts = (;
-            file = joinpath(paths[:plot],"$(cfg.misc.prefix)_$(problem)_$(join(instr[:plot][:what])).png"),
+            file = joinpath(paths[:plot],"$(cfg.misc.prefix)_$(problem)_$(join(last.(instr[:plot][:what]),"_")).png"),
         );save_plot(opts)
     end
     # return success message
