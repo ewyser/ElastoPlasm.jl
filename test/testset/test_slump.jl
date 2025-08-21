@@ -54,7 +54,7 @@
         #(; which = "gimpm", how = "undeformed", ghost = true ),
         #(; which = "smpm" , how = nothing     , ghost = true ),
     ]
-    plot = (; status = true, freq = 1.0, what = ["epII"], dims = (500.0,250.0),)
+    plot = (; status = true, freq = 1.0, what = [("mpts","epII")], dims = (500.0,250.0),)
     grf  = (; status = true, covariance = "gaussian", param = (; Iₓ= [2.5,2.5,2.5], Nₕ = 5000, kₘ = 100,),)
 
     for basis ∈ cases
