@@ -19,8 +19,11 @@ function get_thermal(mesh,cmpr,instr; ni = 2, )
     #@info "Init slump geometry"
     out = mpts_populate(props,cmpr,instr; ni=ni)
 
-    
-    xp = copy(out.x)
+    logic1(i) = out.x[end, i] ≤ mesh.prprt.xB[end,2]
+    logic2(i) = 0.25*mesh.prprt.xB[1,2] ≤ out.x[1, i] ≤ 0.75*mesh.prprt.xB[1,2]
+    id = findall(i -> logic1(i) && logic2(i), axes(out.x,2))
+    xp = copy(out.x[:,id])
+    #xp = copy(out.x)
 
 
     nmp  = size(xp,2)
@@ -32,18 +35,19 @@ function get_thermal(mesh,cmpr,instr; ni = 2, )
     c    = ones(nmp).*cmpr[:specific_heat_capacity]
     k    = ones(nmp).*cmpr[:thermal_conductivity]
     T    = zeros(nmp).*cmpr[:initial_temperature]
+    T[xp[end,:].<=0.5*mesh.prprt.xB[end,2]] .= cmpr[:initial_temperature]+60.0
 
-
+#=
     id = out.x[1, :] .<= mesh.prprt.xB[1,1] + mesh.prprt.h[1]
     T[id] .= 100.0
     id = out.x[1, :] .>= mesh.prprt.xB[1,2] - mesh.prprt.h[1]
     T[id] .= 100.0
 
     id = out.x[2, :] .<= mesh.prprt.xB[2,1] + mesh.prprt.h[2]
-    T[id] .= 100.0
+    #T[id] .= 100.0
     id = out.x[2, :] .>= mesh.prprt.xB[2,2] - mesh.prprt.h[2]
     T[id] .= 100.0
-
+=#
 
 
     return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,T=T,c=c,k=k,ni=ni,nmp=nmp)
