@@ -141,7 +141,7 @@ function setup_cmpr(mesh::Mesh{T1,T2}; E::T2=T2(1.0e6),ν::T2=T2(0.3),ρ0::T2= T
         c   = T2(c),
         # thermal phase
         specific_heat_capacity = T2(10.0),  # J/(kg·K)
-        thermal_conductivity   = T2(10.0),     # W/(m·K)
+        thermal_conductivity   = T2(3000.0),     # W/(m·K)
         initial_temperature    = T2(293.15),  # K, 20°C in Kelvin
     )
     return cmp::NamedTuple

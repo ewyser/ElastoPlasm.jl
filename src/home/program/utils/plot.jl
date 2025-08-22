@@ -139,6 +139,12 @@ display(p)
         tit   = "temperature"
         cb    = :viridis
         cblim = (0.0,maximum(d)) 
+    elseif opts.what == "q"
+        d     = sqrt.(mpts.t.q[1,:].^2 .+ mpts.t.q[2,:].^2)
+        lab   = L"$q(x_p)$"*" [K]"
+        tit   = "heat flux"
+        cb    = :viridis
+        cblim = (0.0,maximum(d))                
     else        
         throw(error("UndefinedPlotOption: $(opts.what)"))
     end

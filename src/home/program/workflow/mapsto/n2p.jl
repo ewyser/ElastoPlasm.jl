@@ -120,9 +120,6 @@ function n2p(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},dt::T2,instr::NamedT
     if instr[:fwrk][:trsfr] == "apic"
         instr[:cairn][:mapsto][:map].Bᵢⱼ!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
     end
-    #=
-    instr[:cairn][:mapsto][:map].n2p!(mpts,mesh.t,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
-    =#
     return nothing
 end
 """
@@ -142,5 +139,15 @@ Map solid-type mesh node solution back to material points using the selected tra
 function n2p(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
     # mapping to material point
     instr[:cairn][:mapsto][:map].n2p!(mpts,mesh,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
+    # (if musl) reproject nodal velocities
+    #=if instr[:fwrk][:musl]
+        # reset nodal quantities
+        fill!(mesh.mcT,T2(0.0))
+        fill!(mesh.T  ,T2(0.0))
+        # accumulate material point contributions
+        instr[:cairn][:mapsto][:augm].p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+        # solve for nodal temperature
+        instr[:cairn][:mapsto][:augm].solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
+    end=#
     return nothing
 end

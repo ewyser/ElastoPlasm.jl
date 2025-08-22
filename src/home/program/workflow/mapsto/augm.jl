@@ -1,5 +1,5 @@
 """
-    augm_momentum(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}) where {T1,T2}
+    augm_momentum(mpts::Point{T1,T2}, mesh::MeshSolidPhase{T1,T2}) where {T1,T2}
 
 Accumulate material point momentum to mesh nodes for DM augmentation.
 
@@ -23,8 +23,19 @@ Accumulate material point momentum to mesh nodes for DM augmentation.
         end
     end
 end
+@kernel inbounds = true function augm_momentum(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2}) where {T1,T2}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        # accumulation
+        for nn ∈ 1:mesh.prprt.nn
+            no = mpts.p2n[nn,p]
+            if iszero(no) continue end
+            @atom mesh.mcT[no] += mpts.ϕ∂ϕ[nn,p,1] * mpts.s.ρ[p]*mpts.Ω[p] * mpts.t.c[p] * mpts.t.T[p]
+        end
+    end
+end
 """
-    augm_velocity(mesh::Mesh{T1,T2}) where {T1,T2}
+    augm_velocity(mesh::MeshSolidPhase{T1,T2}) where {T1,T2}
 
 Update mesh node velocities for DM augmentation.
 

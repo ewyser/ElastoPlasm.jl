@@ -6,7 +6,19 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
     @info "Setting up mesh & material point system for $(length(L))d thermal problem"
     # init & kwargs
     instr = kwargser(:instr,kwargs;dim=length(L))
-    instr.plot.what[1] = ("mesh","c")
+
+    instr = merge(instr, 
+        (;
+            plot = (;
+                status=true,
+                freq=100.0,
+                what=[("mesh","T")],
+                dims=(500.0,250.0),
+            )
+        )
+    )
+
+
 
     paths = set_paths(fid,info.sys.out;interactive=false)  
     # mesh & mpts initial conditions
@@ -14,7 +26,7 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
     cmpr  = setup_cmpr(mesh                                         )                       
     mpts  = setup_mpts(mesh,cmpr ; geom = get_thermal(mesh,cmpr,instr))
     # time parameters
-    time  = setup_time(instr     ; te=100.0,tg=10.0,tep=0.0) 
+    time  = setup_time(instr     ; te=3600.0,tg=10.0,tep=0.0) 
     # plot initial cohesion field
     ms = 0.4*instr[:plot][:dims][1]/mesh.prprt.nel[1]
     opts = (;
