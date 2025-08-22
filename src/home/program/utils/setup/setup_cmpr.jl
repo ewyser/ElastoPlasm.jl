@@ -117,7 +117,11 @@ cmp = setup_cmpr(mesh; E=2.0e6, ν=0.25, ρ0=2500.0)
 println(cmp.Kc)  # Bulk modulus
 ```
 """
-function setup_cmpr(mesh::Mesh{T1,T2}; E::T2=T2(1.0e6),ν::T2=T2(0.3),ρ0::T2= T2(2700.0)) where {T1,T2}
+function setup_cmpr(mesh::Mesh{T1,T2}; 
+    E::T2=T2(1.0e6),
+    ν::T2=T2(0.3),
+    ρ0::T2= T2(2700.0),
+    ) where {T1,T2}
     # independant physical constant          
     K,G,Del = get_elastic_stiffness(E,ν,mesh.prprt.dim)                         # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]    
     c       = sqrt((K+4.0/3.0*G)/ρ0)                                            # elastic wave speed [m/s]
@@ -140,15 +144,9 @@ function setup_cmpr(mesh::Mesh{T1,T2}; E::T2=T2(1.0e6),ν::T2=T2(0.3),ρ0::T2= T
         ρ0  = T2(ρ0),
         c   = T2(c),
         # thermal phase
-        specific_heat_capacity = T2(10.0),  # J/(kg·K)
-        thermal_conductivity   = T2(3000.0),     # W/(m·K)
-        initial_temperature    = T2(293.15),  # K, 20°C in Kelvin
+        specific_heat_capacity = T2(10.0),   # J/(kg·K)
+        thermal_conductivity   = T2(3000.0), # W/(m·K)
+        initial_temperature    = T2(293.15), # K, 20°C in Kelvin
     )
     return cmp::NamedTuple
 end
-
-
-    #c   ::Vector{T2} # specific heat capacity vector
-    #k   ::Vector{T2} # thermal conductivity vector
-    #q   ::Matrix{T2} # heat flux array
-    #T   ::Vector{T2} # temperature vector

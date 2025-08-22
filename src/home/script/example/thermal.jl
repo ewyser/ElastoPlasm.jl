@@ -1,7 +1,7 @@
 export thermal,ic_thermal 
 
 function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
-    L,nel = [64.1584,64.1584/4.0],[40,10]
+    L,nel = [16.0,16.0],[20,20]
     
     @info "Setting up mesh & material point system for $(length(L))d thermal problem"
     # init & kwargs
