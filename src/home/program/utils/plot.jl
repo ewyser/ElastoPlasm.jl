@@ -205,8 +205,14 @@ end
         d     = mesh.t.T
         lab   = L"$T(x_n)$"*" [K]"
         tit   = "nodal temperature"
-        cb    = :viridis
+        cb    = :thermal
         cblim = (0.0,maximum(d))        
+    elseif opts.what == "bcs"
+        d     = mesh.t.bcs.status[1,:]
+        lab   = L"$T(x_n)$"*" [K]"
+        tit   = "nodal temperature"
+        cb    = :viridis
+        cblim = (0,1)        
     else        
         throw(error("UndefinedPlotOption: $(opts.what)"))
     end

@@ -59,7 +59,7 @@ Solve the Eulerian momentum equation for thermal phase on the mesh with viscous 
         else
             # apply boundary contidions
             if mesh.bcs.status[1,no]
-                #mesh.T[no] = T2(0.0)                                         
+                mesh.T[no] = T2(20.0)
             else
                 # cache mass node & norm of out-of-balance force
                 cᵢ = (T2(1.0)/mesh.cᵢ[no])

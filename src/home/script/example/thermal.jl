@@ -6,7 +6,6 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
     @info "Setting up mesh & material point system for $(length(L))d thermal problem"
     # init & kwargs
     instr = kwargser(:instr,kwargs;dim=length(L))
-
     instr = merge(instr, 
         (;
             plot = (;
@@ -17,9 +16,15 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
             )
         )
     )
-
-
-
+    instr = merge(instr, 
+        (;
+            bcs   = (;
+                dirichlet = [
+                    :fixed :fixed;
+                    :fixed :fixed], # for 2d, this translates to [lower_x upper_x;lower_y upper_y]
+            ),
+        )
+    )
     paths = set_paths(fid,info.sys.out;interactive=false)  
     # mesh & mpts initial conditions
     mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)     )
