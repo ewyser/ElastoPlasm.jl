@@ -137,7 +137,7 @@ display(p)
         d     = mpts.t.T
         lab   = L"T(x_p)"*" [K]"
         tit   = "temperature"
-        cb    = :viridis
+        cb    = :thermal
         cblim = (0.0,maximum(d)) 
     elseif opts.what == "q"
         d     = sqrt.(mpts.t.q[1,:].^2 .+ mpts.t.q[2,:].^2)
