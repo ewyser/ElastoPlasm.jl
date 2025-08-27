@@ -18,9 +18,9 @@ Compute the adaptive time step for the simulation based on mesh spacing and mate
 dt = get_dt(mpts, mesh, cmpr, time, ΔT)
 ```
 """
-function get_dt(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
+function get_dt(mpts::Point{T1,T2},props::MeshProperties{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
     # calculte dt
-    cmax = mesh.h./(mpts.vmax.+cmpr[:c]); mpts.vmax.=T2(0.0) 
+    cmax = props.h./(mpts.vmax.+cmpr[:c]); mpts.vmax.=T2(0.0) 
     dt   = min(T2(0.5)*maximum(cmax),ΔT-time.t[1])
     return dt::T2
 end
@@ -42,12 +42,12 @@ Calculate the gravity vector for the mesh, with magnitude `G` in the negative la
 g = get_g(mesh)
 ```
 """
-function get_g(mesh::Mesh{T1,T2}; G::T2=9.81) where {T1,T2}
-    if mesh.dim == T1(1) 
+function get_g(props::MeshProperties{T1,T2}; G::T2=9.81) where {T1,T2}
+    if props.dim == T1(1) 
         g = [-G] 
-    elseif mesh.dim == T1(2) 
+    elseif props.dim == T1(2) 
         g = [T2(0.0),-G] 
-    elseif mesh.dim == T1(3) 
+    elseif props.dim == T1(3) 
         g = [T2(0.0),T2(0.0),-G] 
     end
     return g::Vector{T2}
@@ -79,12 +79,12 @@ g, dt = get_spacetime(mpts, mesh, cmpr, time, ΔT)
 """
 function get_spacetime(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
     # calculte dt
-    dt = get_dt(mpts,mesh,cmpr,time,ΔT)
+    dt = get_dt(mpts,mesh.prprt,cmpr,time,ΔT)
     # ramp-up gravity
     if time.t[1] <= time.tg 
-        g = get_g(mesh; G = T2(9.81*time.t[1]/time.tg))
+        g = get_g(mesh.prprt; G = T2(9.81*time.t[1]/time.tg))
     else
-        g = get_g(mesh; G = T2(9.81)                  )
+        g = get_g(mesh.prprt; G = T2(9.81)                  )
     end
     return g,dt
 end

@@ -48,7 +48,7 @@ Kernel for finite deformation elasticity update at material points.
         # update left cauchy-green tensor
         mpts.s.bᵢⱼ[:,:,p].= mpts.s.ΔFᵢⱼ[:,:,p]*mpts.s.bᵢⱼ[:,:,p]*mpts.s.ΔFᵢⱼ[:,:,p]'
         # compute logarithmic strain tensor
-        λ,n             = eigen(mpts.s.bᵢⱼ[:,:,p],sortby=nothing)
+        λ,n               = eigen(mpts.s.bᵢⱼ[:,:,p],sortby=nothing)
         mpts.s.ϵᵢⱼ[:,:,p].= T2(0.5).*(n*diagm(log.(λ))*n')
         # krichhoff stress tensor
         mpts.s.τᵢ[:,p]    = Del*mutate(mpts.s.ϵᵢⱼ[:,:,p],T2(2.0),:voigt)
@@ -77,50 +77,6 @@ Kernel for infinitesimal (small strain) elasticity update at material points.
         mpts.s.σJᵢⱼ[:,:,p].= mpts.s.σJᵢⱼ[:,:,p]*mpts.s.ωᵢⱼ[:,:,p]'+mpts.s.σJᵢⱼ[:,:,p]'*mpts.s.ωᵢⱼ[:,:,p]
         mpts.s.σᵢ[:,p]   .+= Del*mutate(mpts.s.ϵᵢⱼ[:,:,p],T2(2.0),:voigt).+mutate(mpts.s.σJᵢⱼ[:,:,p],T2(1.0),:voigt)
     end  
-end
-
-"""
-    init_elast(instr::NamedTuple)
-
-Initialize the elasticity kernel based on the deformation framework and performance mode.
-
-# Arguments
-- `instr::NamedTuple`: Instruction/configuration dictionary.
-
-# Returns
-- Named tuple with the selected elasticity kernel.
-"""
-function init_elast(instr::NamedTuple)
-    if instr[:perf][:status]
-        kernel1 = ELAST(CPU())
-    else
-        # deformation framework dispatcher
-        if instr[:fwrk][:deform] == "finite"
-            kernel1 = finite_elast(CPU())
-        elseif instr[:fwrk][:deform] == "infinitesimal"
-            kernel1 = infinitesimal_elast(CPU())
-        end
-    end
-    return (;elast! = kernel1,)
-end
-
-
-"""
-    elast(mpts::Point{T1,T2}, cmpr::NamedTuple, instr::NamedTuple) where {T1,T2}
-
-Dispatch and execute the elasticity kernel for the current simulation step.
-
-# Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
-- `cmpr::NamedTuple`: Constitutive model parameters.
-- `instr::NamedTuple`: Instruction/configuration dictionary.
-
-# Returns
-- `nothing`. Updates fields in-place.
-"""
-function elast(mpts::Point{T1,T2},cmpr::NamedTuple,instr::NamedTuple) where {T1,T2}
-    instr[:cairn][:elastoplast][:elast].elast!(ndrange=mpts.nmp,mpts,cmpr.Del);sync(CPU())
-    return nothing
 end
 
 

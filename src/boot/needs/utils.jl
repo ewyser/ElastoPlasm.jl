@@ -210,10 +210,14 @@ function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_ve
         printstyled("│", color=:green, bold=true); println("   ic,cfg = ic_slump(L,nel);")
         printstyled("└", color=:green, bold=true); println("   out    = slump(ic,cfg; workflow=\"all-in-one\");")
     elseif showcase == "collapsing"
-        printstyled("│", color=:green, bold=true); println("   plot      = (; status=true, freq=1.0, what=[\"sigxx\"], dims=(500.0,250.0) );")
-        printstyled("│", color=:green, bold=true); println("   nel       = [5,10];")
-        printstyled("│", color=:green, bold=true); println("   ic, cfg   = ic_collapse(nel,0.0,1.0e4,80.0,50.0; plot);")
-        printstyled("└", color=:green, bold=true); println("   out       = collapse(ic, cfg);")
+        printstyled("│", color=:green, bold=true); println("   plot    = (; status=true, freq=1.0, what=[\"sigxx\"], dims=(500.0,250.0) );")
+        printstyled("│", color=:green, bold=true); println("   nel     = [5,10];")
+        printstyled("│", color=:green, bold=true); println("   ic, cfg = ic_collapse(nel,0.0,1.0e4,80.0,50.0; plot);")
+        printstyled("└", color=:green, bold=true); println("   out     = collapse(ic, cfg);")
+    elseif showcase == "heating"
+        printstyled("│", color=:green, bold=true); println("   ic, cfg = ic_thermal();")
+        printstyled("└", color=:green, bold=true); println("   out     = thermal(ic, cfg);")
+    
     else
         printstyled("└", color=:green, bold=true); println("   ...$(showcase) ?!? \e[5m¯\\_(ツ)_/¯\e[0m")
     end
@@ -245,7 +249,7 @@ function ic_log(mesh,mpts,time,instr)
     logs = [
         "Summary: ",
         "- $(instr.dtype.precision)",
-        "- elements: $(mesh.nel[end])",
+        "- elements: $(mesh.prprt.nel[end])",
         "- material points: $(mpts.nmp)", 
         "- simulation time ∈ $(time.t) s:",
     ]
@@ -285,7 +289,7 @@ function elastoplasm_log(instr; msg::String="elastodynamic")
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "└ $(nthreads()) active thread(s)",
-        "- $msg workflow",
+        "- $msg problem",
         "- $(instr[:fwrk][:deform]) strain formulation",
         "- $(instr[:fwrk][:trsfr]) mapping scheme",
         "- $(instr[:basis][:which]) calculation cycle",
