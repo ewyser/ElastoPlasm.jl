@@ -26,16 +26,16 @@ fields = mpts_populate(props, cmpr, instr; ni=4)
 function mpts_populate(props,cmpr,instr; ni = 2,)
     out = Dict{Symbol, Any}(:ni => ni)
     if props.dim == 2
-        x       = collect(props.xB[1,1]+(0.5*props.h[1]/ni):props.h[1]/ni:props.xB[1,2])
-        z       = collect(props.xB[2,1]+(0.5*props.h[2]/ni):props.h[2]/ni:props.xB[2,2])
+        x       = collect(props.xB[1,1]+(0.5*props.h[1]/ni):props.h[1]/ni:props.xB[1,2]-(0.5*props.h[1]/ni))
+        z       = collect(props.xB[2,1]+(0.5*props.h[2]/ni):props.h[2]/ni:props.xB[2,2]-(0.5*props.h[2]/ni))
         nmp     = [length(x),length(z),length(x)*length(z)]
         xp      = repeat(reshape(x,1     ,nmp[1]),nmp[2],1     )
         zp      = repeat(reshape(z,nmp[2],1     ),1     ,nmp[1])
         out[:x] = vcat(vec(xp)',vec(zp)')
     elseif props.dim == 3
-        x       = collect(props.xB[1,1]+(0.5*props.h[1]/ni):props.h[1]/ni:props.xB[1,2])
-        y       = collect(props.xB[2,1]+(0.5*props.h[2]/ni):props.h[2]/ni:props.xB[2,2])
-        z       = collect(props.xB[3,1]+(0.5*props.h[3]/ni):props.h[3]/ni:props.xB[3,2])
+        x       = collect(props.xB[1,1]+(0.5*props.h[1]/ni):props.h[1]/ni:props.xB[1,2]-(0.5*props.h[1]/ni))
+        y       = collect(props.xB[2,1]+(0.5*props.h[2]/ni):props.h[2]/ni:props.xB[2,2]-(0.5*props.h[2]/ni))
+        z       = collect(props.xB[3,1]+(0.5*props.h[3]/ni):props.h[3]/ni:props.xB[3,2]-(0.5*props.h[3]/ni))
         nmp     = [length(x),length(y),length(z),length(x)*length(y)*length(z)]
         xp      = repeat(reshape(x,1     ,nmp[1],1     ),nmp[3],1     ,nmp[2])
         yp      = repeat(reshape(y,1     ,1     ,nmp[2]),nmp[3],nmp[1],1     )

@@ -35,116 +35,77 @@ display(p)
         end            
         tit   = "pressure"
         cb    = :viridis
-        if minimum(d) == maximum(d)
-            cblim = (-1.0,1.0)
-        else
-            cblim = (minimum(d),maximum(d))
-        end
     elseif opts.what == "sigxx"
         d     = mpts.s.σᵢ[1,:]/1e3
         lab   = L"$\sigma_{xx}$"*" [kPa]"
         tit   = "stress tensor x-component"
         cb    = :viridis
-        if minimum(d) == maximum(d)
-            cblim = (-1.0,1.0)
-        else
-            cblim = (minimum(d),maximum(d))
-        end
     elseif opts.what == "epsxx"
         d     = mpts.s.ϵᵢⱼ[1,1,:]
         lab   = L"$\epsilon_{xx}$"*" [-]"
         tit   = "strain tensor x-component"
-        cb    = :viridis
-        if minimum(d) == maximum(d)
-            cblim = (-1.0,1.0)
-        else
-            cblim = (minimum(d),maximum(d))
-        end        
+        cb    = :viridis      
     elseif opts.what == "epII"
         d     = mpts.s.ϵpII[1,:]
         lab   = L"$\epsilon_{\mathrm{II}}^{\mathrm{acc}}$"*" [-]"
         tit   = "plastic strain"
         cb    = :viridis
-        if minimum(d) == maximum(d)
-            cblim = (-1.0,1.0)
-        else
-            cblim = (0.0,maximum(d))
-        end
     elseif opts.what == "epV"
         d     = mpts.s.ϵpV
         lab   = L"$\epsilon_{p}^{\mathrm{vol}}$"
         tit   = "volumetric plastic strain"
         cb    = :seismic
-        if minimum(d) == maximum(d)
-            cblim = (-1.0,1.0)
-        else
-            cblim = (-maximum(abs.(d)),maximum(abs.(d)))
-        end
     elseif opts.what == "du"
         d     = sqrt.(mpts.s.u[1,:].^2+mpts.s.u[2,:].^2)
         lab   = L"$\Delta u$"*" [m]"
         tit   = "displacement"
         cb    = :viridis
-        if minimum(d) == maximum(d)
-            cblim = (-1.0,1.0)
-        else
-            cblim = (0.0,maximum(d))
-        end
     elseif opts.what == "z0"
         d     = mpts.z₀
         lab   = L"$z_p(t_0)$"*" [m]"
         tit   = "initial vertical position"
         cb    = palette(:grayC,5) 
-        cblim = (0.0,maximum(d))
     elseif opts.what == "coh0"
         d     = mpts.s.c₀./1e3
         lab   = L"c_0(x_p)"*" [kPa]"
         tit   = "initial cohesion field"
         cb    = :vik
         coh0  = sum(d)/length(d)
-        cblim = (coh0-coh0/2,coh0+coh0/2)
     elseif opts.what == "phi0"
         d     = mpts.s.ϕ
         lab   = L"$\phi_0(x_p)$"*" [rad]"
         tit   = "initial friction angle"
         cb    = :viridis
-        cblim = (minimum(d),maximum(d)) 
     elseif opts.what == "n0"
         d     = mpts.n
         lab   = L"$\n_{0}(x_p)$"*" [-]"
         tit   = "initial porosity"
         cb    = :viridis
-        cblim = (0.0,1.0) 
     elseif opts.what == "n"
         d     = mpts.n
         lab   = L"n(x_p)"*" [-]"
         tit   = "porosity"
         cb    = :seismic
-        cblim = (-1.0,1.0) 
     elseif opts.what == "J"
         d     = mpts.J
         lab   = L"J(x_p)"*" [-]"
         tit   = "deformation determinant"
         cb    = :seismic
-        cblim = (0.0,2.0) 
     elseif opts.what == "ms"
         d     = mpts.s.ρ.*mpts.Ω
         lab   = L"m_{s}(x_p)"*" [-]"
         tit   = "solid mass"
         cb    = :viridis
-        cblim = (0.0,maximum(d)) 
     elseif opts.what == "T"
         d     = mpts.t.T
         lab   = L"T(x_p)"*" [K]"
         tit   = "temperature"
         cb    = :thermal
-        cblim = (0.0,maximum(d)) 
     elseif opts.what == "q"
         d     = sqrt.(mpts.t.q[1,:].^2 .+ mpts.t.q[2,:].^2)
         lab   = L"$q(x_p)$"*" [K]"
         tit   = "heat flux"
-        cb    = :viridis
-        cblim = (0.0,maximum(d))                
+        cb    = :viridis             
     else        
         throw(error("UndefinedPlotOption: $(opts.what)"))
     end
@@ -162,8 +123,9 @@ display(p)
         ylabel      = L"$z-$direction"*" [m]",
         label       = lab,
         color       = cb,
-        clim        = cblim,
-        ylim        = (-10.0,20.0),
+        clim        = opts.cblim,
+        xlim        = opts.xlim,
+        ylim        = opts.ylim,
         title       = "$tit, at $(opts.tit)",
         aspect_ratio= 1,
         size        = opts.dims,
@@ -176,43 +138,36 @@ end
         lab   = L"$v(x_n)$"*" [m/s]"
         tit   = "nodal solid velocity"
         cb    = :viridis
-        cblim = (0.0,3.5)
     elseif opts.what == "vx"
         d     = mesh.s.v[1,:]
         lab   = L"$v_x(x_n)$"*" [m/s]"
         tit   = "nodal solid x-velocity"
         cb    = :vik
-        cblim = (-1.5,1.5)   
     elseif opts.what == "vz"
         d     = mesh.s.v[2,:]
         lab   = L"$v_z(x_n)$"*" [m/s]"
         tit   = "nodal solid z-velocity"
         cb    = :vik
-        cblim = (-1.5,1.5)                
     elseif opts.what == "m"
         d     = mesh.s.mᵢ
         lab   = L"$m(x_n)$"*" [kg]"
         tit   = "nocdal solid mass"
         cb    = :viridis
-        cblim = (minimum(d),maximum(d))
     elseif opts.what == "c"
         d     = mesh.t.cᵢ
         lab   = L"$c(x_n)$"*" [J/(kg·K)]" 
         tit   = "nocdal specific heat capacity"
         cb    = :viridis
-        cblim = (0.0,maximum(d))
     elseif opts.what == "T"
         d     = mesh.t.T
         lab   = L"$T(x_n)$"*" [K]"
         tit   = "nodal temperature"
-        cb    = :thermal
-        cblim = (0.0,maximum(d))        
+        cb    = :thermal    
     elseif opts.what == "bcs"
         d     = mesh.t.bcs.status[1,:]
         lab   = L"$T(x_n)$"*" [K]"
         tit   = "nodal temperature"
-        cb    = :viridis
-        cblim = (0,1)        
+        cb    = :viridis       
     else        
         throw(error("UndefinedPlotOption: $(opts.what)"))
     end
@@ -231,8 +186,9 @@ end
         ylabel       = L"$z-$direction [m]",
         label        = lab,
         color        = cb,
-        clim         = cblim,
-        ylim         = (-10.0, 20.0),
+        clim         = opts.cblim,
+        xlim         = opts.xlim,
+        ylim         = opts.ylim,
         title        = "$tit, at $(opts.tit)",
         aspect_ratio = 1,
         size         = opts.dims
@@ -260,21 +216,22 @@ opts = (;what=["P", "epII"], dims=(500,500))
 get_plot_field(mpts, mesh, opts)
 ```
 """
-function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[]) 
+function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[], dpi::Int=100) 
+    # scale
+    scale = length(opts[:what]) 
+    sx,sy = opts[:dims][1],scale*opts[:dims][2]
     # plotting
     config_plot(); opts.backend
     for (k,variable) ∈ enumerate(opts[:what])
-        opts = (;opts...,what=last(variable))
         if first(variable) == "mpts"
-            p0   = what_plot_field(mpts,(;opts...,what=last(variable)))
+            p0   = what_plot_field(mpts,(;opts...,what=last(variable),cblim=opts[:cblim][k]))
         elseif first(variable) == "mesh"
-            p0   = what_plot_field(mesh,(;opts...,what=last(variable)))
+            p0   = what_plot_field(mesh,(;opts...,what=last(variable),cblim=opts[:cblim][k]))
         end
         push!(P,p0)
 
     end
-    scale = length(P) 
-    sx,sy = opts[:dims][1],scale*opts[:dims][2]
+    # display fig
     fig   = display(plot(P...;layout=(scale,1),size=(sx,sy)))
     return fig
 end
