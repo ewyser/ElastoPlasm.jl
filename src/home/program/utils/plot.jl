@@ -70,7 +70,6 @@ display(p)
         lab   = L"c_0(x_p)"*" [kPa]"
         tit   = "initial cohesion field"
         cb    = :vik
-        coh0  = sum(d)/length(d)
     elseif opts.what == "phi0"
         d     = mpts.s.ϕ
         lab   = L"$\phi_0(x_p)$"*" [rad]"
