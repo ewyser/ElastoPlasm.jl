@@ -1,61 +1,94 @@
 """
-    init_mapsto(dim::Number, instr::NamedTuple)
+    mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple)
 
-Initialize mapping and transfer kernels for the MPM algorithm based on dimension and instruction set.
+Resolution of mechanical problem: project material points to nodes, solve, and map back.
 
 # Arguments
-- `dim::Number`: Spatial dimension (1, 2, or 3).
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::MeshSolidPhase{T1,T2}`: Mesh data structure for solid phase.
+- `g::Vector{T2}`: Gravity vector.
+- `dt::T2`: Time step.
 - `instr::NamedTuple`: Instruction/configuration dictionary.
 
 # Returns
-- `Dict`: Dictionary of mapping and augmentation kernels.
+- `nothing`. Updates fields in-place.
 """
-function init_mapsto(dim::Number,instr::NamedTuple) 
-    mapsto = Dict(:map => Dict(),)
+function mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2}
+    # get cauchy stress 
     if instr[:fwrk][:deform] == "finite"
-        mapsto[:map][:σᵢ!] = transform(CPU())
+        instr[:cairn][:mapsto][:map].σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
     end
-    if instr[:fwrk][:trsfr] == "std"
-        if dim == 1
-            mapsto[:map][:p2n!] = std_1d_p2n(CPU()) 
-        elseif dim == 2
-            mapsto[:map][:p2n!] = std_2d_p2n(CPU())
-        elseif dim == 3
-            mapsto[:map][:p2n!] = std_3d_p2n(CPU())
-        end
-    elseif instr[:fwrk][:trsfr] == "tpic"
-        if dim == 1
-            mapsto[:map][:p2n!] = tpic_1d_p2n(CPU())
-        elseif dim == 2
-            mapsto[:map][:p2n!] = tpic_2d_p2n(CPU())
-        elseif dim == 3
-            mapsto[:map][:p2n!] = tpic_3d_p2n(CPU())
-        end
-    elseif instr[:fwrk][:trsfr] == "apic"
-        if dim == 1
-            nothing # APIC is not yet defined for 1D
-        elseif dim == 2
-            mapsto[:map][:p2n!] = apic_2d_p2n(CPU())
-        elseif dim == 3
-            mapsto[:map][:p2n!] = apic_3d_p2n(CPU())
-        end
-        mapsto[:map][:Bᵢⱼ!] = Bij(CPU())
-    else
-        return throw(ArgumentError("$(instr[:fwrk][:trsfr]) is an unsupported transfer scheme"))
+    # reset nodal quantities
+    fill!(mesh.mᵢ  ,T2(0.0))
+    fill!(mesh.mv  ,T2(0.0))
+    fill!(mesh.oobf,T2(0.0))
+    fill!(mesh.a   ,T2(0.0))
+    fill!(mesh.v   ,T2(0.0))
+    # mapping to mesh
+    instr[:cairn][:mapsto][:map].p2n!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
+    # solve Eulerian momentum equation
+    instr[:cairn][:mapsto][:map].solve!(mesh,dt,T2(instr.fwrk.damping); ndrange=mesh.prprt.nno[end]);sync(CPU())
+    # maps back solution to material point
+    instr[:cairn][:mapsto][:map].n2p!(mpts,mesh,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
+    # (if musl) reproject nodal velocities
+    if instr[:fwrk][:musl]
+        # reset nodal quantities
+        fill!(mesh.mv,T2(0.0))
+        fill!(mesh.v ,T2(0.0))
+        # accumulate material point contributions
+        instr[:cairn][:mapsto][:augm].p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+        # solve for nodal incremental displacement
+        instr[:cairn][:mapsto][:augm].solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
     end
-    mapsto[:map][:solve!] = euler(CPU())
-    mapsto[:map][:n2p!]   = picflip_n2p(CPU())
-    if instr[:fwrk][:musl] 
-        mapsto[:augm]          = Dict()
-        mapsto[:augm][:p2n!]   = augm_momentum(CPU())
-        mapsto[:augm][:solve!] = augm_velocity(CPU())
+    # (for APIC) compute Bᵢⱼ for material points
+    if instr[:fwrk][:trsfr] == "apic"
+        instr[:cairn][:mapsto][:map].Bᵢⱼ!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
     end
-    return Dict(:map => (; mapsto[:map]...), :augm => (; mapsto[:augm]...))
+    return nothing
 end
 """
-    mapsto(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, g::Vector{T2}, dt::T2, instr::NamedTuple) where {T1,T2}
+    mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::NamedTuple)
 
-Perform a full MPM update: project material points to nodes, solve, and map back.
+Resolution of thermal problem: project material points to nodes, solve, and map back.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::MeshThermalPhase{T1,T2}`: Mesh data structure for thermal phase.
+- `dt::T2`: Time step.
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+
+# Returns
+- `nothing`. Updates fields in-place.
+"""
+function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
+    # reset nodal quantities
+    fill!(mesh.cᵢ  ,T2(0.0))
+    fill!(mesh.mcT ,T2(0.0))
+    fill!(mesh.oobq,T2(0.0))
+    fill!(mesh.dT  ,T2(0.0))
+    fill!(mesh.T   ,T2(0.0))
+    # mapping to mesh
+    instr[:cairn][:mapsto][:map].p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+    # solve Eulerian thermal equation
+    instr[:cairn][:mapsto][:map].solve!(mesh,dt; ndrange=mesh.prprt.nno[end]);sync(CPU())
+    # maps back solution to material point
+    instr[:cairn][:mapsto][:map].n2p!(mpts,mesh,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
+    #=# (if musl) reproject nodal velocities
+    if instr[:fwrk][:musl]
+        # reset nodal quantities
+        fill!(mesh.mcT,T2(0.0))
+        fill!(mesh.T  ,T2(0.0))
+        # accumulate material point contributions
+        instr[:cairn][:mapsto][:augm].p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+        # solve for nodal temperature
+        instr[:cairn][:mapsto][:augm].solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
+    end=#
+    return nothing
+end
+"""
+    mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple)
+
+Resolution of thermo-poro-mechanical problem: project material points to nodes, solve, and map back.
 
 # Arguments
 - `mpts::Point{T1,T2}`: Material point data structure.
@@ -68,11 +101,6 @@ Perform a full MPM update: project material points to nodes, solve, and map back
 - `nothing`. Updates fields in-place.
 """
 function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2}
-    # maps material point to node
-    p2n(mpts,mesh,g,instr)
-    # solve Eulerian momentum equation
-    solve(mesh,dt,instr)
-    # maps back solution to material point
-    n2p(mpts,mesh,dt,instr)
+
     return nothing
 end

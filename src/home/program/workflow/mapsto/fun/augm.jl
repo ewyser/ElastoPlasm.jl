@@ -1,0 +1,91 @@
+"""
+    augm_p2n(mpts::Point{T1,T2}, mesh::MeshSolidPhase{T1,T2})
+
+Accumulate material point momentum to mesh nodes for DM augmentation.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::MeshSolidPhase{T1,T2}`: Mesh data structure for solid phase.
+
+# Returns
+- Updates mesh fields in-place.
+"""
+@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2}) where {T1,T2}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        for dim ∈ 1:mesh.prprt.dim
+            # accumulation
+            for nn ∈ 1:mesh.prprt.nn
+                no = mpts.p2n[nn,p]
+                if iszero(no) continue end
+                @atom mesh.mv[dim,no]+= mpts.ϕ∂ϕ[nn,p,1] * ((mpts.s.ρ[p] * mpts.Ω[p]) * mpts.s.v[dim,p])
+            end
+        end
+    end
+end
+"""
+    augm_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2})
+
+Accumulate material point heat capacity to mesh nodes for DM augmentation.
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::MeshThermalPhase{T1,T2}`: Mesh data structure for thermal phase.
+
+# Returns
+- Updates mesh fields in-place.
+"""
+@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2}) where {T1,T2}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        # accumulation
+        for nn ∈ 1:mesh.prprt.nn
+            no = mpts.p2n[nn,p]
+            if iszero(no) continue end
+            @atom mesh.mcT[no]+= mpts.ϕ∂ϕ[nn,p,1] * mpts.s.ρ[p]*mpts.Ω[p] * mpts.t.c[p] * mpts.t.T[p]
+        end
+    end
+end
+"""
+    augm_solve(mesh::MeshSolidPhase{T1,T2}) where {T1,T2}
+
+Update mesh node velocities for DM augmentation.
+
+# Arguments
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+
+# Returns
+- Updates mesh velocities in-place.
+"""
+@kernel inbounds = true function augm_solve(mesh::MeshSolidPhase{T1,T2}) where {T1,T2}
+    no = @index(Global)
+    if no ≤ mesh.prprt.nno[end] 
+        if iszero(mesh.mᵢ[no])
+            nothing         
+        else
+            for dim ∈ 1:mesh.prprt.dim       
+                # apply boundary contidions || forward euler solution
+                if mesh.bcs.status[dim,no]
+                    mesh.v[dim,no] = T2(0.0)                                         
+                else
+                    mesh.v[dim,no] = mesh.mv[dim,no]*(T2(1.0)/mesh.mᵢ[no])  
+                end
+            end
+        end
+    end
+end
+@kernel inbounds = true function augm_solve(mesh::MeshThermalPhase{T1,T2}) where {T1,T2}
+    no = @index(Global)
+    if no ≤ mesh.prprt.nno[end] 
+        if iszero(mesh.cᵢ[no])
+            nothing         
+        else
+            # apply boundary contidions || forward euler solution
+            if mesh.bcs.status[1,no]
+                mesh.T[no] = T2(20.0)
+            else
+                mesh.T[no]  = mesh.mcT[no] * (T2(1.0)/mesh.cᵢ[no])
+            end
+        end
+    end
+end
