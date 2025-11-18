@@ -29,12 +29,16 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
     cmpr  = setup_cmpr(mesh                                         )                       
     mpts  = setup_mpts(mesh,cmpr ; geom = get_slump(mesh,cmpr,instr))
     # time parameters
-    time  = setup_time(instr     ; te=10.0,tg=10.0,tep=5.0) 
+    time  = setup_time(instr     ; te = 10.0, tg = 10.0, tep = 5.0  ) 
     # plot initial cohesion field
-    ms = 0.4*instr[:plot][:dims][1]/mesh.prprt.nel[1]
+    dims  = instr[:plot][:dpi].*(mesh.prprt.L[1]./mesh.prprt.L)
+    ms    = mesh.prprt.nel[1]*dims[1]
     opts = (;
-        dims    = instr[:plot][:dims],
+        dims    = instr[:plot][:dpi].*(mesh.prprt.L./mesh.prprt.L[1]), 
         what    = [("mpts","coh0"),("mpts","phi0")],
+        cblim   = [1e-3.*(cmpr.c0-cmpr.c0/2,cmpr.c0+cmpr.c0/2),(cmpr.ϕr,cmpr.ϕ0),],
+        xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])), 
+        ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),        
         backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
         tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
         file    = joinpath(paths[:plot],"$(mesh.prprt.dim)d_coh0_phi0.png"),

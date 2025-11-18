@@ -73,7 +73,7 @@ function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::N
     instr[:cairn][:mapsto][:map].solve!(mesh,dt; ndrange=mesh.prprt.nno[end]);sync(CPU())
     # maps back solution to material point
     instr[:cairn][:mapsto][:map].n2p!(mpts,mesh,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
-    # (if musl) reproject nodal velocities
+    #=# (if musl) reproject nodal velocities
     if instr[:fwrk][:musl]
         # reset nodal quantities
         fill!(mesh.mcT,T2(0.0))
@@ -82,7 +82,7 @@ function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::N
         instr[:cairn][:mapsto][:augm].p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
         # solve for nodal temperature
         instr[:cairn][:mapsto][:augm].solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
-    end
+    end=#
     return nothing
 end
 """

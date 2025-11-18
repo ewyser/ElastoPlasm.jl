@@ -72,10 +72,11 @@ function require(in::Symbol=:instr)
                 ls=0.5,
             ),
             plot  = (;
-                status=true,
-                freq=1.0,
-                what=[("mpts","epII")],
-                dims=(500.0,250.0),
+                status = true,
+                freq   = 1.0,
+                dpi    = 500,
+                what   = [("mpts","epII"),],
+                cblim  = [(0.0, 1.5),],
             ),
             perf  = (;
                 status=false,

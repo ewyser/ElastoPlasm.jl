@@ -1,18 +1,28 @@
 export thermal,ic_thermal 
 
 function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
-    L,nel = [16.0,16.0],[20,20]
+    L,nel = [16.0,16.0],[80,80]
     
     @info "Setting up mesh & material point system for $(length(L))d thermal problem"
     # init & kwargs
     instr = kwargser(:instr,kwargs;dim=length(L))
     instr = merge(instr, 
         (;
+            basis = (;
+                which = "bsmpm",
+                how = nothing,
+                ghost = false,
+            ),
+        )
+    )
+    instr = merge(instr, 
+        (;
             plot = (;
                 status=true,
-                freq=1.0,
-                what=[("mesh","T")],
-                dims=(500.0,250.0),
+                freq=0.01,
+                dpi=500,
+                what=[("mpts","T"),("mesh","T")],
+                cblim  = [(0.0, 25.0),(0.0, 25.0),],
             )
         )
     )
@@ -27,18 +37,22 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
     )
     paths = set_paths(fid,info.sys.out;interactive=false)  
     # mesh & mpts initial conditions
-    mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)     )
-    cmpr  = setup_cmpr(mesh                                         )                       
+    mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)       )
+    cmpr  = setup_cmpr(mesh                                           )                       
     mpts  = setup_mpts(mesh,cmpr ; geom = get_thermal(mesh,cmpr,instr))
     # time parameters
-    time  = setup_time(instr     ; te=100.0,tg=100.0,tep=0.0) 
+    time  = setup_time(instr     ; te=5.0,tg=5.0,tep=0.0) 
     # plot initial cohesion field
-    ms = 0.4*instr[:plot][:dims][1]/mesh.prprt.nel[1]
+    dims  = instr[:plot][:dpi].*(mesh.prprt.L[1]./mesh.prprt.L)
+    ms    = mesh.prprt.nel[1]*dims[1]
     opts = (;
-        dims    = instr[:plot][:dims],
+        dims    = instr[:plot][:dpi].*(mesh.prprt.L./mesh.prprt.L[1]), 
         what    = [("mpts","T"),],
         backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
         tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
+        cblim   = [(0.0,20.0),],
+        xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])), 
+        ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),
         file    = joinpath(paths[:plot],"$(mesh.prprt.dim)d_T.png"),
     )
     get_plot_field(mpts,mesh,opts);save_plot(opts)
@@ -57,6 +71,3 @@ function thermal(ic::NamedTuple,cfg::NamedTuple; workflow::String="thermodynamic
     # return output with success flag
     return out = (; out..., success=true,)
 end
-
-# ic, cfg = ic_thermal();
-# out = thermal(ic, cfg);

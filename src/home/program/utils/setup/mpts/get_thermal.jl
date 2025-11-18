@@ -19,10 +19,6 @@ function get_thermal(mesh,cmpr,instr; ni = 2, )
     #@info "Init slump geometry"
     out = mpts_populate(props,cmpr,instr; ni=ni)
 
-    logic1(i) = out.x[end, i] ≤ mesh.prprt.xB[end,2]
-    logic2(i) = 0.25*mesh.prprt.xB[1,2] ≤ out.x[1, i] ≤ 0.75*mesh.prprt.xB[1,2]
-    id = findall(i -> logic1(i) && logic2(i), axes(out.x,2))
-    xp = copy(out.x[:,id])
     xp = copy(out.x)
 
 

@@ -19,12 +19,16 @@ savlot(mpts, mesh, t, instr)
 """
 @views function savlot(mpts::Point{T1,T2},mesh::Mesh{T1,T2},t::T2,instr::NamedTuple) where {T1,T2}
     if instr[:plot][:status]
-        ms = 0.4*instr[:plot][:dims][1]/mesh.prprt.nel[1]
+        dims = instr[:plot][:dpi].*(mesh.prprt.L[1]./mesh.prprt.L)
+        ms   = dims[1]/(mesh.prprt.nel[1]*2)
         opts = (;
-            dims  = instr[:plot][:dims],
-            what = instr[:plot][:what],
-            backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
+            dims    = instr[:plot][:dpi].*(mesh.prprt.L./mesh.prprt.L[1]), 
+            what    = instr[:plot][:what],
+            xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])), 
+            ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),
+            cblim   = instr[:plot][:cblim],
             tit     = L" t = "*string(round(t,digits=1))*" [s]",
+            backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
         )
         return get_plot_field(mpts,mesh,opts)
     else

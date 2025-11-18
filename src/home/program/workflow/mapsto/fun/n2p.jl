@@ -54,25 +54,23 @@ Update material point velocities and positions from thermal-type mesh nodes usin
 @kernel inbounds = true function picflip_n2p(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,C_pf::T2) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp    
-        for dim ∈ 1:mesh.prprt.dim
-            # pic update
-            δTPIC = T2(0.0)
-            for nn ∈ 1:mesh.prprt.nn
-                no = mpts.p2n[nn,p]
-                if iszero(no) continue end
-                δTPIC += mpts.ϕ∂ϕ[nn,p,1]*mesh.T[no]
-            end
-            # flip update
-            δTFLIP = T2(0.0)
-            for nn ∈ 1:mesh.prprt.nn
-                no = mpts.p2n[nn,p]
-                if iszero(no) continue end
-                δTFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.dT[no]
-            end
-            # picflip update for material point's temperature
-            if dim == 1
-                mpts.t.T[p] = C_pf*(mpts.t.T[p]+dt*δTFLIP) + (T2(1.0)-C_pf)*δTPIC
-            end 
+        # pic update
+        δTPIC = T2(0.0)
+        for nn ∈ 1:mesh.prprt.nn
+            no = mpts.p2n[nn,p]
+            if iszero(no) continue end
+            δTPIC += mpts.ϕ∂ϕ[nn,p,1]*mesh.T[no]
         end
+        # flip update
+        δTFLIP = T2(0.0)
+        for nn ∈ 1:mesh.prprt.nn
+            no = mpts.p2n[nn,p]
+            if iszero(no) continue end
+            δTFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.dT[no]
+        end
+        # picflip update for material point's temperature
+        C_pf = T2(0.0)
+        mpts.t.T[p] = C_pf*(mpts.t.T[p]+dt*δTFLIP) + (T2(1.0)-C_pf)*δTPIC
+        #mpts.t.T[p] = δTPIC
     end  
 end
