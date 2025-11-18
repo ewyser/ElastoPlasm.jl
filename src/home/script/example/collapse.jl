@@ -28,9 +28,9 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     dim = length(nel)
     L = dim == 2 ? [10.0, 1.25*l0] : [10.0, 10.0, 1.25*l0]
     # Simulation instructions
-    instr = kwargser(:instr, kwargs; dim=dim)
+    instr = kwargser(kwargs, Instruction; dim=dim)
     paths = set_paths(fid, info.sys.out; interactive=false)
-    T0    = instr[:dtype].T0  
+    T0    = instr.dtype.T0  
     T1,T2 = first(T0),last(T0) 
     L,nel = T2.(L),T1.(nel) 
     # mesh & mpts initial conditions
@@ -43,7 +43,7 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     geom  = (; ndim = T1(ndim), nn = T1(nn), h =T2.(h), nel = T1.(nel), L = T2.(L))
     mesh  = setup_mesh(instr     ; geom = geom     )
     cmpr  = setup_cmpr(mesh      ; E=T2(E), ν=T2(ν), ρ0=T2(ρ0))
-    mpts  = setup_mpts(mesh, cmpr; geom = get_collapse(mesh, cmpr, ni; ℓ₀=l0))
+    mpts  = setup_mpts(mesh, instr, cmpr; geom = get_collapse(mesh, cmpr, ni; ℓ₀=l0))
     # time parameters
     tg    = ceil((1.0/cmpr.c)*(2.0*l0)*40.0)
     te    = tg
@@ -51,7 +51,7 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     # display summary
     @info ic_log(mesh,mpts,time,instr)
     misc = (;
-        file = "$(mesh.dim)d_$(instr[:fwrk][:trsfr])"
+        file = "$(mesh.dim)d_$(instr.fwrk.trsfr)"
     )
     return (;mesh,mpts,cmpr,time),(;instr,paths,misc)
 end

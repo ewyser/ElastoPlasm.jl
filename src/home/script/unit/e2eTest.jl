@@ -3,7 +3,7 @@
 function e2eTest(L::Vector{Float64},nel::Int64; kwargs...)
     config_plot()
     # init & kwargs
-    instr  = kwargser(:instr,kwargs;dim=length(L))
+    instr  = kwargser(kwargs, Instruction; dim=length(L))
     # independant physical constant
     g       = 9.81                                                              # gravitationnal acceleration [m/s^2]            
     ni      = 2    

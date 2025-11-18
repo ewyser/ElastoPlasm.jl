@@ -92,7 +92,7 @@ function shpfunCheck(shp,instr,paths)
 end
 function shpTest(;ξ::Real=0.90,ghost::Bool=false)
     fid   = splitext(basename(@__FILE__))
-    instr = require(:instr)
+    instr = get_default(Instruction)
     paths  = set_paths(first(fid), sys.out;interactive=false)
     for (k,ξ) ∈ enumerate([0.9])
         @testset "partition of unity (PoU) testset ξ = $(round(ξ,digits=2))" verbose = true begin 

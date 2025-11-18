@@ -23,7 +23,7 @@ fields = mpts_populate(props, cmpr, instr; ni=4)
 @show fields.c0
 ```
 """=#
-function mpts_populate(props,cmpr,instr; ni = 2,)
+function mpts_populate(props,cmpr,instr::Instruction{T1,T2,D}; ni = 2,) where {T1,T2,D}
     out = Dict{Symbol, Any}(:ni => ni)
     if props.dim == 2
         x       = collect(props.xB[1,1]+(0.5*props.h[1]/ni):props.h[1]/ni:props.xB[1,2]-(0.5*props.h[1]/ni))
@@ -42,11 +42,11 @@ function mpts_populate(props,cmpr,instr; ni = 2,)
         zp      = repeat(reshape(z,nmp[3],1     ,1     ),1     ,nmp[1],nmp[2])
         out[:x] = vcat(vec(xp)',vec(yp)',vec(zp)')
     end
-    if instr[:grf][:status]
-        if instr[:grf][:covariance] == "gaussian"
+    if instr.grf.status
+        if instr.grf.covariance == "gaussian"
             out[:c0] = vec(GRFS_gauss(xp,cmpr[:c0],cmpr[:cr],ni,props.h[1]))
         end
-        if instr[:grf][:covariance] == "exponential"
+        if instr.grf.covariance == "exponential"
 
         end
     else 

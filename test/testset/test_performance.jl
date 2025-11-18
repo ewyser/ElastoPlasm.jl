@@ -4,60 +4,62 @@ function define_benchs(ic,cfg)
     suite["mapsto"]      = BenchmarkGroup(["string", "unicode"])
     suite["elastoplast"] = BenchmarkGroup(["string", "unicode"])
     # unpack mesh, mpts, cmpr, instr, paths as aliases
-    mesh,mpts,cmpr = ic[:mesh]  , ic[:mpts]    , (ic[:cmpr])
-    instr,paths    = cfg[:instr], cfg[:paths]
-    time           = ic[:time]
+    mesh,mpts,cmpr = ic["mesh"], ic["mpts"], ic["cmpr"]
+    instr          = cfg["instr"]
+    time           = ic["time"]
     g, dt, η, C_pf = [0.0, -9.81], 1e-3, 0.1, 0.99
     # calculate/update topology
     suite["shpfun"]["tplgy!"] = @benchmarkable begin
-       $cfg.instr[:cairn][:shpfun].tplgy!($mpts,$mesh; ndrange=($mpts.nmp));sync(CPU()) 
+       $instr.cairn[:shpfun].tplgy!($mpts,$mesh; ndrange=($mpts.nmp));sync(CPU()) 
     end
     # calculate shape functions
     suite["shpfun"]["ϕ∂ϕ!"  ] = @benchmarkable begin
-       $cfg.instr[:cairn][:shpfun].ϕ∂ϕ!($mpts,$mesh; ndrange=($mpts.nmp));sync(CPU()) 
+       $instr.cairn[:shpfun].ϕ∂ϕ!($mpts,$mesh; ndrange=($mpts.nmp));sync(CPU()) 
     end
     # map material point to node
     suite["mapsto"]["p2n!"  ] = @benchmarkable begin
-       $cfg.instr[:cairn][:mapsto][:map].p2n!(ndrange=$mpts.nmp,$mpts,$mesh.s,$g);sync(CPU())
+       $instr.cairn[:mapsto][:map].p2n!(ndrange=$mpts.nmp,$mpts,$mesh.s,$g);sync(CPU())
     end
     # solve Eulerian momentum equation
     suite["mapsto"]["solve!"] = @benchmarkable begin
-        $cfg.instr[:cairn][:mapsto][:map].solve!(ndrange=$mesh.prprt.nno[end],$mesh.s,$dt,$η);sync(CPU())
+        $instr.cairn[:mapsto][:map].solve!(ndrange=$mesh.prprt.nno[end],$mesh.s,$dt,$η);sync(CPU())
     end
     # map back solution to material point
     suite["mapsto"]["n2p!"  ] = @benchmarkable begin
-        $cfg.instr[:cairn][:mapsto][:map].n2p!(ndrange=$mpts.nmp,$mpts,$mesh.s,$dt,$C_pf);sync(CPU())
+        $instr.cairn[:mapsto][:map].n2p!(ndrange=$mpts.nmp,$mpts,$mesh.s,$dt,$C_pf);sync(CPU())
     end
     # volumetric locking correction
     suite["mapsto"]["augm"] = @benchmarkable begin
         # accumulate material point contributions
-        $cfg.instr[:cairn][:mapsto][:augm].p2n!(ndrange=$mpts.nmp,$mpts,$mesh.s);sync(CPU())
+        $instr.cairn[:mapsto][:augm].p2n!(ndrange=$mpts.nmp,$mpts,$mesh.s);sync(CPU())
         # solve for nodal incremental displacement
-        $cfg.instr[:cairn][:mapsto][:augm].solve!(ndrange=$mesh.prprt.nno[end],$mesh.s);sync(CPU())
+        $instr.cairn[:mapsto][:augm].solve!(ndrange=$mesh.prprt.nno[end],$mesh.s);sync(CPU())
     end
     # get incremental deformation tensor
     suite["elastoplast"]["deform!"] = @benchmarkable begin
-        $cfg.instr[:cairn][:update].deform!(ndrange=$mpts.nmp,$mpts,$mesh.s,$dt);sync(CPU())
+        $instr.cairn[:update].deform!(ndrange=$mpts.nmp,$mpts,$mesh.s,$dt);sync(CPU())
     end
     # volumetric locking correction
     suite["elastoplast"]["locking"] = @benchmarkable begin
         # mapping to mesh 
-        $cfg.instr[:cairn][:update].ΔJn!(ndrange=$mpts.nmp,$mpts,$mesh);sync(CPU())
+        $instr.cairn[:update].ΔJn!(ndrange=$mpts.nmp,$mpts,$mesh);sync(CPU())
         # compute nodal determinant of incremental deformation 
-        $cfg.instr[:cairn][:update].ΔJs!(ndrange=$mesh.prprt.nno[end],$mesh);sync(CPU())
+        $instr.cairn[:update].ΔJs!(ndrange=$mesh.prprt.nno[end],$mesh);sync(CPU())
         # compute determinant Jbar 
-        $cfg.instr[:cairn][:update].ΔJp!(ndrange=$mpts.nmp,$mpts,$mesh,1/$mesh.prprt.dim);sync(CPU())
+        $instr.cairn[:update].ΔJp!(ndrange=$mpts.nmp,$mpts,$mesh,1/$mesh.prprt.dim);sync(CPU())
     end
     # elastic predictor
     suite["elastoplast"]["elast"] = @benchmarkable begin
-        $cfg.instr[:cairn][:update].elast!(ndrange=$mpts.nmp,$mpts,$cmpr.Del);sync(CPU())
+        $instr.cairn[:update].elast!(ndrange=$mpts.nmp,$mpts,$cmpr.Del);sync(CPU())
     end
     return suite
 end
 
 function run_bench(L,nel)
-    ic,cfg = ic_slump(L,nel; fid = "test/performance");
-    suite  = define_benchs(ic,cfg)
+    simfile = ic_slump(L, nel; fid = "test/performance")
+    ic = load(simfile, "ic")
+    cfg = load(simfile, "cfg")
+    suite = define_benchs(ic, cfg)
     if length(L) == 2
         dim = "2d" 
     elseif length(L) == 3
@@ -74,10 +76,10 @@ function run_bench(L,nel)
             mean_time = round(res.time / 1e6,digits=2)
             memory    = res.memory
             allocs    = res.allocs
-            #println("  $name:")
-            #println("    mean time: $(mean_time) ms")
-            #println("    memory   : $(memory) bytes"                 )
-            #println("    allocs   : $(allocs)"                       )
+            println("  $name:")
+            println("    mean time: $(mean_time) ms")
+            println("    memory   : $(memory) bytes"                 )
+            println("    allocs   : $(allocs)"                       )
             tot_mean   = round(tot_mean + mean_time,digits=2)
             tot_alloc  = tot_alloc + allocs
             tot_memory = tot_memory + memory

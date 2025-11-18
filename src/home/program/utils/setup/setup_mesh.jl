@@ -23,11 +23,9 @@ println(mesh.nel)
 - Initializes nodal quantities (mass, force, acceleration, etc.) and mesh-to-node topology.
 - Handles ghost nodes if required by the basis.
 """
-function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
-    # unpack arithmetic precision
-    T1,T2 = first(instr[:dtype].T0),last(instr[:dtype].T0) 
+function setup_mesh(instr::Instruction{T1,T2,D}; geom::NamedTuple=(;)) where {T1,T2,D}
     # add ghost points if needed
-    if instr[:basis][:ghost]
+    if instr.basis.ghost
         buffer = T2(2.0)
     else
         buffer = T2(0.0)
@@ -38,7 +36,7 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
     xn,nel,nno = get_coords(ndim,L,h; ghosts=buffer.*h)
     status,xB  = get_bc(xn,instr; ghosts=buffer.*h)
     # constructor
-    prop = MeshProperties{T1,T2}(
+    prop = MeshProperties{T1,T2,D}(
         T1(ndim                         ), # dim
         T1.(nel                         ), # nel
         T1.(nno                         ), # nno
@@ -47,10 +45,10 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
         T2.(h                           ), # h
         T2.(xB                          ), # xB
     )
-    bcs = MeshBoundary{Bool}(
+    bcs = MeshBoundary(
         status
     )
-    s = MeshSolidPhase{T1,T2,Bool}(
+    s = MeshSolidPhase{T1,T2,D}(
         prop,
         bcs,
         T2.(zeros(nno[end]             )), # mᵢ
@@ -60,7 +58,7 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
         T2.(zeros(ndim,nno[end]        )), # mv
         T2.(zeros(ndim,nno[end]        )), # v
     )
-    t = MeshThermalPhase{T1,T2,Bool}(
+    t = MeshThermalPhase{T1,T2,D}(
         prop,
         bcs,
         T2.(zeros(nno[end]             )), # cᵢ
@@ -69,7 +67,7 @@ function setup_mesh(instr::NamedTuple; geom::NamedTuple=(;))
         T2.(zeros(nno[end]             )), # mcT
         T2.(zeros(nno[end]             )), # T
     )
-    mesh = Mesh{T1,T2,Bool,NamedTuple}(
+    mesh = Mesh{T1,T2,D}(
         prop,
         # nodal quantities
         T2.(vec(minimum(xn,dims=2)     )), # x₀

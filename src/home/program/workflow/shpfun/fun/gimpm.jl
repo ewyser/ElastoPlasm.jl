@@ -12,7 +12,7 @@ function S∂S(δx,h,lp)
     end
     return S,∂S    
 end
-@views @kernel inbounds = true function gimpm_1d(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function gimpm(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:OneDimension,E,R}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
@@ -28,7 +28,7 @@ end
         end
     end
 end
-@views @kernel inbounds = true function gimpm_2d(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function gimpm(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:TwoDimension,E,R}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
@@ -47,7 +47,7 @@ end
         end
     end
 end
-@views @kernel inbounds = true function gimpm_3d(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function gimpm(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:ThreeDimension,E,R}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp

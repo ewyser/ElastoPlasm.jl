@@ -1,16 +1,16 @@
 """
-    p2e2n_1d(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}) where {T1,T2}
+    p2e2n_1d(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2,D}) where {T1,T2,E,R,D}
 
 Assign 1D material points to elements and nodes (topology kernel).
 
 # Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
+- `mpts::Point{T1,T2,E,R}`: Material point data structure.
 - `mesh::Mesh{T1,T2}`: Mesh data structure.
 
 # Returns
 - Updates connectivity fields in-place.
 """
-@kernel inbounds = true function p2e2n_1d(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
+@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:OneDimension,E,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # Compute element indices
@@ -29,18 +29,18 @@ Assign 1D material points to elements and nodes (topology kernel).
     end
 end
 """
-    p2e2n_2d(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}) where {T1,T2}
+    p2e2n_2d(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2,D}) where {T1,T2,E,R,D}
 
 Assign 2D material points to elements and nodes (topology kernel).
 
 # Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
+- `mpts::Point{T1,T2,E,R}`: Material point data structure.
 - `mesh::Mesh{T1,T2}`: Mesh data structure.
 
 # Returns
 - Updates connectivity fields in-place.
 """
-@kernel inbounds = true function p2e2n_2d(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
+@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:TwoDimension,E,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # Compute element indices
@@ -61,18 +61,18 @@ Assign 2D material points to elements and nodes (topology kernel).
     end
 end
 """
-    p2e2n_3d(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}) where {T1,T2}
+    p2e2n_3d(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2,D}) where {T1,T2,E,R,D}
 
 Assign 3D material points to elements and nodes (topology kernel).
 
 # Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
+- `mpts::Point{T1,T2,E,R}`: Material point data structure.
 - `mesh::Mesh{T1,T2}`: Mesh data structure.
 
 # Returns
 - Updates connectivity fields in-place.
 """
-@kernel inbounds = true function p2e2n_3d(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
+@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:ThreeDimension,E,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # Compute element indices
