@@ -23,7 +23,7 @@ println(mpts.nmp)  # Number of material points
 - Sets up connectivity arrays and phase properties (solid and liquid).
 - Handles both 2D and 3D cases.
 """
-function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2}
+function setup_mpts(mesh::Mesh{T1,T2},instr::Instruction{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2}
     props = mesh.prprt
     # non-dimensional constant                                                   
     if props.dim == 2 
@@ -38,8 +38,23 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
     l0 = ones(size(xp)).*0.5.*(props.h./ni)
     v0 = prod(2 .* l0; dims=1)
     ρ0 = fill(cmpr[:ρ0],nmp)
-    # constructor
-    s = MaterialPointSolidPhase{T1,T2}(
+    # constructor - create components
+    if instr.fwrk.deform == "finite"
+        elast = FiniteElasticity(T1, T2, nmp, props.dim)
+    elseif instr.fwrk.deform == "infinitesimal"
+        elast = LinearElasticity(T1, T2, nmp, props.dim)
+    end
+    
+    rheo = DruckerPragerRheology{T1,T2}(
+        T2.(vec(copy(geom.coh0))),  # c₀
+        T2.(vec(copy(geom.cohr))),  # cᵣ
+        T2.(vec(copy(geom.phi))),   # ϕ
+        T2.(zeros(nmp)),            # Δλ
+        T2.(zeros(2,nmp)),          # ϵpII
+        T2.(zeros(nmp))             # ϵpV
+    )
+
+    s = PointSolidPhase{T1,T2,typeof(elast),typeof(rheo)}(
         T2.(zeros(size(xp)))                               , # u
         T2.(zeros(size(xp)))                               , # v
         # mechanical properties
@@ -63,19 +78,22 @@ function setup_mpts(mesh::Mesh{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) wh
         T2.(zeros(props.dim,props.dim,nmp))                  , # ϵᵢⱼ
         T2.(zeros(props.dim,props.dim,nmp))                  , # ωᵢⱼ
         T2.(zeros(props.dim,props.dim,nmp))                  , # σJᵢⱼ
+        # new component-based fields
+        elast                                              , # elast::E
+        rheo                                               , # rheo::R
     )
-    t = MaterialPointThermalPhase{T1,T2}(
+    t = PointThermalPhase{T1,T2}(
         T2.(vec(copy(geom.c)))                            , # c::Vector{T2} specific heat capacity vector
         T2.(vec(copy(geom.k)))                             , # k::Vector{T2} thermal conductivity vector
         T2.(zeros(props.dim,nmp))                            , # q::Matrix{T2} heat flux array
         T2.(vec(copy(geom.T)))                            , # T::Vector{T2} temperature vector
     )
-    f = MaterialPointFluidPhase{T1,T2}(
+    f = PointFluidPhase{T1,T2}(
 
     )
 
 
-    mpts = Point{T1,T2}(
+    mpts = Point{T1,T2,typeof(elast),typeof(rheo)}(
         # general information
         T1(props.dim)                         , # ndim
         T1(nmp)                              , # nmp

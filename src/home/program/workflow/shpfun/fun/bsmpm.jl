@@ -76,7 +76,7 @@ function ϕ∂ϕ(ξ::T2,xn::T2,xB::SubArray{T2},Δx::T2) where {T2}
     end   
     return ϕ,∂ϕ/Δx 
 end
-@views @kernel inbounds = true function bsmpm_1d(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function bsmpm_1d(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2}) where {T1,T2,E,R}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
@@ -92,7 +92,7 @@ end
         end
     end
 end
-@views @kernel inbounds = true function bsmpm_2d(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function bsmpm_2d(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2}) where {T1,T2,E,R}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
@@ -112,7 +112,7 @@ end
         end
     end
 end
-@views @kernel inbounds = true function bsmpm_3d(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function bsmpm_3d(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2}) where {T1,T2,E,R}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp

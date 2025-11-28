@@ -11,8 +11,18 @@
             end
         end
         # compute incremental deformation and update
+        for i ∈ 1:mesh.prprt.dim , j ∈ 1:mesh.prprt.dim
+            mpts.s.ΔFᵢⱼ[i,j,p] = mpts.δᵢⱼ[i,j]+(dt*mpts.s.∇vᵢⱼ[i,j,p])
+        end
+        for i ∈ 1:mesh.prprt.dim, j ∈ 1:mesh.prprt.dim
+            for k ∈ 1:mesh.prprt.dim
+                mpts.s.Fᵢⱼ[i,j,p] += mpts.s.ΔFᵢⱼ[i,k,p]*mpts.s.Fᵢⱼ[k,j,p]
+            end
+        end
+        #=# compute incremental deformation and update
         mpts.s.ΔFᵢⱼ[:,:,p].= mpts.δᵢⱼ+(dt.*mpts.s.∇vᵢⱼ[:,:,p])
         mpts.s.Fᵢⱼ[:,:,p] .= mpts.s.ΔFᵢⱼ[:,:,p]*mpts.s.Fᵢⱼ[:,:,p]
+        =#
         # update material point's volume
         mpts.ΔJ[p]         = det(mpts.s.ΔFᵢⱼ[:,:,p])
         mpts.J[p]          = det(mpts.s.Fᵢⱼ[:,:,p])

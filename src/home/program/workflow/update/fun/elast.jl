@@ -42,7 +42,7 @@ Kernel for finite deformation elasticity update at material points.
 # Returns
 - Updates stress and strain fields in-place.
 """
-@views @kernel inbounds = true function finite_elast(mpts::Point{T1,T2},Del) where {T1,T2}
+@views @kernel inbounds = true function elast(mpts::Point{T1,T2,E,R},Del) where {T1,T2,E<:FiniteElasticity,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # update left cauchy-green tensor
@@ -66,12 +66,12 @@ Kernel for infinitesimal (small strain) elasticity update at material points.
 # Returns
 - Updates stress and strain fields in-place.
 """
-@views @kernel inbounds = true function infinitesimal_elast(mpts::Point{T1,T2},Del) where {T1,T2}
+@views @kernel inbounds = true function elast(mpts::Point{T1,T2,E,R},Del) where {T1,T2,E<:LinearElasticity,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # calculate elastic strains & spins
         mpts.s.ϵᵢⱼ[:,:,p] .= T2(0.5).*(mpts.s.ΔFᵢⱼ[:,:,p]+mpts.s.ΔFᵢⱼ[:,:,p]').-mpts.δᵢⱼ[:,:] 
-        mpts.s.ωᵢⱼ[:,:,p] .= T2(0.5).*(mpts.s.ΔFᵢⱼ[:,:,p]-mpts.s.ΔFᵢⱼ[:,:,p]')
+        mpts.s.ωᵢⱼ[:,:,p] .= T2(0.5).*(mpts.s.∇vᵢⱼ[:,:,p]-mpts.s.∇vᵢⱼ[:,:,p]')
         # update cauchy stress tensor
         mpts.s.σJᵢⱼ[:,:,p].= mutate(mpts.s.σᵢ[:,p],T2(1.0),:tensor)
         mpts.s.σJᵢⱼ[:,:,p].= mpts.s.σJᵢⱼ[:,:,p]*mpts.s.ωᵢⱼ[:,:,p]'+mpts.s.σJᵢⱼ[:,:,p]'*mpts.s.ωᵢⱼ[:,:,p]
@@ -79,6 +79,25 @@ Kernel for infinitesimal (small strain) elasticity update at material points.
     end  
 end
 
+@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,E,R},Del) where {T1,T2,E<:LinearElasticity,R<:AbstractRheology}
+    p = @index(Global)
+    if p ≤ mpts.nmp 
+        # calculate elastic strains
+        ϵxx  = (mpts.s.ΔFᵢⱼ[1,1,p])-T2(1.0)
+        ϵyy  = (mpts.s.ΔFᵢⱼ[2,2,p])-T2(1.0)
+        ϵxy  = (mpts.s.ΔFᵢⱼ[1,2,p]+mpts.s.ΔFᵢⱼ[2,1,p])
+        # calculate elastic spins
+        ωxy  = T2(0.5)*(mpts.s.ωᵢⱼ[1,2,p]-mpts.s.ωᵢⱼ[2,1,p]) 
+        # update jaumann stress tensor
+        σxx0 = copy(mpts.s.σᵢ[1,p])
+        σyy0 = copy(mpts.s.σᵢ[2,p])
+        σxy0 = copy(mpts.s.σᵢ[3,p])
+        # update cauchy stress tensor
+        mpts.s.σᵢ[1,p]+= (Del[1,1]*ϵxx+Del[1,2]*ϵyy+Del[1,3]*ϵxy)+ωxy*T2(2.0)*σxy0
+        mpts.s.σᵢ[2,p]+= (Del[2,1]*ϵxx+Del[2,2]*ϵyy+Del[2,3]*ϵxy)-ωxy*T2(2.0)*σxy0
+        mpts.s.σᵢ[3,p]+= (Del[3,1]*ϵxx+Del[3,2]*ϵyy+Del[3,3]*ϵxy)+ωxy*T2(1.0)*(σyy0-σxx0)
+    end  
+end
 
 
 

@@ -8,7 +8,7 @@ function N∂N(δx,h)
     end
     return N,∂N    
 end
-@views @kernel inbounds = true function smpm_1d(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function smpm_1d(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2}) where {T1,T2,E,R}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
@@ -24,7 +24,7 @@ end
         end  
     end
 end
-@views @kernel inbounds = true function smpm_2d(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function smpm_2d(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2}) where {T1,T2,E,R}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
@@ -43,7 +43,7 @@ end
         end
     end
 end
-@views @kernel inbounds = true function smpm_3d(mpts::Point{T1,T2},mesh::Mesh{T1,T2}) where {T1,T2}
+@views @kernel inbounds = true function smpm_3d(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2}) where {T1,T2,E,R}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp

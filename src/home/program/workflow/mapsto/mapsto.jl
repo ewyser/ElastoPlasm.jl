@@ -1,4 +1,60 @@
 """
+    init_mapsto(dim::Number, instr::NamedTuple)
+
+Initialize mapping, solving and transfering kernels for MPM cycle based on dimension, material phase and instruction set.
+
+# Arguments
+- `dim::Number`: Spatial dimension (1, 2, or 3).
+- `instr::NamedTuple`: Instruction/configuration dictionary.
+
+# Returns
+- `Dict`: Dictionary of mapping and augmentation kernels.
+"""
+function init_mapsto(dim::Number,instr::NamedTuple)
+    mapsto = Dict(:map => Dict(),)
+    if instr.fwrk.deform == "finite"
+        mapsto[:map][:σᵢ!] = transform(CPU())
+    end
+    if instr.fwrk.trsfr == "std"
+        if dim == 1
+            mapsto[:map][:p2n!] = std_1d_p2n(CPU()) 
+        elseif dim == 2
+            mapsto[:map][:p2n!] = std_2d_p2n(CPU())
+        elseif dim == 3
+            mapsto[:map][:p2n!] = std_3d_p2n(CPU())
+        end
+    elseif instr.fwrk.trsfr == "tpic"
+        if dim == 1
+            mapsto[:map][:p2n!] = tpic_1d_p2n(CPU())
+        elseif dim == 2
+            mapsto[:map][:p2n!] = tpic_2d_p2n(CPU())
+        elseif dim == 3
+            mapsto[:map][:p2n!] = tpic_3d_p2n(CPU())
+        end
+    elseif instr.fwrk.trsfr == "apic"
+        if dim == 1
+            nothing # APIC is not yet defined for 1D
+        elseif dim == 2
+            mapsto[:map][:p2n!] = apic_2d_p2n(CPU())
+        elseif dim == 3
+            mapsto[:map][:p2n!] = apic_3d_p2n(CPU())
+        end
+        mapsto[:map][:Bᵢⱼ!] = Bij(CPU())
+    else
+        return throw(ArgumentError("$(instr.fwrk.trsfr) is an unsupported transfer scheme"))
+    end
+    mapsto[:map][:solve!] = euler(CPU())
+    mapsto[:map][:n2p!]   = picflip_n2p(CPU())
+    if instr.fwrk.musl 
+        mapsto[:augm]          = Dict()
+        mapsto[:augm][:p2n!]   = augm_p2n(CPU())
+        mapsto[:augm][:solve!] = augm_solve(CPU())
+        return (; map = (; mapsto[:map]...), augm = (; mapsto[:augm]...))
+    else
+        return (; map = (; mapsto[:map]...), augm = nothing)
+    end
+end
+"""
     mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple)
 
 Resolution of mechanical problem: project material points to nodes, solve, and map back.
@@ -13,10 +69,10 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},dt::T2,instr::Instruction{T1,T2}) where {T1,T2}
     # get cauchy stress 
-    if instr[:fwrk][:deform] == "finite"
-        instr[:cairn][:mapsto][:map].σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
+    if instr.fwrk.deform == "finite"
+        instr.cairn.mapsto.map.σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
     end
     # reset nodal quantities
     fill!(mesh.mᵢ  ,T2(0.0))
@@ -25,24 +81,24 @@ function mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},dt:
     fill!(mesh.a   ,T2(0.0))
     fill!(mesh.v   ,T2(0.0))
     # mapping to mesh
-    instr[:cairn][:mapsto][:map].p2n!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
+    instr.cairn.mapsto.map.p2n!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
     # solve Eulerian momentum equation
-    instr[:cairn][:mapsto][:map].solve!(mesh,dt,T2(instr.fwrk.damping); ndrange=mesh.prprt.nno[end]);sync(CPU())
+    instr.cairn.mapsto.map.solve!(mesh,dt,T2(instr.fwrk.damping); ndrange=mesh.prprt.nno[end]);sync(CPU())
     # maps back solution to material point
-    instr[:cairn][:mapsto][:map].n2p!(mpts,mesh,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
+    instr.cairn.mapsto.map.n2p!(mpts,mesh,dt,T2(instr.fwrk.C_pf); ndrange=mpts.nmp);sync(CPU())
     # (if musl) reproject nodal velocities
-    if instr[:fwrk][:musl]
+    if instr.fwrk.musl
         # reset nodal quantities
         fill!(mesh.mv,T2(0.0))
         fill!(mesh.v ,T2(0.0))
         # accumulate material point contributions
-        instr[:cairn][:mapsto][:augm].p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+        instr.cairn.mapsto.augm.p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
         # solve for nodal incremental displacement
-        instr[:cairn][:mapsto][:augm].solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
+        instr.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
     end
     # (for APIC) compute Bᵢⱼ for material points
-    if instr[:fwrk][:trsfr] == "apic"
-        instr[:cairn][:mapsto][:map].Bᵢⱼ!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+    if instr.fwrk.trsfr == "apic"
+        instr.cairn.mapsto.map.Bᵢⱼ!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
     end
     return nothing
 end
@@ -60,7 +116,7 @@ Resolution of thermal problem: project material points to nodes, solve, and map 
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::NamedTuple) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::Instruction{T1,T2}) where {T1,T2}
     # reset nodal quantities
     fill!(mesh.cᵢ  ,T2(0.0))
     fill!(mesh.mcT ,T2(0.0))
@@ -68,11 +124,11 @@ function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::N
     fill!(mesh.dT  ,T2(0.0))
     fill!(mesh.T   ,T2(0.0))
     # mapping to mesh
-    instr[:cairn][:mapsto][:map].p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+    instr.cairn.mapsto.map.p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
     # solve Eulerian thermal equation
-    instr[:cairn][:mapsto][:map].solve!(mesh,dt; ndrange=mesh.prprt.nno[end]);sync(CPU())
+    instr.cairn.mapsto.map.solve!(mesh,dt; ndrange=mesh.prprt.nno[end]);sync(CPU())
     # maps back solution to material point
-    instr[:cairn][:mapsto][:map].n2p!(mpts,mesh,dt,T2(instr[:fwrk][:C_pf]); ndrange=mpts.nmp);sync(CPU())
+    instr.cairn.mapsto.map.n2p!(mpts,mesh,dt,T2(instr.fwrk.C_pf); ndrange=mpts.nmp);sync(CPU())
     #=# (if musl) reproject nodal velocities
     if instr[:fwrk][:musl]
         # reset nodal quantities
@@ -100,7 +156,7 @@ Resolution of thermo-poro-mechanical problem: project material points to nodes, 
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::Instruction{T1,T2}) where {T1,T2}
 
     return nothing
 end

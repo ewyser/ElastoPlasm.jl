@@ -24,7 +24,7 @@ display(p)
 - Supports fields: pressure (`P`), plastic strain (`epII`), volumetric plastic strain (`epV`), displacement (`du`), initial vertical position (`z0`), initial cohesion (`coh0`), and initial friction angle (`phi0`).
 - Throws an error if the requested field is not defined.
 """
-@views function what_plot_field(mpts::MaterialPoint,opts)
+@views function what_plot_field(mpts::Point,opts)
     if opts.what == "P"
         if size(mpts.s.σᵢ,1) == 3
             d   = -(mpts.s.σᵢ[1,:]+mpts.s.σᵢ[2,:])/2/1e3

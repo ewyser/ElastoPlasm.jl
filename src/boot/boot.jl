@@ -2,6 +2,7 @@
 using Revise,Pkg,Test
 using Plots,LaTeXStrings,ProgressMeter,REPL.TerminalMenus
 using LinearAlgebra,SparseArrays,Random
+using JLD2,HDF5
 using KernelAbstractions,Adapt,Base.Threads
 import KernelAbstractions.@atomic as @atom
 import KernelAbstractions.synchronize as sync
@@ -12,7 +13,10 @@ import Adapt.@adapt_structure as @adapt_struct
 const typeD = Float64  
 
 # create primitive structs
-include(joinpath(ROOT,"boot/needs/types.jl"))
+include(joinpath(ROOT,"boot/needs/types/dimension.jl"))
+include(joinpath(ROOT,"boot/needs/types/config.jl"))
+include(joinpath(ROOT,"boot/needs/types/lagrangian.jl"))
+include(joinpath(ROOT,"boot/needs/types/eulerian.jl"))
 info = Self(sys = Path(), ui = UI(), bckd = Execution(), mpi = Distributed())  
 
 # include

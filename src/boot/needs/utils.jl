@@ -207,8 +207,8 @@ function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_ve
     printstyled("│", color=:green, bold=true); println(" New comer ? Try $(showcase) out")
     if showcase == "slumping"
         printstyled("│", color=:green, bold=true); println("   L,nel  = [64.1584,64.1584/4.0],[40,10];")
-        printstyled("│", color=:green, bold=true); println("   ic,cfg = ic_slump(L,nel);")
-        printstyled("└", color=:green, bold=true); println("   out    = slump(ic,cfg; workflow=\"all-in-one\");")
+        printstyled("│", color=:green, bold=true); println("   jld2   = ic_slump(L,nel;cli()...);")
+        printstyled("└", color=:green, bold=true); println("   out    = elastoplasm(jld2; workflow = [elastodynamic!,elastoplastic!]);")
     elseif showcase == "collapsing"
         printstyled("│", color=:green, bold=true); println("   plot    = (; status=true, freq=1.0, what=[\"sigxx\"], dims=(500.0,250.0) );")
         printstyled("│", color=:green, bold=true); println("   nel     = [5,10];")
@@ -244,7 +244,7 @@ summary = ic_log(mesh, mpts, time)
 println(summary)
 ```
 """
-function ic_log(mesh,mpts,time,instr)
+function ic_log(mesh::Mesh{T1,T2},mpts::Point{T1,T2,E,R},time::Time{T1,T2},instr::Instruction{T1,T2}) where {T1,T2,E,R}
     # build the list of constant log lines
     logs = [
         "Summary: ",
@@ -284,21 +284,21 @@ logstr = elastoplasm_log(instr)
 println(logstr)
 ```
 """
-function elastoplasm_log(instr; msg::String="elastodynamic")
+function elastoplasm_log(instr::Instruction{T1, T2}; msg::String="elastodynamic") where {T1,T2}
     # build the list of log lines
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "└ $(nthreads()) active thread(s)",
-        "- $msg problem",
-        "- $(instr[:fwrk][:deform]) strain formulation",
-        "- $(instr[:fwrk][:trsfr]) mapping scheme",
-        "- $(instr[:basis][:which]) calculation cycle",
+        "- solver: $msg",
+        "- $(instr.fwrk.deform) strain formulation",
+        "- $(instr.fwrk.trsfr) mapping scheme",
+        "- $(instr.basis.which) calculation cycle",
     ]
     # add optional lines only if the corresponding flags are true
-    if instr[:fwrk][:locking]
+    if instr.fwrk.locking
         push!(logs, "- F-bar locking mitigation")
     end
-    if instr[:nonloc][:status] && msg ∈ ["elastoplastic","all-in-one"]
+    if instr.nonloc.status && msg ∈ ["elastoplastic","all-in-one"]
         push!(logs, "- non-local plastic regularization")
     end
     return join(logs,"\n")

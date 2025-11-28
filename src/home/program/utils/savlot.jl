@@ -1,10 +1,10 @@
 """
-    savlot(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, t::T2, instr::NamedTuple)
+    savlot(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2}, t::T2, instr::NamedTuple)
 
 Plot and display simulation fields at the current time step, if plotting is enabled in the instruction dictionary.
 
 # Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
+- `mpts::Point{T1,T2,E,R}`: Material point data structure.
 - `mesh::Mesh{T1,T2}`: Mesh data structure.
 - `t::T2`: Current simulation time.
 - `instr::NamedTuple`: Simulation instruction dictionary, must contain plotting options in `:plot`.
@@ -17,16 +17,16 @@ Plot and display simulation fields at the current time step, if plotting is enab
 savlot(mpts, mesh, t, instr)
 ```
 """
-@views function savlot(mpts::Point{T1,T2},mesh::Mesh{T1,T2},t::T2,instr::NamedTuple) where {T1,T2}
-    if instr[:plot][:status]
-        dims = instr[:plot][:dpi].*(mesh.prprt.L[1]./mesh.prprt.L)
+@views function savlot(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},t::T2,instr::Instruction{T1,T2}) where {T1,T2,E,R}
+    if instr.plot.status
+        dims = instr.plot.dpi.*(mesh.prprt.L[1]./mesh.prprt.L)
         ms   = dims[1]/(mesh.prprt.nel[1]*2)
         opts = (;
-            dims    = instr[:plot][:dpi].*(mesh.prprt.L./mesh.prprt.L[1]), 
-            what    = instr[:plot][:what],
+            dims    = instr.plot.dpi.*(mesh.prprt.L./mesh.prprt.L[1]), 
+            what    = instr.plot.what,
             xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])), 
             ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),
-            cblim   = instr[:plot][:cblim],
+            cblim   = instr.plot.cblim,
             tit     = L" t = "*string(round(t,digits=1))*" [s]",
             backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
         )

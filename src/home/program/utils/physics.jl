@@ -18,7 +18,7 @@ Compute the adaptive time step for the simulation based on mesh spacing and mate
 dt = get_dt(mpts, mesh, cmpr, time, ΔT)
 ```
 """
-function get_dt(mpts::Point{T1,T2},props::MeshProperties{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
+function get_dt(mpts::Point{T1,T2,E,R},props::MeshProperties{T1,T2},cmpr::NamedTuple,time::Time{T1,T2},ΔT::T2) where {T1,T2,E,R}
     # calculte dt
     cmax = props.h./(mpts.vmax.+cmpr[:c]); mpts.vmax.=T2(0.0) 
     dt   = min(T2(0.5)*maximum(cmax),ΔT-time.t[1])
@@ -77,7 +77,7 @@ g, dt = get_spacetime(mpts, mesh, cmpr, time, ΔT)
 - Computes the adaptive time step using `get_dt`.
 - Ramps up gravity linearly until the end of the gravity phase, then applies full gravity.
 """
-function get_spacetime(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::NamedTuple,ΔT::T2) where {T1,T2}
+function get_spacetime(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::Time{T1,T2},ΔT::T2) where {T1,T2,E,R}
     # calculte dt
     dt = get_dt(mpts,mesh.prprt,cmpr,time,ΔT)
     # ramp-up gravity
