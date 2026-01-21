@@ -59,13 +59,13 @@ function init_shpfun(dim::Number,instr::NamedTuple; what::String="nothing")
     return (;tplgy! = kernel1, ϕ∂ϕ! = kernel2, Δₙₚ! = kernel3, Dᵢⱼ! = kernel4,)
 end
 """
-    shpfun(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2}, instr::NamedTuple) where {T1,T2,E,R}
+    shpfun(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2,D}, instr::NamedTuple) where {T1,T2,E,R,D}
 
 Initialize and compute shape functions and topological relations for material points.
 
 # Arguments
 - `mpts::Point{T1,T2,E,R}`: Material point data structure.
-- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `mesh::Mesh{T1,T2,D}`: Mesh data structure.
 - `instr::NamedTuple`: Instruction/configuration dictionary.
 
 # Returns

@@ -194,7 +194,7 @@ function solidstatesync(ic::NamedTuple,globloc::Val{:global}; deflate::Int=3, pa
     end
     return path::String
 end
-function solidstatesync(mpi::NamedTuple,startup::String,mesh::Mesh{T1,T2},globloc::Val{:local}) where {T1,T2}
+function solidstatesync(mpi::NamedTuple,startup::String,mesh::Mesh{T1,T2,D},globloc::Val{:local}) where {T1,T2,D}
     # log message
     @info """solidstatesync from ($(mpi.me)/$(mpi.comm_size)): 
     - accumulating $(typeof(globloc).parameters[1]) initial conditions into $(basename(load(startup)["ic"]))

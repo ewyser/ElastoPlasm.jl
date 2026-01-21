@@ -1,20 +1,21 @@
 
 """
-    setup_mpts(mesh::Mesh{T1,T2}, cmp::NamedTuple; define::Tuple=(nothing, nothing)) -> Point{T1,T2}
+    setup_mpts(mesh::Mesh{T1,T2,D}, instr::Instruction{T1,T2,D}, cmpr::NamedTuple; geom::NamedTuple=()) -> Point{T1,T2}
 
 Construct the material point system (mpts) for a simulation, initializing all relevant fields and connectivity.
 
 # Arguments
-- `mesh::Mesh{T1,T2}`: Mesh object containing geometry and topology.
-- `cmp::NamedTuple`: Constitutive model parameters.
-- `define::Tuple=(nothing, nothing)`: (Optional) Tuple containing geometry definition (e.g., number of intervals, number of material points, geometry struct).
+- `mesh::Mesh{T1,T2,D}`: Mesh object containing geometry and topology.
+- `instr::Instruction{T1,T2,D}`: Simulation instruction structure.
+- `cmpr::NamedTuple`: Constitutive model parameters.
+- `geom::NamedTuple=()`: (Optional) Geometry definition (e.g., number of intervals, number of material points, geometry struct).
 
 # Returns
 - `Point{T1,T2}`: Material point data structure with all fields initialized for simulation.
 
 # Example
 ```julia
-mpts = setup_mpts(mesh, cmp; define=(ni, nmp, geom))
+mpts = setup_mpts(mesh, instr, cmpr; geom=get_slump(mesh, cmpr, instr))
 println(mpts.nmp)  # Number of material points
 ```
 
@@ -23,7 +24,7 @@ println(mpts.nmp)  # Number of material points
 - Sets up connectivity arrays and phase properties (solid and liquid).
 - Handles both 2D and 3D cases.
 """
-function setup_mpts(mesh::Mesh{T1,T2},instr::Instruction{T1,T2,D},cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,D}
+function setup_mpts(mesh::Mesh{T1,T2,Flag,Meta,D},instr::Instruction{T1,T2,D},cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,Flag,Meta,D}
     props = mesh.prprt
     # non-dimensional constant                                                   
     if D<:TwoDimension

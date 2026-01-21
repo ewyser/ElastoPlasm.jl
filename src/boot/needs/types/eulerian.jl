@@ -10,7 +10,7 @@ abstract type UniformMesh{T1, T2}    <: CartesianMesh{T1, T2} end
 abstract type NonUniformMesh{T1, T2} <: CartesianMesh{T1, T2} end
 abstract type MeshPhase{T1, T2}      <: CartesianMesh{T1,T2} end
 
-struct MeshProperties{T1,T2}
+struct MeshProperties{T1,T2,D}
     # general information
     dim  ::T1
     nel  ::Vector{T1}
@@ -27,8 +27,8 @@ struct MeshBoundary{B}
 end
 @adapt_struct MeshBoundary
 
-struct MeshSolidPhase{T1,T2,B} <: MeshPhase{T1,T2}
-    prprt ::MeshProperties{T1,T2}
+struct MeshSolidPhase{T1,T2,B,D} <: MeshPhase{T1,T2}
+    prprt ::MeshProperties{T1,T2,D}
     bcs   ::MeshBoundary{B}
     mᵢ    ::Vector{T2} # consistent lumped mass matrix
     Mᵢⱼ   ::Matrix{T2}
@@ -39,8 +39,8 @@ struct MeshSolidPhase{T1,T2,B} <: MeshPhase{T1,T2}
 end
 @adapt_struct MeshSolidPhase
 
-struct MeshThermalPhase{T1,T2,B} <: MeshPhase{T1,T2}
-    prprt ::MeshProperties{T1,T2}
+struct MeshThermalPhase{T1,T2,B,D} <: MeshPhase{T1,T2}
+    prprt ::MeshProperties{T1,T2,D}
     bcs   ::MeshBoundary{B}
     cᵢ    ::Vector{T2} # consistent lumped heat capacity matrix
     oobq  ::Vector{T2} # out-of-balance heat load
@@ -50,16 +50,16 @@ struct MeshThermalPhase{T1,T2,B} <: MeshPhase{T1,T2}
 end
 @adapt_struct MeshThermalPhase
 
-struct Mesh{T1,T2,B,NT} <: UniformMesh{T1, T2}
-    prprt ::MeshProperties{T1,T2}
+struct Mesh{T1,T2,B,NT,D} <: UniformMesh{T1, T2}
+    prprt ::MeshProperties{T1,T2,D}
     # nodal quantities
     x₀    ::Vector{T2}
     x     ::Matrix{T2}
     ΔJ    ::Matrix{T2}
     # solid phase
-    s     ::MeshSolidPhase{T1,T2,B} # phase ::Vector{MeshPhase{T1,T2}}
+    s     ::MeshSolidPhase{T1,T2,B,D} # phase ::Vector{MeshPhase{T1,T2}}
     # thermal phase
-    t     ::MeshThermalPhase{T1,T2,B} # phase ::Vector{MeshPhase{T1,T2}}
+    t     ::MeshThermalPhase{T1,T2,B,D} # phase ::Vector{MeshPhase{T1,T2}}
     # connectivity
     e2n   ::Matrix{T1}
     e2e   ::SparseMatrixCSC{T1,T1}

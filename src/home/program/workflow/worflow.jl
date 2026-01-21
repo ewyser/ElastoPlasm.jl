@@ -20,9 +20,11 @@ Run the explicit elastodynamic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function elastodynamic!(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
+function elastodynamic!(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.te)))
-    # action
+        # action
+        # action
+        # action
     prog = Progress(length(checks);dt=0.5,desc="Solving elastodynamic...",barlen=10)
     for T ∈ checks
         while T > time.t[1]
@@ -65,7 +67,7 @@ Run the explicit elastoplastic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function elastoplastic!(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
+function elastoplastic!(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.t[2])))
     g         = get_g(mesh.prprt; G = T2(9.81))
     # action
@@ -92,13 +94,13 @@ function elastoplastic!(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTupl
     return nothing
 end  
 """
-    thermodynamic!(mpts::Point{T1,T2,E,R},mesh::MeshThermalPhase{T1,T2},cmpr::NamedTuple,time::NamedTuple,instr::NamedTuple)
+    thermodynamic!(mpts::Point{T1,T2,E,R},mesh::MeshThermalPhase{T1,T2,D},cmpr::NamedTuple,time::NamedTuple,instr::NamedTuple) where {D}
 
 Run the explicit thermodynamic workflow for the given mesh, material points, constitutive model, and simulation configuration.
 
 # Arguments
 - `mpts::Point{T1,T2,E,R}`: Material point data structure.
-- `mesh::MeshThermalPhase{T1,T2}`: Mesh data structure.
+- `mesh::MeshThermalPhase{T1,T2,D}`: Mesh data structure.
 - `cmpr::NamedTuple`: Constitutive model parameters.
 - `time::NamedTuple`: Time stepping configuration.
 - `instr::NamedTuple`: Simulation instructions and options.
@@ -111,7 +113,7 @@ Run the explicit thermodynamic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function thermodynamic!(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
+function thermodynamic!(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.t[2])))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving thermodynamic!...",barlen=10)

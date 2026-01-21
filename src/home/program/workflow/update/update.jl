@@ -53,7 +53,7 @@ function init_update(instr::NamedTuple; cairn::NamedTuple=(;))
     return cairn
 end
 
-function elasto(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
+function elasto(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     # update {logarithmic|infinitesimal} strains
     instr.cairn.update.deform!(mpts,mesh.s,dt; ndrange=mpts.nmp);sync(CPU())
     # update material point's domain
@@ -78,7 +78,7 @@ function elasto(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2
     return nothing
 end
 
-function elastoplast(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
+function elastoplast(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     # update {logarithmic|infinitesimal} strains
     instr.cairn.update.deform!(mpts,mesh.s,dt; ndrange=mpts.nmp);sync(CPU())
     # update material point's domain

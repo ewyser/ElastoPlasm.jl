@@ -39,7 +39,7 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
     # mesh & mpts initial conditions
     mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)       )
     cmpr  = setup_cmpr(mesh                                           )                       
-    mpts  = setup_mpts(mesh,cmpr ; geom = get_thermal(mesh,cmpr,instr))
+    mpts  = setup_mpts(mesh,instr,cmpr ; geom = get_thermal(mesh,cmpr,instr))
     # time parameters
     time  = setup_time(instr     ; te=5.0,tg=5.0,tep=0.0) 
     # plot initial cohesion field

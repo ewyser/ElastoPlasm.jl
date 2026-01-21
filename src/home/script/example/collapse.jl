@@ -43,7 +43,7 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     geom  = (; ndim = T1(ndim), nn = T1(nn), h =T2.(h), nel = T1.(nel), L = T2.(L))
     mesh  = setup_mesh(instr     ; geom = geom     )
     cmpr  = setup_cmpr(mesh      ; E=T2(E), ν=T2(ν), ρ0=T2(ρ0))
-    mpts  = setup_mpts(mesh, cmpr; geom = get_collapse(mesh, cmpr, ni; ℓ₀=l0))
+    mpts  = setup_mpts(mesh, instr, cmpr; geom = get_collapse(mesh, cmpr, ni; ℓ₀=l0))
     # time parameters
     tg    = ceil((1.0/cmpr.c)*(2.0*l0)*40.0)
     te    = tg

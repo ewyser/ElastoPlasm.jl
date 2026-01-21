@@ -23,10 +23,16 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
     @info "Setting up mesh & material point system for $(length(L))d slump problem"
     # init & kwargs
     instr = kwargser(kwargs, Instruction; dim=length(L))
+    println(instr)
     paths = set_paths(fid,info.sys.out;interactive=false)  
     # mesh, mpts, cmpr & time initial conditions
     mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)     )
     cmpr  = setup_cmpr(mesh                                         )                       
+
+println(typeof(mesh))
+println(typeof(instr))
+println(typeof(cmpr))
+
     mpts  = setup_mpts(mesh,instr,cmpr ; geom = get_slump(mesh,cmpr,instr))
     time  = setup_time(instr     ; te = 10.0, tg = 10.0, tep = 5.0  ) 
     # plot initial cohesion field
