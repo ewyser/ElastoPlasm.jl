@@ -40,7 +40,7 @@ Compute the boundary condition matrix and boundary coordinates for a mesh, using
 bc, xB = get_bc(xn, instr; ghosts=[0.0])
 ```
 """
-function get_bc(xn::Matrix{T2},instr::Instruction{T1,T2}; ghosts::Vector{T2}=[T2(0.0)]) where {T1,T2}
+function get_bc(xn::Matrix{T2},instr::Instruction{T1,T2,D}; ghosts::Vector{T2}=[T2(0.0)]) where {T1,T2,D}
     xB = hcat(
         minimum(xn,dims=2).+ghosts,
         maximum(xn,dims=2).-ghosts

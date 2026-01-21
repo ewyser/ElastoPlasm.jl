@@ -69,7 +69,7 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},dt::T2,instr::Instruction{T1,T2}) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D}
     # get cauchy stress 
     if instr.fwrk.deform == "finite"
         instr.cairn.mapsto.map.σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
@@ -116,7 +116,7 @@ Resolution of thermal problem: project material points to nodes, solve, and map 
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::Instruction{T1,T2}) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D}
     # reset nodal quantities
     fill!(mesh.cᵢ  ,T2(0.0))
     fill!(mesh.mcT ,T2(0.0))
@@ -156,7 +156,7 @@ Resolution of thermo-poro-mechanical problem: project material points to nodes, 
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::Instruction{T1,T2}) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D}
 
     return nothing
 end

@@ -53,17 +53,7 @@ function init_update(instr::NamedTuple; cairn::NamedTuple=(;))
     return cairn
 end
 
-function update(::Val{:elastodynamic!},mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,instr::NamedTuple) where {T1,T2,E,R}
-    return elasto(mpts,mesh,cmpr,dt,instr)    
-end
-function update(::Val{:elastoplastic!},mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,instr::NamedTuple) where {T1,T2,E,R}
-    return elastoplast(mpts,mesh,cmpr,dt,instr)    
-end
-function update(::Val{:thermodynamic!},mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,instr::NamedTuple) where {T1,T2,E,R}
-    return thermo(mpts,mesh.t,instr)
-end
-
-function elasto(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,instr::Instruction{T1,T2}) where {T1,T2,E,R}
+function elasto(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     # update {logarithmic|infinitesimal} strains
     instr.cairn.update.deform!(mpts,mesh.s,dt; ndrange=mpts.nmp);sync(CPU())
     # update material point's domain
@@ -88,7 +78,7 @@ function elasto(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2
     return nothing
 end
 
-function elastoplast(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,instr::Instruction{T1,T2}) where {T1,T2,E,R}
+function elastoplast(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     # update {logarithmic|infinitesimal} strains
     instr.cairn.update.deform!(mpts,mesh.s,dt; ndrange=mpts.nmp);sync(CPU())
     # update material point's domain
@@ -127,7 +117,7 @@ function elastoplast(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},cmpr::NamedTuple,d
     return nothing
 end
 
-function thermo(mpts::Point{T1,T2,E,R},mesh::MeshThermalPhase{T1,T2},instr::Instruction{T1,T2}) where {T1,T2,E,R}
+function thermo(mpts::Point{T1,T2,E,R},mesh::MeshThermalPhase{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     # update temperature
     instr.cairn.update.heat!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
     return nothing

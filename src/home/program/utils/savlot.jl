@@ -17,7 +17,7 @@ Plot and display simulation fields at the current time step, if plotting is enab
 savlot(mpts, mesh, t, instr)
 ```
 """
-@views function savlot(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},t::T2,instr::Instruction{T1,T2}) where {T1,T2,E,R}
+@views function savlot(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},t::T2,instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     if instr.plot.status
         dims = instr.plot.dpi.*(mesh.prprt.L[1]./mesh.prprt.L)
         ms   = dims[1]/(mesh.prprt.nel[1]*2)

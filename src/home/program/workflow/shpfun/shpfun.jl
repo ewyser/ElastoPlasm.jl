@@ -71,7 +71,7 @@ Initialize and compute shape functions and topological relations for material po
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function shpfun(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},instr::Instruction{T1,T2}) where {T1,T2,E,R} 
+function shpfun(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D} 
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
     instr.cairn.shpfun.tplgy!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     # initialize shapefunctions

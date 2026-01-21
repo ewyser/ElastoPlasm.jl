@@ -18,7 +18,7 @@ time = setup_time(Float64; te=10.0, tg=5.0, tep=2.0)
 println(time.t)  # [0.0, 12.0]
 ```
 """
-function setup_time(instr::Instruction{T1,T2}; te=0.0,tg=0.0,tep=0.0) where {T1,T2}
+function setup_time(instr::Instruction{T1,T2,D}; te=0.0,tg=0.0,tep=0.0) where {T1,T2,D}
     return Time{T1,T2}( 
         T2.([0.0,te+tep]), 
         T2(te), 

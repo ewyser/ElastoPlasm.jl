@@ -23,7 +23,7 @@ println(mesh.nel)
 - Initializes nodal quantities (mass, force, acceleration, etc.) and mesh-to-node topology.
 - Handles ghost nodes if required by the basis.
 """
-function setup_mesh(instr::Instruction{T1,T2}; geom::NamedTuple=(;)) where {T1,T2}
+function setup_mesh(instr::Instruction{T1,T2,D}; geom::NamedTuple=(;)) where {T1,T2,D}
     # add ghost points if needed
     if instr.basis.ghost
         buffer = T2(2.0)
