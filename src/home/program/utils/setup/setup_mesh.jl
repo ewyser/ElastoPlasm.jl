@@ -45,10 +45,10 @@ function setup_mesh(instr::Instruction{T1,T2,D}; geom::NamedTuple=(;)) where {T1
         T2.(h                           ), # h
         T2.(xB                          ), # xB
     )
-    bcs = MeshBoundary{Bool}(
+    bcs = MeshBoundary(
         status
     )
-    s = MeshSolidPhase{T1,T2,Bool,D}(
+    s = MeshSolidPhase{T1,T2,D}(
         prop,
         bcs,
         T2.(zeros(nno[end]             )), # mᵢ
@@ -58,7 +58,7 @@ function setup_mesh(instr::Instruction{T1,T2,D}; geom::NamedTuple=(;)) where {T1
         T2.(zeros(ndim,nno[end]        )), # mv
         T2.(zeros(ndim,nno[end]        )), # v
     )
-    t = MeshThermalPhase{T1,T2,Bool,D}(
+    t = MeshThermalPhase{T1,T2,D}(
         prop,
         bcs,
         T2.(zeros(nno[end]             )), # cᵢ
@@ -67,7 +67,7 @@ function setup_mesh(instr::Instruction{T1,T2,D}; geom::NamedTuple=(;)) where {T1
         T2.(zeros(nno[end]             )), # mcT
         T2.(zeros(nno[end]             )), # T
     )
-    mesh = Mesh{T1,T2,Bool,NamedTuple,D}(
+    mesh = Mesh{T1,T2,D}(
         prop,
         # nodal quantities
         T2.(vec(minimum(xn,dims=2)     )), # x₀
