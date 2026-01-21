@@ -294,6 +294,9 @@ function kwargser(kwargs::Any, ::Type{Instruction}; dim::Number=2)
     elseif instr.dtype == 32
         instr = merge(instr, (;dtype = (;T0=(Int32,Float32),bits=Int32(32),precision="FP32 precision"),))
     end
+
+    # Set dimension
+    dimension = Dimension(dim);
     
     # Set execution backend
     if !haskey(instr[:backend],:exec)
@@ -310,7 +313,7 @@ function kwargser(kwargs::Any, ::Type{Instruction}; dim::Number=2)
     instr = merge(instr, (; cairn = cairn,))
     
     # Create Instruction type
-    return Instruction{instr[:dtype][:T0]...}(
+    return Instruction{instr[:dtype][:T0]...,typeof(dimension)}(
         instr[:dtype],
         instr[:basis],
         instr[:fwrk],
