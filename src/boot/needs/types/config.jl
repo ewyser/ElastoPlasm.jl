@@ -37,7 +37,7 @@ end
 export Instruction, Time
 
 abstract type AbstractInstruction end
-
+#struct Instruction{T1,T2,D<:AbstractDimension}
 struct Instruction{T1,T2}
     dtype  ::NamedTuple
     basis  ::NamedTuple
