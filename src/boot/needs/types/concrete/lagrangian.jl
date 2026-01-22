@@ -4,16 +4,6 @@
 
 export Point,PointSolidPhase,PointFluidPhase,PointThermalPhase
 
-abstract type AbstractLagrangian end
-
-abstract type MaterialPoint{T1, T2} <: AbstractLagrangian end
-
-abstract type MaterialPointPhase{T1, T2} <: MaterialPoint{T1,T2} end
-
-abstract type AbstractElasticity{T1, T2} end
-
-abstract type AbstractRheology{T1, T2} end
-
 struct LinearElasticity{T1,T2} <: AbstractElasticity{T1,T2}
     # tensor in voigt notation
     σᵢ   ::Matrix{T2}
@@ -112,7 +102,7 @@ struct PointThermalPhase{T1,T2} <: MaterialPointPhase{T1,T2}
 end
 @adapt_struct PointThermalPhase
 
-struct Point{T1,T2,E<:AbstractElasticity,R<:AbstractRheology} <: MaterialPoint{T1,T2}
+struct Point{T1,T2,E,R} <: MaterialPoint{T1,T2}
     # general information
     ndim ::T1
     nmp  ::T1

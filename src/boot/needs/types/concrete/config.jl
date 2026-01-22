@@ -36,7 +36,6 @@ end
 
 export Instruction, Time
 
-abstract type AbstractInstruction end
 struct Instruction{T1<:Integer,T2<:Real,D<:AbstractDimension}
     dtype  ::NamedTuple
     basis  ::NamedTuple
@@ -52,7 +51,7 @@ struct Instruction{T1<:Integer,T2<:Real,D<:AbstractDimension}
 end
 @adapt_struct Instruction
 
-abstract type AbstractTime end
+
 
 struct Time{T1<:Integer,T2<:Real}
     t  ::Vector{T2}

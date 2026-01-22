@@ -3,8 +3,6 @@
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 export Dimension, TwoDimension, ThreeDimension
 
-abstract type AbstractDimension end
-
 struct TwoDimension{T1<:Integer} <: AbstractDimension 
     ndim::T1
     nstr::T1

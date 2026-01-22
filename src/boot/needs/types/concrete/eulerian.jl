@@ -4,12 +4,6 @@
 
 export Mesh
 
-abstract type AbstractEulerian end
-abstract type CartesianMesh{T1, T2}  <: AbstractEulerian end
-abstract type UniformMesh{T1, T2}    <: CartesianMesh{T1, T2} end
-abstract type NonUniformMesh{T1, T2} <: CartesianMesh{T1, T2} end
-abstract type MeshPhase{T1, T2}      <: CartesianMesh{T1,T2} end
-
 struct MeshProperties{T1,T2,D}
     # general information
     dim  ::T1

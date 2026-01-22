@@ -9,14 +9,11 @@ import KernelAbstractions.synchronize as sync
 import Adapt.adapt as user_adapt
 import Adapt.@adapt_structure as @adapt_struct
 
-# arithmetic precision & relative path for figs & data
-const typeD = Float64  
+# include types &
+include(joinpath(ROOT,"boot/include.jl"))
+sucess = superInc(["boot/needs/types"]; root=ROOT)
 
 # create primitive structs
-include(joinpath(ROOT,"boot/needs/types/dimension.jl"))
-include(joinpath(ROOT,"boot/needs/types/config.jl"))
-include(joinpath(ROOT,"boot/needs/types/lagrangian.jl"))
-include(joinpath(ROOT,"boot/needs/types/eulerian.jl"))
 info = Self(sys = Path(), ui = UI(), bckd = Execution(), mpi = Distributed())  
 
 # include
@@ -32,4 +29,4 @@ lists = ["home/api","home/program","home/script"]
 add_backend!(Val(:x86_64),info)
 
 # include .jl files
-@info join(superInc(lists),"\n")
+@info join(superInc(lists; root=ROOT, lib=info.sys.lib),"\n")
