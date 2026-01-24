@@ -295,9 +295,17 @@ function kwargser(kwargs::Any, ::Type{Instruction}; dim::Number=2)
         instr = merge(instr, (;dtype = (;T0=(Int32,Float32),bits=Int32(32),precision="FP32 precision"),))
     end
 
-    # Set dimension
-    dimension = Dimension(dim);
-    
+    # Get dimension type
+    if dim == 1
+        dim = OneDimension()
+    elseif dim == 2
+        dim = TwoDimension()
+    elseif dim == 3
+        dim = ThreeDimension()
+    else
+        error("Unsupported dimension type: $ndim")
+    end
+
     # Set execution backend
     if !haskey(instr[:backend],:exec)
         exec  = select_execution_backend(instr[:backend][:select]; mpi_status=instr[:backend][:distributed])
@@ -313,7 +321,7 @@ function kwargser(kwargs::Any, ::Type{Instruction}; dim::Number=2)
     instr = merge(instr, (; cairn = cairn,))
     
     # Create Instruction type
-    return Instruction{instr[:dtype][:T0]...,typeof(dimension)}(
+    return Instruction{instr[:dtype][:T0]...,typeof(dim)}(
         instr[:dtype],
         instr[:basis],
         instr[:fwrk],

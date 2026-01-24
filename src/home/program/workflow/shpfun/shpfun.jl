@@ -11,39 +11,39 @@ Initialize shape function and topology kernels for the MPM algorithm.
 # Returns
 - Named tuple of kernel functions for topology, shape function, and delta function.
 """
-function init_shpfun(dim::Number,instr::NamedTuple; what::String="nothing")
+function init_shpfun(dim::AbstractDimension,instr::NamedTuple; what::String="nothing")
     kernel3,kernel4 = nothing,nothing
     # topology function
-    if dim == 1
+    if dim isa OneDimension
         kernel1 = p2e2n_1d(CPU())
-    elseif dim == 2
+    elseif dim isa TwoDimension
         kernel1 = p2e2n_2d(CPU())
-    elseif dim == 3
+    elseif dim isa ThreeDimension
         kernel1 = p2e2n_3d(CPU())
     end
     # shape function
     if instr[:basis][:which] == "bsmpm"
-        if dim == 1
+        if dim isa OneDimension
             kernel2 = bsmpm_1d(CPU())    
-        elseif dim == 2
+        elseif dim isa TwoDimension
             kernel2 = bsmpm_2d(CPU())
-        elseif dim == 3
+        elseif dim isa ThreeDimension
             kernel2 = bsmpm_3d(CPU())
         end
     elseif instr[:basis][:which] == "gimpm"
-        if dim == 1
+        if dim isa OneDimension
             kernel2 = gimpm_1d(CPU())    
-        elseif dim == 2
+        elseif dim isa TwoDimension
             kernel2 = gimpm_2d(CPU())
-        elseif dim == 3
+        elseif dim isa ThreeDimension
             kernel2 = gimpm_3d(CPU())
         end
     elseif instr[:basis][:which] == "smpm"
-        if dim == 1
+        if dim isa OneDimension
             kernel2 = smpm_1d(CPU())    
-        elseif dim == 2
+        elseif dim isa TwoDimension
             kernel2 = smpm_2d(CPU())
-        elseif dim == 3
+        elseif dim isa ThreeDimension
             kernel2 = smpm_3d(CPU())
         end
     else

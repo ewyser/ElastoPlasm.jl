@@ -10,33 +10,33 @@ Initialize mapping, solving and transfering kernels for MPM cycle based on dimen
 # Returns
 - `Dict`: Dictionary of mapping and augmentation kernels.
 """
-function init_mapsto(dim::Number,instr::NamedTuple)
+function init_mapsto(dim::AbstractDimension,instr::NamedTuple)
     mapsto = Dict(:map => Dict(),)
     if instr.fwrk.deform == "finite"
         mapsto[:map][:σᵢ!] = transform(CPU())
     end
     if instr.fwrk.trsfr == "std"
-        if dim == 1
+        if dim isa OneDimension
             mapsto[:map][:p2n!] = std_1d_p2n(CPU()) 
-        elseif dim == 2
+        elseif dim isa TwoDimension
             mapsto[:map][:p2n!] = std_2d_p2n(CPU())
-        elseif dim == 3
+        elseif dim isa ThreeDimension
             mapsto[:map][:p2n!] = std_3d_p2n(CPU())
         end
     elseif instr.fwrk.trsfr == "tpic"
-        if dim == 1
+        if dim isa OneDimension
             mapsto[:map][:p2n!] = tpic_1d_p2n(CPU())
-        elseif dim == 2
+        elseif dim isa TwoDimension
             mapsto[:map][:p2n!] = tpic_2d_p2n(CPU())
-        elseif dim == 3
+        elseif dim isa ThreeDimension
             mapsto[:map][:p2n!] = tpic_3d_p2n(CPU())
         end
     elseif instr.fwrk.trsfr == "apic"
-        if dim == 1
+        if dim isa OneDimension
             nothing # APIC is not yet defined for 1D
-        elseif dim == 2
+        elseif dim isa TwoDimension
             mapsto[:map][:p2n!] = apic_2d_p2n(CPU())
-        elseif dim == 3
+        elseif dim isa ThreeDimension
             mapsto[:map][:p2n!] = apic_3d_p2n(CPU())
         end
         mapsto[:map][:Bᵢⱼ!] = Bij(CPU())

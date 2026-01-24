@@ -26,11 +26,13 @@ println(mpts.nmp)  # Number of material points
 """
 function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,D}
     props = mesh.prprt
-    # non-dimensional constant                                                   
-    if D<:TwoDimension
-        nstr = 3 
-    elseif D<:ThreeDimension
-        nstr = 6 
+    # non-dimensional constant
+    if D == TwoDimension
+        nstr = 3
+    elseif D == ThreeDimension
+        nstr = 6
+    else
+        error("Unsupported dimension type: $D")
     end
     # unpack material geometry
     ni,nmp,xp = geom.ni,geom.nmp,geom.xp 
