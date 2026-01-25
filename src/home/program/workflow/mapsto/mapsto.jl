@@ -21,6 +21,7 @@ function init_mapsto(dim::AbstractDimension,instr::NamedTuple)
         mapsto[:map][:p2n!] = tpic_p2n(CPU())
     elseif instr.fwrk.trsfr == "apic"
         mapsto[:map][:p2n!] = apic_p2n(CPU())
+        mapsto[:map][:Bᵢⱼ!] = Bij(CPU())
     else
         return throw(ArgumentError("$(instr.fwrk.trsfr) is an unsupported transfer scheme"))
     end
