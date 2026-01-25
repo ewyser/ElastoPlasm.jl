@@ -13,7 +13,7 @@ Base.@kwdef mutable struct Distributed
     glob     ::String     = "glob.jld2"
 end
 Base.@kwdef mutable struct Execution
-    functional::Vector{String} = ["Functional execution platform(s):"]
+    functional::Vector{String} = ["Available execution platform(s):"]
 	cpu::Dict = Dict()
 	gpu::Dict = Dict()
 end
