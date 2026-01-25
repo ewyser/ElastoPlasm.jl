@@ -172,10 +172,11 @@ function elastoplasm(sim::S; workflow::Vector{F} = [elastodynamic!]) where {S <:
         sleep(1.0)
         # postprocessing
         if instr.plot.status
-            opts = (;
-                file = joinpath(paths[:plot],"$(misc.prefix)_$(join(last.(instr.plot.what),"_")).png"),
-            );save_plot(opts)
-        end    
+            names     = [v.mpts.name for v in instr.plot.what if haskey(v, :mpts)]
+            file_path = joinpath(paths[:plot], "$(misc.prefix)_$(join(names, "_")).png")
+            opts = (; file = file_path, )
+            save_plot(opts)
+        end
     end
     # return success message
     exit_log("(✓) Done! exiting...\n")
@@ -194,11 +195,15 @@ function elastoplasm!(sim::S; workflow::Vector{F} = [elastodynamic!]) where {S <
         end
         sleep(1.0)
         # postprocessing
-        if instr.plot:status
-            opts = (;
-                file = joinpath(paths[:plot],"$(misc.prefix)_$(join(last.(instr.plot.what),"_")).png"),
-            );save_plot(opts)
-        end    
+        if instr.plot.status
+            for variable ∈ instr.plot.what
+                what = variable[first(keys(variable))]
+                println(what)
+                file_path = joinpath(paths[:plot], "$(misc.prefix)_$(what).png")
+                opts = (; file = file_path, )
+                save_plot(opts)
+            end
+        end 
         # update initial conditions in jld2 file
         delete!(file, "ic")
         file["ic/mesh"] = mesh

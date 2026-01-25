@@ -1,48 +1,58 @@
-function init_update(instr::NamedTuple; cairn::NamedTuple=(;))
-    if instr[:fwrk][:deform] == "finite"
-        cairn = merge(cairn, (; deform! = finite_deform(CPU()), ))
-    elseif instr[:fwrk][:deform] == "infinitesimal"
-        cairn = merge(cairn, (; deform! = infinitesimal_deform(CPU()), ))
+function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol,Cairn}())
+    if instr[:perf][:status]
+        update[:deform!] = deform_fast(CPU())
+    else
+        update[:deform!] = deform(CPU())
     end
-    cairn = merge(cairn, (; heat! = heatflux(CPU()), ))
+    
+    update[:heat!] = heatflux(CPU())
     if instr[:basis][:which] == "gimpm"
-        cairn = merge(cairn, (; domain! = undeformed(CPU()), ))
+        update[:domain!] = undeformed(CPU())
         if instr[:fwrk][:deform] == "finite"
             if instr[:basis][:how] == "detFij"
-                cairn = merge(cairn, (; domain! = detFᵢᵢ(CPU()), ))
+                update[:domain!] = detFᵢᵢ(CPU())
             elseif instr[:basis][:how] == "Fii"
-                cairn = merge(cairn, (; domain! = Fᵢᵢ(CPU()), ))
+                update[:domain!] = Fᵢᵢ(CPU())
             elseif instr[:basis][:how] == "Uii"
-                cairn = merge(cairn, (; domain! = Uᵢᵢ(CPU()), ))
+                update[:domain!] = Uᵢᵢ(CPU())
             end
         elseif instr[:fwrk][:deform] == "infinitesimal"
             if instr[:basis][:how] == "detΔFij"
-                cairn = merge(cairn, (; domain! = detΔFᵢᵢ(CPU()), ))
+                update[:domain!] = detΔFᵢᵢ(CPU())
             elseif instr[:basis][:how] == "ΔFii"
-                cairn = merge(cairn, (; domain! = ΔFᵢᵢ(CPU()), ))
+                update[:domain!] = ΔFᵢᵢ(CPU())
             elseif instr[:basis][:how] == "ΔUii"
-                cairn = merge(cairn, (; domain! = ΔUᵢᵢ(CPU()), ))
+                update[:domain!] = ΔUᵢᵢ(CPU())
             end
         end
     end
     if instr[:fwrk][:locking]
-        cairn = merge(cairn, (; ΔJn! = ΔJn(CPU()), ΔJs! = ΔJs(CPU()), ΔJp! = ΔJp(CPU()),))
+        update[:ΔJn!] = ΔJn(CPU())
+        update[:ΔJs!] = ΔJs(CPU())
+        update[:ΔJp!] = ΔJp(CPU())
     end
-    cairn = merge(cairn, (; elast! = elast(CPU()), ))
-    cairn = merge(cairn, (; nonloc! = nonlocal(CPU()), ))
+    
+    if instr[:perf][:status]
+        update[:elast!] = elast_fast(CPU())
+    else
+        update[:elast!] = elast(CPU())
+    end
+
+
+    update[:nonloc!] = nonlocal(CPU())
     if instr[:plast][:constitutive] == "MC"
         #ηmax = MCRetMap!(mpts,ϵpII,cmp,instr[:fwrk])
     elseif instr[:plast][:constitutive] == "DP"        
         if instr[:fwrk][:deform] == "finite"
-            cairn = merge(cairn, (; retmap! = finite_DP(CPU()), ))
+            update[:retmap!] = finite_DP(CPU())
         elseif instr[:fwrk][:deform] == "infinitesimal"
-            cairn = merge(cairn, (; retmap! = infinitesimal_DP(CPU()), ))
+            update[:retmap!] = infinitesimal_DP(CPU())
         end
     elseif instr[:plast][:constitutive] == "J2"
         if instr[:fwrk][:deform] == "finite"
-            cairn = merge(cairn, (; retmap! = finite_J2(CPU()), ))
+            update[:retmap!] = finite_J2(CPU())
         elseif instr[:fwrk][:deform] == "infinitesimal"
-            cairn = merge(cairn, (; retmap! = infinitesimal_J2(CPU()), ))
+            update[:retmap!] = infinitesimal_J2(CPU())
         end
     elseif instr[:plast][:constitutive] == "camC"
         #ηmax = camCRetMap!(mpts,cmp,instr[:fwrk])
@@ -50,7 +60,7 @@ function init_update(instr::NamedTuple; cairn::NamedTuple=(;))
         throw(error("InvalidReturnMapping: $(instr[:plast][:constitutive])"))
     end
     
-    return cairn
+    return (;update...)
 end
 
 function elasto(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}

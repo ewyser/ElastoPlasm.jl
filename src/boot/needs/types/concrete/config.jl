@@ -1,9 +1,9 @@
 export Self
 
 Base.@kwdef mutable struct Path
-	root::String = ROOT
-	out ::String = joinpath(dirname(ROOT),"dump")
-	test::String = joinpath(dirname(ROOT),"test")
+	root::String = " "
+	out ::String = " "
+	test::String = " "
 	lib ::Dict   = Dict()
     ncell::Int   = 0
 end

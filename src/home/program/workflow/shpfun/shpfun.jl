@@ -11,28 +11,25 @@ Initialize shape function and topology kernels for the MPM algorithm.
 # Returns
 - Named tuple of kernel functions for topology, shape function, and delta function.
 """
-function init_shpfun(instr::NamedTuple; what::String="nothing")
-    kernel3,kernel4 = nothing,nothing
+function init_shpfun(instr::NamedTuple; shpfun::Dict{Symbol,Cairn} = Dict{Symbol,Cairn}(),)
     # topology function
-    kernel1 = p2e2n(CPU())
+    shpfun[:tplgy!] = p2e2n(CPU())
     # shape function
     if instr[:basis][:which] == "bsmpm"
-        kernel2 = bsmpm(CPU())    
+        shpfun[:ϕ∂ϕ!] = bsmpm(CPU())
     elseif instr[:basis][:which] == "gimpm"
-        kernel2 = gimpm(CPU())
+        shpfun[:ϕ∂ϕ!] = gimpm(CPU())
     elseif instr[:basis][:which] == "smpm"
-        kernel2 = smpm(CPU())    
+        shpfun[:ϕ∂ϕ!] = smpm(CPU())   
     else
         return throw(ArgumentError("$(instr[:basis][:which]) is not a supported shape function basis"))
     end
     if instr[:fwrk][:trsfr] == "tpic"
-        kernel3 = Δnp_nd(CPU())   
-        kernel4 = nothing  
+        shpfun[:Δₙₚ!] = Δnp_nd(CPU()) 
     elseif instr[:fwrk][:trsfr] == "apic"
-        kernel3 = nothing
-        kernel4 = Dij_nd(CPU()) 
-    end
-    return (;tplgy! = kernel1, ϕ∂ϕ! = kernel2, Δₙₚ! = kernel3, Dᵢⱼ! = kernel4,)
+        shpfun[:Dᵢⱼ!] = Dij_nd(CPU()) 
+    end    
+    return (;shpfun...)
 end
 """
     shpfun(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2,D}, instr::NamedTuple) where {T1,T2,E,R,D}

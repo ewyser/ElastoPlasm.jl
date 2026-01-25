@@ -20,7 +20,7 @@ println.(msgs)
 ```
 """
 function superInc(lists::Vector{String}; root::String="",lib::Dict=Dict(), tree::Bool=false)
-    sucess,lib = ["superInc() jls parser:"],[]
+    sucess = ["superInc() jls parser:"]
     for (k,dir) ∈ enumerate(lists)
         dict = superDir(joinpath(root,dir))
         # Collect and include all .jl files in this subtree

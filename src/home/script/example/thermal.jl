@@ -1,4 +1,4 @@
-export thermal,ic_thermal 
+export ic_thermal 
 
 function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
     L,nel = [16.0,16.0],[80,80]

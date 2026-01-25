@@ -26,7 +26,6 @@ savlot(mpts, mesh, t, instr)
             what    = instr.plot.what,
             xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])), 
             ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),
-            cblim   = instr.plot.cblim,
             tit     = L" t = "*string(round(t,digits=1))*" [s]",
             backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
         )
