@@ -55,12 +55,12 @@ function init_mapsto(dim::AbstractDimension,instr::NamedTuple)
     end
 end
 """
-    mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2},dt::T2,instr::NamedTuple) where {D}
+    mapsto(mpts::Point{T1,T2,D,E,R},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2,D,E,R}
 
 Resolution of mechanical problem: project material points to nodes, solve, and map back.
 
 # Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
+- `mpts::Point{T1,T2,D,E,R}`: Material point data structure.
 - `mesh::MeshSolidPhase{T1,T2,D}`: Mesh data structure for solid phase.
 - `g::Vector{T2}`: Gravity vector.
 - `dt::T2`: Time step.
@@ -69,7 +69,7 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D}
+function mapsto(mpts::Point{T1,T2,D,E,R},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     # get cauchy stress 
     if instr.fwrk.deform == "finite"
         instr.cairn.mapsto.map.σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
@@ -103,12 +103,12 @@ function mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2},d
     return nothing
 end
 """
-    mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2,D},dt::T2,instr::NamedTuple) where {D}
+    mapsto(mpts::Point{T1,T2,D,E,R},mesh::MeshThermalPhase{T1,T2,D},dt::T2,instr::NamedTuple) where {T1,T2,D,E,R}
 
 Resolution of thermal problem: project material points to nodes, solve, and map back.
 
 # Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
+- `mpts::Point{T1,T2,D,E,R}`: Material point data structure.
 - `mesh::MeshThermalPhase{T1,T2,D}`: Mesh data structure for thermal phase.
 - `dt::T2`: Time step.
 - `instr::NamedTuple`: Instruction/configuration dictionary.
@@ -116,7 +116,7 @@ Resolution of thermal problem: project material points to nodes, solve, and map 
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2,D},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D}
+function mapsto(mpts::Point{T1,T2,D,E,R},mesh::MeshThermalPhase{T1,T2,D},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     # reset nodal quantities
     fill!(mesh.cᵢ  ,T2(0.0))
     fill!(mesh.mcT ,T2(0.0))
@@ -142,12 +142,12 @@ function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2,D},dt::T2,instr:
     return nothing
 end
 """
-    mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2,D},g::Vector{T2},dt::T2,instr::NamedTuple) where {D}
+    mapsto(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2,D,E,R}
 
 Resolution of thermo-poro-mechanical problem: project material points to nodes, solve, and map back.
 
 # Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
+- `mpts::Point{T1,T2,D,E,R}`: Material point data structure.
 - `mesh::Mesh{T1,T2,D}`: Mesh data structure.
 - `g::Vector{T2}`: Gravity vector.
 - `dt::T2`: Time step.
@@ -156,7 +156,7 @@ Resolution of thermo-poro-mechanical problem: project material points to nodes, 
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2,D},g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D}
+function mapsto(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
 
     return nothing
 end

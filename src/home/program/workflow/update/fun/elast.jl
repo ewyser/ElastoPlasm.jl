@@ -42,7 +42,7 @@ Kernel for finite deformation elasticity update at material points.
 # Returns
 - Updates stress and strain fields in-place.
 """
-@views @kernel inbounds = true function elast(mpts::Point{T1,T2,E,R},Del) where {T1,T2,E<:FiniteElasticity,R}
+@views @kernel inbounds = true function elast(mpts::Point{T1,T2,D,E,R},Del) where {T1,T2,D,E<:FiniteElasticity,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # update left cauchy-green tensor
@@ -66,7 +66,7 @@ Kernel for infinitesimal (small strain) elasticity update at material points.
 # Returns
 - Updates stress and strain fields in-place.
 """
-@views @kernel inbounds = true function elast(mpts::Point{T1,T2,E,R},Del) where {T1,T2,E<:LinearElasticity,R}
+@views @kernel inbounds = true function elast(mpts::Point{T1,T2,D,E,R},Del) where {T1,T2,D,E<:LinearElasticity,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # calculate elastic strains & spins
@@ -79,7 +79,7 @@ Kernel for infinitesimal (small strain) elasticity update at material points.
     end  
 end
 
-@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,E,R},Del) where {T1,T2,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,D,E,R},Del) where {T1,T2,D,E<:LinearElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # calculate elastic strains

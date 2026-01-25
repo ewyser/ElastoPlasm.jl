@@ -48,7 +48,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         elast = LinearElasticity(T1, T2, nmp, props.dim)
     end
     
-    rheo = DruckerPragerRheology{T1,T2}(
+    rheo = DruckerPragerRheology{T1,T2,D}(
         T2.(vec(copy(geom.coh0))),  # c₀
         T2.(vec(copy(geom.cohr))),  # cᵣ
         T2.(vec(copy(geom.phi))),   # ϕ
@@ -57,7 +57,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         T2.(zeros(nmp))             # ϵpV
     )
 
-    s = PointSolidPhase{T1,T2,typeof(elast),typeof(rheo)}(
+    s = PointSolidPhase{T1,T2,D,typeof(elast),typeof(rheo)}(
         T2.(zeros(size(xp)))                               , # u
         T2.(zeros(size(xp)))                               , # v
         # mechanical properties
@@ -85,18 +85,18 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         elast                                              , # elast::E
         rheo                                               , # rheo::R
     )
-    t = PointThermalPhase{T1,T2}(
+    t = PointThermalPhase{T1,T2,D}(
         T2.(vec(copy(geom.c)))                            , # c::Vector{T2} specific heat capacity vector
         T2.(vec(copy(geom.k)))                             , # k::Vector{T2} thermal conductivity vector
         T2.(zeros(props.dim,nmp))                            , # q::Matrix{T2} heat flux array
         T2.(vec(copy(geom.T)))                            , # T::Vector{T2} temperature vector
     )
-    f = PointFluidPhase{T1,T2}(
+    f = PointFluidPhase{T1,T2,D}(
 
     )
 
 
-    mpts = Point{T1,T2,typeof(elast),typeof(rheo)}(
+    mpts = Point{T1,T2,D,typeof(elast),typeof(rheo)}(
         # general information
         T1(props.dim)                         , # ndim
         T1(nmp)                              , # nmp
