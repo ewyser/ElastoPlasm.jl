@@ -10,7 +10,7 @@ Initialize mapping, solving and transfering kernels for MPM cycle based on dimen
 # Returns
 - `Dict`: Dictionary of mapping and augmentation kernels.
 """
-function init_mapsto(dim::AbstractDimension,instr::NamedTuple)
+function init_mapsto(instr::NamedTuple)
     mapsto = Dict(:map => Dict(),)
     if instr.fwrk.deform == "finite"
         mapsto[:map][:σᵢ!] = transform(CPU())

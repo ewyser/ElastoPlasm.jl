@@ -313,9 +313,9 @@ function kwargser(kwargs::Any, ::Type{Instruction}; dim::Number=2)
     end
     
     # Add cairns to instr     
-    cairn = (
-        shpfun = init_shpfun(dim, instr),
-        mapsto = init_mapsto(dim, instr),
+    cairn = (;
+        shpfun = init_shpfun(instr),
+        mapsto = init_mapsto(instr),
         update = init_update(instr),
     )
     instr = merge(instr, (; cairn = cairn,))

@@ -11,41 +11,17 @@ Initialize shape function and topology kernels for the MPM algorithm.
 # Returns
 - Named tuple of kernel functions for topology, shape function, and delta function.
 """
-function init_shpfun(dim::AbstractDimension,instr::NamedTuple; what::String="nothing")
+function init_shpfun(instr::NamedTuple; what::String="nothing")
     kernel3,kernel4 = nothing,nothing
     # topology function
-    if dim isa OneDimension
-        kernel1 = p2e2n_1d(CPU())
-    elseif dim isa TwoDimension
-        kernel1 = p2e2n_2d(CPU())
-    elseif dim isa ThreeDimension
-        kernel1 = p2e2n_3d(CPU())
-    end
+    kernel1 = p2e2n(CPU())
     # shape function
     if instr[:basis][:which] == "bsmpm"
-        if dim isa OneDimension
-            kernel2 = bsmpm_1d(CPU())    
-        elseif dim isa TwoDimension
-            kernel2 = bsmpm_2d(CPU())
-        elseif dim isa ThreeDimension
-            kernel2 = bsmpm_3d(CPU())
-        end
+        kernel2 = bsmpm(CPU())    
     elseif instr[:basis][:which] == "gimpm"
-        if dim isa OneDimension
-            kernel2 = gimpm_1d(CPU())    
-        elseif dim isa TwoDimension
-            kernel2 = gimpm_2d(CPU())
-        elseif dim isa ThreeDimension
-            kernel2 = gimpm_3d(CPU())
-        end
+        kernel2 = gimpm(CPU())
     elseif instr[:basis][:which] == "smpm"
-        if dim isa OneDimension
-            kernel2 = smpm_1d(CPU())    
-        elseif dim isa TwoDimension
-            kernel2 = smpm_2d(CPU())
-        elseif dim isa ThreeDimension
-            kernel2 = smpm_3d(CPU())
-        end
+        kernel2 = smpm(CPU())    
     else
         return throw(ArgumentError("$(instr[:basis][:which]) is not a supported shape function basis"))
     end
