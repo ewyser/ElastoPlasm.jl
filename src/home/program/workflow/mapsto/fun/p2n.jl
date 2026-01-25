@@ -35,7 +35,7 @@ Project 1D material point data to mesh nodes (FLIP scheme).
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function std_1d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:OneDimension}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # buffering 
@@ -55,7 +55,7 @@ Project 1D material point data to mesh nodes (FLIP scheme).
         end
     end
 end
-@kernel inbounds = true function std_1d_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,D},mesh::MeshThermalPhase{T1,T2,D}) where {T1,T2,D<:OneDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -76,7 +76,7 @@ end
         end
     end
 end
-@kernel inbounds = true function std_2d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -97,7 +97,7 @@ end
         end
     end
 end
-@kernel inbounds = true function std_2d_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,D},mesh::MeshThermalPhase{T1,T2,D}) where {T1,T2,D<:TwoDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -118,7 +118,7 @@ end
         end
     end
 end
-@kernel inbounds = true function std_3d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:ThreeDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -142,7 +142,7 @@ end
         end
     end
 end
-@kernel inbounds = true function std_3d_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,D},mesh::MeshThermalPhase{T1,T2,D}) where {T1,T2,D<:ThreeDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -179,7 +179,7 @@ Project 1D material point data to mesh nodes (TPIC scheme).
 # Returns 
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function tpic_1d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:OneDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -200,7 +200,7 @@ Project 1D material point data to mesh nodes (TPIC scheme).
         end
     end
 end
-@kernel inbounds = true function tpic_2d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -224,7 +224,7 @@ end
         end
     end
 end
-@kernel inbounds = true function tpic_3d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:ThreeDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -268,7 +268,7 @@ Project 1D material point data to mesh nodes (APIC scheme).
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function apic_1d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:OneDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -291,7 +291,7 @@ Project 1D material point data to mesh nodes (APIC scheme).
         end
     end
 end
-@kernel inbounds = true function apic_2d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -315,7 +315,7 @@ end
         end
     end
 end
-@kernel inbounds = true function apic_3d_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:ThreeDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
