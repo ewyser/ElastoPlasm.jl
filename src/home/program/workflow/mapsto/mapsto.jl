@@ -10,35 +10,16 @@ Initialize mapping, solving and transfering kernels for MPM cycle based on dimen
 # Returns
 - `Dict`: Dictionary of mapping and augmentation kernels.
 """
-function init_mapsto(dim::Number,instr::NamedTuple)
-    mapsto = Dict(:map => Dict(),)
+function init_mapsto(instr::NamedTuple; mapsto::Dict = Dict(:map => Dict{Symbol,Cairn}(),:augm => Dict{Symbol,Cairn}()))
     if instr.fwrk.deform == "finite"
         mapsto[:map][:σᵢ!] = transform(CPU())
     end
     if instr.fwrk.trsfr == "std"
-        if dim == 1
-            mapsto[:map][:p2n!] = std_1d_p2n(CPU()) 
-        elseif dim == 2
-            mapsto[:map][:p2n!] = std_2d_p2n(CPU())
-        elseif dim == 3
-            mapsto[:map][:p2n!] = std_3d_p2n(CPU())
-        end
+        mapsto[:map][:p2n!] = std_p2n(CPU())
     elseif instr.fwrk.trsfr == "tpic"
-        if dim == 1
-            mapsto[:map][:p2n!] = tpic_1d_p2n(CPU())
-        elseif dim == 2
-            mapsto[:map][:p2n!] = tpic_2d_p2n(CPU())
-        elseif dim == 3
-            mapsto[:map][:p2n!] = tpic_3d_p2n(CPU())
-        end
+        mapsto[:map][:p2n!] = tpic_p2n(CPU())
     elseif instr.fwrk.trsfr == "apic"
-        if dim == 1
-            nothing # APIC is not yet defined for 1D
-        elseif dim == 2
-            mapsto[:map][:p2n!] = apic_2d_p2n(CPU())
-        elseif dim == 3
-            mapsto[:map][:p2n!] = apic_3d_p2n(CPU())
-        end
+        mapsto[:map][:p2n!] = apic_p2n(CPU())
         mapsto[:map][:Bᵢⱼ!] = Bij(CPU())
     else
         return throw(ArgumentError("$(instr.fwrk.trsfr) is an unsupported transfer scheme"))
@@ -46,7 +27,6 @@ function init_mapsto(dim::Number,instr::NamedTuple)
     mapsto[:map][:solve!] = euler(CPU())
     mapsto[:map][:n2p!]   = picflip_n2p(CPU())
     if instr.fwrk.musl 
-        mapsto[:augm]          = Dict()
         mapsto[:augm][:p2n!]   = augm_p2n(CPU())
         mapsto[:augm][:solve!] = augm_solve(CPU())
         return (; map = (; mapsto[:map]...), augm = (; mapsto[:augm]...))
@@ -55,13 +35,13 @@ function init_mapsto(dim::Number,instr::NamedTuple)
     end
 end
 """
-    mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple)
+    mapsto(mpts::Point{T1,T2,D,E,R},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2,D,E,R}
 
 Resolution of mechanical problem: project material points to nodes, solve, and map back.
 
 # Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
-- `mesh::MeshSolidPhase{T1,T2}`: Mesh data structure for solid phase.
+- `mpts::Point{T1,T2,D,E,R}`: Material point data structure.
+- `mesh::MeshSolidPhase{T1,T2,D}`: Mesh data structure for solid phase.
 - `g::Vector{T2}`: Gravity vector.
 - `dt::T2`: Time step.
 - `instr::NamedTuple`: Instruction/configuration dictionary.
@@ -69,7 +49,7 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},dt::T2,instr::Instruction{T1,T2}) where {T1,T2}
+function mapsto(mpts::Point{T1,T2,D,E,R},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     # get cauchy stress 
     if instr.fwrk.deform == "finite"
         instr.cairn.mapsto.map.σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
@@ -103,20 +83,20 @@ function mapsto(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},g::Vector{T2},dt:
     return nothing
 end
 """
-    mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::NamedTuple)
+    mapsto(mpts::Point{T1,T2,D,E,R},mesh::MeshThermalPhase{T1,T2,D},dt::T2,instr::NamedTuple) where {T1,T2,D,E,R}
 
 Resolution of thermal problem: project material points to nodes, solve, and map back.
 
 # Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
-- `mesh::MeshThermalPhase{T1,T2}`: Mesh data structure for thermal phase.
+- `mpts::Point{T1,T2,D,E,R}`: Material point data structure.
+- `mesh::MeshThermalPhase{T1,T2,D}`: Mesh data structure for thermal phase.
 - `dt::T2`: Time step.
 - `instr::NamedTuple`: Instruction/configuration dictionary.
 
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::Instruction{T1,T2}) where {T1,T2}
+function mapsto(mpts::Point{T1,T2,D,E,R},mesh::MeshThermalPhase{T1,T2,D},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     # reset nodal quantities
     fill!(mesh.cᵢ  ,T2(0.0))
     fill!(mesh.mcT ,T2(0.0))
@@ -142,13 +122,13 @@ function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,instr::I
     return nothing
 end
 """
-    mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::NamedTuple)
+    mapsto(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2,D,E,R}
 
 Resolution of thermo-poro-mechanical problem: project material points to nodes, solve, and map back.
 
 # Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
-- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `mpts::Point{T1,T2,D,E,R}`: Material point data structure.
+- `mesh::Mesh{T1,T2,D}`: Mesh data structure.
 - `g::Vector{T2}`: Gravity vector.
 - `dt::T2`: Time step.
 - `instr::NamedTuple`: Instruction/configuration dictionary.
@@ -156,7 +136,7 @@ Resolution of thermo-poro-mechanical problem: project material points to nodes, 
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,instr::Instruction{T1,T2}) where {T1,T2}
+function mapsto(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
 
     return nothing
 end

@@ -1,4 +1,4 @@
-@kernel inbounds = true function Δnp_nd(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2}) where {T1,T2,E,R}
+@kernel inbounds = true function Δnp_nd(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,E,R,D}
     p = @index(Global)
     # calculate delta functions for tpic
     if p ≤ mpts.nmp
@@ -12,7 +12,7 @@
         end
     end
 end
-@views @kernel inbounds = true function Dij_nd(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2}) where {T1,T2,E,R}
+@views @kernel inbounds = true function Dij_nd(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,E,R,D}
     p = @index(Global)
     # calculate delta functions for tpic
     if p ≤ mpts.nmp

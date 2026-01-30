@@ -23,7 +23,7 @@ fields = mpts_populate(props, cmpr, instr; ni=4)
 @show fields.c0
 ```
 """=#
-function mpts_populate(props,cmpr,instr::Instruction{T1,T2}; ni = 2,) where {T1,T2}
+function mpts_populate(props,cmpr,instr::Instruction{T1,T2,D}; ni = 2,) where {T1,T2,D}
     out = Dict{Symbol, Any}(:ni => ni)
     if props.dim == 2
         x       = collect(props.xB[1,1]+(0.5*props.h[1]/ni):props.h[1]/ni:props.xB[1,2]-(0.5*props.h[1]/ni))

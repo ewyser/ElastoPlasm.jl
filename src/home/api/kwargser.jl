@@ -70,8 +70,7 @@ function get_default(::Type{Instruction})
             status = true,
             freq   = 1.0,
             dpi    = 500,
-            what   = [("mpts","epII"),],
-            cblim  = [(0.0, 1.5),],
+            what   = [(;mpts=(name="epII",cblim=(0.0,1.5)),),],
         ),
         perf  = (;
             status=false,
@@ -111,7 +110,7 @@ function get_option(::Type{Instruction})
             dtype = ("Select arithmetic precision",[32, 64]),
             basis = (
                 which = ("Select basis type",["bsmpm", "gimpm", "smpm"]),
-                how = ("",[nothing]),
+                how = ("Select material point domain update",[nothing]),
                 ghost = ("Add ghost nodes ?",[true, false]),
             ),
             fwrk  = (
@@ -143,8 +142,13 @@ function get_option(::Type{Instruction})
                 status = ("Enable plotting",[true, false]),
                 freq   = ("Select plot frequency",[0.1, 0.5, 1.0, 5.0]),
                 dpi    = ("Select plot resolution",[100, 300, 500, 1000]),
-                what   = ("Select plot variables",[("mpts","epII"), ("grid","sigma"), ("mpts","velocity")]),
-                cblim  = ("Select colorbar limits",[(0.0, 1.0), (0.0, 1.5), (0.0, 2.0)]),
+                what   = ("Select plot variable(s)",[
+                    (;mpts=(name="P"       ,cblim=nothing  ,),),
+                    (;mpts=(name="epII"    ,cblim=(0.0,1.5),),),
+                    (;mpts=(name="n"       ,cblim=(0.0,1.0),),),
+                    (;mpts=(name="J"       ,cblim=(0.5,1.5),),),
+                    (;mpts=(name="vol0"    ,cblim=nothing  ,),),
+                ]),
             ),
             perf  = (
                 status = ("Enable performance monitoring",[true, false]),
@@ -154,6 +158,43 @@ function get_option(::Type{Instruction})
                 distributed = ("Enable distributed computing",[true, false])
             ),
         )
+end
+
+
+function process_cli_option(value, default_val, key_path=())
+    if isa(value, NamedTuple)
+        # Check if this NamedTuple has a status field
+        if haskey(value, :status)
+            # Process status first
+            status_result = process_cli_option(value.status, default_val.status, (key_path..., :status))
+            if status_result == false
+                # Return defaults for this entire section
+                return default_val
+            end
+            # Process remaining fields (excluding status since it's already processed)
+            other_keys = filter(k -> k != :status, keys(value))
+            processed = Dict{Symbol,Any}(:status => status_result)
+            for k in other_keys
+                processed[k] = process_cli_option(getfield(value, k), getfield(default_val, k), (key_path..., k))
+            end
+            return NamedTuple{Tuple(keys(value))}(getindex(processed, k) for k in keys(value))
+        end
+        return NamedTuple{keys(value)}(process_cli_option(getfield(value, k), getfield(default_val, k), (key_path..., k)) for k in keys(value))
+    elseif isa(value, Tuple) && length(value) == 2
+        prompt, vals = value
+        # Special handling for plot.what: allow multi-selection of NamedTuples, keep original definition
+        if key_path[end] == :what && occursin("plot", string(key_path))
+            menu = MultiSelectMenu([string(v) for v in vals], pagesize=length(vals))
+            idxs = request(prompt * " (Space to select, Enter to confirm):", menu)
+            selected = [vals[i] for i in idxs]
+            return selected
+        else
+            menu = RadioMenu(string.(vals), pagesize=length(vals))
+            return vals[request(prompt, menu)]
+        end
+    else
+        return value
+    end
 end
 
 """
@@ -190,56 +231,26 @@ instr = cli(Instruction; dimension::Number=2)
 # - backend selection
 ```
 """
-function cli(; ui=false)    
-    # Recursive function to process options
-    function process_option(value, default_val, key_path=())
-        if isa(value, NamedTuple)
-            # Check if this NamedTuple has a status field
-            if haskey(value, :status)
-                # Process status first
-                status_result = process_option(value.status, default_val.status, (key_path..., :status))
-                if status_result == false
-                    # Return defaults for this entire section
-                    return default_val
-                end
-                # Process remaining fields (excluding status since it's already processed)
-                other_keys = filter(k -> k != :status, keys(value))
-                processed = Dict{Symbol,Any}(:status => status_result)
-                for k in other_keys
-                    processed[k] = process_option(getfield(value, k), getfield(default_val, k), (key_path..., k))
-                end
-                return NamedTuple{Tuple(keys(value))}(getindex(processed, k) for k in keys(value))
-            end
-            return NamedTuple{keys(value)}(process_option(getfield(value, k), getfield(default_val, k), (key_path..., k)) for k in keys(value))
-        elseif isa(value, Tuple) && length(value) == 2
-            prompt, vals = value
-            menu = RadioMenu(string.(vals), pagesize=length(vals))
-            return vals[request(prompt, menu)]
-        else
-            return value
-        end
-    end
-
+function cli(; ui::Bool=false)    
     default_config = get_default(Instruction)
     if !ui
         kwargs = Dict{Any,Any}()
-        for (K, V) in pairs(default_config)
-            kwargs[K] = process_option(V, getfield(default_config, K), (K,))
+        for (K, V) ∈ pairs(default_config)
+            kwargs[K] = process_cli_option(V, getfield(default_config, K), (K,))
         end
     else
         # Process all options recursively
         @info """
-        Starting interactive ϵlastσPlasm 👻 v$(get_version()) Instruction constructor:
+        Starting interactive ϵlastσPlasm 👻 v$(get_version()) command-line interface (cli):
         - use arrow keys to navigate and Enter to select.
         """
-        kwargs = Dict{Any,Any}()
-        top_keys = collect(keys(get_option(Instruction)))
-        menu = MultiSelectMenu(string.(top_keys), pagesize=length(top_keys))
-        selected_indices = request("Select which top-level sections to modify (Space to select, Enter to confirm):", menu)
-        selected_keys = Set(top_keys[i] for i in selected_indices)
-        for (K, V) in pairs(get_option(Instruction))
-            if K in selected_keys
-                kwargs[K] = process_option(V, getfield(default_config, K), (K,))
+        kwargs    = Dict{Any,Any}()
+        top_level = collect(keys(get_option(Instruction)))
+        menu      = MultiSelectMenu(string.(top_level), pagesize=length(top_level))
+        selection = Set(top_level[i] for i ∈ request("Select simulation configuration option(s):", menu))
+        for (K, V) ∈ pairs(get_option(Instruction))
+            if K ∈ selection
+                kwargs[K] = process_cli_option(V, getfield(default_config, K), (K,))
             else
                 kwargs[K] = getfield(default_config, K)
             end
@@ -287,30 +298,36 @@ function kwargser(kwargs::Any, ::Type{Instruction}; dim::Number=2)
     if !isempty(unused)
         @warn join(vcat("miscellaneous kwargs:", "\n\t- ".*String.(unused)))
     end
-    
     # Set precision
     if instr.dtype == 64
-        instr = merge(instr, (; dtype = (;T0=(Int64,Float64),bits=Int64(64),precision="FP64 precision"),))
+        instr = merge(instr, (; dtype = (;T0=(Int64,Float64),bits=Int64(64),precision="64-bit precision (or double precision)"),))
     elseif instr.dtype == 32
-        instr = merge(instr, (;dtype = (;T0=(Int32,Float32),bits=Int32(32),precision="FP32 precision"),))
+        instr = merge(instr, (;dtype = (;T0=(Int32,Float32),bits=Int32(32),precision="32-bit precision (or single precision)"),))
     end
-    
+    # Get dimension type
+    if dim == 1
+        dim = OneDimension()
+    elseif dim == 2
+        dim = TwoDimension()
+    elseif dim == 3
+        dim = ThreeDimension()
+    else
+        error("Unsupported dimension type: $ndim")
+    end
     # Set execution backend
     if !haskey(instr[:backend],:exec)
         exec  = select_execution_backend(instr[:backend][:select]; mpi_status=instr[:backend][:distributed])
         instr = merge(instr, (; backend = merge(instr[:backend], (; exec = exec,)),))
     end
-    
     # Add cairns to instr     
-    cairn = (
-        shpfun = init_shpfun(dim, instr),
-        mapsto = init_mapsto(dim, instr),
+    cairn = (;
+        shpfun = init_shpfun(instr),
+        mapsto = init_mapsto(instr),
         update = init_update(instr),
     )
     instr = merge(instr, (; cairn = cairn,))
-    
     # Create Instruction type
-    return Instruction{instr[:dtype][:T0]...}(
+    return Instruction{instr[:dtype][:T0]...,typeof(dim)}(
         instr[:dtype],
         instr[:basis],
         instr[:fwrk],

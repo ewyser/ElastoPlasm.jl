@@ -4,17 +4,7 @@
 
 export Point,PointSolidPhase,PointFluidPhase,PointThermalPhase
 
-abstract type AbstractLagrangian end
-
-abstract type MaterialPoint{T1, T2} <: AbstractLagrangian end
-
-abstract type MaterialPointPhase{T1, T2} <: MaterialPoint{T1,T2} end
-
-abstract type AbstractElasticity{T1, T2} end
-
-abstract type AbstractRheology{T1, T2} end
-
-struct LinearElasticity{T1,T2} <: AbstractElasticity{T1,T2}
+struct LinearElasticity{T1,T2,D} <: AbstractElasticity{T1,T2}
     # tensor in voigt notation
     σᵢ   ::Matrix{T2}
     # tensor in matrix notation
@@ -32,11 +22,11 @@ function LinearElasticity(::Type{T1},::Type{T2},nmp::Int,ndim::Int) where {T1,T2
     ϵᵢⱼ  = zeros(T2, ndim, ndim, nmp)
     ωᵢⱼ  = zeros(T2, ndim, ndim, nmp)
     σJᵢⱼ = zeros(T2, ndim, ndim, nmp)
-    return LinearElasticity{T1,T2}(σᵢ, ϵᵢⱼ, ωᵢⱼ, σJᵢⱼ)
+    return LinearElasticity{T1,T2,ndim}(σᵢ, ϵᵢⱼ, ωᵢⱼ, σJᵢⱼ)
 end
 @adapt_struct LinearElasticity
 
-struct FiniteElasticity{T1,T2} <: AbstractElasticity{T1,T2}
+struct FiniteElasticity{T1,T2,D} <: AbstractElasticity{T1,T2}
     # tensor in voigt notation
     σᵢ   ::Matrix{T2}
     τᵢ   ::Matrix{T2}
@@ -54,11 +44,11 @@ function FiniteElasticity(::Type{T1}, ::Type{T2}, nmp::Int, ndim::Int) where {T1
     τᵢ  = zeros(T2, nstr, nmp)
     bᵢⱼ = zeros(T2, ndim, ndim, nmp)
     ϵᵢⱼ = zeros(T2, ndim, ndim, nmp)
-    return FiniteElasticity{T1,T2}(σᵢ, τᵢ, bᵢⱼ, ϵᵢⱼ)
+    return FiniteElasticity{T1,T2,ndim}(σᵢ, τᵢ, bᵢⱼ, ϵᵢⱼ)
 end
 @adapt_struct FiniteElasticity
 
-struct DruckerPragerRheology{T1,T2} <: AbstractRheology{T1,T2}
+struct DruckerPragerRheology{T1,T2,D} <: AbstractRheology{T1,T2}
     c₀   ::Vector{T2}
     cᵣ   ::Vector{T2}
     ϕ    ::Vector{T2}
@@ -68,7 +58,7 @@ struct DruckerPragerRheology{T1,T2} <: AbstractRheology{T1,T2}
 end
 @adapt_struct DruckerPragerRheology
 
-struct PointSolidPhase{T1,T2,E<:AbstractElasticity,R<:AbstractRheology} <: MaterialPointPhase{T1,T2}
+struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology} <: MaterialPointPhase{T1,T2}
     u    ::Matrix{T2}
     v    ::Matrix{T2}
     # mechanical properties
@@ -98,13 +88,13 @@ struct PointSolidPhase{T1,T2,E<:AbstractElasticity,R<:AbstractRheology} <: Mater
 end
 @adapt_struct PointSolidPhase
 
-struct PointFluidPhase{T1,T2} <: MaterialPointPhase{T1,T2}
+struct PointFluidPhase{T1,T2,D} <: MaterialPointPhase{T1,T2}
     # Add concrete fields as needed, e.g.:
     # v    ::Matrix{T2}
 end
 @adapt_struct PointFluidPhase
 
-struct PointThermalPhase{T1,T2} <: MaterialPointPhase{T1,T2}
+struct PointThermalPhase{T1,T2,D} <: MaterialPointPhase{T1,T2}
     c   ::Vector{T2} # specific heat capacity vector
     k   ::Vector{T2} # thermal conductivity vector
     q   ::Matrix{T2} # heat flux array
@@ -112,7 +102,7 @@ struct PointThermalPhase{T1,T2} <: MaterialPointPhase{T1,T2}
 end
 @adapt_struct PointThermalPhase
 
-struct Point{T1,T2,E<:AbstractElasticity,R<:AbstractRheology} <: MaterialPoint{T1,T2}
+struct Point{T1,T2,D,E,R} <: MaterialPoint{T1,T2}
     # general information
     ndim ::T1
     nmp  ::T1
@@ -143,10 +133,10 @@ struct Point{T1,T2,E<:AbstractElasticity,R<:AbstractRheology} <: MaterialPoint{T
     ΔJ   ::Vector{T2}
     J    ::Vector{T2}
     # solid phase
-    s    ::PointSolidPhase{T1,T2,E,R}
+    s    ::PointSolidPhase{T1,T2,D,E,R}
     # fluid phase
-    f    ::PointFluidPhase{T1,T2}
+    f    ::PointFluidPhase{T1,T2,D}
     # thermal phase
-    t    ::PointThermalPhase{T1,T2}
+    t    ::PointThermalPhase{T1,T2,D}
 end
 @adapt_struct Point

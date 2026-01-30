@@ -29,9 +29,13 @@
     - Linear: $N_n(\boldsymbol{x}_p)$
     - GIMP: $S_n(\boldsymbol{x}_p)$
     - Cubic B-spline: $\phi_n(\boldsymbol{x}_p)$
-- Node ($n$ or $v$) ↔ Material point ($p$) mappings:
-    - FLIP with augmented mUSL
-    - TPIC with standard USL
+- Mapping scheme for Node ($n$ or $v$) ↔ Material point ($p$):
+    - PIC-FLIP
+    - TPIC-TFLIP
+    - APIC-AFLIP
+- Update scheme
+    - standard USL
+    - augmented mUSL
 
 ---
 
@@ -51,12 +55,14 @@
     ```julia
     using Pkg
     Pkg.instantiate()
-    using ElastoPlasm
+    julia> using ElastoPlasm
     ┌ Welcome to ϵlastσPlasm 👻 v0.4.2
-    │ New comer ? Try this out
+    │ New comer ? Try slumping out
     │   L,nel  = [64.1584,64.1584/4.0],[40,10];
-    │   ic,cfg = ic_slump(L,nel);
-    └   out    = slump(ic,cfg; workflow="all-in-one");
+    │   jld2   = ic_slump(L,nel;cli()...);
+    └   out    = elastoplasm(jld2; workflow = [elastodynamic!,elastoplastic!]);
+
+    julia> 
     # plasming begins here!
     ```
 
@@ -64,14 +70,14 @@
 
 ## ✍️ Contributing
 
-Contributions, issues, and feature requests are welcome!  
-Feel free to check the [issues page](https://github.com/ewyser/ElastoPlasm.jl/issues) or open a [pull request](https://github.com/ewyser/ElastoPlasm.jl/pulls).
+Contributions, issues, and feature requests are welcome  
+Feel free to check the [issues page](https://github.com/ewyser/ElastoPlasm.jl/issues), the [project page](https://github.com/users/ewyser/projects/2) or open a [pull request](https://github.com/ewyser/ElastoPlasm.jl/pulls).
 
 ---
 
 ## 🧠 Philosophy
 
-ϵlastσPlasm.jl aims to be simple, modular, and fun to use. Happy plasming! 🎉
+ϵlastσPlasm.jl aims to be a fun sandbox to use. Happy plasming! 🎉
 
 ---
 

@@ -32,7 +32,7 @@
             )
             instr = kwargser(kwargs, Instruction; dim=mesh.prprt.dim)
             misc = (;
-                prefix = "case_$(k)_$(mesh.prprt.dim)d_$(instr.fwrk.trsfr)"
+                prefix = "case_$(k)_$(mesh.prprt.dim)d_$(instr.fwrk.trsfr)_$(instr.fwrk.deform)"
             )
 
             sim = export_setup(mesh,mpts,cmpr,time,instr,paths,misc; path = paths[:dat], file = "slump_simulation")

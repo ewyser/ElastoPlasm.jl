@@ -18,7 +18,7 @@
         p1 = plot(
             xnum .* 1e-3, ynum,
             seriestype = :scatter,
-            label = "$(dim)d $(cfg.instr[:basis][:which])",
+            label = "$(dim)d $(cfg.instr.basis.which)",
             markersize = 2.0,
             xlabel = L"\sigma_{yy}\ \mathrm{[kPa]}",
             ylabel = L"y\ \mathrm{[m]}",
@@ -35,7 +35,7 @@
             color = :blue
         )
         display(plot(p1; layout = (1, 1), size = (500, 300), dpi = 120))
-        savefig(joinpath(cfg.paths[:plot],"$(dim)d_numeric_analytic_$(basename(@__FILE__)).png"))
+        savefig(joinpath(cfg.paths.plot,"$(dim)d_numeric_analytic_$(basename(@__FILE__)).png"))
         =#
         return err
     end
@@ -46,7 +46,7 @@
         #(; which = "smpm" , how = nothing     , ghost = true ),
     ]
     viz  = (; status=true, freq=1.0, what=["sigxx"], dims=(500.0,250.0) )
-    fwrk = (; deform = "finite",trsfr = "musl",locking = false,damping = 0.1)
+    fwrk = (; deform = "finite",trsfr = "std",musl = true, locking = false,damping = 0.1)
 
 
     nels = [[5, 5],[5, 10],[5, 20],[5, 40],[5, 80]]
@@ -70,7 +70,7 @@
                             dims    = (250,250),
                             backend = gr(legend=true,markersize=2.0,markershape=:circle,markerstrokewidth=0.75,),
                             tit     = "Convergence for elastic collapse",
-                            file    = joinpath(cfg[:paths][:plot],"2d_elastic_column_collapse_convergence.png"),
+                            file    = joinpath(cfg.paths.plot,"2d_elastic_column_collapse_convergence.png"),
                         )
                         config_plot()
                         opts.backend
@@ -85,7 +85,7 @@
                             xlabel     = L"h^{-1} \,\, [\mathrm{m}^{-1}]",
                             ylabel     = L"\epsilon"*" [-]",
                             yscale     = :log10,
-                            label      ="$(length(nel))D $(cfg[:instr][:basis][:which]), $(cfg[:instr][:fwrk][:trsfr]) mapping",
+                            label      ="$(length(nel))D $(cfg.instr.basis.which), $(cfg.instr.fwrk.trsfr) mapping",
                             title      = "$(opts.tit)",
                             size       = opts.dims,
                         )

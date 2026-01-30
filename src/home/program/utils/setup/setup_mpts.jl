@@ -1,20 +1,21 @@
 
 """
-    setup_mpts(mesh::Mesh{T1,T2}, cmp::NamedTuple; define::Tuple=(nothing, nothing)) -> Point{T1,T2}
+    setup_mpts(mesh::Mesh{T1,T2,D}, instr::Instruction{T1,T2,D}, cmpr::NamedTuple; geom::NamedTuple=()) -> Point{T1,T2}
 
 Construct the material point system (mpts) for a simulation, initializing all relevant fields and connectivity.
 
 # Arguments
-- `mesh::Mesh{T1,T2}`: Mesh object containing geometry and topology.
-- `cmp::NamedTuple`: Constitutive model parameters.
-- `define::Tuple=(nothing, nothing)`: (Optional) Tuple containing geometry definition (e.g., number of intervals, number of material points, geometry struct).
+- `mesh::Mesh{T1,T2,D}`: Mesh object containing geometry and topology.
+- `instr::Instruction{T1,T2,D}`: Simulation instruction structure.
+- `cmpr::NamedTuple`: Constitutive model parameters.
+- `geom::NamedTuple=()`: (Optional) Geometry definition (e.g., number of intervals, number of material points, geometry struct).
 
 # Returns
 - `Point{T1,T2}`: Material point data structure with all fields initialized for simulation.
 
 # Example
 ```julia
-mpts = setup_mpts(mesh, cmp; define=(ni, nmp, geom))
+mpts = setup_mpts(mesh, instr, cmpr; geom=get_slump(mesh, cmpr, instr))
 println(mpts.nmp)  # Number of material points
 ```
 
@@ -23,13 +24,15 @@ println(mpts.nmp)  # Number of material points
 - Sets up connectivity arrays and phase properties (solid and liquid).
 - Handles both 2D and 3D cases.
 """
-function setup_mpts(mesh::Mesh{T1,T2},instr::Instruction{T1,T2},cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2}
+function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,D}
     props = mesh.prprt
-    # non-dimensional constant                                                   
-    if props.dim == 2 
-        nstr = 3 
-    elseif props.dim == 3 
-        nstr = 6 
+    # non-dimensional constant
+    if D == TwoDimension
+        nstr = 3
+    elseif D == ThreeDimension
+        nstr = 6
+    else
+        error("Unsupported dimension type: $D")
     end
     # unpack material geometry
     ni,nmp,xp = geom.ni,geom.nmp,geom.xp 
@@ -45,7 +48,7 @@ function setup_mpts(mesh::Mesh{T1,T2},instr::Instruction{T1,T2},cmpr::NamedTuple
         elast = LinearElasticity(T1, T2, nmp, props.dim)
     end
     
-    rheo = DruckerPragerRheology{T1,T2}(
+    rheo = DruckerPragerRheology{T1,T2,D}(
         T2.(vec(copy(geom.coh0))),  # c₀
         T2.(vec(copy(geom.cohr))),  # cᵣ
         T2.(vec(copy(geom.phi))),   # ϕ
@@ -54,7 +57,7 @@ function setup_mpts(mesh::Mesh{T1,T2},instr::Instruction{T1,T2},cmpr::NamedTuple
         T2.(zeros(nmp))             # ϵpV
     )
 
-    s = PointSolidPhase{T1,T2,typeof(elast),typeof(rheo)}(
+    s = PointSolidPhase{T1,T2,D,typeof(elast),typeof(rheo)}(
         T2.(zeros(size(xp)))                               , # u
         T2.(zeros(size(xp)))                               , # v
         # mechanical properties
@@ -82,18 +85,18 @@ function setup_mpts(mesh::Mesh{T1,T2},instr::Instruction{T1,T2},cmpr::NamedTuple
         elast                                              , # elast::E
         rheo                                               , # rheo::R
     )
-    t = PointThermalPhase{T1,T2}(
+    t = PointThermalPhase{T1,T2,D}(
         T2.(vec(copy(geom.c)))                            , # c::Vector{T2} specific heat capacity vector
         T2.(vec(copy(geom.k)))                             , # k::Vector{T2} thermal conductivity vector
         T2.(zeros(props.dim,nmp))                            , # q::Matrix{T2} heat flux array
         T2.(vec(copy(geom.T)))                            , # T::Vector{T2} temperature vector
     )
-    f = PointFluidPhase{T1,T2}(
+    f = PointFluidPhase{T1,T2,D}(
 
     )
 
 
-    mpts = Point{T1,T2,typeof(elast),typeof(rheo)}(
+    mpts = Point{T1,T2,D,typeof(elast),typeof(rheo)}(
         # general information
         T1(props.dim)                         , # ndim
         T1(nmp)                              , # nmp

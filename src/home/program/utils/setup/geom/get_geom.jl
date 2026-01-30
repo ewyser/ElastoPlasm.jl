@@ -18,7 +18,7 @@ Compute mesh geometry parameters based on the number of elements, domain size, a
 ndim, nn, h = get_geom([10, 10], [1.0, 1.0], Dict(:basis => Dict(:which => "bsmpm")))
 ```
 """
-function get_geom(nel::Vector,L::Vector,instr::Instruction{T1,T2}) where {T1,T2}    
+function get_geom(nel::Vector,L::Vector,instr::Instruction{T1,T2,D}) where {T1,T2,D}    
     # unpack arithmetic precision
     if instr.basis.which == "bsmpm"
         ndim,nn,h = length(L),4^length(L),min.(L./nel,L./4)

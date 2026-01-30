@@ -24,15 +24,20 @@ display(p)
 - Supports fields: pressure (`P`), plastic strain (`epII`), volumetric plastic strain (`epV`), displacement (`du`), initial vertical position (`z0`), initial cohesion (`coh0`), and initial friction angle (`phi0`).
 - Throws an error if the requested field is not defined.
 """
-@views function what_plot_field(mpts::Point,opts)
+@views function what_plot_field(mpts::Point{T1,T2,D,E,R},opts; dim::String="d") where {T1,T2,D<:AbstractDimension,E<:AbstractElasticity,R<:AbstractRheology}
+    if D <: TwoDimension
+        dim = "2"
+    elseif D <: ThreeDimension
+        dim = "3"
+    end
+    
     if opts.what == "P"
         if size(mpts.s.σᵢ,1) == 3
             d   = -(mpts.s.σᵢ[1,:]+mpts.s.σᵢ[2,:])/2/1e3
-            lab = L"$p=-\sigma_{ii,p}/2$"*" [kPa]"
         elseif size(mpts.s.σᵢ,1) == 6
             d   = -(mpts.s.σᵢ[1,:]+mpts.s.σᵢ[2,:]+mpts.s.σᵢ[3,:])/3/1e3
-            lab = L"$p=-\sigma_{ii,p}/3$"*" [kPa]"
-        end            
+        end 
+        lab   = L"$p(x_p)$"*" [kPa]"           
         tit   = "pressure"
         cb    = :viridis
     elseif opts.what == "sigxx"
@@ -86,7 +91,7 @@ display(p)
         tit   = "porosity"
         cb    = :seismic
     elseif opts.what == "J"
-        d     = mpts.J
+        d     = mpts.J 
         lab   = L"J(x_p)"*" [-]"
         tit   = "deformation determinant"
         cb    = :seismic
@@ -95,6 +100,17 @@ display(p)
         lab   = L"m_{s}(x_p)"*" [-]"
         tit   = "solid mass"
         cb    = :viridis
+    elseif opts.what == "vol0"
+        d     = mpts.Ω₀
+        lab   = L"\Omega_{s}(x_p)"*" [m"*L"^{%$dim}"*"]" 
+        tit   = "initial solid volume"
+        cb    = :viridis   
+    elseif opts.what == "vol"
+        d     = mpts.Ω
+        ndim  = size(mpts.x, 1)
+        lab   = L"\Omega_{s}(x_p)"*" [m"*L"^{%$dim}"*"]" 
+        tit   = "solid volume"
+        cb    = :viridis    
     elseif opts.what == "T"
         d     = mpts.t.T
         lab   = L"T(x_p)"*" [K]"
@@ -109,6 +125,16 @@ display(p)
         throw(error("UndefinedPlotOption: $(opts.what)"))
     end
 
+    if isnothing(opts.cblim)
+        dmin, dmax = minimum(d), maximum(d)
+        if dmin == dmax
+            clim = (dmin - 0.1 * abs(dmin) - 1e-10, dmax + 0.1 * abs(dmax) + 1e-10)
+        else
+            clim = (dmin, dmax)
+        end
+    else
+        clim = opts.cblim
+    end
     # plotting
     p = plot(
         if size(mpts.x,1) == 2
@@ -122,7 +148,7 @@ display(p)
         ylabel      = L"$z-$direction"*" [m]",
         label       = lab,
         color       = cb,
-        clim        = opts.cblim,
+        clim        = clim,
         xlim        = opts.xlim,
         ylim        = opts.ylim,
         title       = "$tit, at $(opts.tit)",
@@ -221,14 +247,17 @@ function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[], dpi::Int=100)
     sx,sy = opts[:dims][1],scale*opts[:dims][2]
     # plotting
     config_plot(); opts.backend
-    for (k,variable) ∈ enumerate(opts[:what])
-        if first(variable) == "mpts"
-            p0   = what_plot_field(mpts,(;opts...,what=last(variable),cblim=opts[:cblim][k]))
-        elseif first(variable) == "mesh"
-            p0   = what_plot_field(mesh,(;opts...,what=last(variable),cblim=opts[:cblim][k]))
+    for variable in opts[:what]
+        k = first(keys(variable))
+        entry = variable[k]
+        if k == :mpts
+            p0 = what_plot_field(mpts, (;opts..., what=entry.name, cblim=entry.cblim))
+        elseif k == :mesh
+            p0 = what_plot_field(mesh, (;opts..., what=entry.name, cblim=entry.cblim))
+        else
+            error("Unknown plot type: $k")
         end
-        push!(P,p0)
-
+        push!(P, p0)
     end
     # display fig
     fig   = display(plot(P...;layout=(scale,1),size=(sx,sy)))
