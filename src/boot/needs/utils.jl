@@ -60,9 +60,10 @@ function rootflush(info)
                     push!(msg,"\e[31m- $(trunc_path(file))\e[0m")
                 end
             end
+            @info join(msg,"\n")
         end
     end
-    return msg
+    return nothing
 end
 
 """

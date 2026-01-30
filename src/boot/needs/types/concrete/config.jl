@@ -19,7 +19,7 @@ Base.@kwdef mutable struct Execution
 end
 Base.@kwdef mutable struct UI
 	ui    ::Bool       = true
-    plot  ::Bool       = false
+    plot  ::Bool       = true
     bckd  ::Bool       = true 
     logs  ::NamedTuple = (; log_info = true, log_warn = true, log_error = true) 
 end

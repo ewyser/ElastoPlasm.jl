@@ -217,7 +217,7 @@ The function automatically:
 - Skips sub-options when `status = false` is selected
 
 # Returns
-- `Instruction`: Validated configuration processed through `kwargser(kwargs, Instruction; dim=dimension)`
+- `Instruction`: Validated configuration processed through `kwargser(kwargs; dim=dimension)`
 
 # Example
 ```julia
@@ -259,7 +259,7 @@ function cli(; ui::Bool=false)
     return kwargs
 end
 """
-    kwargser(kwargs::Any, ::Type{Instruction}; dim::Number=2) -> Instruction
+    kwargser(kwargs::Any; dim::Number=2, constructor::Type=Instruction) -> Instruction
 
 Generate a configuration object by merging user-supplied keyword arguments with default values.
 
@@ -274,11 +274,11 @@ Generate a configuration object by merging user-supplied keyword arguments with 
 # Example
 ```julia
 # Top-level overrides
-instr = kwargser(Dict(:dtype => 64, :locking => true), Instruction; dim=3)
+instr = kwargser(Dict(:dtype => 64, :locking => true); dim=3)
 println(instr.cairn.shpfun)  # prints the initialized shape function kernel
 
 # To override nested fields, use a nested NamedTuple or Dict:
-instr = kwargser((;fwrk = (deform="infinitesimal", trsfr="tpic", locking=false)), Instruction)
+instr = kwargser((;fwrk = (deform="infinitesimal", trsfr="tpic", locking=false)))
 println(instr.fwrk.deform)  # prints "infinitesimal"
 ```
 
@@ -287,8 +287,8 @@ println(instr.fwrk.deform)  # prints "infinitesimal"
 - Sets precision and attaches kernel functions for shape functions, mapping, and constitutive updates
 - Warns about any unused keyword arguments
 """
-function kwargser(kwargs::Any, ::Type{Instruction}; dim::Number=2)
-    ref    = get_default(Instruction)
+function kwargser(kwargs::Any; dim::Number=2, constructor::Type=Instruction)
+    ref    = get_default(constructor)
     # Only keep keys in kwargs that are also in ref
     valids = intersect(keys(kwargs), keys(ref))
     user   = NamedTuple{Tuple(valids)}(getindex.(Ref(kwargs), valids))
@@ -314,6 +314,10 @@ function kwargser(kwargs::Any, ::Type{Instruction}; dim::Number=2)
     else
         error("Unsupported dimension type: $ndim")
     end
+    # Verify plotting status from ui
+    if !ElastoPlasm.info.ui.plot
+        instr = merge(instr, (; plot = merge(instr.plot, (; status = false,)),))
+    end    
     # Set execution backend
     if !haskey(instr[:backend],:exec)
         exec  = select_execution_backend(instr[:backend][:select]; mpi_status=instr[:backend][:distributed])
@@ -327,7 +331,7 @@ function kwargser(kwargs::Any, ::Type{Instruction}; dim::Number=2)
     )
     instr = merge(instr, (; cairn = cairn,))
     # Create Instruction type
-    return Instruction{instr[:dtype][:T0]...,typeof(dim)}(
+    return constructor{instr[:dtype][:T0]...,typeof(dim)}(
         instr[:dtype],
         instr[:basis],
         instr[:fwrk],

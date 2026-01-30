@@ -28,7 +28,7 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     dim = length(nel)
     L = dim == 2 ? [10.0, 1.25*l0] : [10.0, 10.0, 1.25*l0]
     # Simulation instructions
-    instr = kwargser(kwargs, Instruction; dim=dim)
+    instr = kwargser(kwargs; dim=dim)
     paths = set_paths(fid, info.sys.out; interactive=false)
     T0    = instr.dtype.T0  
     T1,T2 = first(T0),last(T0) 

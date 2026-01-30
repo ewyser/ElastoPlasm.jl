@@ -30,7 +30,7 @@
                 :grf    => grf,
                 :backend=> instr.backend,
             )
-            instr = kwargser(kwargs, Instruction; dim=mesh.prprt.dim)
+            instr = kwargser(kwargs; dim=mesh.prprt.dim)
             misc = (;
                 prefix = "case_$(k)_$(mesh.prprt.dim)d_$(instr.fwrk.trsfr)_$(instr.fwrk.deform)"
             )

@@ -31,7 +31,7 @@ include(joinpath(SRC,"boot/needs/utils.jl"))
 include(joinpath(SRC,"boot/needs/backend.jl"))
 
 # flushing
-@info join(rootflush(info),"\n")
+rootflush(info)
 
 # find & printout active backend(s)
 add_backend!(Val(:x86_64),info)
