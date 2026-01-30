@@ -1,4 +1,16 @@
-export  save_plot,get_plot_field,what_plot_field
+export  save_plot,get_plot_field,what_plot_field,VARIABLE_EXTRACTORS
+
+# Variable extraction functions (initially for metanalysis)
+extract_epII(mpts) = vec(mpts.s.ϵpII[1, :])
+extract_P(mpts)    = -vec(mean(mpts.s.σᵢ[1:2, :], dims=1)) / 1e3
+extract_J(mpts)    = vec(mpts.J)
+
+# Variable extraction configuration dictionary
+const VARIABLE_EXTRACTORS = Dict(
+    "epII" => (extract=extract_epII, label=L"\epsilon_{\mathrm{II}}^{\mathrm{acc}}", name="plastic strain"),
+    "P"    => (extract=extract_P,    label=L"p",                                     name="pressure"),
+    "J"    => (extract=extract_J,    label=L"J",                                     name="deformation determinant"),
+)
 
 """
     what_plot_field(mpts, mesh, opts)
