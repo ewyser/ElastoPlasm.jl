@@ -12,7 +12,7 @@ struct LinearElasticity{T1,T2,D} <: AbstractElasticity{T1,T2}
     ωᵢⱼ  ::Array{T2,3}
     σJᵢⱼ ::Array{T2,3}
 end
-function LinearElasticity(::Type{T1},::Type{T2},nmp::Int,ndim::Int) where {T1,T2}
+function LinearElasticity(::Type{T1},::Type{T2},nmp::Integer,ndim::Integer) where {T1,T2}
     if ndim == 2 
         nstr = 3 
     elseif ndim == 3 
@@ -34,7 +34,7 @@ struct FiniteElasticity{T1,T2,D} <: AbstractElasticity{T1,T2}
     bᵢⱼ  ::Array{T2,3}
     ϵᵢⱼ  ::Array{T2,3}
 end
-function FiniteElasticity(::Type{T1}, ::Type{T2}, nmp::Int, ndim::Int) where {T1,T2}
+function FiniteElasticity(::Type{T1}, ::Type{T2}, nmp::Integer, ndim::Integer) where {T1,T2}
     if ndim == 2 
         nstr = 3 
     elseif ndim == 3 

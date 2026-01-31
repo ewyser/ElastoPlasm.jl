@@ -5,7 +5,7 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
     
     @info "Setting up mesh & material point system for $(length(L))d thermal problem"
     # init & kwargs
-    instr = kwargser(kwargs, Instruction; dim=length(L))
+    instr = kwargser(kwargs; dim=length(L))
     instr = merge(instr, 
         (;
             basis = (;

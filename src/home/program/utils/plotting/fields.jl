@@ -1,13 +1,12 @@
-export  save_plot,get_plot_field,what_plot_field
+export what_plot_field
 
 """
-    what_plot_field(mpts, mesh, opts)
+    what_plot_field(mpts, opts) -> Plot
 
-Select and prepare a field for plotting from the material point and mesh data, based on the `opts` specification.
+Select and prepare a material point field for plotting based on the `opts` specification.
 
 # Arguments
 - `mpts`: Material point data structure.
-- `mesh`: Mesh data structure.
 - `opts`: Named tuple or dictionary specifying what to plot and plot settings (e.g., `what`, `dims`, `tit`, `backend`).
 
 # Returns
@@ -16,7 +15,7 @@ Select and prepare a field for plotting from the material point and mesh data, b
 # Example
 ```julia
 opts = (;what="P", dims=(500,250), tit="", backend=gr())
-p = what_plot_field(mpts, mesh, opts)
+p = what_plot_field(mpts, opts)
 display(p)
 ```
 
@@ -157,6 +156,26 @@ display(p)
     )
     return p
 end
+
+"""
+    what_plot_field(mesh, opts) -> Plot
+
+Select and prepare a mesh field for plotting based on the `opts` specification.
+
+# Arguments
+- `mesh`: Mesh data structure.
+- `opts`: Named tuple or dictionary specifying what to plot and plot settings.
+
+# Returns
+- `Plot`: Heatmap plot object for the selected field.
+
+# Example
+```julia
+opts = (;what="v", dims=(500,250), tit="", backend=gr())
+p = what_plot_field(mesh, opts)
+display(p)
+```
+"""
 @views function what_plot_field(mesh::Mesh,opts)
     if opts.what == "v"
         d     = sqrt.(mesh.s.v[1,:].^2 .+ mesh.s.v[2,:].^2)
@@ -219,69 +238,4 @@ end
         size         = opts.dims
     )
     return p
-end
-
-"""
-    get_plot_field(mpts, mesh, opts; P=Vector{{Any}}())
-
-Generate and display plots for all fields specified in `opts[:what]`.
-
-# Arguments
-- `mpts`: Material point data structure.
-- `mesh`: Mesh data structure.
-- `opts`: Named tuple or dictionary specifying what to plot and plot settings (e.g., `what`, `dims`).
-- `P`: (Optional) Vector to collect plot objects.
-
-# Returns
-- `Nothing`. Displays the plot(s).
-
-# Example
-```julia
-opts = (;what=["P", "epII"], dims=(500,500))
-get_plot_field(mpts, mesh, opts)
-```
-"""
-function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[], dpi::Int=100) 
-    # scale
-    scale = length(opts[:what]) 
-    sx,sy = opts[:dims][1],scale*opts[:dims][2]
-    # plotting
-    config_plot(); opts.backend
-    for variable in opts[:what]
-        k = first(keys(variable))
-        entry = variable[k]
-        if k == :mpts
-            p0 = what_plot_field(mpts, (;opts..., what=entry.name, cblim=entry.cblim))
-        elseif k == :mesh
-            p0 = what_plot_field(mesh, (;opts..., what=entry.name, cblim=entry.cblim))
-        else
-            error("Unknown plot type: $k")
-        end
-        push!(P, p0)
-    end
-    # display fig
-    fig   = display(plot(P...;layout=(scale,1),size=(sx,sy)))
-    return fig
-end
-
-"""
-    save_plot(opts)
-
-Save the current plot to a file specified in `opts.file` and log the output path.
-
-# Arguments
-- `opts`: Named tuple or dictionary containing the `file` path for saving the plot.
-
-# Returns
-- `Nothing`. Logs the generated file path.
-
-# Example
-```julia
-opts = (;file="output.png")
-save_plot(opts)
-```
-"""
-function save_plot(opts)
-    savefig(opts.file)
-    return @info "Generated fig: \n\e[32m+ $(trunc_path(opts.file))\e[0m"
 end
