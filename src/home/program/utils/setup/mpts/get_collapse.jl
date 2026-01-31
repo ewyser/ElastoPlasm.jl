@@ -44,5 +44,10 @@ function get_collapse(mesh,cmp,ni;ℓ₀=0.0)
     coh0 = ones(nmp).*coh0
     cohr = ones(nmp).*cohr
     phi  = ones(nmp).*phi0
-    return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,ni=ni,nmp=nmp)
+    
+    c    = ones(nmp).*cmp[:specific_heat_capacity]
+    k    = ones(nmp).*cmp[:thermal_conductivity]
+    T    = ones(nmp).*cmp[:initial_temperature]
+    
+    return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,T=T,c=c,k=k,ni=ni,nmp=nmp)
 end
