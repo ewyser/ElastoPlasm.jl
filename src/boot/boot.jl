@@ -29,6 +29,7 @@ info = Self(
 # include
 include(joinpath(SRC,"boot/needs/utils.jl"))
 include(joinpath(SRC,"boot/needs/backend.jl"))
+include(joinpath(SRC,"boot/needs/distributed.jl"))
 
 # flushing
 rootflush(info)
@@ -37,5 +38,5 @@ rootflush(info)
 add_backend!(Val(:x86_64),info)
 
 # include .jl files
-lists = ["home/api","home/program","home/script"]
+lists = ["home/init","home/api","home/core","home/script"]
 @info join(superInc(lists; root=SRC, lib=info.sys.lib),"\n")

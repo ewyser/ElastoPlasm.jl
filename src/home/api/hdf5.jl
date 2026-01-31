@@ -77,7 +77,7 @@ function dumping(mpi::NamedTuple,startup::String,mesh::Mesh,t::Real,k::Number; d
     h5file = load(startup)["h5file"]
     # unpack & cache
     Nx,Ny = Int(mpi.globdim[1]),Int(mpi.globdim[2])
-    ix,iy = mpi.index[:i],mpi.index[:j]
+    ix,iy = mpi.index[:glob][:i],mpi.index[:glob][:j]
     nx,ny = length(ix),length(iy)
     # set args for h5open
     if mpi.status
@@ -112,7 +112,7 @@ function dumping(mpi::NamedTuple,startup::String,mesh::Mesh,t::Real,::Val{:final
     h5file = load(startup)["h5file"]
     # unpack & cache
     Nx,Ny = Int(mpi.globdim[1]),Int(mpi.globdim[2])
-    ix,iy = mpi.index[:i],mpi.index[:j]
+    ix,iy = mpi.index[:glob][:i],mpi.index[:glob][:j]
     nx,ny = length(ix),length(iy)
     # set args for h5open
     if mpi.status
@@ -200,7 +200,7 @@ function solidstatesync(mpi::NamedTuple,startup::String,mesh::Mesh{T1,T2,D},glob
     - accumulating $(typeof(globloc).parameters[1]) initial conditions into $(basename(load(startup)["ic"]))
     """
     # init  
-    ix,iy = mpi.index[:i],mpi.index[:j]
+    ix,iy = mpi.index[:glob][:i],mpi.index[:glob][:j]
     nx,ny = length(ix),length(iy)
     # set args for h5open
     if mpi.status
