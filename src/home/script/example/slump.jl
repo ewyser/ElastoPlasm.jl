@@ -34,23 +34,18 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
         @info "Plotting initial cohesion & friction fields..."
         dims  = instr.plot.dpi.*(mesh.prprt.L[1]./mesh.prprt.L)
         ms    = dims[1]/(mesh.prprt.nel[1]*2)
-        for variable ∈ [
-                (;mpts=(name="coh0", cblim=1e-3.*(cmpr.c0-cmpr.c0/2,cmpr.c0+cmpr.c0/2))),
-                (;mpts=(name="phi0", cblim=(cmpr.ϕr,cmpr.ϕ0)))
-            ]
-            k = first(keys(variable))
-            entry = variable[k]
-            opts = (;
-                dims    = instr.plot.dpi.*(mesh.prprt.L./mesh.prprt.L[1]),
-                what    = [variable],
-                xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])),
-                ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),
-                tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
-                backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
-                file    = joinpath(paths[:plot],"$(mesh.prprt.dim)d_std_$(entry.name).png"),
-            )
-            get_plot_field(mpts,mesh,opts);save_plot(opts)
-        end    
+
+        what = [(;mpts=MPTS_VAR[name]) for name ∈ ["coh0", "phi0"]]
+        opts = (;
+            dims    = instr.plot.dpi.*(mesh.prprt.L./mesh.prprt.L[1]),
+            what    = what,
+            xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])),
+            ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),
+            tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
+            backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
+            file    = joinpath(paths[:plot],"$(mesh.prprt.dim)d_std_coh0_phi0.png"),
+        )
+        get_plot_field(mpts,mesh,opts);save_plot(opts)
     end
     # display summary
     @info ic_log(mesh,mpts,time,instr)

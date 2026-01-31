@@ -21,29 +21,56 @@ println.(msgs)
 """
 function superInc(lists::Vector{String}; root::String="",lib::Dict=Dict(), tree::Bool=false)
     sucess = ["superInc() jls parser:"]
+    all_errors = Dict{String, Vector{Tuple{String, Exception, Vector{Base.StackTraces.StackFrame}}}}()
+    
     for (k,dir) ∈ enumerate(lists)
         dict = superDir(joinpath(root,dir))
+        dir_errors = Tuple{String, Exception, Vector{Base.StackTraces.StackFrame}}[]
+        
         # Collect and include all .jl files in this subtree
-        function collect_and_include_jls(d)
+        function collect_and_include_jls(d, path="")
             files = String[]
             for (k,v) ∈ d
                 if isa(v, Dict)
-                    append!(files, collect_and_include_jls(v))
+                    append!(files, collect_and_include_jls(v, joinpath(path, k)))
                 elseif endswith(k, ".jl")
-                    include(v)
-                    push!(files, k)
+                    try
+                        include(v)
+                        push!(files, k)
+                    catch e
+                        bt = Base.catch_backtrace()
+                        stack = Base.stacktrace(bt)
+                        rel_path = joinpath(path, k)
+                        push!(dir_errors, (rel_path, e, stack))
+                        @warn "Failed to include $(rel_path)" exception=(e, bt)
+                    end
                 end
             end
             return files
         end
+        
         jls_files = collect_and_include_jls(dict)
+        
+        if !isempty(dir_errors)
+            all_errors[dir] = dir_errors
+            push!(sucess, "⚠ $(dir) ($(length(jls_files)) loaded, $(length(dir_errors)) failed)")
+        else
+            push!(sucess, "✓ $(dir)")
+        end
+        
         if tree
             push!(sucess, join(tree(collect(keys(dict)))))
         end
-        # Store the nested dictionary for each directory for more granularity
-        push!(sucess, "✓ $(dir)")
-        push!(lib, ("$(dir)" => dict))
+        
+        # Store the nested dictionary and errors for each directory
+        push!(lib, (dir => Dict("files" => dict, "errors" => dir_errors)))
     end
+    
+    # Store consolidated errors in lib
+    if !isempty(all_errors)
+        push!(lib, ("_errors" => all_errors))
+    end
+    
     return sucess
 end
 

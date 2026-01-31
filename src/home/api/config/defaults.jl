@@ -71,7 +71,7 @@ function get_default(::Type{Instruction})
             status = true,
             freq   = 1.0,
             dpi    = 500,
-            what   = [(;mpts=(name="epII",cblim=(0.0,1.5)),),],
+            what   = [(;mpts=MPTS_VAR["epII"]),], 
         ),
         perf  = (;
             status=false,

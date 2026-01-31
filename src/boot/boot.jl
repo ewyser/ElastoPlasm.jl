@@ -32,10 +32,10 @@ include(joinpath(SRC,"boot/needs/backend.jl"))
 include(joinpath(SRC,"boot/needs/distributed.jl"))
 
 # flushing
-rootflush(info)
+rootflush(info.sys.out)
 
 # find & printout active backend(s)
-add_backend!(Val(:x86_64),info)
+add_backend!(info.bckd, Val(:x86_64))
 
 # include .jl files
 lists = ["home/init","home/api","home/core","home/script"]
