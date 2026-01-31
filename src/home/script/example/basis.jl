@@ -81,7 +81,7 @@ function basisfunction(; fid::String=first(splitext(basename(@__FILE__))), kwarg
     nel,L = [4,4],[1.0,1.0]
     ni    = 20
     # init & kwargs
-    instr = kwargser(:instr,kwargs;dim=length(L))
+    instr = kwargser(kwargs; dim=length(L))
     paths = set_paths(fid,info.sys.out;interactive=false)  
     T0    = instr[:dtype].T0  
     T1,T2 = first(T0),last(T0)  

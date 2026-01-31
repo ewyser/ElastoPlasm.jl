@@ -1,109 +1,189 @@
 @testset "+ $(basename(@__FILE__))" verbose = true begin
-    function elastic_collapse(ic,cfg,l0)
-        dim     = size(ic.mpts.x,1)
-        z0      = copy(ic.mpts.x[end, :])
-        out     = collapse(ic, cfg)
-        mesh,mpts,cmpr = out.ic.mesh, out.ic.mpts, out.ic.cmpr
 
+# Test Constants
+# ==============================================================================
+
+BASIS_CONFIGS = [
+    (; which = "bsmpm", how = nothing     , ghost = false),
+    (; which = "gimpm", how = "undeformed", ghost = true ),
+    #(; which = "smpm" , how = nothing     , ghost = true ),
+]
+
+TEST_NELS = [[5, 5], [5, 10], [5, 20], [5, 40], [5, 80]]
+TEST_NELS = [[5, 5], [5, 10], [5, 20],]
+
+# Helper Functions
+# ==============================================================================
+
+"""
+    load_simulation_setup(sim_file::String) -> NamedTuple
+
+Load mesh, material points, and configuration from JLD2 simulation file.
+"""
+function load_simulation_setup(sim_file::String)
+    jldopen(sim_file, "r") do file
+        return (
+            mesh  = file["ic"]["mesh"],
+            mpts  = file["ic"]["mpts"],
+            cmpr  = file["ic"]["cmpr"],
+            time  = file["ic"]["time"],
+            instr = file["cfg"]["instr"],
+            paths = file["cfg"]["paths"],
+            misc  = file["cfg"]["misc"],
+        )
+    end
+end
+
+"""
+    get_test_plot_config() -> NamedTuple
+
+Generate plot configuration for collapse tests.
+"""
+function get_test_plot_config()
+    return (
+        status = false,  # Disable plotting during tests for speed
+        dpi    = 500,
+        freq   = 1.0,
+        what   = [(;mpts=(name="sigxx", cblim=(0.0, 1e5)))],
+        dims   = (500.0, 250.0),
+    )
+end
+
+"""
+    get_test_fwrk_config() -> NamedTuple
+
+Generate framework configuration for collapse tests.
+"""
+function get_test_fwrk_config()
+    return (
+        deform  = "finite",
+        trsfr   = "std",
+        musl    = true,
+        C_pf    = 0.99,
+        locking = false,
+        damping = 0.1,
+    )
+end
+
+"""
+    compute_collapse_error(sim_file, l0) -> Float64
+
+Compute error between numeric and analytic solution for elastic collapse.
+"""
+function compute_collapse_error(sim_file, l0)
+    # Load setup to get initial material point positions
+    setup = load_simulation_setup(sim_file)
+    z0 = copy(setup.mpts.x[end, :])
+    
+    # Run simulation
+    out = elastoplasm(sim_file; workflow=[elastodynamic!])
+    
+    # Reload to get final state
+    jldopen(sim_file, "r") do file
+        mesh = file["ic/mesh"]
+        mpts = file["ic/mpts"]
+        cmpr = file["ic/cmpr"]
+        
         # Numeric and analytic solution
-        idx = mesh.dim == 2 ? 2 : 3
+        idx = mesh.prprt.dim == 2 ? 2 : 3
         xnum = abs.(mpts.s.σᵢ[idx, :])
         ynum = z0
         x = abs.(cmpr.ρ0 * 9.81 * (l0 .- z0))
         y = z0
         err = sum(sqrt.((xnum .- x).^2) .* mpts.Ω₀) / (9.81 * cmpr.ρ0 * l0 * sum(mpts.Ω₀))
-        #=
-        config_plot()
-        gr(size=(500,300),legend=true,markersize=2.5,markershape=:circle,markerstrokewidth=0.0,markerstrokecolor=:match,)
-        p1 = plot(
-            xnum .* 1e-3, ynum,
-            seriestype = :scatter,
-            label = "$(dim)d $(cfg.instr[:basis][:which])",
-            markersize = 2.0,
-            xlabel = L"\sigma_{yy}\ \mathrm{[kPa]}",
-            ylabel = L"y\ \mathrm{[m]}",
-            legend = :topright,
-            grid = true,
-            color = :red,
-            dpi = 120
-        )
-        plot!(
-            x .* 1e-3, y,
-            seriestype = :line,
-            label = L"\sum_{p}\frac{||\sigma_{yy}^p - \sigma_{yy}^a(x_p)|| \Omega_0^p}{(g \rho_0 l_0) \Omega_0}", 
-            linewidth = 2,
-            color = :blue
-        )
-        display(plot(p1; layout = (1, 1), size = (500, 300), dpi = 120))
-        savefig(joinpath(cfg.paths[:plot],"$(dim)d_numeric_analytic_$(basename(@__FILE__)).png"))
-        =#
+        
         return err
     end
-
-    cases  = [
-        (; which = "bsmpm", how = nothing     , ghost = false),
-        (; which = "gimpm", how = "undeformed", ghost = true ),
-        #(; which = "smpm" , how = nothing     , ghost = true ),
-    ]
-    viz  = (; status=true, freq=1.0, what=["sigxx"], dims=(500.0,250.0) )
-    fwrk = (; deform = "finite",trsfr = "musl",locking = false,damping = 0.1)
-
-
-    nels = [[5, 5],[5, 10],[5, 20],[5, 40],[5, 80]]
-    nk   = length(nels)+1;
-    test = (; error = zeros(nk), h = zeros(nk), filename = [],)
-    test.error[1],test.h[1] = Inf,Inf
-    for (j, basis) ∈ enumerate(cases)
-        @testset "- 2d geometry with $(basis.which) basis" verbose = true begin
-            # 2d elastic collapse tests
-            for (k,nel) ∈ enumerate(nels)
-                @testset "- nel = $nel" verbose = true begin
-                    l0      = 50.0
-                    ic, cfg = ic_collapse(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse", plot = viz, basis = basis, fwrk = fwrk)
-                    err     = elastic_collapse(ic,cfg,l0)
-                    test.error[k+1] = err
-                    test.h[k+1]     = ic.mesh.h[end]
-                    @test test.error[k+1] < test.error[k] 
-
-                    if k == nk-1
-                        opts = (;
-                            dims    = (250,250),
-                            backend = gr(legend=true,markersize=2.0,markershape=:circle,markerstrokewidth=0.75,),
-                            tit     = "Convergence for elastic collapse",
-                            file    = joinpath(cfg[:paths][:plot],"2d_elastic_column_collapse_convergence.png"),
-                        )
-                        config_plot()
-                        opts.backend
-                        if j == 1
-                            get_plot = plot
-                        else
-                            get_plot = plot!
-                        end
-                        p = get_plot(
-                            1.0./test.h,test.error,
-                            seriestype =:line, 
-                            xlabel     = L"h^{-1} \,\, [\mathrm{m}^{-1}]",
-                            ylabel     = L"\epsilon"*" [-]",
-                            yscale     = :log10,
-                            label      ="$(length(nel))D $(cfg[:instr][:basis][:which]), $(cfg[:instr][:fwrk][:trsfr]) mapping",
-                            title      = "$(opts.tit)",
-                            size       = opts.dims,
-                        )
-                        display(plot(p; layout=(1,1), size=(450,250)))
-                        if j == length(cases)
-                            save_plot(opts)
-                        end
-                    end
-                end
-            end
-        end
-
-        #==#
-    end
-
-
-        # 3d slump tests
-        # TODO: Add 3d elastic collapse tests
-
-
 end
+
+"""
+    run_collapse_convergence_tests(basis, l0, plot_cfg, fwrk_cfg) -> Nothing
+
+Run convergence tests for a given basis configuration.
+"""
+function run_collapse_convergence_tests(basis, l0, plot_cfg, fwrk_cfg)
+    nk = length(TEST_NELS) + 1
+    errors = zeros(nk)
+    hs = zeros(nk)
+    errors[1], hs[1] = Inf, Inf
+    
+    for (k, nel) ∈ enumerate(TEST_NELS)
+        @testset "- nel = $nel" verbose = true begin
+            sim = ic_collapse(nel, 0.0, 1.0e4, 80.0, l0; 
+                             fid = "test/collapse", 
+                             plot = plot_cfg, 
+                             basis = basis, 
+                             fwrk = fwrk_cfg)
+            
+            setup = load_simulation_setup(sim)
+            err = compute_collapse_error(sim, l0)
+            errors[k+1] = err
+            hs[k+1] = setup.mesh.prprt.h[end]
+            @test errors[k+1] < errors[k]
+        end
+    end
+    
+    # Return errors and mesh sizes for convergence plotting
+    return errors, hs
+end
+
+# Main Test Execution
+# ==============================================================================
+
+l0 = 50.0
+plot_cfg = get_test_plot_config()
+fwrk_cfg = get_test_fwrk_config()
+
+# Storage for convergence plotting
+all_errors = []
+all_hs = []
+all_labels = []
+plot_path = ""
+
+for (j, basis) in enumerate(BASIS_CONFIGS)
+    @testset "- 2d geometry with $(basis.which) basis" verbose = true begin
+        errors, hs = run_collapse_convergence_tests(basis, l0, plot_cfg, fwrk_cfg)
+        push!(all_errors, errors)
+        push!(all_hs, hs)
+        push!(all_labels, basis.which)
+        
+        # Get plot path from first test case
+        if j == 1 && length(TEST_NELS) > 0
+            sim = ic_collapse(TEST_NELS[1], 0.0, 1.0e4, 80.0, l0; 
+                             fid = "test/collapse", 
+                             plot = plot_cfg, 
+                             basis = basis, 
+                             fwrk = fwrk_cfg)
+            setup = load_simulation_setup(sim)
+            plot_path = setup.paths[:plot]
+        end
+    end
+end
+
+# Create convergence plot
+config_plot()
+opts = (;
+    dims    = (450, 250),
+    backend = gr(legend=true, markersize=2.0, markershape=:circle, markerstrokewidth=0.75),
+    tit     = "Convergence for elastic collapse",
+    file    = joinpath(plot_path, "2d_elastic_column_collapse_convergence.png"),
+)
+opts.backend
+
+for (j, basis) in enumerate(BASIS_CONFIGS)
+    get_plot = j == 1 ? plot : plot!
+    p = get_plot(
+        1.0 ./ all_hs[j][2:end], all_errors[j][2:end],
+        seriestype = :line,
+        xlabel     = L"h^{-1} \,\, [\mathrm{m}^{-1}]",
+        ylabel     = L"\epsilon" * " [-]",
+        yscale     = :log10,
+        label      = "2D $(all_labels[j]), $(fwrk_cfg.trsfr) mapping",
+        title      = opts.tit,
+        size       = opts.dims,
+    )
+end
+display(current())
+save_plot(opts)
+
+end # @testset

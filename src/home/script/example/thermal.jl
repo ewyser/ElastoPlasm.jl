@@ -1,11 +1,11 @@
-export thermal,ic_thermal 
+export ic_thermal 
 
 function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
     L,nel = [16.0,16.0],[80,80]
     
     @info "Setting up mesh & material point system for $(length(L))d thermal problem"
     # init & kwargs
-    instr = kwargser(:instr,kwargs;dim=length(L))
+    instr = kwargser(kwargs; dim=length(L))
     instr = merge(instr, 
         (;
             basis = (;
@@ -39,7 +39,7 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
     # mesh & mpts initial conditions
     mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)       )
     cmpr  = setup_cmpr(mesh                                           )                       
-    mpts  = setup_mpts(mesh,cmpr ; geom = get_thermal(mesh,cmpr,instr))
+    mpts  = setup_mpts(mesh,instr,cmpr ; geom = get_thermal(mesh,cmpr,instr))
     # time parameters
     time  = setup_time(instr     ; te=5.0,tg=5.0,tep=0.0) 
     # plot initial cohesion field
@@ -61,13 +61,6 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
     misc = (;
         prefix = "$(mesh.prprt.dim)d_$(instr[:fwrk][:trsfr])"
     )
-    return (;mesh,mpts,cmpr,time),(;instr,paths,misc)
-end
-
-function thermal(ic::NamedTuple,cfg::NamedTuple; workflow::String="thermodynamic")
-    @info "Explicit solution to thermal problem"; config_plot()
-    # forward-euler explicit workflow
-    out = elastoplasm(deepcopy(ic), deepcopy(cfg); problem = workflow)
-    # return output with success flag
-    return out = (; out..., success=true,)
+    # export to jld2 file and return path
+    return export_setup(mesh,mpts,cmpr,time,instr,paths,misc; path = paths[:dat], file = "thermal_simulation")
 end

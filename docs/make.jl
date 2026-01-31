@@ -26,7 +26,7 @@ function write_autodoc_page(filename, pages, modulename)
     end
 end
 write_autodoc_page("api.md"    , ElastoPlasm.info.sys.lib["home/api"]    , :ElastoPlasm)
-write_autodoc_page("program.md", ElastoPlasm.info.sys.lib["home/program"], :ElastoPlasm)
+write_autodoc_page("program.md", ElastoPlasm.info.sys.lib["home/core"], :ElastoPlasm)
 write_autodoc_page("script.md" , ElastoPlasm.info.sys.lib["home/script"] , :ElastoPlasm)
 
 # Call makedocs

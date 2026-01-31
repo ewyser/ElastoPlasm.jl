@@ -55,7 +55,7 @@ function compactTest(dim,nel,varPlot,ν,E,ρ0,l0; kwargs...)
         L       = [l0/nel,l0/nel,l0]                                            # domain geometry
     end
     # independant physical constant
-    instr  = kwargser(:instr,kwargs)
+    instr  = kwargser(kwargs)
 
     # independant physical constant
     g       = 9.81                      
