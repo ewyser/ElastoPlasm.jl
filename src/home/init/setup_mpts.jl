@@ -41,6 +41,9 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
     l0 = ones(size(xp)).*0.5.*(props.h./ni)
     v0 = prod(2 .* l0; dims=1)
     ρ0 = fill(cmpr[:ρ0],nmp)
+    # initial velocity (if provided)
+    vp = haskey(geom, :vp) ? geom.vp : zeros(size(xp))
+    #vp = zeros(size(xp))
     # constructor - create components
     if instr.fwrk.deform == "finite"
         elast = FiniteElasticity(T1, T2, nmp, props.dim)
@@ -59,7 +62,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
 
     s = PointSolidPhase{T1,T2,D,typeof(elast),typeof(rheo)}(
         T2.(zeros(size(xp)))                               , # u
-        T2.(zeros(size(xp)))                               , # v
+        T2.(copy(vp))                                      , # v
         # mechanical properties
         T2.(vec(copy(ρ0)))                                 , # ρ₀
         T2.(vec(copy(ρ0)))                                 , # ρ

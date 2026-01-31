@@ -21,6 +21,7 @@ savlot(mpts, mesh, t, instr)
     if instr.plot.status
         dims = instr.plot.dpi.*(mesh.prprt.L[1]./mesh.prprt.L)
         ms   = dims[1]/(mesh.prprt.nel[1]*2)
+
         opts = (;
             dims    = instr.plot.dpi.*(mesh.prprt.L./mesh.prprt.L[1]), 
             what    = instr.plot.what,

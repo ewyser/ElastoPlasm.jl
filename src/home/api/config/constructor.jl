@@ -62,7 +62,7 @@ function kwargser(kwargs::Any; dim::Number=2, constructor::Type=Instruction)
     end    
     # Set execution backend
     if !haskey(instr[:backend],:exec)
-        exec  = select_execution_backend(instr[:backend][:select]; mpi_status=instr[:backend][:distributed])
+        exec  = select_execution_backend(ElastoPlasm.info.bckd, instr[:backend][:select]; distributed=instr[:backend][:distributed], prompt=ElastoPlasm.info.bckd.prompt)
         instr = merge(instr, (; backend = merge(instr[:backend], (; exec = exec,)),))
     end
     # Add cairns to instr     
