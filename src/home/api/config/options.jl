@@ -63,7 +63,7 @@ function get_option(::Type{Instruction})
                 what   = ("Select plot variable(s)", get_variable_plot_options()),
             ),
             perf  = (
-                status = ("Enable performance monitoring",[true, false]),
+                status = ("Enable optimized implementation",[true, false]),
             ),
             backend = (
                 select = ("Select backend",["host", "cuda", "rocm"]),

@@ -62,7 +62,7 @@ function execute_simulations(meta_path, nsim)
         for file in filter(f -> endswith(f, ".jld2"), readdir(sim_path))
             @suppress begin
                 out = elastoplasm!(joinpath(sim_path, file); workflow=[elastodynamic!, elastoplastic!])
-                push!(outputs, out)
+                push!(outputs, out.simulation)
             end
         end
         next!(prog; desc="Executing simulation(s) $k/$nsim...")
@@ -75,37 +75,35 @@ end
 
 Extract fields, compute statistics, and generate plots for selected fields.
 """
-function postprocess_fields(outputs, paths)
+function postprocess_fields(outputs, path)
     @info "Postprocessing metanalysis results..."
     nsim = length(outputs)
     
     # Interactive field selection
-    field_keys = sort(collect(keys(VARIABLE_EXTRACTORS)))
-    field_names = [VARIABLE_EXTRACTORS[k].name for k in field_keys]
-    menu = MultiSelectMenu(field_names, pagesize=length(field_names))
-    choices = request("Select field(s) to analyze (Space to select, Enter to confirm):", menu)
-    selected_fields = [field_keys[i] for i in choices]
-    isempty(selected_fields) && error("No fields selected")
-    @info "Selected fields: $(join([VARIABLE_EXTRACTORS[f].name for f in selected_fields], ", "))"
-    
+    field_keys  = sort(collect(keys(MPTS_VAR)))
+    field_names = [MPTS_VAR[k].name for k in field_keys]
+    menu        = MultiSelectMenu(field_names, pagesize=length(field_names))
+    choices     = request("Select field(s) to analyze (Space to select, Enter to confirm):", menu)
+    selection   = [field_keys[i] for i in choices]
+    isempty(selection) && error("No fields selected")
+
     # Load reference data
-    reference = load(outputs[1].simulation)
-    ref_mesh = reference["ic/mesh"]
-    npts = size(reference["ic/mpts"].x, 2)
+    reference = load(outputs[1])
+    npts      = size(reference["ic/mpts"].x, 2)
     
     # Process each selected field
-    for selected_field in selected_fields
-        field_info = VARIABLE_EXTRACTORS[selected_field]
-        @info "Processing field: $(field_info.name)..."
+    for field in selection
+        get = MPTS_VAR[field]
+        @info "Processing field: $(get.name)..."
         
         # Extract field data
-        X, Y, D = extract_field_data(outputs, field_info, npts, nsim)
+        X, Y, D = extract_field_data(outputs, get, npts, nsim)
         
         # Compute statistics
         stats = compute_statistics(X, Y, D)
         
         # Generate and save plots
-        plot_field_statistics(stats, field_info, reference, paths, selected_field, nsim)
+        plot_field_statistics(stats, get, reference, path, field, nsim)
     end
     return nothing
 end
@@ -115,19 +113,19 @@ end
 
 Extract field data from all simulations.
 """
-function extract_field_data(outputs, field_info, npts, nsim)
+function extract_field_data(outputs, get, npts, nsim)
     X = Matrix{Float64}(undef, npts, nsim)
     Y = Matrix{Float64}(undef, npts, nsim)
     D = Matrix{Float64}(undef, npts, nsim)
     
-    prog = make_progress(nsim; desc="Extracting $(field_info.name)")
+    prog = make_progress(nsim; desc="Extracting $(get.name)")
     for (k, output) ∈ enumerate(outputs)
-        jldopen(output.simulation,"r+") do file
+        jldopen(output,"r+") do file
             X[:, k] = vec(file["ic/mpts"].x[1, :])
             Y[:, k] = vec(file["ic/mpts"].x[2, :])
-            D[:, k] = field_info.extract(file["ic/mpts"])
+            D[:, k] = get.data(file["ic/mpts"])
         end
-        next!(prog; desc="Extracting $(field_info.name) $k/$nsim...")
+        next!(prog; desc="Extracting $(get.name) $k/$nsim...")
     end
     finish!(prog)
     
@@ -153,7 +151,7 @@ end
 
 Generate and save plots for field statistics.
 """
-function plot_field_statistics(stats, field_info, reference, paths, field_name, nsim)
+function plot_field_statistics(stats, field_info, reference, path, field_name, nsim)
     @info "Plotting averaged $(field_info.name) with standard deviation..."
     
     instr = reference["cfg/instr"]
@@ -175,7 +173,7 @@ function plot_field_statistics(stats, field_info, reference, paths, field_name, 
         (data=stats.D_mean, color=:viridis, clim=(D_mean_min, D_mean_max),
          label=field_info.label, title="Average " * field_info.name * " " * L"\leftangle" * field_info.label * L"\rightangle_{n=%$nsim}"),
         (data=stats.D_std, color=:plasma, clim=(0, D_std_max),
-         label=L"\sigma(" * field_info.label * L")", title="Standard deviation " * L"\sigma(" * field_info.label * L")_{n=%$nsim}"),
+         label=L"\sigma(" * field_info.label * L")", title="Standard deviation " * L"\sigma(" * field_info.label * L")"),
     ]
     
     # Generate plots
@@ -199,7 +197,7 @@ function plot_field_statistics(stats, field_info, reference, paths, field_name, 
     end
     
     fig = display(plot(plots...; layout=(length(plots), 1), size=(common.size[1], common.size[2] * length(plots))))
-    save_plot((; file=joinpath(paths[:plot], "$(mesh.prprt.dim)d_av_$(field_name).png")))
+    save_plot((; file=joinpath(path, "$(mesh.prprt.dim)d_av_$(field_name).png")))
 end
 
 """
@@ -227,16 +225,30 @@ metanalysis([64.0, 16.0], [40, 10]; fid="slump_meta")
 """
 function metanalysis(L, nel; fid::String=first(splitext(basename(@__FILE__))), field::String="epII")
     @assert length(L) == length(nel) "L and nel must have same length"
-    
-    # 1. Preparation
-    paths = set_paths(fid, info.sys.out; interactive=false)
-    nsim = prepare_simulations!(L, nel, fid, paths)
-    
-    # 2. Calculation
-    meta_path = joinpath(info.sys.out, fid)
-    outputs = execute_simulations(meta_path, nsim)
-    
-    # 3. Postprocessing
-    postprocess_fields(outputs, paths)
+    root = mkpath(joinpath(info.sys.out, fid))
+    # Prepare and execute simulations if not already done
+    if isempty(readdir(root))
+        # 1. Preparation
+        nsim = prepare_simulations!(L, nel, fid, root)
+        # 2a. Calculation
+        meta_path = joinpath(info.sys.out, fid)
+        outputs = execute_simulations(meta_path, nsim)
+    else
+        # 2b. Load existing outputs
+        outputs = String[]
+        for sim ∈ filter(d -> isdir(joinpath(root, d)), readdir(root))
+            sim_path = joinpath(root, sim)
+            for file in filter(f -> endswith(f, ".jld2"), readdir(sim_path))
+                push!(outputs, joinpath(sim_path, file))
+            end
+        end
+    end
+
+    # 3. Postprocess results
+    menu = RadioMenu(["Yes", "No"], pagesize=2)
+    while [true, false][request("(Re-)Do metanalysis ?", menu)]
+        postprocess_fields(outputs, root)
+    end
+
     return nothing
 end
