@@ -5,7 +5,7 @@ Generate all combinations of shape functions.
 """
 function generate_geometry_cases()
     return [(dim=2, L=[64.1584, 64.1584/4.0], nel=[40, 10]),
-        #(dim=3, L=[64.1584, 64.1584/4.0, 64.1584/4.0], nel=[40, 10, 10]),
+        (dim=3, L=[64.1584, 64.1584/4.0, 64.1584/4.0], nel=[40, 10, 10]),
     ]
 end
 
@@ -46,23 +46,26 @@ end
         covariance = "gaussian",
         param = (;Iₓ= [2.5,2.5,2.5],Nₕ = 5000,kₘ = 100,),
     )
-
+    cfg_nonloc = (;
+        status=false,
+        ls=0.5,
+    )
 
     sim  = 1
     nsim = length(cfg_geom) * length(cfg_fwrk) * length(cfg_basis)
-    prog = ElastoPlasm.make_progress(nsim; desc="Executing $(basename(@__FILE__)) $(sim)/$nsim...")
+    prog = ElastoPlasm.make_progress(nsim; desc="Executing $(basename(@__FILE__))")
     for (k, geom) in enumerate(cfg_geom)
-        @testset "$(geom.dim)d geometry" begin 
+        @testset "$(geom.dim)d geometry" verbose = true begin 
             for (l, basis) in enumerate(cfg_basis)
-                @testset "$(basis.which) basis" begin 
+                @testset "$(basis.which) basis" verbose = true begin
                     for (m, fwrk) in enumerate(cfg_fwrk)
-                        @testset "$(fwrk.deform), $(fwrk.trsfr), locking=$(fwrk.locking)" begin
+                        @testset "$(fwrk.deform), $(fwrk.trsfr), locking=$(fwrk.locking)" verbose = true begin
                             name = "slump_$(geom.dim)d_$(basis.which)_$(fwrk.deform)_$(fwrk.trsfr)_lock$(fwrk.locking)_musl$(fwrk.musl)"
                             status = false
                             try
                                 @suppress begin
-                                    jld2   = ic_slump(geom.L, geom.nel; fid="test/$(name)", grf=cfg_grf, basis=basis, fwrk=fwrk)
-                                    status = elastoplasm(jld2; workflow=[elastodynamic!, elastoplastic!]).success
+                                    jld2   = ic_slump(geom.L, geom.nel; fid="test/$(name)", grf=cfg_grf, basis=basis, fwrk=fwrk, nonloc=cfg_nonloc)
+                                    status = elastoplasm!(jld2; workflow=[elastodynamic!, elastoplastic!]).success
                                 end
                             catch e
                                 @warn "Test case failed" test_case exception=(e, catch_backtrace())
@@ -76,4 +79,5 @@ end
             end
         end
     end
+    #metanalysis(joinpath(ElastoPlasm.info.sys.out,"test"))
 end
