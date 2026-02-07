@@ -1,5 +1,8 @@
 @testset "+ $(basename(@__FILE__))" verbose = true begin
 
+# Configuration Generators
+# ==============================================================================
+
 """
     generate_basis_cases() -> Vector{NamedTuple}
 
@@ -62,27 +65,27 @@ end
 
 Compute error between numeric and analytic solution for elastic collapse.
 """
-function compute_collapse_error(sim_file, l0)
+function compute_collapse_error(jld2, l0)
     # Load setup to get initial material point positions
-    setup = load_simulation_setup(sim_file)
+    setup = load_simulation_setup(jld2)
     z0 = copy(setup.mpts.x[end, :])
     
     # Run simulation
-    out = elastoplasm!(sim_file; workflow=[elastodynamic!])
+    out = elastoplasm!(jld2; workflow=[elastodynamic!])
     
     # Reload to get final state
-    jldopen(sim_file, "r") do file
+    jldopen(jld2, "r") do file
         mesh = file["ic/mesh"]
         mpts = file["ic/mpts"]
         cmpr = file["ic/cmpr"]
         
         # Numeric and analytic solution
-        idx = mesh.prprt.dim == 2 ? 2 : 3
+        idx  = mesh.prprt.dim == 2 ? 2 : 3
         xnum = abs.(mpts.s.σᵢ[idx, :])
         ynum = z0
-        x = abs.(cmpr.ρ0 * 9.81 * (l0 .- z0))
-        y = z0
-        err = sum(sqrt.((xnum .- x).^2) .* mpts.Ω₀) / (9.81 * cmpr.ρ0 * l0 * sum(mpts.Ω₀))
+        x    = abs.(cmpr.ρ0 * 9.81 * (l0 .- z0))
+        y    = z0
+        err  = sum(sqrt.((xnum .- x).^2) .* mpts.Ω₀) / (9.81 * cmpr.ρ0 * l0 * sum(mpts.Ω₀))
         
         return err
     end
