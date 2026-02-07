@@ -27,7 +27,7 @@ function process_cli_option(value, default_val, key_path=())
             status_result = process_cli_option(value.status, default_val.status, (key_path..., :status))
             if status_result == false
                 # Return defaults for this entire section
-                return default_val
+                return merge(default_val,(;status=false))
             end
             # Process remaining fields (excluding status since it's already processed)
             other_keys = filter(k -> k != :status, keys(value))
