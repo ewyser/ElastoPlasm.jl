@@ -252,3 +252,18 @@ function metanalysis(L, nel; fid::String=first(splitext(basename(@__FILE__))), f
 
     return nothing
 end
+function metanalysis(root::String, field::String="epII")
+    outputs = String[]
+    for sim ∈ filter(d -> isdir(joinpath(root, d)), readdir(root))
+        sim_path = joinpath(root, sim)
+        for file in filter(f -> endswith(f, ".jld2"), readdir(sim_path))
+            push!(outputs, joinpath(sim_path, file))
+        end
+    end
+    menu = RadioMenu(["Yes", "No"], pagesize=2)
+    while [true, false][request("(Re-)Do metanalysis ?", menu)]
+        postprocess_fields(outputs, root)
+    end
+
+    return nothing
+end
