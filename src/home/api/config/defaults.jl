@@ -68,7 +68,7 @@ function get_default(::Type{Instruction})
             ls=0.5,
         ),
         plot  = (;
-            status = true,
+            status = false,
             freq   = 1.0,
             dpi    = 500,
             what   = [(;mpts=MPTS_VAR["epII"]),], 
