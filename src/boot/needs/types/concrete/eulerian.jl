@@ -49,6 +49,7 @@ struct Mesh{T1,T2,D} <: UniformMesh{T1, T2}
     # nodal quantities
     x₀    ::Vector{T2}
     x     ::Matrix{T2}
+    type  ::Matrix{T1} #TODO: add implmementation node: [[x1...xn],[y1...yn],[z1...zn]] instead
     ΔJ    ::Matrix{T2}
     # solid phase
     s     ::MeshSolidPhase{T1,T2,D} # phase ::Vector{MeshPhase{T1,T2}}

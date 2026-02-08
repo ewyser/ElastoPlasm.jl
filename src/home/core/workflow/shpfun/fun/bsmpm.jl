@@ -60,23 +60,21 @@ function t4_ϕ∂ϕ(ξ::T2) where {T2}
     end
     return ϕ,∂ϕ
 end
-function ϕ∂ϕ(ξ::T2,xn::T2,xB::SubArray{T2},Δx::T2) where {T2}
-    if xn == xB[1]
+function ϕ∂ϕ(ξ::T2,node_type::T1,Δx::T2) where {T1,T2}
+    if node_type == T1(1)
         ϕ,∂ϕ = t1_ϕ∂ϕ(ξ)
-    elseif xn == (xB[1]+Δx)
+    elseif node_type == T1(2)
         ϕ,∂ϕ = t2_ϕ∂ϕ(ξ)
-    elseif (xB[1]+Δx) < xn < (xB[2]-Δx) 
+    elseif node_type == T1(3)
         ϕ,∂ϕ = t3_ϕ∂ϕ(ξ)
-    elseif xn == (xB[2]-Δx)
+    elseif node_type == T1(4)
         ϕ,∂ϕ = t4_ϕ∂ϕ(ξ)
-    elseif xn==xB[2] 
-        ϕ,∂ϕ = t1_ϕ∂ϕ(ξ)
     else
-        error("Invalid position: $(xn) not in $(xB)")
+        error("Invalid type: $(node_type)")
     end   
     return ϕ,∂ϕ/Δx 
 end
-@views @kernel inbounds = true function bsmpm(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:OneDimension,E,R}
+@kernel inbounds = true function bsmpm(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:OneDimension,E,R}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
@@ -85,14 +83,14 @@ end
             if iszero(no) continue end
             # compute basis functions
             ξ      = (mpts.x[p]-mesh.x[no])/mesh.prprt.h[1]
-            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[no],mesh.prprt.xB[1:2],mesh.prprt.h[1])
+            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.type[1,no],mesh.prprt.h[1])
             # convolution of basis function
             mpts.ϕ∂ϕ[nn,p,1] =  ϕx
             mpts.ϕ∂ϕ[nn,p,2] = dϕx
         end
     end
 end
-@views @kernel inbounds = true function bsmpm(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:TwoDimension,E,R}
+@kernel inbounds = true function bsmpm(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:TwoDimension,E,R}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
@@ -102,9 +100,8 @@ end
             # compute basis functions
             ξ      = (mpts.x[1,p]-mesh.x[1,no])/mesh.prprt.h[1]
             η      = (mpts.x[2,p]-mesh.x[2,no])/mesh.prprt.h[2]
-            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[1,no],mesh.prprt.xB[1,:],mesh.prprt.h[1])
-            ϕz,dϕz = ϕ∂ϕ(η,mesh.x[2,no],mesh.prprt.xB[2,:],mesh.prprt.h[2])
-            #println("$(typeof(ξ)),$(typeof(η)),$(typeof(ϕx)),$(typeof(ϕz)),$(typeof(dϕx)),$(typeof(dϕz))")
+            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.type[1,no],mesh.prprt.h[1])
+            ϕz,dϕz = ϕ∂ϕ(η,mesh.type[2,no],mesh.prprt.h[2])
             # convolution of basis function
             mpts.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕz                                        
             mpts.ϕ∂ϕ[nn,p,2] = dϕx*  ϕz                                        
@@ -112,7 +109,7 @@ end
         end
     end
 end
-@views @kernel inbounds = true function bsmpm(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:ThreeDimension,E,R}
+@kernel inbounds = true function bsmpm(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:ThreeDimension,E,R}
     p = @index(Global)
     # calculate shape functions
     if p ≤ mpts.nmp
@@ -123,9 +120,9 @@ end
             ξ      = (mpts.x[1,p]-mesh.x[1,no])/mesh.prprt.h[1]
             η      = (mpts.x[2,p]-mesh.x[2,no])/mesh.prprt.h[2]
             ζ      = (mpts.x[3,p]-mesh.x[3,no])/mesh.prprt.h[3]
-            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.x[1,no],mesh.prprt.xB[1,:],mesh.prprt.h[1])
-            ϕy,dϕy = ϕ∂ϕ(η,mesh.x[2,no],mesh.prprt.xB[2,:],mesh.prprt.h[2])
-            ϕz,dϕz = ϕ∂ϕ(ζ,mesh.x[3,no],mesh.prprt.xB[3,:],mesh.prprt.h[3])
+            ϕx,dϕx = ϕ∂ϕ(ξ,mesh.type[1,no],mesh.prprt.h[1])
+            ϕy,dϕy = ϕ∂ϕ(η,mesh.type[2,no],mesh.prprt.h[2])
+            ϕz,dϕz = ϕ∂ϕ(ζ,mesh.type[3,no],mesh.prprt.h[3])
             # convolution of basis function
             mpts.ϕ∂ϕ[nn,p,1] =  ϕx*  ϕy*  ϕz                                                                                
             mpts.ϕ∂ϕ[nn,p,2] = dϕx*  ϕy*  ϕz                                                                                
