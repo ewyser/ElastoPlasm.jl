@@ -1,16 +1,42 @@
 @testset "+ $(basename(@__FILE__))" verbose = true begin
 
-# Test Constants
+# Configuration Generators
 # ==============================================================================
 
-BASIS_CONFIGS = [
-    (; which = "bsmpm", how = nothing     , ghost = false),
-    (; which = "gimpm", how = "undeformed", ghost = true ),
-    #(; which = "smpm" , how = nothing     , ghost = true ),
-]
+"""
+    generate_basis_cases() -> Vector{NamedTuple}
 
-TEST_NELS = [[5, 5], [5, 10], [5, 20], [5, 40], [5, 80]]
-TEST_NELS = [[5, 5], [5, 10], [5, 20],]
+Generate all combinations of shape functions.
+"""
+function generate_basis_cases()
+    return [(which="bsmpm", how=nothing, ghost=false),
+    (; which = "gimpm", how = "undeformed", ghost = true ),
+    #(which="smpm", how=nothing, ghost=true),
+    ]
+end
+
+"""
+    generate_nels_cases() -> Vector{Vector{Int}}
+
+Generate all combinations of element numbers.
+"""
+function generate_nels_cases()
+    return [[5, 5], [5, 10], [5, 20], [5, 40], [5, 80]]
+end
+
+"""
+    generate_fwrk_cases() -> Vector{NamedTuple}
+
+Generate all combinations of deformation frameworks, transfer schemes, and locking options.
+"""
+function generate_fwrk_cases()
+    return [(deform=d, trsfr=t, locking=l, C_pf = 1.0, musl = m, damping = 0.1) 
+            for d in ["finite", "infinitesimal"] 
+            for t in ["std", "tpic", "apic"] 
+            for l in [true, false]
+            for m in [true, false]
+        ]
+end
 
 # Helper Functions
 # ==============================================================================
@@ -35,62 +61,31 @@ function load_simulation_setup(sim_file::String)
 end
 
 """
-    get_test_plot_config() -> NamedTuple
-
-Generate plot configuration for collapse tests.
-"""
-function get_test_plot_config()
-    return (
-        status = false,  # Disable plotting during tests for speed
-        dpi    = 500,
-        freq   = 1.0,
-        what   = [(;mpts=(name="sigxx", cblim=(0.0, 1e5)))],
-        dims   = (500.0, 250.0),
-    )
-end
-
-"""
-    get_test_fwrk_config() -> NamedTuple
-
-Generate framework configuration for collapse tests.
-"""
-function get_test_fwrk_config()
-    return (
-        deform  = "finite",
-        trsfr   = "std",
-        musl    = true,
-        C_pf    = 0.99,
-        locking = false,
-        damping = 0.1,
-    )
-end
-
-"""
     compute_collapse_error(sim_file, l0) -> Float64
 
 Compute error between numeric and analytic solution for elastic collapse.
 """
-function compute_collapse_error(sim_file, l0)
+function compute_collapse_error(jld2, l0)
     # Load setup to get initial material point positions
-    setup = load_simulation_setup(sim_file)
+    setup = load_simulation_setup(jld2)
     z0 = copy(setup.mpts.x[end, :])
     
     # Run simulation
-    out = elastoplasm(sim_file; workflow=[elastodynamic!])
+    out = elastoplasm!(jld2; workflow=[elastodynamic!])
     
     # Reload to get final state
-    jldopen(sim_file, "r") do file
+    jldopen(jld2, "r") do file
         mesh = file["ic/mesh"]
         mpts = file["ic/mpts"]
         cmpr = file["ic/cmpr"]
         
         # Numeric and analytic solution
-        idx = mesh.prprt.dim == 2 ? 2 : 3
+        idx  = mesh.prprt.dim == 2 ? 2 : 3
         xnum = abs.(mpts.s.σᵢ[idx, :])
         ynum = z0
-        x = abs.(cmpr.ρ0 * 9.81 * (l0 .- z0))
-        y = z0
-        err = sum(sqrt.((xnum .- x).^2) .* mpts.Ω₀) / (9.81 * cmpr.ρ0 * l0 * sum(mpts.Ω₀))
+        x    = abs.(cmpr.ρ0 * 9.81 * (l0 .- z0))
+        y    = z0
+        err  = sum(sqrt.((xnum .- x).^2) .* mpts.Ω₀) / (9.81 * cmpr.ρ0 * l0 * sum(mpts.Ω₀))
         
         return err
     end
@@ -102,12 +97,13 @@ end
 Run convergence tests for a given basis configuration.
 """
 function run_collapse_convergence_tests(basis, l0, plot_cfg, fwrk_cfg)
-    nk = length(TEST_NELS) + 1
+    nels   = generate_nels_cases()
+    nk     = length(nels) + 1
     errors = zeros(nk)
-    hs = zeros(nk)
+    hs     = zeros(nk)
     errors[1], hs[1] = Inf, Inf
     
-    for (k, nel) ∈ enumerate(TEST_NELS)
+    for (k, nel) ∈ enumerate(nels)
         @testset "- nel = $nel" verbose = true begin
             sim = ic_collapse(nel, 0.0, 1.0e4, 80.0, l0; 
                              fid = "test/collapse", 
