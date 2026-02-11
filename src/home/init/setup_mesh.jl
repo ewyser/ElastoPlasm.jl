@@ -34,7 +34,9 @@ function setup_mesh(instr::Instruction{T1,T2,D}; geom::NamedTuple=(;)) where {T1
     ndim       = geom.ndim                                  
     L,nel,nn,h = geom.L,geom.nel,geom.nn,geom.h
     xn,nel,nno = get_coords(ndim,L,h; ghosts=buffer.*h)
+    node_type  = get_node_type(ndim,nno)
     status,xB  = get_bc(xn,instr; ghosts=buffer.*h)
+
     # constructor
     prop = MeshProperties{T1,T2,D}(
         T1(ndim                         ), # dim
@@ -72,6 +74,7 @@ function setup_mesh(instr::Instruction{T1,T2,D}; geom::NamedTuple=(;)) where {T1
         # nodal quantities
         T2.(vec(minimum(xn,dims=2)     )), # x₀
         T2.(xn                          ), # x
+        T1.(node_type                   ), # node
         T2.(zeros(ndim,nno[end]        )), # ΔJ
         # solid phase
         s                                , # solid phase
