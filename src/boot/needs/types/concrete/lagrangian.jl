@@ -135,8 +135,8 @@ struct Point{T1,T2,D,E,R} <: MaterialPoint{T1,T2}
     # solid phase
     s    ::PointSolidPhase{T1,T2,D,E,R}
     # fluid phase
-    f    ::PointFluidPhase{T1,T2,D}
+    f    ::Union{Nothing, PointFluidPhase{T1,T2,D}}
     # thermal phase
-    t    ::PointThermalPhase{T1,T2,D}
+    t    ::Union{Nothing, PointThermalPhase{T1,T2,D}}
 end
 @adapt_struct Point

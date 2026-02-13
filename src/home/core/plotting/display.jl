@@ -25,9 +25,9 @@ display(p)
 """
 function what_plot_field(mpts::Point{T1,T2,D,E,R},opts) where {T1,T2,D<:AbstractDimension,E<:AbstractElasticity,R<:AbstractRheology}
     # Extract data using the data function from opts
-    d = opts.data(mpts)
+    data = opts.data(mpts)
     if isnothing(opts.cblim)
-        dmin, dmax = minimum(d), maximum(d)
+        dmin, dmax = minimum(data), maximum(data)
         if dmin == dmax
             clim = (dmin - 0.1 * abs(dmin) - 1e-10, dmax + 0.1 * abs(dmax) + 1e-10)
         else
@@ -36,27 +36,26 @@ function what_plot_field(mpts::Point{T1,T2,D,E,R},opts) where {T1,T2,D<:Abstract
     else
         clim = opts.cblim
     end
-    # plotting
-    p = plot(
+    # Plotting
+    return plot(
         if size(mpts.x,1) == 2
             mpts.x[1,:],mpts.x[2,:]
         elseif size(mpts.x,1) == 3
             mpts.x[1,:],mpts.x[3,:]
         end,
         seriestype  = :scatter,
-        marker_z    = d,
+        marker_z    = data,
         xlabel      = L"$x-$direction"*" [m]",
         ylabel      = L"$z-$direction"*" [m]",
         label       = opts.label,
         color       = opts.cb,
-        clim        = opts.cblim,
+        clim        = clim,
         xlim        = opts.xlim,
         ylim        = opts.ylim,
         title       = opts.tit,
         aspect_ratio= 1,
         size        = opts.dims,
     )
-    return p
 end
 
 @views function what_plot_field(mesh::Mesh{T1,T2,D},opts) where {T1,T2,D<:AbstractDimension}

@@ -80,8 +80,8 @@ function postprocess_fields(outputs, path)
     nsim = length(outputs)
     
     # Interactive field selection
-    field_keys  = sort(collect(keys(MPTS_VAR)))
-    field_names = [MPTS_VAR[k].name for k in field_keys]
+    field_keys  = sort(collect(keys(get_mpts_variable_config())))
+    field_names = [get_mpts_variable_config()[k].name for k in field_keys]
     menu        = MultiSelectMenu(field_names, pagesize=length(field_names))
     choices     = request("Select field(s) to analyze (Space to select, Enter to confirm):", menu)
     selection   = [field_keys[i] for i in choices]
@@ -93,7 +93,7 @@ function postprocess_fields(outputs, path)
     
     # Process each selected field
     for field in selection
-        get = MPTS_VAR[field]
+        get = get_mpts_variable_config()[field]
         @info "Processing field: $(get.name)..."
         
         # Extract field data
@@ -245,9 +245,10 @@ function metanalysis(L, nel; fid::String=first(splitext(basename(@__FILE__))), f
     end
 
     # 3. Postprocess results
-    menu = RadioMenu(["Yes", "No"], pagesize=2)
-    while [true, false][request("(Re-)Do metanalysis ?", menu)]
+    menu, msg = RadioMenu(["Yes", "No"], pagesize=2), "Do metanalysis ?"
+    while [true, false][request(msg, menu)]
         postprocess_fields(outputs, root)
+        msg  = "Redo metanalysis ?"
     end
 
     return nothing
@@ -260,9 +261,10 @@ function metanalysis(root::String, field::String="epII")
             push!(outputs, joinpath(sim_path, file))
         end
     end
-    menu = RadioMenu(["Yes", "No"], pagesize=2)
-    while [true, false][request("(Re-)Do metanalysis ?", menu)]
+    menu, msg = RadioMenu(["Yes", "No"], pagesize=2), "Do metanalysis ?"
+    while [true, false][request(msg, menu)]
         postprocess_fields(outputs, root)
+        msg  = "Redo metanalysis ?"
     end
 
     return nothing

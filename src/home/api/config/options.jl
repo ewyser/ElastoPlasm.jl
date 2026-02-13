@@ -29,7 +29,7 @@ function get_option(::Type{Instruction})
             basis = (
                 which = ("Select basis type",["bsmpm", "gimpm", "smpm"]),
                 how = ("Select material point domain update",[nothing]),
-                ghost = ("Add ghost nodes ?",[true, false]),
+                ghost = ("Add ghost element(s) ?",[0, 1, 2]),
             ),
             fwrk  = (
                 deform = ("Select the deformation framework",["finite", "infinitesimal"]),

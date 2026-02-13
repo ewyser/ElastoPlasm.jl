@@ -88,16 +88,14 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         elast                                              , # elast::E
         rheo                                               , # rheo::R
     )
+    #=
     t = PointThermalPhase{T1,T2,D}(
         T2.(vec(copy(geom.c)))                            , # c::Vector{T2} specific heat capacity vector
         T2.(vec(copy(geom.k)))                             , # k::Vector{T2} thermal conductivity vector
         T2.(zeros(props.dim,nmp))                            , # q::Matrix{T2} heat flux array
         T2.(vec(copy(geom.T)))                            , # T::Vector{T2} temperature vector
     )
-    f = PointFluidPhase{T1,T2,D}(
-
-    )
-
+    =#
 
     mpts = Point{T1,T2,D,typeof(elast),typeof(rheo)}(
         # general information
@@ -131,9 +129,9 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         # solid phase
         s                                    , #
         # fluid phase
-        f                                    , #
+        nothing                              , #
         # thermal phase
-        t                                    , #
+        nothing                              , #
     )
     return mpts 
 end
