@@ -66,7 +66,7 @@ struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology} <: Mat
     ρ    ::Vector{T2}
     c₀   ::Vector{T2}
     cᵣ   ::Vector{T2}
-    ϕ    ::Vector{T2}
+    ϕ₀   ::Vector{T2}
     Δλ   ::Vector{T2}
     ϵpII ::Matrix{T2}
     ϵpV  ::Vector{T2}

@@ -8,7 +8,7 @@ get_J(mpts)    = @views vec(mpts.J)
 get_v(mpts)    = @views vec(sqrt.(mpts.s.v[1, :].^2 .+ mpts.s.v[2, :].^2)) 
 get_Δu(mpts)   = @views vec(sqrt.(mpts.s.u[1, :].^2 .+ mpts.s.u[2, :].^2)) 
 get_coh0(mpts) = @views vec(mpts.s.c₀./1e3)
-get_phi0(mpts) = @views vec(mpts.s.ϕ.*180.0/π)
+get_phi0(mpts) = @views vec(mpts.s.ϕ₀.*180.0/π)
 
 """
     get_mpts_variable_config() -> Dict{String, NamedTuple}
@@ -59,7 +59,7 @@ function get_mpts_variable_config()
         ),    
         "coh0" => (
             data=get_coh0,
-            label=L"c_0(x_p)",  
+            label=L"c_{0}",  
             unit = "[kPa]",
             name="Initial cohesion",
             cb = :vik,
@@ -67,8 +67,8 @@ function get_mpts_variable_config()
         ),
         "phi0" => (
             data=get_phi0,
-            label=L"$\phi_0(x_p)$",  
-            unit = "[deg]",
+            label=L"\phi_{0}",  
+            unit = "[deg.]",
             name="Initial friction angle",
             cb = :viridis,
             cblim=(20.0, 40.0)
@@ -87,7 +87,7 @@ function get_mesh_variable_config()
             data=get_epII, 
             label=L"m_{s}",  
             unit = "[kg]",
-            name="Nodal solid mass",
+            name="Solid mass",
             cb=:viridis,
             cblim=(100.0, 1000.0)
         ),

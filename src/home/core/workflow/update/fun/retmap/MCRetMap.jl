@@ -8,7 +8,7 @@
         σ = mpts.σ
     end
     for p ∈ 1:mpts.nmp
-        ϕ,H,ϵII0 = mpts.ϕ[p],cos(mpts.ϕ[p])*cmp.Hp,ϵIIp[p]
+        ϕ,H,ϵII0 = mpts.ϕ₀[p],cos(mpts.ϕ₀[p])*cmp.Hp,ϵIIp[p]
         c0,cr    = mpts.c₀[p]+cmp.Hp*ϵII0,mpts.cᵣ[p]
         if c0<cr c0 = cr end
         σm,τII   = 0.5*(σ[1,p]+σ[2,p]),sqrt(0.25*(σ[1,p]-σ[2,p])^2+σ[3,p]^2)

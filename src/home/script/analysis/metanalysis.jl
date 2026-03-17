@@ -171,7 +171,7 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
     
     plot_specs = [
         (data=stats.D_mean, color=:viridis, clim=(D_mean_min, D_mean_max),
-         label=field_info.label, title="Average " * field_info.name * " " * L"\leftangle" * field_info.label * L"\rightangle_{n=%$nsim}"),
+         label=field_info.label, title="Average $(lowercase(field_info.name)) " * L"\leftangle" * field_info.label * L"\rightangle_{n=%$nsim}"),
         (data=stats.D_std, color=:plasma, clim=(0, D_std_max),
          label=L"\sigma(" * field_info.label * L")", title="Standard deviation " * L"\sigma(" * field_info.label * L")"),
     ]
@@ -197,7 +197,7 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
     end
     
     fig = display(plot(plots...; layout=(length(plots), 1), size=(common.size[1], common.size[2] * length(plots))))
-    save_plot((; file=joinpath(path, "$(mesh.prprt.dim)d_av_$(field_name).png")))
+    save_plot((; file=joinpath(path, "$(mesh.prprt.dim)d_av_$(lowercase(field_name)).png")))
 end
 
 """
