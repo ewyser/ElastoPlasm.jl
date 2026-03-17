@@ -197,7 +197,8 @@ function elastoplasm!(sim::S; workflow::Vector{F} = [elastodynamic!]) where {S <
         # postprocessing
         if instr.plot.status
             names     = [v.mpts.name for v in instr.plot.what if haskey(v, :mpts)]
-            file_path = joinpath(paths[:plot], "$(misc.prefix)_$(join(names, "_")).png")
+            figname   = "$(misc.prefix)_$(lowercase(join(names, "_"))).png"
+            file_path = joinpath(paths[:plot], replace(figname, " " => "_"))
             opts = (; file = file_path, )
             save_plot(opts)
         end

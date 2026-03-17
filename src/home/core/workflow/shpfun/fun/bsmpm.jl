@@ -1,4 +1,4 @@
-function t1_ϕ∂ϕ(ξ::T2) where {T2}
+@inline function t1_ϕ∂ϕ(ξ::T2) where {T2}
     ϕ,∂ϕ = T2(0.0),T2(0.0)
     if T2(-2.0)<=ξ<=T2(-1.0) 
         ϕ = T2( 1.0/6.0)     *ξ^3+        ξ^2+T2(2.0)*ξ+T2(4.0/3.0)
@@ -15,7 +15,7 @@ function t1_ϕ∂ϕ(ξ::T2) where {T2}
     end   
     return ϕ,∂ϕ
 end
-function t2_ϕ∂ϕ(ξ::T2) where {T2}
+@inline function t2_ϕ∂ϕ(ξ::T2) where {T2}
     ϕ,∂ϕ = T2(0.0),T2(0.0)
     if T2(-1.0)<=ξ<=T2(0.0)
         ϕ = T2(-1.0/3.0)     *ξ^3-T2(ξ^2)      +T2(2.0/3.0)
@@ -29,7 +29,7 @@ function t2_ϕ∂ϕ(ξ::T2) where {T2}
     end
     return ϕ,∂ϕ
 end
-function t3_ϕ∂ϕ(ξ::T2) where {T2}
+@inline function t3_ϕ∂ϕ(ξ::T2) where {T2}
     ϕ,∂ϕ = T2(0.0),T2(0.0)
     if T2(-2.0)<=ξ<=T2(-1.0) 
         ϕ = T2( 1.0/6.0)     *ξ^3+ξ^2      +T2(2.0)*ξ+T2(4.0/3.0)
@@ -46,7 +46,7 @@ function t3_ϕ∂ϕ(ξ::T2) where {T2}
     end
     return ϕ,∂ϕ
 end
-function t4_ϕ∂ϕ(ξ::T2) where {T2}
+@inline function t4_ϕ∂ϕ(ξ::T2) where {T2}
     ϕ,∂ϕ = T2(0.0),T2(0.0)
     if T2(-2.0)<=ξ<=T2(-1.0)
         ϕ = T2( 1.0/6.0)     *ξ^3+ξ^2      +T2(2.0)*ξ+T2(4.0/3.0)

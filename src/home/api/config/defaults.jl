@@ -34,7 +34,7 @@ function get_default(::Type{Instruction})
         basis = (;
             which = "bsmpm",
             how = nothing,
-            ghost = false,
+            ghost = 0,
         ),
         fwrk  = (;
             deform = "finite",
@@ -71,7 +71,7 @@ function get_default(::Type{Instruction})
             status = true,
             freq   = 1.0,
             dpi    = 500,
-            what   = [(;mpts=MPTS_VAR["epII"]),], 
+            what   = [(;mpts=get_mpts_variable_config()["epII"]),],
         ),
         perf  = (;
             status=false,

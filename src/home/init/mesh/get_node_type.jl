@@ -21,43 +21,44 @@ x, nel, nno = get_coords(2, [1.0, 1.0], [0.1, 0.1])
 """
 function get_node_type(ndim::T1,nno::Vector{T1}) where {T1}
     if ndim == 1
-        type_x = fill(T1, nno[1])
+        node_type = fill(T1(3), nno[1])
     elseif ndim == 2
-        type           = fill(T1(3), nno[2],nno[1])
-        type[:,1    ] .= T1(1)
-        type[:,2    ] .= T1(2)
-        type[:,end-1] .= T1(4)
-        type[:,end  ] .= T1(1)
-        node_type      = vec(type)'
+        nx, ny = nno[1], nno[2]
+        type = fill(T1(3), nx, ny)
+        type[1    , :] .= T1(1)
+        type[2    , :] .= T1(2)
+        type[end-1, :] .= T1(4)
+        type[end  , :] .= T1(1)
+        node_type = vec(type)'
 
-        type           = fill(T1(3), nno[2],nno[1])
-        type[1    ,:] .= T1(1)
-        type[2    ,:] .= T1(2)
-        type[end-1,:] .= T1(4)
-        type[end  ,:] .= T1(1)
-        node_type      = vcat(node_type,vec(type)')
-
+        type = fill(T1(3), nx, ny)
+        type[:, 1    ] .= T1(1)
+        type[:, 2    ] .= T1(2)
+        type[:, end-1] .= T1(4)
+        type[:, end  ] .= T1(1)
+        node_type = vcat(node_type, vec(type)')
     elseif ndim == 3
-        type = fill(T1(3), nno[3],nno[1],nno[2])
-        type[:    ,1    ,:    ] .= T1(1)
-        type[:    ,2    ,:    ] .= T1(2)
-        type[:    ,end-1,:    ] .= T1(4)
-        type[:    ,end  ,:    ] .= T1(1)
-        node_type                = vec(type)'
+        nx, ny, nz = nno[1], nno[2], nno[3]
+        type = fill(T1(3), nx, ny, nz)
+        type[1    , :, : ] .= T1(1)
+        type[2    , :, : ] .= T1(2)
+        type[end-1, :, : ] .= T1(4)
+        type[end  , :, : ] .= T1(1)
+        node_type = vec(type)'
 
-        type = fill(T1(3), nno[3],nno[1],nno[2])
-        type[:    ,:    ,1    ] .= T1(1)
-        type[:    ,:    ,2    ] .= T1(2)
-        type[:    ,:    ,end-1] .= T1(4)
-        type[:    ,:    ,end  ] .= T1(1)
-        node_type                = vcat(node_type,vec(type)')
+        type = fill(T1(3), nx, ny, nz)
+        type[:, 1    , : ] .= T1(1)
+        type[:, 2    , : ] .= T1(2)
+        type[:, end-1, : ] .= T1(4)
+        type[:, end  , : ] .= T1(1)
+        node_type = vcat(node_type, vec(type)')
 
-        type = fill(T1(3), nno[3],nno[1],nno[2])
-        type[1    ,:    ,:    ] .= T1(1)
-        type[2    ,:    ,:    ] .= T1(2)
-        type[end-1,:    ,:    ] .= T1(4)
-        type[end  ,:    ,:    ] .= T1(1)
-        node_type                = vcat(node_type,vec(type)')
+        type = fill(T1(3), nx, ny, nz)
+        type[:, :, 1    ] .= T1(1)
+        type[:, :, 2    ] .= T1(2)
+        type[:, :, end-1] .= T1(4)
+        type[:, :, end  ] .= T1(1)
+        node_type = vcat(node_type, vec(type)')
     end
 
     return node_type

@@ -19,37 +19,40 @@ Generate nodal coordinates and mesh topology for 1D, 2D, or 3D domains.
 x, nel, nno = get_coords(2, [1.0, 1.0], [0.1, 0.1])
 ```
 """
-function get_coords(ndim::T1,L::Vector{T2},h::Vector{T2}; ghosts::Vector{T2}=[T2(0.0)]) where {T1,T2}
+function get_coords(geom)# where {T1,T2}
+    ndim, h, xB = geom.dim, geom.h, geom.xB
+    T1,T2 = eltype(ndim), eltype(h)
+
+
     if ndim == 1
-        x0  = [0.0-ghosts[1],L[1]+ghosts[1]]
-        x   = collect(first(x0):h[1]:last(x0))
+        x   = collect(xB[1,1]:h[1]:xB[1,2])
         nno = [length(x),length(x)] 
         nel = [nno[1]-1 ,nno[1]-1 ]
         x   = vcat(vec(x))
     elseif ndim == 2
-        x0  = [0.0-ghosts[1],L[1]+ghosts[1]]
-        z0  = [0.0-ghosts[2],L[2]+ghosts[2]]
-        x,z = collect(first(x0):h[1]:last(x0)),collect(first(z0):h[2]:last(z0))
-        nno = [length(x),length(z),length(x)*length(z)  ] 
-        nel = [nno[1]-1 ,nno[2]-1 ,(nno[1]-1)*(nno[2]-1)]
+        xvec = collect(xB[1,1]:h[1]:xB[1,2])
+        yvec = collect(xB[2,1]:h[2]:xB[2,2])
+        nx, ny = length(xvec), length(yvec)
+        nno = [nx, ny, nx*ny]
+        nel = [nx-1, ny-1, (nx-1)*(ny-1)]
 
-        x   = repeat((reshape(x,1     ,nno[1])),nno[2],1     )
-        z   = repeat((reshape(z,nno[2],1     )),     1,nno[1])
-        x   = vcat(vec(x)',vec(z)')
+        # Create meshgrid in (nx, ny) order
+        xmat = repeat(reshape(xvec, nx, 1), 1, ny)
+        ymat = repeat(reshape(yvec, 1, ny), nx, 1)
+        x = vcat(vec(xmat)', vec(ymat)')
     elseif ndim == 3
-        x0  = [0.0-ghosts[1],L[1]+ghosts[1]]
-        y0  = [0.0-ghosts[2],L[2]+ghosts[2]]
-        z0  = [0.0-ghosts[3],L[3]+2.0*h[3]+ghosts[3]]
-        x   = collect(first(x0):h[1]:last(x0)) 
-        y   = collect(first(y0):h[2]:last(y0)) 
-        z   = collect(first(z0):h[3]:last(z0))   
-        nno = [length(x),length(y),length(z),length(x)*length(y)*length(z)] 
-        nel = [nno[1]-1,nno[2]-1,nno[3]-1,(nno[1]-1)*(nno[2]-1)*(nno[3]-1)]
+        xvec = collect(xB[1,1]:h[1]:xB[1,2])
+        yvec = collect(xB[2,1]:h[2]:xB[2,2])
+        zvec = collect(xB[3,1]:h[3]:xB[3,2])
+        nx, ny, nz = length(xvec), length(yvec), length(zvec)
+        nno = [nx, ny, nz, nx*ny*nz]
+        nel = [nx-1, ny-1, nz-1, (nx-1)*(ny-1)*(nz-1)]
 
-        x   = repeat((reshape(x,1     ,nno[1],1     )),nno[3],1     ,nno[2])
-        y   = repeat((reshape(y,1     ,1     ,nno[2])),nno[3],nno[1],1     )
-        z   = repeat((reshape(z,nno[3],1     ,1     )),1     ,nno[1],nno[2]) 
-        x   = vcat(vec(x)',vec(y)',vec(z)')
+        # Create meshgrid in (x, y, z) order
+        xmat = repeat(reshape(xvec, nx, 1, 1), 1, ny, nz)
+        ymat = repeat(reshape(yvec, 1, ny, 1), nx, 1, nz)
+        zmat = repeat(reshape(zvec, 1, 1, nz), nx, ny, 1)
+        x = vcat(vec(xmat)', vec(ymat)', vec(zmat)')
     end
     return T2.(x),T1.(nel),T1.(nno)
 end

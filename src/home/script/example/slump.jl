@@ -25,7 +25,8 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
     instr = kwargser(kwargs; dim=length(L))
     paths = set_paths(fid,info.sys.out;interactive=false)  
     # mesh, mpts, cmpr & time initial conditions
-    mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)     )
+    geom  = setup_geometry(L,nel,instr)
+    mesh  = setup_mesh(geom,instr)
     cmpr  = setup_cmpr(mesh                                         )                       
     mpts  = setup_mpts(mesh,instr,cmpr ; geom = get_slump(mesh,cmpr,instr))
     time  = setup_time(instr     ; te = 10.0, tg = 10.0, tep = 5.0  ) 
@@ -35,7 +36,7 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
         dims  = instr.plot.dpi.*(mesh.prprt.L[1]./mesh.prprt.L)
         ms    = dims[1]/(mesh.prprt.nel[1]*2)
 
-        what = [(;mpts=MPTS_VAR[name]) for name ∈ ["coh0", "phi0"]]
+        what = [(;mpts=get_mpts_variable_config()[name]) for name ∈ ["coh0", "phi0"]]
         opts = (;
             dims    = instr.plot.dpi.*(mesh.prprt.L./mesh.prprt.L[1]),
             what    = what,

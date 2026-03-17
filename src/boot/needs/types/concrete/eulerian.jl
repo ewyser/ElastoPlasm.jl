@@ -54,7 +54,7 @@ struct Mesh{T1,T2,D} <: UniformMesh{T1, T2}
     # solid phase
     s     ::MeshSolidPhase{T1,T2,D} # phase ::Vector{MeshPhase{T1,T2}}
     # thermal phase
-    t     ::MeshThermalPhase{T1,T2,D} # phase ::Vector{MeshPhase{T1,T2}}
+    t     ::Union{Nothing, MeshThermalPhase{T1,T2,D}} # phase ::Vector{MeshPhase{T1,T2}}
     # connectivity
     e2n   ::Matrix{T1}
     e2e   ::SparseMatrixCSC{T1,T1}

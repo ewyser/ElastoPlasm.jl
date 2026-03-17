@@ -66,7 +66,7 @@ struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology} <: Mat
     ρ    ::Vector{T2}
     c₀   ::Vector{T2}
     cᵣ   ::Vector{T2}
-    ϕ    ::Vector{T2}
+    ϕ₀   ::Vector{T2}
     Δλ   ::Vector{T2}
     ϵpII ::Matrix{T2}
     ϵpV  ::Vector{T2}
@@ -135,8 +135,8 @@ struct Point{T1,T2,D,E,R} <: MaterialPoint{T1,T2}
     # solid phase
     s    ::PointSolidPhase{T1,T2,D,E,R}
     # fluid phase
-    f    ::PointFluidPhase{T1,T2,D}
+    f    ::Union{Nothing, PointFluidPhase{T1,T2,D}}
     # thermal phase
-    t    ::PointThermalPhase{T1,T2,D}
+    t    ::Union{Nothing, PointThermalPhase{T1,T2,D}}
 end
 @adapt_struct Point
