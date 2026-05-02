@@ -27,7 +27,7 @@ function process_cli_option(value, default_val, key_path=())
             status_result = process_cli_option(value.status, default_val.status, (key_path..., :status))
             if status_result == false
                 # Return defaults for this entire section
-                return default_val
+                return merge(default_val,(;status=false))
             end
             # Process remaining fields (excluding status since it's already processed)
             other_keys = filter(k -> k != :status, keys(value))
@@ -42,8 +42,19 @@ function process_cli_option(value, default_val, key_path=())
         prompt, vals = value
         # Special handling for plot.what: allow multi-selection of NamedTuples, keep original definition
         if key_path[end] == :what && occursin("plot", string(key_path))
-            menu = MultiSelectMenu([string(v) for v in vals], pagesize=length(vals))
-            idxs = request(prompt * " (Space to select, Enter to confirm):", menu)
+            # Extract names from either mpts or mesh variables
+            names = String[] # sorter is names = [string(haskey(v, :mpts) ? v.mpts.name : v.mesh.name) for v ∈ vals]
+            for v ∈ vals
+                if haskey(v, :mpts)
+                    push!(names, string(v.mpts.name))
+                elseif haskey(v, :mesh)
+                    push!(names, string(v.mesh.name))
+                else
+                    push!(names, string(v))
+                end
+            end
+            menu  = MultiSelectMenu(names, pagesize=length(names))
+            idxs  = request(prompt * " (Space to select, Enter to confirm):", menu)
             selected = [vals[i] for i in idxs]
             return selected
         else

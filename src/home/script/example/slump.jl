@@ -25,7 +25,8 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
     instr = kwargser(kwargs; dim=length(L))
     paths = set_paths(fid,info.sys.out;interactive=false)  
     # mesh, mpts, cmpr & time initial conditions
-    mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)     )
+    geom  = setup_geometry(L,nel,instr)
+    mesh  = setup_mesh(geom,instr)
     cmpr  = setup_cmpr(mesh                                         )                       
     mpts  = setup_mpts(mesh,instr,cmpr ; geom = get_slump(mesh,cmpr,instr))
     time  = setup_time(instr     ; te = 10.0, tg = 10.0, tep = 5.0  ) 
@@ -34,23 +35,18 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
         @info "Plotting initial cohesion & friction fields..."
         dims  = instr.plot.dpi.*(mesh.prprt.L[1]./mesh.prprt.L)
         ms    = dims[1]/(mesh.prprt.nel[1]*2)
-        for variable ∈ [
-                (;mpts=(name="coh0", cblim=1e-3.*(cmpr.c0-cmpr.c0/2,cmpr.c0+cmpr.c0/2))),
-                (;mpts=(name="phi0", cblim=(cmpr.ϕr,cmpr.ϕ0)))
-            ]
-            k = first(keys(variable))
-            entry = variable[k]
-            opts = (;
-                dims    = instr.plot.dpi.*(mesh.prprt.L./mesh.prprt.L[1]),
-                what    = [variable],
-                xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])),
-                ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),
-                tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
-                backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
-                file    = joinpath(paths[:plot],"$(mesh.prprt.dim)d_std_$(entry.name).png"),
-            )
-            get_plot_field(mpts,mesh,opts);save_plot(opts)
-        end    
+
+        what = [(;mpts=get_mpts_variable_config()[name]) for name ∈ ["coh0", "phi0"]]
+        opts = (;
+            dims    = instr.plot.dpi.*(mesh.prprt.L./mesh.prprt.L[1]),
+            what    = what,
+            xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])),
+            ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),
+            tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
+            backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
+            file    = joinpath(paths[:plot],"$(mesh.prprt.dim)d_std_coh0_phi0.png"),
+        )
+        get_plot_field(mpts,mesh,opts);save_plot(opts)
     end
     # display summary
     @info ic_log(mesh,mpts,time,instr)

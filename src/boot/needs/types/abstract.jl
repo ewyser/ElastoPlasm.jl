@@ -2,7 +2,14 @@ abstract type AbstractInstruction end
 
 abstract type AbstractTime end
 
+
 abstract type AbstractDimension end
+
+abstract type AbstractGeometry end
+
+abstract type AbstractBasis end
+
+abstract type AbstractNeighbs end
 
 abstract type AbstractEulerian end
 abstract type CartesianMesh{T1, T2}  <: AbstractEulerian end

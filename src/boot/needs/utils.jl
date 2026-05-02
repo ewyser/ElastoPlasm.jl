@@ -46,16 +46,16 @@ msgs = rootflush(info)
 println.(msgs)
 ```
 """
-function rootflush(info)
-    if !isdir(info.sys.out)
-        msg = ["Creating:\n+ $(trunc_path(info.sys.out))"]
-        mkdir(info.sys.out) 
+function rootflush(dir_to_flush::String; except::Vector{String}=String[])
+    if !isdir(dir_to_flush)
+        msg = ["Creating:\n+ $(trunc_path(dir_to_flush))"]
+        mkdir(dir_to_flush) 
     else
-        msg,files = ["Nothing to flush at /dump"],readdir(info.sys.out;join=true)
+        files = readdir(dir_to_flush;join=true)
         if !isempty(files)
-            msg = ["Flushing:"]
+            msg = ["Flushing $(trunc_path(dir_to_flush; anchor=basename(dir_to_flush)))/: "]
             for file ∈ files
-                if !occursin(info.mpi.glob,file) 
+                if basename(file) ∉ except
                     rm(file,recursive=true)  
                     push!(msg,"\e[31m- $(trunc_path(file))\e[0m")
                 end

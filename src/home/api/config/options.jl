@@ -29,7 +29,7 @@ function get_option(::Type{Instruction})
             basis = (
                 which = ("Select basis type",["bsmpm", "gimpm", "smpm"]),
                 how = ("Select material point domain update",[nothing]),
-                ghost = ("Add ghost nodes ?",[true, false]),
+                ghost = ("Add ghost element(s) ?",[0, 1, 2]),
             ),
             fwrk  = (
                 deform = ("Select the deformation framework",["finite", "infinitesimal"]),
@@ -63,7 +63,7 @@ function get_option(::Type{Instruction})
                 what   = ("Select plot variable(s)", get_variable_plot_options()),
             ),
             perf  = (
-                status = ("Enable performance monitoring",[true, false]),
+                status = ("Enable optimized implementation",[true, false]),
             ),
             backend = (
                 select = ("Select backend",["host", "cuda", "rocm"]),

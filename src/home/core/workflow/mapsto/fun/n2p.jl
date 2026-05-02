@@ -33,7 +33,7 @@ Update material point velocities and positions from solid-type mesh nodes using 
         # picflip update for material point's velocity and position
         mpts.s.v[dim,p] = C_pf*(mpts.s.v[dim,p]+dt*δaFLIP) + (T2(1.0)-C_pf)*δvPIC
         mpts.x[dim,p]  += dt*δvPIC
-        # find maximum velocity component over mps
+        # find maximum velocity component over mpts
         @atom mpts.vmax[dim] = max(mpts.vmax[dim],abs(mpts.s.v[dim,p]))
         end
     end  

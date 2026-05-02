@@ -41,6 +41,9 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
     l0 = ones(size(xp)).*0.5.*(props.h./ni)
     v0 = prod(2 .* l0; dims=1)
     ρ0 = fill(cmpr[:ρ0],nmp)
+    # initial velocity (if provided)
+    vp = haskey(geom, :vp) ? geom.vp : zeros(size(xp))
+    #vp = zeros(size(xp))
     # constructor - create components
     if instr.fwrk.deform == "finite"
         elast = FiniteElasticity(T1, T2, nmp, props.dim)
@@ -59,7 +62,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
 
     s = PointSolidPhase{T1,T2,D,typeof(elast),typeof(rheo)}(
         T2.(zeros(size(xp)))                               , # u
-        T2.(zeros(size(xp)))                               , # v
+        T2.(copy(vp))                                      , # v
         # mechanical properties
         T2.(vec(copy(ρ0)))                                 , # ρ₀
         T2.(vec(copy(ρ0)))                                 , # ρ
@@ -85,16 +88,14 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         elast                                              , # elast::E
         rheo                                               , # rheo::R
     )
+    #=
     t = PointThermalPhase{T1,T2,D}(
         T2.(vec(copy(geom.c)))                            , # c::Vector{T2} specific heat capacity vector
         T2.(vec(copy(geom.k)))                             , # k::Vector{T2} thermal conductivity vector
         T2.(zeros(props.dim,nmp))                            , # q::Matrix{T2} heat flux array
         T2.(vec(copy(geom.T)))                            , # T::Vector{T2} temperature vector
     )
-    f = PointFluidPhase{T1,T2,D}(
-
-    )
-
+    =#
 
     mpts = Point{T1,T2,D,typeof(elast),typeof(rheo)}(
         # general information
@@ -128,9 +129,9 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         # solid phase
         s                                    , #
         # fluid phase
-        f                                    , #
+        nothing                              , #
         # thermal phase
-        t                                    , #
+        nothing                              , #
     )
     return mpts 
 end

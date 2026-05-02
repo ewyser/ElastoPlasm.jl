@@ -23,24 +23,20 @@ println(mesh.nel)
 - Initializes nodal quantities (mass, force, acceleration, etc.) and mesh-to-node topology.
 - Handles ghost nodes if required by the basis.
 """
-function setup_mesh(instr::Instruction{T1,T2,D}; geom::NamedTuple=(;)) where {T1,T2,D}
-    # add ghost points if needed
-    if instr.basis.ghost
-        buffer = T2(2.0)
-    else
-        buffer = T2(0.0)
-    end
-    # mesh & boundary conditions   
-    ndim       = geom.ndim                                  
-    L,nel,nn,h = geom.L,geom.nel,geom.nn,geom.h
-    xn,nel,nno = get_coords(ndim,L,h; ghosts=buffer.*h)
-    status,xB  = get_bc(xn,instr; ghosts=buffer.*h)
-    # constructor
+function setup_mesh(geom::Geometry{T1,T2,D,N},instr::Instruction{T1,T2,D}) where {T1,T2,D,N}
+    # Mesh & boundary condition setup   
+    ndim       = geom.dim                                  
+    L,nel,nn,h = geom.L,geom.nel,geom.nn,geom.h 
+    xn,nel,nno = get_coords(geom)
+    e2n        = get_element_to_nodes(nel, nno, nn)  # precompute e2n for topology kernel
+    node_type  = get_node_type(ndim,nno)
+    status,xB  = get_bc(xn,instr; ghosts=geom.ghost*h)
+    # Constructors
     prop = MeshProperties{T1,T2,D}(
         T1(ndim                         ), # dim
         T1.(nel                         ), # nel
         T1.(nno                         ), # nno
-        T1(nn                           ), # nn
+        T1(nn.nn                        ), # nn
         T2.(L                           ), # L
         T2.(h                           ), # h
         T2.(xB                          ), # xB
@@ -58,6 +54,7 @@ function setup_mesh(instr::Instruction{T1,T2,D}; geom::NamedTuple=(;)) where {T1
         T2.(zeros(ndim,nno[end]        )), # mv
         T2.(zeros(ndim,nno[end]        )), # v
     )
+    #=
     t = MeshThermalPhase{T1,T2,D}(
         prop,
         bcs,
@@ -67,18 +64,20 @@ function setup_mesh(instr::Instruction{T1,T2,D}; geom::NamedTuple=(;)) where {T1
         T2.(zeros(nno[end]             )), # mcT
         T2.(zeros(nno[end]             )), # T
     )
+    =#
     mesh = Mesh{T1,T2,D}(
         prop,
         # nodal quantities
         T2.(vec(minimum(xn,dims=2)     )), # x₀
         T2.(xn                          ), # x
+        T1.(node_type                   ), # node
         T2.(zeros(ndim,nno[end]        )), # ΔJ
         # solid phase
         s                                , # solid phase
         # thermal phase
-        t                                , # thermal phase
+        nothing                          , # thermal phase
         # connectivity
-        T1.(e2n(ndim,nno,nel,nn        )), # e2n
+        T1.(e2n                        ) , # e2n
         T1.(e2e(ndim,nel,h,instr       )), # e2e
     )
     return mesh

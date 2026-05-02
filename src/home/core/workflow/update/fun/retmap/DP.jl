@@ -42,7 +42,7 @@ end
             c = mpts.s.cᵣ[p] 
         end
         P,τ0,τII = σTr(mpts.s.τᵢ[:,p],nstr)
-        η,ηB,ξ   = materialParam(mpts.s.ϕ[p],ψ,c,nstr)
+        η,ηB,ξ   = materialParam(mpts.s.ϕ₀[p],ψ,c,nstr)
         σm,τP    = ξ/η,ξ-η*(ξ/η)
         fs,ft    = τII+η*P-ξ,P-σm         
         αP,h     = sqrt(T2(1.0)+η^2)-η,τII-τP-(sqrt(T2(1.0)+η^2))*(P-σm)  
@@ -78,7 +78,7 @@ end
             c = mpts.s.cᵣ[p] 
         end
         P,τ0,τII = σTr(mpts.s.σᵢ[:,p],nstr)
-        η,ηB,ξ   = materialParam(mpts.s.ϕ[p],ψ,c,nstr)
+        η,ηB,ξ   = materialParam(mpts.s.ϕ₀[p],ψ,c,nstr)
         σm,τP    = ξ/η,ξ-η*(ξ/η)
         fs,ft    = τII+η*P-ξ,P-σm         
         αP,h     = sqrt(T2(1.0)+η^2)-η,τII-τP-(sqrt(T2(1.0)+η^2))*(P-σm)  
