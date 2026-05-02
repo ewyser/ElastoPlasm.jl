@@ -28,7 +28,6 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     end
     if instr[:fwrk][:locking]
         update[:ΔJn!] = ΔJn(CPU())
-        update[:ΔJs!] = ΔJs(CPU())
         update[:ΔJp!] = ΔJp(CPU())
     end
     
@@ -59,13 +58,16 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     else
         throw(error("InvalidReturnMapping: $(instr[:plast][:constitutive])"))
     end
+
+    # update mp's coordinates
+    update[:coords!] = coord(CPU())
     
     return (;update...)
 end
 
 function elasto(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     # update {logarithmic|infinitesimal} strains
-    instr.cairn.update.deform!(mpts,mesh.s,dt; ndrange=mpts.nmp);sync(CPU())
+    instr.cairn.update.deform!(mpts,mesh,dt; ndrange=mpts.nmp);sync(CPU())
     # update material point's domain
     if instr.basis.which == "gimpm"
         instr.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())
@@ -75,22 +77,22 @@ function elasto(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,dt::
         # init mesh quantities to zero
         fill!(mesh.ΔJ,T2(0.0))
         # calculate dimensional cst.
-        dim = T2(1.0)/mesh.prprt.dim
+        dim = T2(1.0/mesh.prprt.dim)
         # mapping to mesh 
         instr.cairn.update.ΔJn!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
-        # compute nodal determinant of incremental deformation 
-        instr.cairn.update.ΔJs!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
         # compute determinant Jbar 
         instr.cairn.update.ΔJp!(mpts,mesh,dim; ndrange=mpts.nmp);sync(CPU())
     end
     # update {kirchoff|cauchy} stresses
     instr.cairn.update.elast!(mpts,cmpr.Del; ndrange=mpts.nmp);sync(CPU())
+    # update mp's coordinates
+    instr.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     return nothing
 end
 
 function elastoplast(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     # update {logarithmic|infinitesimal} strains
-    instr.cairn.update.deform!(mpts,mesh.s,dt; ndrange=mpts.nmp);sync(CPU())
+    instr.cairn.update.deform!(mpts,mesh,dt; ndrange=mpts.nmp);sync(CPU())
     # update material point's domain
     if instr.basis.which == "gimpm"
         instr.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())
@@ -100,11 +102,9 @@ function elastoplast(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple
         # init mesh quantities to zero
         fill!(mesh.ΔJ,T2(0.0))
         # calculate dimensional cst.
-        dim = T2(1.0)/mesh.prprt.dim
+        dim = T2(1.0/mesh.prprt.dim)
         # mapping to mesh 
         instr.cairn.update.ΔJn!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
-        # compute nodal determinant of incremental deformation 
-        instr.cairn.update.ΔJs!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
         # compute determinant Jbar 
         instr.cairn.update.ΔJp!(mpts,mesh,dim; ndrange=mpts.nmp);sync(CPU())
     end
@@ -124,11 +124,19 @@ function elastoplast(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple
     end
     # plastic return-mapping dispatcher
     instr.cairn.update.retmap!(mpts,cmpr; ndrange=mpts.nmp);sync(CPU())
+    # update mp's coordinates
+    instr.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     return nothing
 end
 
 function thermo(mpts::Point{T1,T2,E,R},mesh::MeshThermalPhase{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     # update temperature
     instr.cairn.update.heat!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+    return nothing
+end
+
+function coord(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R} 
+    # update mp's coordinates
+    instr.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     return nothing
 end

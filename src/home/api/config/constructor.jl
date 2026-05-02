@@ -65,9 +65,14 @@ function kwargser(kwargs::Any; dim::Number=2, constructor::Type=Instruction)
         exec  = select_execution_backend(ElastoPlasm.info.bckd, instr[:backend][:select]; distributed=instr[:backend][:distributed], prompt=ElastoPlasm.info.bckd.prompt)
         instr = merge(instr, (; backend = merge(instr[:backend], (; exec = exec,)),))
     end
+    # 
+    if instr[:perf][:status]
+        instr = merge(instr, (; fwrk = merge(instr[:fwrk], (; deform = "infinitesimal",)),))
+        instr = merge(instr, (; nonloc = merge(instr[:nonloc], (; status = false,)),))
+    end
     # Add cairns to instr     
     cairn = (;
-        shpfun = init_shpfun(instr),
+        ignite = init_ignite(instr),
         mapsto = init_mapsto(instr),
         update = init_update(instr),
     )

@@ -23,7 +23,7 @@ display(p)
 - Supports fields: pressure (`P`), plastic strain (`epII`), volumetric plastic strain (`epV`), displacement (`du`), initial vertical position (`z0`), initial cohesion (`coh0`), and initial friction angle (`phi0`).
 - Throws an error if the requested field is not defined.
 """
-function what_plot_field(mpts::Point{T1,T2,D,E,R},opts) where {T1,T2,D<:AbstractDimension,E<:AbstractElasticity,R<:AbstractRheology}
+function what_plot_field(mpts::Point{T1,T2,D,B,E,R},opts) where {T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:AbstractElasticity,R<:AbstractRheology}
     # Extract data using the data function from opts
     data = opts.data(mpts)
     if isnothing(opts.cblim)
@@ -75,7 +75,7 @@ end
         tit   = "nodal solid z-velocity"
         cb    = :vik
     elseif opts.what == "m"
-        d     = mesh.s.mᵢ
+        d     = mesh.s.m
         lab   = L"$m(x_n)$"*" [kg]"
         tit   = "nocdal solid mass"
         cb    = :viridis
