@@ -1,5 +1,3 @@
-
-
 """
     get_vals(mesh, mpts, it) -> Vector{Tuple{String, Any}}
 

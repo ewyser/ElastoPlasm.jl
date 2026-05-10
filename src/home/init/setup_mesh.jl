@@ -47,8 +47,8 @@ function setup_mesh(geom::Geometry{T1,T2,D,N},instr::Instruction{T1,T2,D}) where
     s = MeshSolidPhase{T1,T2,D}(
         prop,
         bcs,
-        T2.(zeros(nno[end]             )), # mᵢ
-        T2.(zeros(nno[end],nno[end]    )), # Mᵢⱼ
+        T2.(zeros(nno[end]             )), # m
+        T2.(zeros(nno[end],nno[end]    )), # mⱼ
         T2.(zeros(ndim,nno[end]        )), # oobf
         T2.(zeros(ndim,nno[end]        )), # a
         T2.(zeros(ndim,nno[end]        )), # mv
@@ -71,7 +71,7 @@ function setup_mesh(geom::Geometry{T1,T2,D,N},instr::Instruction{T1,T2,D}) where
         T2.(vec(minimum(xn,dims=2)     )), # x₀
         T2.(xn                          ), # x
         T1.(node_type                   ), # node
-        T2.(zeros(ndim,nno[end]        )), # ΔJ
+        T2.(zeros(nno[end]             )), # ΔJ
         # solid phase
         s                                , # solid phase
         # thermal phase

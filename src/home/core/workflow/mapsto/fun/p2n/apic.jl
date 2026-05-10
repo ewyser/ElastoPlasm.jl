@@ -14,50 +14,50 @@ Project 1D material point data to mesh nodes (APIC scheme).
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:OneDimension}
+@views @kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:OneDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         σxx   = mpts.s.σᵢ[1,p]       
         for nn ∈ 1:mesh.prprt.nn
-            # buffering 
-            no    = mpts.p2n[nn,p]
-            N,∂Nx = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2]
-            # accumulation
+            # buffering & compute basis functions on-the-fly
+            no, N, ∂N = basis(mpts, mesh, p, nn)
+            δx        = mesh.x[1,no]-mpts.x[1,p]
             if iszero(no) continue end
-            mesh.mᵢ[no]    += N * ms
             if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
                 D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p]) 
             else
                 D⁻¹ =  mpts.δᵢⱼ
             end
-            mesh.mv[:,no] .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
-            mesh.oobf[1,no]-= Ω * (∂Nx * σxx) - N * (ms * g[1])
+            # accumulation
+             mesh.m[no]     += N * ms
+             mesh.mv[:,no] .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * δx)
+             mesh.s.oobf[no]-= Ω * (∂N[1] * σxx) - N * (ms * g[1])
         end
     end
 end
-@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
+@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
         ms ,Ω       = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         σxx,σyy,σxy = mpts.s.σᵢ[1,p]       ,mpts.s.σᵢ[2,p]     ,mpts.s.σᵢ[3,p]
         for nn ∈ 1:mesh.prprt.nn
-            # buffering 
-            no        = mpts.p2n[nn,p]
-            N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
-            # accumulation
+            # buffering & compute basis functions on-the-fly
+            no, N, ∂N = basis(mpts, mesh, p, nn)
+            δx, δy    = mesh.x[1,no]-mpts.x[1,p], mesh.x[2,no]-mpts.x[2,p]
             if iszero(no) continue end
-            mesh.mᵢ[no]    += N * ms
             if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
                 D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p]) 
             else
                 D⁻¹ =  mpts.δᵢⱼ
             end
-            mesh.mv[:,no] .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
-            mesh.oobf[1,no]-= Ω * (∂Nx * σxx + ∂Ny * σxy)
-            mesh.oobf[2,no]-= Ω * (∂Nx * σxy + ∂Ny * σyy) - N * (ms * g[2])
+            # accumulation
+             mesh.s.m[no]     += N * ms
+             mesh.s.mv[:,no] .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * vcat(δx,δy))
+             mesh.s.oobf[1,no]-= Ω * (∂N[1] * σxx + ∂N[2] * σxy)
+             mesh.s.oobf[2,no]-= Ω * (∂N[1] * σxy + ∂N[2] * σyy) - N * (ms * g[2])
         end
     end
 end
@@ -74,7 +74,7 @@ end
             N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3],mpts.ϕ∂ϕ[nn,p,4]
             # accumulation
             if iszero(no) continue end
-            @atom mesh.mᵢ[no]    += N * ms
+            @atom mesh.m[no]    += N * ms
             if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
                 D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p]) 
             else

@@ -102,14 +102,15 @@ struct PointThermalPhase{T1,T2,D} <: MaterialPointPhase{T1,T2}
 end
 @adapt_struct PointThermalPhase
 
-struct Point{T1,T2,D,E,R} <: MaterialPoint{T1,T2}
+struct Point{T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:AbstractElasticity,R<:AbstractRheology} <: MaterialPoint{T1,T2}
+    # basis
+    basis::B
     # general information
     ndim ::T1
     nmp  ::T1
     # CFL-related quantity
     vmax ::Vector{T2}
     # basis-related quantities
-    ϕ∂ϕ  ::Array{T2,3}
     Δnp  ::Array{T2,3}
     # APIC-related
     Bᵢⱼ  ::Array{T2,3}

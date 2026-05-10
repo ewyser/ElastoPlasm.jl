@@ -42,7 +42,7 @@ Kernel for finite deformation elasticity update at material points.
 # Returns
 - Updates stress and strain fields in-place.
 """
-@views @kernel inbounds = true function elast(mpts::Point{T1,T2,D,E,R},Del) where {T1,T2,D,E<:FiniteElasticity,R}
+@views @kernel inbounds = true function elast(mpts::Point{T1,T2,D,B,E,R},Del) where {T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # update left cauchy-green tensor
@@ -66,7 +66,7 @@ Kernel for infinitesimal (small strain) elasticity update at material points.
 # Returns
 - Updates stress and strain fields in-place.
 """
-@views @kernel inbounds = true function elast(mpts::Point{T1,T2,D,E,R},Del) where {T1,T2,D,E<:LinearElasticity,R}
+@views @kernel inbounds = true function elast(mpts::Point{T1,T2,D,B,E,R},Del) where {T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # calculate elastic strains & spins
@@ -79,7 +79,7 @@ Kernel for infinitesimal (small strain) elasticity update at material points.
     end  
 end
 
-@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,D,E,R},Del) where {T1,T2,D<:TwoDimension,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,D,B,E,R},Del) where {T1,T2,D<:TwoDimension,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # calculate elastic strains
@@ -98,7 +98,7 @@ end
         mpts.s.σᵢ[3,p]+= (Del[3,1]*ϵxx+Del[3,2]*ϵyy+Del[3,3]*ϵxy)+ωxy*T2(1.0)*(σyy0-σxx0)
     end  
 end
-@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,D,E,R},Del) where {T1,T2,D<:ThreeDimension,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,D,B,E,R},Del) where {T1,T2,D<:ThreeDimension,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # calculate elastic strains

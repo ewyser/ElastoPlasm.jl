@@ -24,7 +24,7 @@ end
 struct MeshSolidPhase{T1,T2,D} <: MeshPhase{T1,T2}
     prprt ::MeshProperties{T1,T2,D}
     bcs   ::MeshBoundary
-    mᵢ    ::Vector{T2} # consistent lumped mass matrix
+    m    ::Vector{T2} # consistent lumped mass matrix
     Mᵢⱼ   ::Matrix{T2}
     oobf  ::Matrix{T2} # out-of-balance mechanical load
     a     ::Matrix{T2} # acceleration
@@ -50,7 +50,7 @@ struct Mesh{T1,T2,D} <: UniformMesh{T1, T2}
     x₀    ::Vector{T2}
     x     ::Matrix{T2}
     type  ::Matrix{T1} #TODO: add implmementation node: [[x1...xn],[y1...yn],[z1...zn]] instead
-    ΔJ    ::Matrix{T2}
+    ΔJ    ::Vector{T2}
     # solid phase
     s     ::MeshSolidPhase{T1,T2,D} # phase ::Vector{MeshPhase{T1,T2}}
     # thermal phase

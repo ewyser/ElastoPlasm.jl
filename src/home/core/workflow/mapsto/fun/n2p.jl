@@ -11,33 +11,109 @@ Update material point velocities and positions from solid-type mesh nodes using 
 # Returns
 - Updates material point fields in-place.
 """
-@kernel inbounds = true function picflip_n2p(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},dt::T2,C_pf::T2) where {T1,T2}
+@kernel inbounds = true function picflip_n2p(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2,C_pf::T2) where {T1,T2,D<:OneDimension}
     p = @index(Global)
     if p≤mpts.nmp    
-        for dim ∈ 1:mesh.prprt.dim
-            # pic update
-            δvPIC = T2(0.0)
-            for nn ∈ 1:mesh.prprt.nn
-                no = mpts.p2n[nn,p]
-                if iszero(no) continue end
-                δvPIC += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
-            end
-            # flip update
-            δaFLIP = δvFLIP = T2(0.0)
-            for nn ∈ 1:mesh.prprt.nn
-                no = mpts.p2n[nn,p]
-                if iszero(no) continue end
-                δaFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.a[dim,no]
-                δvFLIP += mpts.ϕ∂ϕ[nn,p,1]*mesh.v[dim,no]
-            end
-        # picflip update for material point's velocity and position
-        mpts.s.v[dim,p] = C_pf*(mpts.s.v[dim,p]+dt*δaFLIP) + (T2(1.0)-C_pf)*δvPIC
-        mpts.x[dim,p]  += dt*δvPIC
-        # find maximum velocity component over mpts
-        @atom mpts.vmax[dim] = max(mpts.vmax[dim],abs(mpts.s.v[dim,p]))
+        # pic update
+        δvxPIC = T2(0.0)
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering & compute basis functions on-the-fly
+            no, N, _ = basis(mpts, mesh, p, nn)
+            if iszero(no) continue end
+            δvxPIC += N*mesh.s.v[1,no]
         end
+        # flip update
+        δaxFLIP = T2(0.0)
+        δvxFLIP = T2(0.0)
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering & compute basis functions on-the-fly
+            no, N, _ = basis(mpts, mesh, p, nn)
+            if iszero(no) continue end
+            δaxFLIP += N*mesh.s.a[1,no]
+            δvxFLIP += N*mesh.s.v[1,no]
+        end
+        # picflip update for material point's velocity and position
+        mpts.s.v[1,p] = C_pf*(mpts.s.v[1,p]+dt*δaxFLIP) + (T2(1.0)-C_pf)*δvxPIC
+        mpts.s.u[1,p] = dt*δvxPIC
+        # find maximum velocity component over mpts
+        @atom mpts.vmax[1] = max(mpts.vmax[1],abs(mpts.s.v[1,p]))
     end  
 end
+@kernel inbounds = true function picflip_n2p(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2,C_pf::T2) where {T1,T2,D<:TwoDimension}
+    p = @index(Global)
+    if p≤mpts.nmp    
+        # pic update
+        δvxPIC = δvyPIC = T2(0.0)
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering & compute basis functions on-the-fly
+            no, N, _ = basis(mpts, mesh, p, nn)
+            if iszero(no) continue end
+            δvxPIC += N*mesh.s.v[1,no]
+            δvyPIC += N*mesh.s.v[2,no]
+        end
+        # flip update
+        δaxFLIP = δayFLIP = T2(0.0)
+        δvxFLIP = δvyFLIP = T2(0.0)
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering & compute basis functions on-the-fly
+            no, N, _ = basis(mpts, mesh, p, nn)
+            if iszero(no) continue end
+            δaxFLIP += N*mesh.s.a[1,no]
+            δayFLIP += N*mesh.s.a[2,no]
+            δvxFLIP += N*mesh.s.v[1,no]
+            δvyFLIP += N*mesh.s.v[2,no]
+        end
+        # picflip update for material point's velocity and position
+        mpts.s.v[1,p] = C_pf*(mpts.s.v[1,p]+dt*δaxFLIP) + (T2(1.0)-C_pf)*δvxPIC
+        mpts.s.v[2,p] = C_pf*(mpts.s.v[2,p]+dt*δayFLIP) + (T2(1.0)-C_pf)*δvyPIC
+        mpts.s.u[1,p] = dt*δvxPIC
+        mpts.s.u[2,p] = dt*δvyPIC
+        # find maximum velocity component over mpts
+        @atom mpts.vmax[1] = max(mpts.vmax[1],abs(mpts.s.v[1,p]))
+        @atom mpts.vmax[2] = max(mpts.vmax[2],abs(mpts.s.v[2,p]))
+    end  
+end
+@kernel inbounds = true function picflip_n2p(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2,C_pf::T2) where {T1,T2,D<:ThreeDimension}
+    p = @index(Global)
+    if p≤mpts.nmp    
+        # pic update
+        δvxPIC = δvyPIC = δvzPIC = T2(0.0)
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering & compute basis functions on-the-fly
+            no, N, _ = basis(mpts, mesh, p, nn)
+            if iszero(no) continue end
+            δvxPIC += N*mesh.s.v[1,no]
+            δvyPIC += N*mesh.s.v[2,no]
+            δvzPIC += N*mesh.s.v[3,no]
+        end
+        # flip update
+        δaxFLIP = δayFLIP = δazFLIP = T2(0.0)
+        δvxFLIP = δvyFLIP = δvzFLIP = T2(0.0)
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering & compute basis functions on-the-fly
+            no, N, _ = basis(mpts, mesh, p, nn)
+            if iszero(no) continue end
+            δaxFLIP += N*mesh.s.a[1,no]
+            δayFLIP += N*mesh.s.a[2,no]
+            δazFLIP += N*mesh.s.a[3,no]
+            δvxFLIP += N*mesh.s.v[1,no]
+            δvyFLIP += N*mesh.s.v[2,no]
+            δvzFLIP += N*mesh.s.v[3,no]
+        end
+        # picflip update for material point's velocity and position
+        mpts.s.v[1,p] = C_pf*(mpts.s.v[1,p]+dt*δaxFLIP) + (T2(1.0)-C_pf)*δvxPIC
+        mpts.s.v[2,p] = C_pf*(mpts.s.v[2,p]+dt*δayFLIP) + (T2(1.0)-C_pf)*δvyPIC
+        mpts.s.v[3,p] = C_pf*(mpts.s.v[3,p]+dt*δazFLIP) + (T2(1.0)-C_pf)*δvzPIC
+        mpts.s.u[1,p] = dt*δvxPIC
+        mpts.s.u[2,p] = dt*δvyPIC
+        mpts.s.u[3,p] = dt*δvzPIC
+        # find maximum velocity component over mpts
+        @atom mpts.vmax[1] = max(mpts.vmax[1],abs(mpts.s.v[1,p]))
+        @atom mpts.vmax[2] = max(mpts.vmax[2],abs(mpts.s.v[2,p]))
+        @atom mpts.vmax[3] = max(mpts.vmax[3],abs(mpts.s.v[3,p]))
+    end  
+end
+
 """
     nd_n2p(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},dt::T2,C_pf::T2)
 
