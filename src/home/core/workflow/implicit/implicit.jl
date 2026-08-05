@@ -15,11 +15,12 @@
 
 
 function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
-    iterMax::Int = 500,
-    ncheck ::Int = 50,
-    CFL         = 0.9,
-    c_fact      = 1.0,
-    ϵ           = 1e-6)
+    iterMax    ::Int  = 500,
+    ncheck     ::Int  = 50,
+    CFL              = 0.9,
+    c_fact           = 1.0,
+    ϵ                = 1e-6,
+    quasi_static     = false)
 
     T    = eltype(mesh.s.m)
     nno  = mesh.prprt.nno[end]
@@ -29,31 +30,42 @@ function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
     mv_n = copy(mesh.s.mv)   # m_i * v_i^n
     σ_n  = copy(mpts.s.σᵢ)   # stress at t^n
 
+    # stiffness-based preconditioner scale for quasi-static mode
+    h_min = minimum(mesh.prprt.h)
+    c_el² = (cmpr.Kc + T(4)/T(3)*cmpr.Gc) / minimum(mpts.s.ρ)
+
     # PT workspace
     ∂v∂τ = zeros(T, ndim, nno)
     R    = zeros(T, ndim, nno)
     R0   = zeros(T, ndim, nno)
 
-    # λ_max of the preconditioned system (PC = M/dt):
-    #   precond. Jacobian eigenvalue ≈ 1 + (c_el·dt/h)²  (dimensionless CFL²)
-    cfl_mpm  = cmpr.c * dt / minimum(mesh.prprt.h)
-    λmax_prc = T(1) + T(cfl_mpm)^2
-    Δτ       = T(2) / sqrt(λmax_prc) * T(CFL)  # dimensionless pseudo-step
-    α        = Δτ
-    β        = T(0)
+    # λ_max of the preconditioned system (dimensionless, O(1–2))
+    # quasi-static: fully stiffness-preconditioned → λmax ≈ 2
+    # dynamic: inertia-preconditioned → λmax ≈ 1 + CFL²
+    if quasi_static
+        λmax_prc = T(2)
+    else
+        cfl_mpm  = cmpr.c * dt / minimum(mesh.prprt.h)
+        λmax_prc = T(1) + T(cfl_mpm)^2
+    end
+    Δτ   = T(2) / sqrt(λmax_prc) * T(CFL)
+    α    = Δτ
+    β    = T(0)
     nr0  = T(0)
 
     for it in 1:iterMax
         do_check = (mod(it, ncheck) == 0) || it == 1
         do_check && copyto!(R0, R)
 
-        # momentum residual: R_i = oobf_i - m_i*(v_i^k - v_i^n)/dt
+        # residual: quasi-static drops inertia, dynamic includes M*(v-v_n)/dt
         @inbounds for no in 1:nno
             mi = mesh.s.m[no]
             iszero(mi) && continue
             for d in 1:ndim
-                v_n_d = mv_n[d,no] / mi
-                r     = mesh.s.oobf[d,no] - mi * (mesh.s.v[d,no] - v_n_d) / dt
+                r = mesh.s.oobf[d,no]
+                if !quasi_static
+                    r -= mi * (mesh.s.v[d,no] - mv_n[d,no]/mi) / dt
+                end
                 mesh.s.bcs.status[d,no] && (r = T(0); ∂v∂τ[d,no] = T(0))
                 R[d,no] = r
             end
@@ -62,7 +74,8 @@ function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
         # Chebyshev update: ∂v∂τ ← R/PC + β·∂v∂τ,  v ← v + α·∂v∂τ
         @inbounds for no in 1:nno
             iszero(mesh.s.m[no]) && continue
-            pc = mesh.s.m[no] / dt
+            # quasi-static: stiffness PC = c_el²·m/h²;  dynamic: inertia PC = m/dt
+            pc = quasi_static ? c_el² * mesh.s.m[no] / h_min^2 : mesh.s.m[no] / dt
             for d in 1:ndim
                 ∂v∂τ[d,no]     = R[d,no]/pc + β * ∂v∂τ[d,no]
                 mesh.s.v[d,no] += α * ∂v∂τ[d,no]
@@ -135,6 +148,25 @@ function init_implicit(instr::NamedTuple; implicit::Dict{Symbol,Cairn} = Dict{Sy
     return (; implicit...)
 end
 
+function mapsto_quasistatic(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
+    fill!(mesh.s.m   ,T2(0))
+    fill!(mesh.s.mv  ,T2(0))
+    fill!(mesh.s.oobf,T2(0))
+    fill!(mesh.s.a   ,T2(0))
+    fill!(mesh.s.v   ,T2(0))
+    instr.cairn.mapsto.map.p2n!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
+    @inbounds for no in 1:mesh.prprt.nno[end]
+        iszero(mesh.s.m[no]) && continue
+        for d in 1:mesh.prprt.dim
+            mesh.s.v[d,no] = mesh.s.mv[d,no] / mesh.s.m[no]
+            mesh.s.bcs.status[d,no] && (mesh.s.v[d,no] = T2(0))
+        end
+    end
+    pt_solve!(mpts,mesh,cmpr,g,dt,instr; quasi_static=true)
+    instr.cairn.implicit.n2p!(mpts,mesh,dt,T2(instr.fwrk.C_pf); ndrange=mpts.nmp);sync(CPU())
+    return nothing
+end
+
 function mapsto_implicit(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     # reset and accumulate: mass, initial momentum, initial f_int from σ^n
     fill!(mesh.s.m   ,T2(0))
@@ -155,7 +187,7 @@ function mapsto_implicit(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::Name
     end
 
     # PT solve: iterates to find converged v^{n+1}, restores σ^n on exit
-    pt_solve!(mpts,mesh,cmpr,g,dt,instr)
+    pt_solve!(mpts,mesh,cmpr,g,dt,instr; quasi_static=false)
 
     # map converged v^{n+1} back to material points (PIC/FLIP)
     instr.cairn.implicit.n2p!(mpts,mesh,dt,T2(instr.fwrk.C_pf); ndrange=mpts.nmp);sync(CPU())

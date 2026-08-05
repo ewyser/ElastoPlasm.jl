@@ -1,4 +1,4 @@
-export elastoplasm,elastoplasm!,elastoplastic!,elastodynamic!,elastoimplicit!,thermodynamic!              
+export elastoplasm,elastoplasm!,elastoplastic!,elastodynamic!,elastoimplicit!,elastoquasistatic!,thermodynamic!              
 
 """
     elastodynamic!(mpts::Point{T1,T2,E,R}, mesh, cmpr::NamedTuple, time::NamedTuple, instr::NamedTuple)
@@ -234,8 +234,33 @@ function elastoimplicit!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::Name
     return nothing
 end
 
+function elastoquasistatic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
+    it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.te)))
+    prog = Progress(length(checks);dt=0.5,desc="Solving elastoquasistatic...",barlen=10)
+    lstps = collect(range(0, 9.8; length=10))
+    for (it,lstp) ∈ enumerate(lstps)
+
+        tic      = time_ns()
 
 
+        dt = T2(1)
+        g  = T2[T2(0), -lstp]
+
+        ignite(mpts,mesh,instr)
+        mapsto_quasistatic(mpts,mesh,cmpr,g,dt,instr)
+        elasto(mpts,mesh,cmpr,dt,instr)
+        time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
+
+        savlot(mpts,mesh,time.t[1],instr)
+        next!(prog;showvalues = get_vals(mesh,mpts,it))
+    end
+
+
+
+
+    finish!(prog)
+    return nothing
+end
 
 
 
