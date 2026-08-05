@@ -45,6 +45,12 @@ end
 # Step 1: read current version
 current_version = read_version()
 
+# Abort if not on dev branch
+current_branch = strip(read(`git branch --show-current`, String))
+if current_branch != "dev"
+    error("Release must be run from the 'dev' branch (currently on '$current_branch')")
+end
+
 # Step 2: bump {major|minor|patch} version
 @info "Bumping version and Releasing"
 part = select_version_part()
@@ -66,19 +72,12 @@ if options[selected] == "yes"
     # Step 3c: git commit with new version
     run(`git commit -m "Bump $current_version and release v$new_version"`)
 
-    # Step 3d: push to a release branch, open PR, then tag main after merge
-    release_branch = "release/v$new_version"
-    run(`git checkout -b $release_branch`)
-    run(`git push origin $release_branch`)
-    run(`gh pr create --base main --head $release_branch --title "Release v$new_version" --body "Bump version to v$new_version" --web`)
-
-    println("\nMerge the PR for '$release_branch' into main, then press Enter to tag and publish...")
-    readline()
-    run(`git checkout main`)
-    run(`git pull origin main`)
+    # Step 3d: git tag
     run(`git tag v$new_version`)
+
+    # Step 3e: push commit and tag from current branch (run from dev)
+    run(`git push origin $current_branch`)
     run(`git push origin v$new_version`)
-    println("Tagged and pushed v$new_version.")
 else
     println("Aborting release process.")
     return
