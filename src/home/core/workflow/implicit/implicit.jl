@@ -99,7 +99,7 @@ function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
             nr = norm(R)
             it == 1 && (nr0 = max(nr, eps(T)))
             converged = nr / nr0 < ϵ
-            @info "PT" iter=it residual=nr/nr0 α=α β=β
+            @info "DR pseudo-transient:" iter=it residual=nr/nr0 α=α β=β
             converged && break
 
             ΔR    = R .- R0
