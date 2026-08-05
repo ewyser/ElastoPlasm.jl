@@ -97,13 +97,21 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
     )
     =#
 
-    mpts = Point{T1,T2,D,typeof(elast),typeof(rheo)}(
+    basis = if instr.basis.which == "bsmpm"
+        BSplineBasis()
+    elseif instr.basis.which == "gimpm"
+        GimpBasis()
+    elseif instr.basis.which == "smpm"
+        LinearBasis()
+    end
+    mpts = Point{T1,T2,D,typeof(basis),typeof(elast),typeof(rheo)}(
+        # basis
+        basis                                , # basis
         # general information
         T1(props.dim)                         , # ndim
         T1(nmp)                              , # nmp
         T2.(zeros(props.dim))                 , # vmax
         # basis-related quantities
-        T2.(zeros(props.nn,nmp ,props.dim+1))  , # ϕ∂ϕ
         T2.(zeros(props.nn,props.dim,nmp   ))  , # Δnp
         # APIC-related
         T2.(zeros(props.dim,props.dim,nmp  ))  , # Bᵢⱼ

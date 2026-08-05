@@ -1,13 +1,16 @@
-@views @kernel inbounds = true function deform(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2},dt::T2) where {T1,T2}
+@views @kernel inbounds = true function deform(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2) where {T1,T2,D}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # compute velocity & displacement gradients
         mpts.s.∇vᵢⱼ[:,:,p].= T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
-            no = mpts.p2n[nn,p]
-            if iszero(no) continue end
-            for i ∈ 1:mesh.prprt.dim , j ∈ 1:mesh.prprt.dim
-                mpts.s.∇vᵢⱼ[i,j,p]+= mpts.ϕ∂ϕ[nn,p,j+1]*mesh.v[i,no]
+            # buffering & compute basis functions on-the-fly
+            no, _, ∂N = basis(mpts, mesh, p, nn)
+            if iszero(no) continue end                                     
+            for i ∈ 1:mesh.prprt.dim  
+                for j ∈ 1:mesh.prprt.dim
+                    mpts.s.∇vᵢⱼ[i,j,p]+= ∂N[j]*mesh.s.v[i,no]
+                end
             end
         end
         # compute incremental deformation and update
@@ -23,18 +26,19 @@
     end
 end
 
-@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},dt::T2) where {T1,T2,D<:TwoDimension}
+@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2) where {T1,T2,D<:TwoDimension}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # compute velocity & displacement gradients
         ∇vxx,∇vxy,∇vyx,∇vyy = T2(0.0),T2(0.0),T2(0.0),T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
-            no = mpts.p2n[nn,p]
-            if iszero(no) continue end
-            ∇vxx += mpts.ϕ∂ϕ[nn,p,1+1]*mesh.v[1,no]
-            ∇vxy += mpts.ϕ∂ϕ[nn,p,1+1]*mesh.v[2,no]
-            ∇vyx += mpts.ϕ∂ϕ[nn,p,2+1]*mesh.v[1,no]
-            ∇vyy += mpts.ϕ∂ϕ[nn,p,2+1]*mesh.v[2,no]
+            # buffering & compute basis functions on-the-fly
+            no, _, ∂N = basis(mpts, mesh, p, nn)
+            if iszero(no) continue end   
+            ∇vxx += ∂N[1]*mesh.s.v[1,no]
+            ∇vxy += ∂N[1]*mesh.s.v[2,no]
+            ∇vyx += ∂N[2]*mesh.s.v[1,no]
+            ∇vyy += ∂N[2]*mesh.s.v[2,no]
         end
         # compute incremental deformation tensor
         ΔFxx,ΔFxy = T2(1.0)+(dt*∇vxx),        (dt*∇vxy) 
@@ -63,25 +67,26 @@ end
     end
 end
 
-@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},dt::T2) where {T1,T2,D<:ThreeDimension}
+@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2) where {T1,T2,D<:ThreeDimension}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # compute velocity & displacement gradients
-        ∇vxx,∇vxy,∇vxz = T2(0.0),T2(0.0),T2(0.0),T2(0.0)
-        ∇vyx,∇vyy,∇vyz = T2(0.0),T2(0.0),T2(0.0),T2(0.0)
-        ∇vzx,∇vzy,∇vzz = T2(0.0),T2(0.0),T2(0.0),T2(0.0)
+        ∇vxx,∇vxy,∇vxz = T2(0.0),T2(0.0),T2(0.0)
+        ∇vyx,∇vyy,∇vyz = T2(0.0),T2(0.0),T2(0.0)
+        ∇vzx,∇vzy,∇vzz = T2(0.0),T2(0.0),T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
-            no = mpts.p2n[nn,p]
+            # buffering & compute basis functions on-the-fly
+            no, _, ∂N = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
-            ∇vxx += mpts.ϕ∂ϕ[nn,p,1+1]*mesh.v[1,no]
-            ∇vxy += mpts.ϕ∂ϕ[nn,p,1+1]*mesh.v[2,no]
-            ∇vxz += mpts.ϕ∂ϕ[nn,p,1+1]*mesh.v[3,no]
-            ∇vyx += mpts.ϕ∂ϕ[nn,p,2+1]*mesh.v[1,no]
-            ∇vyy += mpts.ϕ∂ϕ[nn,p,2+1]*mesh.v[2,no]
-            ∇vyz += mpts.ϕ∂ϕ[nn,p,2+1]*mesh.v[3,no]
-            ∇vzx += mpts.ϕ∂ϕ[nn,p,3+1]*mesh.v[1,no]
-            ∇vzy += mpts.ϕ∂ϕ[nn,p,3+1]*mesh.v[2,no]
-            ∇vzz += mpts.ϕ∂ϕ[nn,p,3+1]*mesh.v[3,no]
+            ∇vxx += ∂N[1]*mesh.s.v[1,no]
+            ∇vxy += ∂N[1]*mesh.s.v[2,no]
+            ∇vxz += ∂N[1]*mesh.s.v[3,no]
+            ∇vyx += ∂N[2]*mesh.s.v[1,no]
+            ∇vyy += ∂N[2]*mesh.s.v[2,no]
+            ∇vyz += ∂N[2]*mesh.s.v[3,no]
+            ∇vzx += ∂N[3]*mesh.s.v[1,no]
+            ∇vzy += ∂N[3]*mesh.s.v[2,no]
+            ∇vzz += ∂N[3]*mesh.s.v[3,no]
         end
         # compute incremental deformation tensor
         ΔFxx,ΔFxy,ΔFxz = T2(1.0)+(dt*∇vxx),        (dt*∇vxy),        (dt*∇vxz) 

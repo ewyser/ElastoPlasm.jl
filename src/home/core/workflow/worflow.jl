@@ -27,14 +27,14 @@ function elastodynamic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::Named
         # action
     prog = Progress(length(checks);dt=0.5,desc="Solving elastodynamic...",barlen=10)
     for T ∈ checks
-        while T > time.t[1]
+        while time.t[1] < T
             # set clock on/off
             tic = time_ns()
             # adaptative dt & linear increase of gravity
             g,dt = get_spacetime(mpts,mesh,cmpr,time,T)
             # mpm cycle
-            shpfun(mpts,mesh,instr)
-            mapsto(mpts,mesh.s,g,dt,instr)    
+            ignite(mpts,mesh,instr)
+            mapsto(mpts,mesh,g,dt,instr)    
             elasto(mpts,mesh,cmpr,dt,instr)
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
@@ -73,14 +73,14 @@ function elastoplastic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::Named
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving elastoplastic...",barlen=10)
     for T ∈ checks
-        while T > time.t[1]
+        while time.t[1] < T
             # set clock on/off
             tic = time_ns()
             # adaptative dt & linear increase of gravity
             dt  = get_dt(mpts,mesh.prprt,cmpr,time,T)
             # mpm cycle
-            shpfun(mpts,mesh,instr)
-            mapsto(mpts,mesh.s,g,dt,instr)    
+            ignite(mpts,mesh,instr)
+            mapsto(mpts,mesh,g,dt,instr)    
             elastoplast(mpts,mesh,cmpr,dt,instr)
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
@@ -118,13 +118,13 @@ function thermodynamic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::Named
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving thermodynamic!...",barlen=10)
     for T ∈ checks
-        while T > time.t[1]
+        while time.t[1] < T
             # set clock on/off
             tic = time_ns()
             # adaptative dt & linear increase of gravity
             dt  = get_dt(mpts,mesh.prprt,cmpr,time,T)
             # mpm cycle
-            shpfun(mpts,mesh     ,instr)
+            ignite(mpts,mesh     ,instr)
             mapsto(mpts,mesh.t,dt,instr)    
             thermo(mpts,mesh.t,instr)
             # update sim parameters

@@ -10,19 +10,79 @@ Accumulate material point momentum to mesh nodes for DM augmentation.
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2},mesh::MeshSolidPhase{T1,T2}) where {T1,T2}
+@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:TwoDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
-        for dim ∈ 1:mesh.prprt.dim
+        # buffering 
+        ms       = mpts.s.ρ[p]*mpts.Ω[p]
+        mvx, mvy = ms*mpts.s.v[1,p], ms*mpts.s.v[2,p]
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering & compute basis functions on-the-fly
+            no, N, _ = basis(mpts, mesh, p, nn)
+            if iszero(no) continue end 
             # accumulation
-            for nn ∈ 1:mesh.prprt.nn
-                no = mpts.p2n[nn,p]
-                if iszero(no) continue end
-                @atom mesh.mv[dim,no]+= mpts.ϕ∂ϕ[nn,p,1] * ((mpts.s.ρ[p] * mpts.Ω[p]) * mpts.s.v[dim,p])
+            @atom mesh.s.mv[1,no]  += N * mvx
+            @atom mesh.s.mv[2,no]  += N * mvy
+        end
+    end
+end
+@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:ThreeDimension}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        # buffering 
+        ms            = mpts.s.ρ[p]*mpts.Ω[p]
+        mvx, mvy, mvz = ms*mpts.s.v[1,p]     , ms*mpts.s.v[2,p]     , ms*mpts.s.v[3,p]
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering & compute basis functions on-the-fly
+            no, N, _ = basis(mpts, mesh, p, nn)
+            if iszero(no) continue end 
+            # accumulation
+            @atom mesh.s.mv[1,no]  += N * mvx
+            @atom mesh.s.mv[2,no]  += N * mvy
+            @atom mesh.s.mv[3,no]  += N * mvz
+        end
+    end
+end
+"""
+    augm_solve(mesh::MeshSolidPhase{T1,T2}) where {T1,T2}
+
+Update mesh node velocities for DM augmentation.
+
+# Arguments
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+
+# Returns
+- Updates mesh velocities in-place.
+"""
+@kernel inbounds = true function augm_solve(mesh::Mesh{T1,T2,D}) where {T1,T2,D}
+    no = @index(Global)
+    if no ≤ mesh.prprt.nno[end] 
+        if iszero(mesh.s.m[no])
+            nothing         
+        else
+            m⁻¹ = (T2(1.0)/mesh.s.m[no])
+            for dim ∈ 1:mesh.prprt.dim       
+                # apply boundary contidions || forward euler solution
+                if mesh.s.bcs.status[dim,no]
+                    mesh.s.v[dim,no] = T2(0.0)                                         
+                else
+                    mesh.s.v[dim,no] = mesh.s.mv[dim,no]*m⁻¹  
+                end
             end
         end
     end
 end
+
+
+
+
+
+
+
+
+
+
+
 """
     augm_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2})
 
@@ -43,34 +103,6 @@ Accumulate material point heat capacity to mesh nodes for DM augmentation.
             no = mpts.p2n[nn,p]
             if iszero(no) continue end
             @atom mesh.mcT[no]+= mpts.ϕ∂ϕ[nn,p,1] * mpts.s.ρ[p]*mpts.Ω[p] * mpts.t.c[p] * mpts.t.T[p]
-        end
-    end
-end
-"""
-    augm_solve(mesh::MeshSolidPhase{T1,T2}) where {T1,T2}
-
-Update mesh node velocities for DM augmentation.
-
-# Arguments
-- `mesh::Mesh{T1,T2}`: Mesh data structure.
-
-# Returns
-- Updates mesh velocities in-place.
-"""
-@kernel inbounds = true function augm_solve(mesh::MeshSolidPhase{T1,T2}) where {T1,T2}
-    no = @index(Global)
-    if no ≤ mesh.prprt.nno[end] 
-        if iszero(mesh.mᵢ[no])
-            nothing         
-        else
-            for dim ∈ 1:mesh.prprt.dim       
-                # apply boundary contidions || forward euler solution
-                if mesh.bcs.status[dim,no]
-                    mesh.v[dim,no] = T2(0.0)                                         
-                else
-                    mesh.v[dim,no] = mesh.mv[dim,no]*(T2(1.0)/mesh.mᵢ[no])  
-                end
-            end
         end
     end
 end
