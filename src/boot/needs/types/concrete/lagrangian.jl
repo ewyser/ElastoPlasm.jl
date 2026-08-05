@@ -73,6 +73,7 @@ struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology} <: Mat
     # tensor in voigt notation
     σᵢ   ::Matrix{T2}
     τᵢ   ::Matrix{T2}
+    p    ::Vector{T2} # hydrostatic pressure (u-P split)
     # tensor in matrix notation
     ∇vᵢⱼ ::Array{T2,3}
     ∇uᵢⱼ ::Array{T2,3}

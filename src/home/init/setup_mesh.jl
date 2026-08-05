@@ -50,9 +50,11 @@ function setup_mesh(geom::Geometry{T1,T2,D,N},instr::Instruction{T1,T2,D}) where
         T2.(zeros(nno[end]             )), # m
         T2.(zeros(nno[end],nno[end]    )), # mⱼ
         T2.(zeros(ndim,nno[end]        )), # oobf
+        T2.(zeros(nno[end]             )), # oobp
         T2.(zeros(ndim,nno[end]        )), # a
         T2.(zeros(ndim,nno[end]        )), # mv
         T2.(zeros(ndim,nno[end]        )), # v
+        T2.(zeros(nno[end]             )), # p
     )
     #=
     t = MeshThermalPhase{T1,T2,D}(

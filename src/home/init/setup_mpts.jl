@@ -75,6 +75,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         # tensor in voigt notation
         T2.(zeros(nstr,nmp))                               , # σᵢ
         T2.(zeros(nstr,nmp))                               , # τᵢ
+        T2.(zeros(nmp))                                    , # p
         # tensor in matrix notation
         T2.(zeros(props.dim,props.dim,nmp))                  , # ∇vᵢⱼ
         T2.(zeros(props.dim,props.dim,nmp))                  , # ∇uᵢⱼ

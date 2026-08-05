@@ -68,21 +68,6 @@ end
 function elasto(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,E,R,D}
     # update {logarithmic|infinitesimal} strains
     instr.cairn.update.deform!(mpts,mesh,dt; ndrange=mpts.nmp);sync(CPU())
-    # update material point's domain
-    if instr.basis.which == "gimpm"
-        instr.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())
-    end
-    # volumetric locking correction
-    if instr.fwrk.locking
-        # init mesh quantities to zero
-        fill!(mesh.ΔJ,T2(0.0))
-        # calculate dimensional cst.
-        dim = T2(1.0/mesh.prprt.dim)
-        # mapping to mesh 
-        instr.cairn.update.ΔJn!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
-        # compute determinant Jbar 
-        instr.cairn.update.ΔJp!(mpts,mesh,dim; ndrange=mpts.nmp);sync(CPU())
-    end
     # update {kirchoff|cauchy} stresses
     instr.cairn.update.elast!(mpts,cmpr.Del; ndrange=mpts.nmp);sync(CPU())
     # update mp's coordinates
