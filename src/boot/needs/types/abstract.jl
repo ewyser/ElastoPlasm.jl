@@ -1,5 +1,7 @@
 abstract type AbstractInstruction end
 
+abstract type AbstractSolver end
+
 abstract type AbstractTime end
 
 

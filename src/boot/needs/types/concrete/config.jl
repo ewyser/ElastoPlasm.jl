@@ -35,9 +35,15 @@ end
 # Instruction, Time Types and subtypes
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-export Instruction, Time
+export ExplicitSolver,ImplicitSolver,DynamicRelaxationSolver,Instruction, Time
 
-struct Instruction{T1<:Integer,T2<:Real,D<:AbstractDimension}
+struct ExplicitSolver <: AbstractSolver end
+
+struct ImplicitSolver <: AbstractSolver end
+
+struct DynamicRelaxationSolver <: AbstractSolver end
+
+struct Instruction{T1<:Integer,T2<:Real,D<:AbstractDimension,S<:AbstractSolver}
     dtype  ::NamedTuple
     basis  ::NamedTuple
     fwrk   ::NamedTuple

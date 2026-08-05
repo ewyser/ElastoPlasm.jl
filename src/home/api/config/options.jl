@@ -25,6 +25,7 @@ println(opts.fwrk.deform)  # ["finite", "infinitesimal"]
 """
 function get_option(::Type{Instruction})
     return (
+            solver = ("Select solver type",[ExplicitSolver,ImplicitSolver,DynamicRelaxationSolver]),
             dtype = ("Select arithmetic precision",[32, 64]),
             basis = (
                 which = ("Select basis type",["bsmpm", "gimpm", "smpm"]),

@@ -30,6 +30,7 @@ println(cfg.basis.which)  # prints the default basis type
 """
 function get_default(::Type{Instruction})
     return (;
+        solver = ExplicitSolver,
         dtype = 64,
         basis = (;
             which = "bsmpm",

@@ -78,7 +78,7 @@ function kwargser(kwargs::Any; dim::Number=2, constructor::Type=Instruction)
     )
     instr = merge(instr, (; cairn = cairn,))
     # Create Instruction type
-    return constructor{instr[:dtype][:T0]...,typeof(dim)}(
+    return constructor{instr[:dtype][:T0]...,typeof(dim),instr[:solver]}(
         instr[:dtype],
         instr[:basis],
         instr[:fwrk],

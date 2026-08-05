@@ -207,12 +207,13 @@ logstr = elastoplasm_log(instr)
 println(logstr)
 ```
 """
-function elastoplasm_log(instr::Instruction{T1, T2}; msg::String="elastodynamic") where {T1,T2}
+function elastoplasm_log(instr::Instruction{T1, T2, D, S}; msg::String="elastodynamic") where {T1,T2,D,S<:AbstractSolver}
     # build the list of log lines
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "└ $(nthreads()) active thread(s)",
-        "- solver: $msg",
+        "- solver: $(S)",
+        "- workflow: $msg",
         "- $(instr.fwrk.deform) strain formulation",
         "- $(instr.fwrk.trsfr) mapping scheme",
         "- $(instr.basis.which) calculation cycle",
