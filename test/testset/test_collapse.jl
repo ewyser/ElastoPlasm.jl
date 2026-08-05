@@ -9,7 +9,7 @@
 Generate all combinations of element numbers.
 """
 function generate_nels_cases()
-    return [[5, 5], [5, 10], [5, 20], [5, 40], [5, 80]]
+    return [[5, 5], [5, 10], [5, 20], [5, 40], [5, 80], [5, 160]]
     #return [[5, 10], [5, 20],]
 end
 
