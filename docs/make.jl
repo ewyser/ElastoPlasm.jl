@@ -25,9 +25,24 @@ function write_autodoc_page(filename, pages, modulename)
         println(io, "```")
     end
 end
-write_autodoc_page("api.md"    , ElastoPlasm.info.sys.lib["home/api"]    , :ElastoPlasm)
-write_autodoc_page("program.md", ElastoPlasm.info.sys.lib["home/core"], :ElastoPlasm)
-write_autodoc_page("script.md" , ElastoPlasm.info.sys.lib["home/script"] , :ElastoPlasm)
+# Recursively collect .jl filenames from a superInc nested dict
+function collect_jl_files(d::Dict, path::String = "")
+    files = String[]
+    for (k, v) in d
+        if isa(v, Dict)
+            append!(files, collect_jl_files(v, joinpath(path, k)))
+        elseif endswith(k, ".jl")
+            push!(files, isempty(path) ? k : joinpath(path, k))
+        end
+    end
+    return files
+end
+
+lib_pages(key) = collect_jl_files(ElastoPlasm.info.sys.lib[key]["files"])
+
+write_autodoc_page("api.md"    , lib_pages("home/api")   , :ElastoPlasm)
+write_autodoc_page("program.md", lib_pages("home/core")  , :ElastoPlasm)
+write_autodoc_page("script.md" , lib_pages("home/script"), :ElastoPlasm)
 
 # Call makedocs
 @info "Making documentation..."
