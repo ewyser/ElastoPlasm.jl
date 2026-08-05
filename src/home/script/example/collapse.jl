@@ -26,7 +26,15 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     @info "Setting up mesh & material point system for $(length(nel))d collapse problem"
     # Geometry
     dim = length(nel)
-    L = dim == 2 ? [10.0, 1.25*l0] : [10.0, 10.0, 1.25*l0]
+    L = dim == 2 ? [l0, 1.25*l0] : [2.0, 2.0, 1.25*l0]
+
+    ly = 1.25*l0
+
+    lx = ly/nel[2]
+
+    L = [lx, ly]
+
+
     # init & kwargs
     instr = kwargser(kwargs; dim=dim)
     paths = set_paths(fid, info.sys.out; interactive=false)

@@ -9,7 +9,7 @@
 Generate all combinations of element numbers.
 """
 function generate_nels_cases()
-    return [[5, 5], [5, 10], [5, 20], [5, 40], [5, 80], [5, 160]]
+    return [[4, 5], [4, 10], [4, 20], [4, 40],]
     #return [[5, 10], [5, 20],]
 end
 
@@ -106,7 +106,7 @@ all_labels = []
 plot_path = ""
 
 
-for w in [elastoquasistatic!,]
+for w in [elastoquasistatic!,] #,elastodynamic!]
     @info "Running convergence tests for workflow: $w"
     @testset "- 2d elastic collapse" verbose = true begin
         errors, hs = run_collapse_convergence_tests(w)
