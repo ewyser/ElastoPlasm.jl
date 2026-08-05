@@ -72,9 +72,10 @@ function kwargser(kwargs::Any; dim::Number=2, constructor::Type=Instruction)
     end
     # Add cairns to instr     
     cairn = (;
-        ignite = init_ignite(instr),
-        mapsto = init_mapsto(instr),
-        update = init_update(instr),
+        ignite   = init_ignite(instr),
+        mapsto   = init_mapsto(instr),
+        update   = init_update(instr),
+        implicit = init_implicit(instr),
     )
     instr = merge(instr, (; cairn = cairn,))
     # Create Instruction type
