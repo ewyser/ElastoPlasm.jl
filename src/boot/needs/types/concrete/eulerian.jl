@@ -27,9 +27,11 @@ struct MeshSolidPhase{T1,T2,D} <: MeshPhase{T1,T2}
     m    ::Vector{T2} # consistent lumped mass matrix
     Mᵢⱼ   ::Matrix{T2}
     oobf  ::Matrix{T2} # out-of-balance mechanical load
+    oobp  ::Vector{T2} # out-of-balance continuity residual (u-P)
     a     ::Matrix{T2} # acceleration
     mv    ::Matrix{T2} # momentum
     v     ::Matrix{T2} # velocity
+    p     ::Vector{T2} # nodal pressure (u-P)
 end
 @adapt_struct MeshSolidPhase
 

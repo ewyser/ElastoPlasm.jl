@@ -37,12 +37,12 @@ function get_default(::Type{Instruction})
             ghost = 0,
         ),
         fwrk  = (;
-            deform = "finite",
+            deform = "infinitesimal",
             trsfr = "std",
             C_pf = 1.0, 
-            musl = true,
-            locking = true,
-            damping = 0.1
+            musl = false,
+            locking = false,
+            damping = 0.0
         ),
         bcs   = (;
             dirichlet = [
@@ -71,7 +71,7 @@ function get_default(::Type{Instruction})
             status = true,
             freq   = 1.0,
             dpi    = 500,
-            what   = [(;mpts=get_mpts_variable_config()["epII"]),],
+            what   = [(;mpts=get_mpts_variable_config()["P"]),],
         ),
         perf  = (;
             status=false,

@@ -1,7 +1,7 @@
 # accumulate only f_int and body force to nodes — mass and momentum are NOT touched
 # used in PT sub-iterations where mass is frozen from the start of the time step
 
-@kernel inbounds = true function fint_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:OneDimension}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:OneDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms, Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
@@ -14,7 +14,7 @@
     end
 end
 
-@kernel inbounds = true function fint_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
@@ -28,7 +28,7 @@ end
     end
 end
 
-@kernel inbounds = true function fint_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:ThreeDimension}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:ThreeDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
