@@ -45,6 +45,20 @@ end
 # Step 1: read current version
 current_version = read_version()
 
+# Abort if not on dev branch
+current_branch = strip(read(`git branch --show-current`, String))
+if current_branch != "dev"
+    error("Release must be run from the 'dev' branch (currently on '$current_branch')")
+end
+
+# Abort if dev is behind main
+run(`git fetch origin`)
+behind = strip(read(`git rev-list --count origin/main..HEAD`, String)) |> s -> parse(Int, s)
+main_ahead = strip(read(`git rev-list --count HEAD..origin/main`, String)) |> s -> parse(Int, s)
+if main_ahead > 0
+    error("dev is $main_ahead commit(s) behind origin/main — rebase or merge main into dev first")
+end
+
 # Step 2: bump {major|minor|patch} version
 @info "Bumping version and Releasing"
 part = select_version_part()
@@ -69,11 +83,9 @@ if options[selected] == "yes"
     # Step 3d: git tag
     run(`git tag v$new_version`)
 
-    # Step 3e: get current branch and push commit and tag
-    current_branch = strip(read(`git branch --show-current`, String))
+    # Step 3e: push commit and tag from current branch (run from dev)
     run(`git push origin $current_branch`)
     run(`git push origin v$new_version`)
-    #=    =#
 else
     println("Aborting release process.")
     return

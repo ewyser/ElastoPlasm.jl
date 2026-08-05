@@ -6,3 +6,5 @@ docs/build
 dump/
 
 *.cov
+
+docs/src/function/
