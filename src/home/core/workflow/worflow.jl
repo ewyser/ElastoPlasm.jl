@@ -168,15 +168,16 @@ function elastoplasm(sim::S; workflow::Vector{F} = [elastodynamic!]) where {S <:
         for (k,solver!) ∈ enumerate(workflow)
             @info elastoplasm_log(instr; msg = "$solver!")
             solver!(mpts,mesh,cmpr,time,instr)
+            # postprocessing
+            if instr.plot.status
+                names     = [v.mpts.name for v in instr.plot.what if haskey(v, :mpts)]
+                file_path = joinpath(paths[:plot], "$(misc.prefix)_$(join(names, "_"))_$(string(solver!)).png")
+                opts = (; file = file_path, )
+                save_plot(opts)
+            end
         end
         sleep(1.0)
-        # postprocessing
-        if instr.plot.status
-            names     = [v.mpts.name for v in instr.plot.what if haskey(v, :mpts)]
-            file_path = joinpath(paths[:plot], "$(misc.prefix)_$(join(names, "_")).png")
-            opts = (; file = file_path, )
-            save_plot(opts)
-        end
+
     end
     # return success message
     exit_log("(✓) Done! exiting...\n")
