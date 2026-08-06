@@ -32,20 +32,17 @@ Project 1D material point data to mesh nodes (FLIP scheme).
         end
     end
 end
-@kernel inbounds = true function assembly(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
+@kernel inbounds = true function mass_assembly(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
-        ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        σxx, σyy, σxy = mpts.s.σᵢ[1,p]       , mpts.s.σᵢ[2,p] , mpts.s.σᵢ[3,p]
+        ms = mpts.s.ρ[p]*mpts.Ω[p]
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
-            no, N, ∂N = basis(mpts, mesh, p, nn)
+            no, N, _ = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
             # accumulation
-            @atom mesh.s.m[no]     += N * ms
-            @atom mesh.s.oobf[1,no]-= Ω * (∂N[1] * σxx + ∂N[2] * σxy)
-            @atom mesh.s.oobf[2,no]-= Ω * (∂N[1] * σxy + ∂N[2] * σyy) - N * (ms * g[2])
+            @atom mesh.s.m[no] += N * ms
         end
     end
 end

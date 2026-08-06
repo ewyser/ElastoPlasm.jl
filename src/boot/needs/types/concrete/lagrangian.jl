@@ -7,6 +7,7 @@ export Point,PointSolidPhase,PointFluidPhase,PointThermalPhase
 struct LinearElasticity{T1,T2,D} <: AbstractElasticity{T1,T2}
     # tensor in voigt notation
     σᵢ   ::Matrix{T2}
+    σn   ::Matrix{T2}
     # tensor in matrix notation
     ϵᵢⱼ  ::Array{T2,3}
     ωᵢⱼ  ::Array{T2,3}
@@ -19,10 +20,11 @@ function LinearElasticity(::Type{T1},::Type{T2},nmp::Integer,ndim::Integer) wher
         nstr = 6 
     end
     σᵢ   = zeros(T2, nstr, nmp)
+    σn   = zeros(T2, nstr, nmp) 
     ϵᵢⱼ  = zeros(T2, ndim, ndim, nmp)
     ωᵢⱼ  = zeros(T2, ndim, ndim, nmp)
     σJᵢⱼ = zeros(T2, ndim, ndim, nmp)
-    return LinearElasticity{T1,T2,ndim}(σᵢ, ϵᵢⱼ, ωᵢⱼ, σJᵢⱼ)
+    return LinearElasticity{T1,T2,ndim}(σᵢ, σn, ϵᵢⱼ, ωᵢⱼ, σJᵢⱼ)
 end
 @adapt_struct LinearElasticity
 
@@ -72,15 +74,19 @@ struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology} <: Mat
     ϵpV  ::Vector{T2}
     # tensor in voigt notation
     σᵢ   ::Matrix{T2}
+    σn   ::Matrix{T2}    
     τᵢ   ::Matrix{T2}
-    p    ::Vector{T2} # hydrostatic pressure (u-P split)
+    P    ::Vector{T2}
     # tensor in matrix notation
     ∇vᵢⱼ ::Array{T2,3}
     ∇uᵢⱼ ::Array{T2,3}
     ΔFᵢⱼ ::Array{T2,3}
     Fᵢⱼ  ::Array{T2,3}
+    Fn   ::Array{T2,3}
     bᵢⱼ  ::Array{T2,3}
+    bn   ::Array{T2,3}
     ϵᵢⱼ  ::Array{T2,3}
+    ϵn   ::Array{T2,3}
     ωᵢⱼ  ::Array{T2,3}
     σJᵢⱼ ::Array{T2,3}
     # new component-based fields

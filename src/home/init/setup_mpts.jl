@@ -74,6 +74,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         T2.(zeros(nmp))                                    , # ϵpV
         # tensor in voigt notation
         T2.(zeros(nstr,nmp))                               , # σᵢ
+        T2.(zeros(nstr,nmp))                               , # σn        
         T2.(zeros(nstr,nmp))                               , # τᵢ
         T2.(zeros(nmp))                                    , # p
         # tensor in matrix notation
@@ -81,8 +82,11 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         T2.(zeros(props.dim,props.dim,nmp))                  , # ∇uᵢⱼ
         T2.(zeros(props.dim,props.dim,nmp))                  , # ΔFᵢⱼ
         T2.(repeat(Matrix(1.0I,props.dim,props.dim),1,1,nmp)), # Fᵢⱼ 
+        T2.(repeat(Matrix(1.0I,props.dim,props.dim),1,1,nmp)), # Fn # converged
         T2.(repeat(Matrix(1.0I,props.dim,props.dim),1,1,nmp)), # bᵢⱼ
+        T2.(repeat(Matrix(1.0I,props.dim,props.dim),1,1,nmp)), # bn # converged
         T2.(zeros(props.dim,props.dim,nmp))                  , # ϵᵢⱼ
+        T2.(zeros(props.dim,props.dim,nmp))                  , # ϵn # converged        
         T2.(zeros(props.dim,props.dim,nmp))                  , # ωᵢⱼ
         T2.(zeros(props.dim,props.dim,nmp))                  , # σJᵢⱼ
         # new component-based fields

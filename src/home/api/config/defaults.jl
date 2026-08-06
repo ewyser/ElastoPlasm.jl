@@ -37,7 +37,7 @@ function get_default(::Type{Instruction})
             ghost = 0,
         ),
         fwrk  = (;
-            deform = "infinitesimal",
+            deform = "finite",
             trsfr = "std",
             C_pf = 1.0, 
             musl = false,

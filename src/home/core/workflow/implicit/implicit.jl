@@ -28,9 +28,6 @@ function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
     nno  = mesh.prprt.nno[end]
     ndim = mesh.prprt.dim
 
-    # save t^n state — restored before returning so elasto! can do the permanent update
-    σ_n  = copy(mpts.s.σᵢ)   # stress at t^n
-
     # stiffness-based preconditioner scale for quasi-static mode
     h_min = minimum(mesh.prprt.h)
     c_el² = (cmpr.Kc + T(4)/T(3)*cmpr.Gc) / minimum(mpts.s.ρ)
@@ -53,14 +50,9 @@ function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
         do_check = (mod(it, ncheck) == 0) || it == 1
         do_check && copyto!(R0, R)
 
-        # Evaluate trial stress from updated v^k:
-        instr.cairn.implicit.trial_deform!(mpts,mesh,dt; ndrange=mpts.nmp);sync(CPU())
-        mpts.s.σᵢ .= σ_n
-        instr.cairn.implicit.elast!(mpts,cmpr.Del; ndrange=mpts.nmp);sync(CPU())
-
-        # Compute oobf from trial stress
+        # Compute oobf
         fill!(mesh.s.oobf, T(0.0))
-        instr.cairn.implicit.oobf_assembly!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
+        instr.cairn.implicit.oobf_assembly!(mpts,mesh,g,dt,cmpr.Kc,cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
 
         # Residual
         @inbounds for no in 1:nno
@@ -68,10 +60,13 @@ function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
             iszero(mi) && continue
             for d in 1:ndim
                 r = mesh.s.oobf[d,no]
-                mesh.s.bcs.status[d,no] && (r = T(0); ∂v∂τ[d,no] = T(0))
+                if mesh.s.bcs.status[d,no]
+                    r, ∂v∂τ[d,no] = T(0), T(0)
+                end
                 R[d,no] = r
             end
         end
+
         # Chebyshev update: ∂v∂τ ← R/PC + β·∂v∂τ,  v ← v + α·∂v∂τ
         @inbounds for no in 1:nno
             iszero(mesh.s.m[no]) && continue
@@ -84,12 +79,13 @@ function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
                 end
             end
         end
-        # convergence check and λ_min update (Rayleigh quotient)
+
+        # Convergence check and λ_min update (Rayleigh quotient)
         if do_check
             nr = norm(R)
             it == 1 && (nr0 = max(nr, eps(T)))
             converged = nr / nr0 < ϵ
-            @info "DR pseudo-transient:" iter=it residual=nr/nr0 α=α β=β
+            @info "DR pseudo-transient:" iter=it residual=round(log10(nr/nr0),digits=1) α=α β=β
             converged && break
 
             ΔR    = R .- R0
@@ -110,34 +106,22 @@ function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
             end
         end
     end
-
-    # restore σ^n so that the subsequent elasto! call does the permanent update
-    mpts.s.σᵢ .= σ_n
-
     return nothing
 end
 
 function init_implicit(instr::NamedTuple; implicit::Dict{Symbol,Cairn} = Dict{Symbol,Cairn}())
-    implicit[:assembly!]     = assembly(CPU())
-    implicit[:trial_deform!] = trial_deform(CPU())
-    implicit[:elast!]        = elast(CPU())
-    implicit[:elast_dev!]    = elast_dev(CPU())
+    implicit[:mass_assembly!] = mass_assembly(CPU())
     implicit[:oobf_assembly!] = oobf_assembly(CPU())
-    implicit[:div_p2n!]      = div_p2n(CPU())
-    implicit[:n2p!]          = n2p(CPU())
+    implicit[:update!]        = update(CPU())
     return (; implicit...)
 end
 
 function relax(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     fill!(mesh.s.m   ,T2(0))
-    fill!(mesh.s.mv  ,T2(0))
     fill!(mesh.s.oobf,T2(0))
-    fill!(mesh.s.a   ,T2(0))
     fill!(mesh.s.v   ,T2(0))
-    instr.cairn.implicit.assembly!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
-    pt_solve!(mpts,mesh,cmpr,g,dt,instr; quasi_static=true)
-    instr.cairn.implicit.n2p!(mpts,mesh,dt,T2(instr.fwrk.C_pf); ndrange=mpts.nmp);sync(CPU())
-    return nothing
+    instr.cairn.implicit.mass_assembly!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
+    return pt_solve!(mpts,mesh,cmpr,g,dt,instr; quasi_static=true)
 end
 
 
@@ -150,12 +134,13 @@ function elastoquasistatic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::N
         tic      = time_ns()
 
 
-        dt = T2(1)
+        dt = T2(1.0)
         g  = T2[T2(0), -lstp]
 
         ignite(mpts,mesh,instr)
         relax(mpts,mesh,cmpr,g,dt,instr)
-        elasto(mpts,mesh,cmpr,dt,instr)
+        instr.cairn.implicit.update!(mpts,mesh,dt; ndrange=mpts.nmp);sync(CPU())
+
         time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
 
         savlot(mpts,mesh,time.t[1],instr)
