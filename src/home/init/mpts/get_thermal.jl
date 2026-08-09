@@ -4,7 +4,7 @@
 Initialize geometry and material point fields for a column collapse problem.
 
 # Arguments
-- `mesh`: Mesh object with geometry and boundary info.
+- `mesh`: Mesh object with geometry and boundary self.
 - `cmp`: Material parameters (Dict or NamedTuple).
 - `ni`: Number of intervals per element.
 - `ℓ₀`: Optional, domain height (default: 0.0).

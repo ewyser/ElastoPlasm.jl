@@ -4,7 +4,7 @@
 Initialize geometry and material point fields for a slump test problem.
 
 # Arguments
-- `props`: props object with geometry and boundary info.
+- `props`: props object with geometry and boundary self.
 - `cmp`: Material parameters (Dict or NamedTuple).
 - `instr`: Instruction dictionary (may include GRF options).
 - `ni`: Number of intervals per element (default: 2).

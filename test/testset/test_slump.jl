@@ -79,5 +79,5 @@ end
             end
         end
     end
-    #metanalysis(joinpath(ElastoPlasm.info.sys.out,"test"))
+    #metanalysis(joinpath(ElastoPlasm.self.sys.out,"test"))
 end

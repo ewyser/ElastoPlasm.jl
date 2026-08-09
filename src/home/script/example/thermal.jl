@@ -35,7 +35,7 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
             ),
         )
     )
-    paths = set_paths(fid,info.sys.out;interactive=false)  
+    paths = set_paths(fid,self.sys.out;interactive=false)  
     # mesh & mpts initial conditions
     mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)       )
     cmpr  = setup_cmpr(mesh                                           )                       

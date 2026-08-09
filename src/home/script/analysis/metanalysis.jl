@@ -152,7 +152,7 @@ end
 Generate and save plots for field statistics.
 """
 function plot_field_statistics(stats, field_info, reference, path, field_name, nsim)
-    @info "Plotting averaged $(field_info.name) with standard deviation..."
+    @info "Plotting averaged $(field_self.name) with standard deviation..."
     
     instr = reference["cfg/instr"]
     mesh = reference["ic/mesh"]
@@ -171,9 +171,9 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
     
     plot_specs = [
         (data=stats.D_mean, color=:viridis, clim=(D_mean_min, D_mean_max),
-         label=field_info.label, title="Average $(lowercase(field_info.name)) " * L"\leftangle" * field_info.label * L"\rightangle_{n=%$nsim}"),
+         label=field_self.label, title="Average $(lowercase(field_self.name)) " * L"\leftangle" * field_self.label * L"\rightangle_{n=%$nsim}"),
         (data=stats.D_std, color=:plasma, clim=(0, D_std_max),
-         label=L"\sigma(" * field_info.label * L")", title="Standard deviation " * L"\sigma(" * field_info.label * L")"),
+         label=L"\sigma(" * field_self.label * L")", title="Standard deviation " * L"\sigma(" * field_self.label * L")"),
     ]
     
     # Generate plots
@@ -225,13 +225,13 @@ metanalysis([64.0, 16.0], [40, 10]; fid="slump_meta")
 """
 function metanalysis(L, nel; fid::String=first(splitext(basename(@__FILE__))), field::String="epII")
     @assert length(L) == length(nel) "L and nel must have same length"
-    root = mkpath(joinpath(info.sys.out, fid))
+    root = mkpath(joinpath(self.sys.out, fid))
     # Prepare and execute simulations if not already done
     if isempty(readdir(root))
         # 1. Preparation
         nsim = prepare_simulations!(L, nel, fid, root)
         # 2a. Calculation
-        meta_path = joinpath(info.sys.out, fid)
+        meta_path = joinpath(self.sys.out, fid)
         outputs = execute_simulations(meta_path, nsim)
     else
         # 2b. Load existing outputs

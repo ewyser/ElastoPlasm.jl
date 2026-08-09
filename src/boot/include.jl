@@ -1,12 +1,12 @@
 
 """
-    superInc(lists::Vector{String}; root::String=info.sys.root, tree::Bool=false) -> Vector{String}
+    superInc(lists::Vector{String}; root::String=self.sys.root, tree::Bool=false) -> Vector{String}
 
 Recursively includes all `.jl` files in the given directories and their subdirectories, optionally displaying a tree structure of included files.
 
 # Arguments
 - `lists::Vector{String}`: List of directory names to include.
-- `root::String=info.sys.root`: Root directory for the modules.
+- `root::String=self.sys.root`: Root directory for the modules.
 - `tree::Bool=false`: If true, displays a tree structure of included files.
 
 # Returns

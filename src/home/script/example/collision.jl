@@ -23,7 +23,7 @@ function ic_collision(L, nel; fid::String=first(splitext(basename(@__FILE__))), 
     @info "Setting up mesh & material point system for $(length(L))d disk collision problem"
     # init & kwargs
     instr = kwargser(kwargs; dim=length(L))
-    paths = set_paths(fid, info.sys.out; interactive=false)  
+    paths = set_paths(fid, self.sys.out; interactive=false)  
     # mesh, mpts, cmpr & time initial conditions
     mesh  = setup_mesh(instr     ; geom = get_geom(nel, L, instr)     )
     cmpr  = setup_cmpr(mesh                                           )                       

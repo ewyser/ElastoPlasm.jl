@@ -19,7 +19,6 @@ println(time.t)  # [0.0, 12.0]
 ```
 """
 function setup_time(solver::S; te=0.0,tg=0.0,tep=0.0) where {S<:AbstractSolver{T1,T2,D}} where {T1<:Integer,T2<:Real,D<:AbstractDimension}
-    println("T2 = $(T2)")
     return Time{T1,T2}( 
         T2.([0.0,te+tep]), 
         T2(te), 

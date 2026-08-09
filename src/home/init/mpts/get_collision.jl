@@ -8,7 +8,7 @@ This is a classic SPH benchmark problem for testing kernel functions, density
 evolution, and momentum conservation.
 
 # Arguments
-- `mesh`: Mesh object with geometry and boundary info.
+- `mesh`: Mesh object with geometry and boundary self.
 - `cmpr`: Material parameters (Dict or NamedTuple).
 - `instr`: Instruction dictionary.
 - `ni`: Number of intervals per element (default: 2).

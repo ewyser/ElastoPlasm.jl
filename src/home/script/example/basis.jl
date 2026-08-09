@@ -82,7 +82,7 @@ function basisfunction(; fid::String=first(splitext(basename(@__FILE__))), kwarg
     ni    = 20
     # init & kwargs
     instr = kwargser(kwargs; dim=length(L))
-    paths = set_paths(fid,info.sys.out;interactive=false)  
+    paths = set_paths(fid,self.sys.out;interactive=false)  
     T0    = instr[:dtype].T0  
     T1,T2 = first(T0),last(T0)  
     # mesh & mpts initial conditions

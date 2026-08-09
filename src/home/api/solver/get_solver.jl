@@ -22,12 +22,12 @@ function get_solver(; dim::Number=2, kwargs...)
         error("Unsupported dimension type: $ndim")
     end
     # Verify plotting status from ui
-    if !ElastoPlasm.info.ui.plot
+    if !ElastoPlasm.self.ui.plot
         instr = merge(instr, (; plot = merge(instr.plot, (; status = false,)),))
     end    
     # Set execution backend
     if !haskey(instr[:backend],:exec)
-        exec  = select_execution_backend(ElastoPlasm.info.bckd, instr[:backend][:select]; distributed=instr[:backend][:distributed], prompt=ElastoPlasm.info.bckd.prompt)
+        exec  = select_execution_backend(ElastoPlasm.self.bckd, instr[:backend][:select]; distributed=instr[:backend][:distributed], prompt=ElastoPlasm.self.bckd.prompt)
         instr = merge(instr, (; backend = merge(instr[:backend], (; exec = exec,)),))
     end
     # 

@@ -44,9 +44,9 @@ Assign 2D material points to elements and nodes (topology kernel).
     p = @index(Global)
     if p ≤ mpts.nmp 
         # Compute element indices
-        elx = clamp(fld(mpts.x[p][1]-mesh.x₀[1],mesh.prprt.h[1]),0,mesh.prprt.nel[1]-1)
-        ely = clamp(fld(mpts.x[p][2]-mesh.x₀[2],mesh.prprt.h[2]),0,mesh.prprt.nel[2]-1)
-        el  = round(T1, 1 + elx + mesh.prprt.nel[1]*ely)  # x varies fastest, (nx, ny) ordering
+        elx = clamp(fld(mpts.x[p][1] - mesh.x₀[1], mesh.prprt.h[1]), 0, mesh.prprt.nel[1] - 1)
+        ely = clamp(fld(mpts.x[p][2] - mesh.x₀[2], mesh.prprt.h[2]), 0, mesh.prprt.nel[2] - 1)
+        el  = round(T1, 1 + elx + mesh.prprt.nel[1] * ely)  # x varies fastest, (nx, ny) ordering
         # Assign mpts-to-node connectivity
         for nn ∈ 1:mesh.prprt.nn
             mpts.p2n[nn,p] = mesh.e2n[nn,el]
@@ -71,10 +71,10 @@ Assign 3D material points to elements and nodes (topology kernel).
     p = @index(Global)
     if p ≤ mpts.nmp 
         # Compute element indices
-        elx = clamp(fld(mpts.x[p][1]-mesh.x₀[1],mesh.prprt.h[1]),0,mesh.prprt.nel[1]-1)
-        ely = clamp(fld(mpts.x[p][2]-mesh.x₀[2],mesh.prprt.h[2]),0,mesh.prprt.nel[2]-1)
-        elz = clamp(fld(mpts.x[p][3]-mesh.x₀[3],mesh.prprt.h[3]),0,mesh.prprt.nel[3]-1)
-        el  = round(T1, 1 + elx + mesh.prprt.nel[1]*ely + mesh.prprt.nel[1]*mesh.prprt.nel[2]*elz)
+        elx = clamp(fld( mpts.x[p][1] - mesh.x₀[1], mesh.prprt.h[1]), 0, mesh.prprt.nel[1] - 1)
+        ely = clamp(fld( mpts.x[p][2] - mesh.x₀[2], mesh.prprt.h[2]), 0, mesh.prprt.nel[2] - 1)
+        elz = clamp(fld( mpts.x[p][3] - mesh.x₀[3], mesh.prprt.h[3]), 0, mesh.prprt.nel[3] - 1)
+        el  = round(T1, 1 + elx + mesh.prprt.nel[1] * ely + mesh.prprt.nel[1] * mesh.prprt.nel[2] * elz)
         # Assign mpts-to-node connectivity
         for nn ∈ 1:mesh.prprt.nn
             mpts.p2n[nn,p] = mesh.e2n[nn,el]
