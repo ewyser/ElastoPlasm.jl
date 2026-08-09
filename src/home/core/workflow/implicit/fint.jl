@@ -11,7 +11,7 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         ms, Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        σxx   = mpts.s.σᵢ[1,p]
+        σxx   = mpts.s.σᵢ[p][1]
         for nn ∈ 1:mesh.prprt.nn
             no, N, ∂N = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
@@ -24,31 +24,32 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         # compute velocity & displacement gradients
-        ∇vᵢⱼ = zeros(T2,2,2)
+        ∇v = zeros(MMatrix{2,2,T2})
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, _, ∂N = basis(mpts, mesh, p, nn)
-            if iszero(no) continue end                                     
-            for i ∈ 1:mesh.prprt.dim  
+            if iszero(no) continue end
+            for i ∈ 1:mesh.prprt.dim
                 for j ∈ 1:mesh.prprt.dim
-                    ∇vᵢⱼ[i,j]+= ∂N[j]*mesh.s.v[i,no]
+                    ∇v[i,j] += ∂N[j]*mesh.s.v[i,no]
                 end
             end
         end
+        ∇vᵢⱼ = SMatrix(∇v)
         
         # compute incremental deformation and update
-        ΔFᵢⱼ = mpts.δᵢⱼ+(dt.*∇vᵢⱼ)
-        ωᵢⱼ  = T2(0.5).*(∇vᵢⱼ-∇vᵢⱼ')
+        ΔFᵢⱼ = SMatrix{2,2,T2}(I) + dt .* ∇vᵢⱼ
+        ωᵢⱼ  = T2(0.5) .* (∇vᵢⱼ - ∇vᵢⱼ')
 
         # calculate elastic strains & spins
-        ϵᵢⱼ = T2(0.5).*(ΔFᵢⱼ+ΔFᵢⱼ').-mpts.δᵢⱼ[:,:] 
-        ωᵢⱼ = T2(0.5).*(∇vᵢⱼ-∇vᵢⱼ')
+        ϵᵢⱼ = T2(0.5) .* (ΔFᵢⱼ + ΔFᵢⱼ') .- SMatrix{2,2,T2}(I)
+        ωᵢⱼ = T2(0.5) .* (∇vᵢⱼ - ∇vᵢⱼ')
         
         # update cauchy stress tensor
-        σᵢ   = copy(mpts.s.σn[:,p])
-        σJᵢⱼ = mutate(σᵢ,T2(1.0),:tensor)
+        σᵢ   = mpts.s.σn[p]
+        σJᵢⱼ = mutate(σᵢ, T2(1.0), :tensor)
         σJᵢⱼ = σJᵢⱼ*ωᵢⱼ'+σJᵢⱼ'*ωᵢⱼ
-        σᵢ  += Del*mutate(ϵᵢⱼ,T2(2.0),:voigt).+mutate(σJᵢⱼ,T2(1.0),:voigt)
+        σᵢ   = σᵢ + eltype(mpts.s.σᵢ)(Del * mutate(ϵᵢⱼ, T2(2.0), :voigt) .+ mutate(σJᵢⱼ, T2(1.0), :voigt))
         
         # buffered values
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
@@ -63,8 +64,8 @@ end
         end
 
         # save deformation gradient and cauchy stress
-        mpts.s.Fᵢⱼ[:,:,p] .= ΔFᵢⱼ*mpts.s.Fn[:,:,p]
-        mpts.s.σᵢ[:,p]    .= σᵢ
+        mpts.s.Fᵢⱼ[p] = ΔFᵢⱼ * mpts.s.Fn[p]
+        mpts.s.σᵢ[p]    = σᵢ
     end
 end
 
@@ -72,8 +73,8 @@ end
     mp = @index(Global)
     if mp ≤ mpts.nmp
         # Get previous deformation gradient and logarithmic strain tensor
-        Fn = SMatrix{2,2,T2}(mpts.s.Fn[:, :, mp])
-        ϵn = SMatrix{2,2,T2}(mpts.s.ϵn[:, :, mp])
+        Fn = mpts.s.Fn[mp]
+        ϵn = mpts.s.ϵn[mp]
 
         # Compute velocity & displacement gradients
         ∇vᵢⱼ = zeros(MMatrix{2,2,T2})
@@ -89,7 +90,7 @@ end
         end
         
         # Compute incremental deformation, update current deformation gradient and get the deformation determinant
-        ΔFᵢⱼ = mpts.δᵢⱼ+(dt.*∇vᵢⱼ)
+        ΔFᵢⱼ = SMatrix{2,2,T2}(I) + dt .* SMatrix(∇vᵢⱼ)
         Fᵢⱼ  = ΔFᵢⱼ*Fn
         J⁻¹  = T2(1.0)/det(Fᵢⱼ)
 
@@ -129,9 +130,9 @@ end
         end
 
         # Store deformation gradient, logarithmic strain and Kirchhoff stress
-        mpts.s.Fᵢⱼ[:,:,mp] .= Fᵢⱼ
-        mpts.s.ϵᵢⱼ[:,:,mp] .= ϵᵢⱼ
-        mpts.s.τᵢ[:,mp]    .= [τxx, τyy, τxy]
+        mpts.s.Fᵢⱼ[mp] = Fᵢⱼ
+        mpts.s.ϵᵢⱼ[mp] = eltype(mpts.s.ϵᵢⱼ)(ϵᵢⱼ)
+        mpts.s.τᵢ[mp]  = SVector{3,T2}(τxx, τyy, τxy)
     end
 end
 
@@ -139,7 +140,7 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        σxx, σyy, σzz = mpts.s.σᵢ[1,p], mpts.s.σᵢ[2,p], mpts.s.σᵢ[3,p]
+        σxx, σyy, σzz = mpts.s.σᵢ[p][1], mpts.s.σᵢ[p][2], mpts.s.σᵢ[p][3]
         σyx, σzy, σzx = mpts.s.σᵢ[6,p], mpts.s.σᵢ[4,p], mpts.s.σᵢ[5,p]
         for nn ∈ 1:mesh.prprt.nn
             no, N, ∂N = basis(mpts, mesh, p, nn)

@@ -10,7 +10,7 @@ Assign 1D material points to elements and nodes (topology kernel).
 # Returns
 - Updates connectivity fields in-place.
 """
-@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:OneDimension,E,R}
+@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:OneDimension,E,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # Compute element indices
@@ -40,7 +40,7 @@ Assign 2D material points to elements and nodes (topology kernel).
 # Returns
 - Updates connectivity fields in-place.
 """
-@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:TwoDimension,E,R}
+@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:TwoDimension,E,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # Compute element indices
@@ -67,7 +67,7 @@ Assign 3D material points to elements and nodes (topology kernel).
 # Returns
 - Updates connectivity fields in-place.
 """
-@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:ThreeDimension,E,R}
+@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:ThreeDimension,E,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # Compute element indices

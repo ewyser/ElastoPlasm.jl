@@ -15,7 +15,7 @@ Accumulate material point momentum to mesh nodes for DM augmentation.
     if p ≤ mpts.nmp
         # buffering 
         ms       = mpts.s.ρ[p]*mpts.Ω[p]
-        mvx, mvy = ms*mpts.s.v[1,p], ms*mpts.s.v[2,p]
+        mvx, mvy = ms*mpts.s.v[p][1], ms*mpts.s.v[p][2]
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, _ = basis(mpts, mesh, p, nn)
@@ -31,7 +31,8 @@ end
     if p ≤ mpts.nmp
         # buffering 
         ms            = mpts.s.ρ[p]*mpts.Ω[p]
-        mvx, mvy, mvz = ms*mpts.s.v[1,p]     , ms*mpts.s.v[2,p]     , ms*mpts.s.v[3,p]
+        v = mpts.s.v[p]
+        mvx, mvy, mvz = ms*v[1], ms*v[2], ms*v[3]
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, _ = basis(mpts, mesh, p, nn)

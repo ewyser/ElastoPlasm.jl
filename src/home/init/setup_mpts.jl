@@ -60,37 +60,47 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         T2.(zeros(nmp))             # ϵpV
     )
 
-    s = PointSolidPhase{T1,T2,D,typeof(elast),typeof(rheo)}(
-        T2.(zeros(size(xp)))                               , # u
-        T2.(copy(vp))                                      , # v
+    # static array types for the new AoS memory layout
+    if D == TwoDimension
+        TM = SMatrix{2,2,T2,4}
+        TV = SVector{2,T2}
+        TS = SVector{3,T2}
+    else
+        TM = SMatrix{3,3,T2,9}
+        TV = SVector{3,T2}
+        TS = SVector{6,T2}
+    end
+
+    s = PointSolidPhase{T1,T2,D,typeof(elast),typeof(rheo),TM,TV,TS}(
+        [zero(TV)  for _ in 1:nmp]                         , # u
+        [TV(T2.(vp[:,p])) for p in 1:nmp]                  , # v
         # mechanical properties
-        T2.(vec(copy(ρ0)))                                 , # ρ₀
-        T2.(vec(copy(ρ0)))                                 , # ρ
-        T2.(vec(copy(geom.coh0)))                          , # c₀
-        T2.(vec(copy(geom.cohr)))                          , # cᵣ
-        T2.(vec(copy(geom.phi)))                           , # ϕ
-        T2.(zeros(nmp))                                    , # Δλ
-        T2.(zeros(2,nmp))                                  , # ϵpII
-        T2.(zeros(nmp))                                    , # ϵpV
+        T2.(vec(copy(ρ0)))                                  , # ρ₀
+        T2.(vec(copy(ρ0)))                                  , # ρ
+        T2.(vec(copy(geom.coh0)))                           , # c₀
+        T2.(vec(copy(geom.cohr)))                           , # cᵣ
+        T2.(vec(copy(geom.phi)))                            , # ϕ₀
+        T2.(zeros(nmp))                                     , # Δλ
+        T2.(zeros(2,nmp))                                   , # ϵpII
+        T2.(zeros(nmp))                                     , # ϵpV
         # tensor in voigt notation
-        T2.(zeros(nstr,nmp))                               , # σᵢ
-        T2.(zeros(nstr,nmp))                               , # σn        
-        T2.(zeros(nstr,nmp))                               , # τᵢ
-        T2.(zeros(nmp))                                    , # p
+        [zero(TS) for _ in 1:nmp]                          , # σᵢ
+        [zero(TS) for _ in 1:nmp]                          , # σn
+        [zero(TS) for _ in 1:nmp]                          , # τᵢ
+        T2.(zeros(nmp))                                     , # P
         # tensor in matrix notation
-        T2.(zeros(props.dim,props.dim,nmp))                  , # ∇vᵢⱼ
-        T2.(zeros(props.dim,props.dim,nmp))                  , # ∇uᵢⱼ
-        T2.(zeros(props.dim,props.dim,nmp))                  , # ΔFᵢⱼ
-        T2.(repeat(Matrix(1.0I,props.dim,props.dim),1,1,nmp)), # Fᵢⱼ 
-        T2.(repeat(Matrix(1.0I,props.dim,props.dim),1,1,nmp)), # Fn # converged
-        T2.(repeat(Matrix(1.0I,props.dim,props.dim),1,1,nmp)), # bᵢⱼ
-        T2.(repeat(Matrix(1.0I,props.dim,props.dim),1,1,nmp)), # bn # converged
-        T2.(zeros(props.dim,props.dim,nmp))                  , # ϵᵢⱼ
-        T2.(zeros(props.dim,props.dim,nmp))                  , # ϵn # converged        
-        T2.(zeros(props.dim,props.dim,nmp))                  , # ωᵢⱼ
-        T2.(zeros(props.dim,props.dim,nmp))                  , # σJᵢⱼ
-        # new component-based fields
-        elast                                              , # elast::E
+        [zero(TM) for _ in 1:nmp]                          , # ∇vᵢⱼ
+        [zero(TM) for _ in 1:nmp]                          , # ∇uᵢⱼ
+        [zero(TM) for _ in 1:nmp]                          , # ΔFᵢⱼ
+        [TM(I)    for _ in 1:nmp]                          , # Fᵢⱼ
+        [TM(I)    for _ in 1:nmp]                          , # Fn
+        [TM(I)    for _ in 1:nmp]                          , # bᵢⱼ
+        [TM(I)    for _ in 1:nmp]                          , # bn
+        [zero(TM) for _ in 1:nmp]                          , # ϵᵢⱼ
+        [zero(TM) for _ in 1:nmp]                          , # ϵn
+        [zero(TM) for _ in 1:nmp]                          , # ωᵢⱼ
+        # component-based fields
+        elast                                               , # elast::E
         rheo                                               , # rheo::R
     )
     #=
@@ -109,7 +119,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
     elseif instr.basis.which == "smpm"
         LinearBasis()
     end
-    mpts = Point{T1,T2,D,typeof(basis),typeof(elast),typeof(rheo)}(
+    mpts = Point{T1,T2,D,typeof(basis),typeof(elast),typeof(rheo),TM,TV,TS}(
         # basis
         basis                                , # basis
         # general information
@@ -127,8 +137,6 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         T1.(spzeros(Int,nmp,nmp          ))  , # p2p
         T1.(zeros(Int,nmp                ))  , # p2e
         T1.(zeros(Int,props.nn,nmp        ))  , # p2n
-        # utils
-        T2.(Matrix(1.0I,props.dim,props.dim))  , # δᵢⱼ
         # material point properties
         T2.(copy(xp))                        , # x
         T2.(copy(l0))                        , # ℓ₀

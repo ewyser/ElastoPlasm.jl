@@ -103,6 +103,7 @@ plot_path = ""
 
 
 fwrks = [
+    #=
     (;
         deform = "infinitesimal",
         trsfr = "std",
@@ -111,6 +112,7 @@ fwrks = [
         locking = false,
         damping = 0.0
     ),
+    =#
     (;
         deform = "finite",
         trsfr = "std",

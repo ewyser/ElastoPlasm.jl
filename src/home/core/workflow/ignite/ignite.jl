@@ -32,7 +32,7 @@ Initialize and compute shape functions and topological relations for material po
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function ignite(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R} 
+function ignite(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R} 
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
     instr.cairn.ignite.tplgy!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     # calculate identity shape functions

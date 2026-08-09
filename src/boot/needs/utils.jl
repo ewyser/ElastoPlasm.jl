@@ -167,7 +167,7 @@ summary = ic_log(mesh, mpts, time)
 println(summary)
 ```
 """
-function ic_log(mesh::Mesh{T1,T2,D},mpts::Point{T1,T2,D,E,R},time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
+function ic_log(mesh::Mesh{T1,T2,D},mpts::Point{T1,T2,D,<:AbstractBasis,E,R},time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     # build the list of constant log lines
     logs = [
         "Summary: ",

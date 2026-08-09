@@ -17,7 +17,7 @@ export elastoimplicit!,elastoquasistatic!,elastouP!,elastoquasistaticuP!
 
 
 function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
-    nit::Int         = 5000,
+    nit::Int         = 50000,
     ncheck::Int      = 50,
     CFL              = 0.9,
     c_fact           = 1.0,
@@ -116,7 +116,7 @@ function init_implicit(instr::NamedTuple; implicit::Dict{Symbol,Cairn} = Dict{Sy
     return (; implicit...)
 end
 
-function relax(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
+function relax(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     fill!(mesh.s.m   ,T2(0))
     fill!(mesh.s.oobf,T2(0))
     fill!(mesh.s.v   ,T2(0))
@@ -125,7 +125,7 @@ function relax(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,g::
 end
 
 
-function elastoquasistatic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
+function elastoquasistatic!(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.te)))
     prog = Progress(length(checks);dt=0.5,desc="Solving elastoquasistatic...",barlen=10)
     lstps = collect(range(0, 9.8; length=10))
@@ -332,7 +332,7 @@ function pt_solve_uP!(mpts, mesh, cmpr, g, dt, instr;
     return nothing
 end
 
-function mapsto_uP(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}; quasi_static::Bool=false) where {T1,T2,D,E,R}
+function mapsto_uP(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}; quasi_static::Bool=false) where {T1,T2,D,E,R}
     fill!(mesh.s.m   ,T2(0))
     fill!(mesh.s.mv  ,T2(0))
     fill!(mesh.s.oobf,T2(0))
@@ -369,7 +369,7 @@ function mapsto_uP(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple
     return nothing
 end
 
-function elastoquasistaticuP!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
+function elastoquasistaticuP!(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     it   = T1(0)
     prog = Progress(40; dt=0.5, desc="Solving elasto quasi-static u-P...", barlen=10)
     lstps = collect(range(0, 9.8; length=40))
@@ -390,7 +390,7 @@ function elastoquasistaticuP!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr:
     return nothing
 end
 
-function elastouP!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
+function elastouP!(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.te)))
     prog = Progress(length(checks);dt=0.5,desc="Solving elasto u-P...",barlen=10)
     for ck ∈ checks

@@ -19,9 +19,9 @@ Project 1D material point data to mesh nodes (TPIC scheme).
     if p ≤ mpts.nmp
         # buffering 
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        vx    = mpts.s.v[1,p]        
-        σxx   = mpts.s.σᵢ[1,p] 
-        ∇vxx  = mpts.s.∇vᵢⱼ[1,1,p]
+        vx    = mpts.s.v[p][1]
+        σxx   = mpts.s.σᵢ[p][1]
+        ∇vxx  = mpts.s.∇vᵢⱼ[p][1,1]
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, ∂N = basis(mpts, mesh, p, nn)
@@ -39,10 +39,11 @@ end
     if p ≤ mpts.nmp
         # buffering 
         ms ,Ω       = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        vx ,vy      = mpts.s.v[1,p]        ,mpts.s.v[2,p]
-        σxx,σyy,σxy = mpts.s.σᵢ[1,p]       ,mpts.s.σᵢ[2,p]   ,mpts.s.σᵢ[3,p]
-        ∇vxx,∇vxy   = mpts.s.∇vᵢⱼ[1,1,p]   ,mpts.s.∇vᵢⱼ[1,2,p]
-        ∇vyx,∇vyy   = mpts.s.∇vᵢⱼ[2,1,p]   ,mpts.s.∇vᵢⱼ[2,2,p]
+        vx ,vy      = mpts.s.v[p][1]        ,mpts.s.v[p][2]
+        σxx,σyy,σxy = mpts.s.σᵢ[p][1]       ,mpts.s.σᵢ[p][2]   ,mpts.s.σᵢ[p][3]
+        ∇v = mpts.s.∇vᵢⱼ[p]
+        ∇vxx,∇vxy   = ∇v[1,1],∇v[1,2]
+        ∇vyx,∇vyy   = ∇v[2,1],∇v[2,2]
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, ∂N = basis(mpts, mesh, p, nn)
@@ -63,12 +64,13 @@ end
     if p ≤ mpts.nmp
         # buffering 
         ms  ,Ω         = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        vx  ,vy  ,vz   = mpts.s.v[1,p]        ,mpts.s.v[2,p]     ,mpts.s.v[3,p]
-        σxx ,σyy ,σzz  = mpts.s.σᵢ[1,p]       ,mpts.s.σᵢ[2,p]    ,mpts.s.σᵢ[3,p]
-        σyx ,σzy ,σzx  = mpts.s.σᵢ[6,p]       ,mpts.s.σᵢ[4,p]    ,mpts.s.σᵢ[5,p]
-        ∇vxx,∇vxy,∇vxz = mpts.s.∇vᵢⱼ[1,1,p]  ,mpts.s.∇vᵢⱼ[1,2,p],mpts.s.∇vᵢⱼ[1,3,p]
-        ∇vyx,∇vyy,∇vyz = mpts.s.∇vᵢⱼ[2,1,p]  ,mpts.s.∇vᵢⱼ[2,2,p],mpts.s.∇vᵢⱼ[2,3,p]
-        ∇vzx,∇vzy,∇vzz = mpts.s.∇vᵢⱼ[3,1,p]  ,mpts.s.∇vᵢⱼ[3,2,p],mpts.s.∇vᵢⱼ[3,3,p]
+        vx  ,vy  ,vz   = mpts.s.v[p][1]        ,mpts.s.v[p][2]     ,mpts.s.v[p][3]
+        σxx ,σyy ,σzz  = mpts.s.σᵢ[p][1]       ,mpts.s.σᵢ[p][2]    ,mpts.s.σᵢ[p][3]
+        σyx ,σzy ,σzx  = mpts.s.σᵢ[p][6]       ,mpts.s.σᵢ[p][4]    ,mpts.s.σᵢ[p][5]
+        ∇v = mpts.s.∇vᵢⱼ[p]
+        ∇vxx,∇vxy,∇vxz = ∇v[1,1],∇v[1,2],∇v[1,3]
+        ∇vyx,∇vyy,∇vyz = ∇v[2,1],∇v[2,2],∇v[2,3]
+        ∇vzx,∇vzy,∇vzz = ∇v[3,1],∇v[3,2],∇v[3,3]
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, ∂N  = basis(mpts, mesh, p, nn)

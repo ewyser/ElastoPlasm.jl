@@ -19,20 +19,20 @@ Project 1D material point data to mesh nodes (APIC scheme).
     if p ≤ mpts.nmp
         # buffering 
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        σxx   = mpts.s.σᵢ[1,p]       
+        σxx   = mpts.s.σᵢ[p][1]       
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, ∂N = basis(mpts, mesh, p, nn)
             δx        = mesh.x[1,no]-mpts.x[1,p]
             if iszero(no) continue end
             if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
-                D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p]) 
+                D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p])
             else
-                D⁻¹ =  mpts.δᵢⱼ
+                D⁻¹ = SMatrix{1,1,T2}(I)
             end
             # accumulation
              mesh.m[no]     += N * ms
-             mesh.mv[:,no] .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * δx)
+             mesh.mv[:,no] .+= N .* ms .* (mpts.s.v[p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * δx)
              mesh.s.oobf[no]-= Ω * (∂N[1] * σxx) - N * (ms * g[1])
         end
     end
@@ -42,20 +42,20 @@ end
     if p ≤ mpts.nmp
         # buffering 
         ms ,Ω       = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        σxx,σyy,σxy = mpts.s.σᵢ[1,p]       ,mpts.s.σᵢ[2,p]     ,mpts.s.σᵢ[3,p]
+        σxx,σyy,σxy = mpts.s.σᵢ[p][1]       ,mpts.s.σᵢ[p][2]     ,mpts.s.σᵢ[p][3]
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, ∂N = basis(mpts, mesh, p, nn)
             δx, δy    = mesh.x[1,no]-mpts.x[1,p], mesh.x[2,no]-mpts.x[2,p]
             if iszero(no) continue end
             if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
-                D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p]) 
+                D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p])
             else
-                D⁻¹ =  mpts.δᵢⱼ
+                D⁻¹ = SMatrix{2,2,T2}(I)
             end
             # accumulation
              mesh.s.m[no]     += N * ms
-             mesh.s.mv[:,no] .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * vcat(δx,δy))
+             mesh.s.mv[:,no] .+= N .* ms .* (mpts.s.v[p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * vcat(δx,δy))
              mesh.s.oobf[1,no]-= Ω * (∂N[1] * σxx + ∂N[2] * σxy)
              mesh.s.oobf[2,no]-= Ω * (∂N[1] * σxy + ∂N[2] * σyy) - N * (ms * g[2])
         end
@@ -66,8 +66,8 @@ end
     if p ≤ mpts.nmp
         # buffering 
         ms  ,Ω        = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        σxx ,σyy ,σzz = mpts.s.σᵢ[1,p]       ,mpts.s.σᵢ[2,p] ,mpts.s.σᵢ[3,p]
-        σyx ,σzy ,σzx = mpts.s.σᵢ[6,p]       ,mpts.s.σᵢ[4,p] ,mpts.s.σᵢ[5,p]
+        σxx ,σyy ,σzz = mpts.s.σᵢ[p][1]       ,mpts.s.σᵢ[p][2] ,mpts.s.σᵢ[p][3]
+        σyx ,σzy ,σzx = mpts.s.σᵢ[p][6]       ,mpts.s.σᵢ[p][4] ,mpts.s.σᵢ[p][5]
         for nn ∈ 1:mesh.prprt.nn
             # buffering
             no            = mpts.p2n[nn,p]
@@ -76,11 +76,11 @@ end
             if iszero(no) continue end
             @atom mesh.m[no]    += N * ms
             if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
-                D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p]) 
+                D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p])
             else
-                D⁻¹ =  mpts.δᵢⱼ
+                D⁻¹ = SMatrix{3,3,T2}(I)
             end
-            mesh.mv[:,no] .+= N .* ms .* (mpts.s.v[:,p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
+            mesh.mv[:,no] .+= N .* ms .* (mpts.s.v[p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
             @atom mesh.oobf[1,no]-= Ω * ( ∂Nx * σxx + ∂Ny * σyx + ∂Nz * σzx)
             @atom mesh.oobf[2,no]-= Ω * ( ∂Nx * σyx + ∂Ny * σyy + ∂Nz * σzy)
             @atom mesh.oobf[3,no]-= Ω * ( ∂Nx * σzx + ∂Ny * σzy + ∂Nz * σzz) - N * (ms * g[3])

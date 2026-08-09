@@ -49,7 +49,7 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
+function mapsto(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     # get cauchy stress 
     if instr.fwrk.deform == "finite"
         instr.cairn.mapsto.map.σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())

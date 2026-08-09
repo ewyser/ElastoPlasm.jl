@@ -1,4 +1,4 @@
-@views function σTr(σ0::SubArray{T2},nstr::T1) where {T1,T2}
+@views function σTr(σ0::AbstractVector{T2},nstr::T1) where {T1,T2}
     if nstr == T1(3)
         P   = (σ0[1]+σ0[2])/T2(2.0)
         τ0  = σ0.-[P,P,T2(0.0)]
@@ -34,14 +34,14 @@ end
     p = @index(Global)
     if p≤mpts.nmp 
         mpts.s.Δλ[p] = T2(0.0)
-        ψ,nstr   = T2(0.0*π/180.0),size(mpts.s.σᵢ,1)
+        ψ,nstr   = T2(0.0*π/180.0),length(mpts.s.τᵢ[1])
 
         # closed-form solution return-mapping for D-P
         c = mpts.s.c₀[p]+cmp.Hp*mpts.s.ϵpII[2,p]
         if c<mpts.s.cᵣ[p] 
             c = mpts.s.cᵣ[p] 
         end
-        P,τ0,τII = σTr(mpts.s.τᵢ[:,p],nstr)
+        P,τ0,τII = σTr(mpts.s.τᵢ[p],nstr)
         η,ηB,ξ   = materialParam(mpts.s.ϕ₀[p],ψ,c,nstr)
         σm,τP    = ξ/η,ξ-η*(ξ/η)
         fs,ft    = τII+η*P-ξ,P-σm         
@@ -50,34 +50,35 @@ end
             Δλ             = fs/(cmp.Gc+cmp.Kc*η*ηB)
             Pn,τn          = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
             mpts.s.Δλ[p]     = Δλ
-            mpts.s.τᵢ[:,p]  .= σn(Pn,τ0,τn,τII,nstr)
+            mpts.s.τᵢ[p]   = eltype(mpts.s.τᵢ)(σn(Pn,τ0,τn,τII,nstr))
             mpts.s.ϵpII[1,p]+= Δλ*sqrt(T2(1/3)+T2(2/9)*ηB^2)
         end
         if h≤0.0 && P≥σm
             Δλ             = (P-σm)/cmp.Kc
             Pn             = σm-P
             mpts.s.Δλ[p]     = Δλ
-            mpts.s.τᵢ[:,p]  .= σn(Pn,τ0,T2(0.0),τII,nstr)
+            mpts.s.τᵢ[p]   = eltype(mpts.s.τᵢ)(σn(Pn,τ0,T2(0.0),τII,nstr))
             mpts.s.ϵpII[1,p]+= sqrt(T2(2.0))*Δλ/T2(3.0)
         end
         # update strain tensor & left cauchy green deformation tensor
-        mpts.s.ϵᵢⱼ[:,:,p].= mutate(cmp.Del\mpts.s.τᵢ[:,p],T2(0.5),:tensor)
-        λ,n             = eigen(mpts.s.ϵᵢⱼ[:,:,p],sortby=nothing)
-        mpts.s.bᵢⱼ[:,:,p].= n*diagm(exp.(T2(2.0).*λ))*n'
+        ϵ_mat = mutate(cmp.Del\mpts.s.τᵢ[p],T2(0.5),:tensor)
+        mpts.s.ϵᵢⱼ[p] = eltype(mpts.s.ϵᵢⱼ)(ϵ_mat)
+        λ,n = eigen(ϵ_mat)
+        mpts.s.bᵢⱼ[p] = eltype(mpts.s.bᵢⱼ)(n*diagm(exp.(T2(2.0).*λ))*n')
     end
 end
 @views @kernel inbounds = true function infinitesimal_DP(mpts::Point{T1,T2},cmp::NamedTuple) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp 
         mpts.s.Δλ[p] = T2(0.0)
-        ψ,nstr   = T2(0.0*π/180.0),size(mpts.s.σᵢ,1)
+        ψ,nstr   = T2(0.0*π/180.0),length(mpts.s.σᵢ[1])
 
         # closed-form solution return-mapping for D-P
         c   = mpts.s.c₀[p]+cmp.Hp*mpts.s.ϵpII[2,p]
         if c<mpts.s.cᵣ[p] 
             c = mpts.s.cᵣ[p] 
         end
-        P,τ0,τII = σTr(mpts.s.σᵢ[:,p],nstr)
+        P,τ0,τII = σTr(mpts.s.σᵢ[p],nstr)
         η,ηB,ξ   = materialParam(mpts.s.ϕ₀[p],ψ,c,nstr)
         σm,τP    = ξ/η,ξ-η*(ξ/η)
         fs,ft    = τII+η*P-ξ,P-σm         
@@ -86,14 +87,14 @@ end
             Δλ             = fs/(cmp.Gc+cmp.Kc*η*ηB)
             mpts.s.Δλ[p]     = Δλ
             Pn,τn          = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
-            mpts.s.σᵢ[:,p]  .= σn(Pn,τ0,τn,τII,nstr)
+            mpts.s.σᵢ[p]   = eltype(mpts.s.σᵢ)(σn(Pn,τ0,τn,τII,nstr))
             mpts.s.ϵpII[1,p]+= Δλ*sqrt(T2(1/3)+T2(2/9)*ηB^2)
         end
-        if h≤T2(0.0) && P≥σm
+        if h≤0.0 && P≥σm
             Δλ             = (P-σm)/cmp.Kc
             mpts.s.Δλ[p]     = Δλ
             Pn             = σm-P
-            mpts.s.σᵢ[:,p]  .= σn(Pn,τ0,T2(0.0),τII,nstr)
+            mpts.s.σᵢ[p]   = eltype(mpts.s.σᵢ)(σn(Pn,τ0,T2(0.0),τII,nstr))
             mpts.s.ϵpII[1,p]+= sqrt(T2(2.0))*Δλ/T2(3.0)
         end
     end

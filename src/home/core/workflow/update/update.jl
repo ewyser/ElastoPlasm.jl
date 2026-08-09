@@ -120,7 +120,7 @@ function thermo(mpts::Point{T1,T2,E,R},mesh::MeshThermalPhase{T1,T2},instr::Inst
     return nothing
 end
 
-function coord(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R} 
+function coord(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R} 
     # update mp's coordinates
     instr.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     return nothing

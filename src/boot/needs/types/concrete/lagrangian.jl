@@ -60,9 +60,9 @@ struct DruckerPragerRheology{T1,T2,D} <: AbstractRheology{T1,T2}
 end
 @adapt_struct DruckerPragerRheology
 
-struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology} <: MaterialPointPhase{T1,T2}
-    u    ::Matrix{T2}
-    v    ::Matrix{T2}
+struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology,TM,TV,TS} <: MaterialPointPhase{T1,T2}
+    u    ::Vector{TV}   # displacement per MP : SVector{ndim,T2}
+    v    ::Vector{TV}   # velocity per MP     : SVector{ndim,T2}
     # mechanical properties
     ρ₀   ::Vector{T2}
     ρ    ::Vector{T2}
@@ -72,23 +72,22 @@ struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology} <: Mat
     Δλ   ::Vector{T2}
     ϵpII ::Matrix{T2}
     ϵpV  ::Vector{T2}
-    # tensor in voigt notation
-    σᵢ   ::Matrix{T2}
-    σn   ::Matrix{T2}    
-    τᵢ   ::Matrix{T2}
+    # tensor in voigt notation (SVector{nstr,T2} per MP)
+    σᵢ   ::Vector{TS}
+    σn   ::Vector{TS}
+    τᵢ   ::Vector{TS}
     P    ::Vector{T2}
-    # tensor in matrix notation
-    ∇vᵢⱼ ::Array{T2,3}
-    ∇uᵢⱼ ::Array{T2,3}
-    ΔFᵢⱼ ::Array{T2,3}
-    Fᵢⱼ  ::Array{T2,3}
-    Fn   ::Array{T2,3}
-    bᵢⱼ  ::Array{T2,3}
-    bn   ::Array{T2,3}
-    ϵᵢⱼ  ::Array{T2,3}
-    ϵn   ::Array{T2,3}
-    ωᵢⱼ  ::Array{T2,3}
-    σJᵢⱼ ::Array{T2,3}
+    # tensor in matrix notation (SMatrix{ndim,ndim,T2} per MP)
+    ∇vᵢⱼ ::Vector{TM}
+    ∇uᵢⱼ ::Vector{TM}
+    ΔFᵢⱼ ::Vector{TM}
+    Fᵢⱼ  ::Vector{TM}
+    Fn   ::Vector{TM}
+    bᵢⱼ  ::Vector{TM}
+    bn   ::Vector{TM}
+    ϵᵢⱼ  ::Vector{TM}
+    ϵn   ::Vector{TM}
+    ωᵢⱼ  ::Vector{TM}
     # new component-based fields
     elast::E
     rheo ::R
@@ -109,7 +108,7 @@ struct PointThermalPhase{T1,T2,D} <: MaterialPointPhase{T1,T2}
 end
 @adapt_struct PointThermalPhase
 
-struct Point{T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:AbstractElasticity,R<:AbstractRheology} <: MaterialPoint{T1,T2}
+struct Point{T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:AbstractElasticity,R<:AbstractRheology,TM,TV,TS} <: MaterialPoint{T1,T2}
     # basis
     basis::B
     # general information
@@ -128,8 +127,6 @@ struct Point{T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:AbstractElasticity,R
     p2p  ::Matrix{T1}
     p2e  ::Vector{T1}
     p2n  ::Matrix{T1}
-    # utils
-    δᵢⱼ  ::Matrix{T2}
     # material point properties
     x    ::Matrix{T2}
     ℓ₀   ::Matrix{T2}
@@ -141,7 +138,7 @@ struct Point{T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:AbstractElasticity,R
     ΔJ   ::Vector{T2}
     J    ::Vector{T2}
     # solid phase
-    s    ::PointSolidPhase{T1,T2,D,E,R}
+    s    ::PointSolidPhase{T1,T2,D,E,R,TM,TV,TS}
     # fluid phase
     f    ::Union{Nothing, PointFluidPhase{T1,T2,D}}
     # thermal phase

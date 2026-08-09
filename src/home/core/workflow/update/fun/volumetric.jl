@@ -24,10 +24,6 @@ end
             ΔJ += N*(mesh.ΔJ[no]/mesh.s.m[no])*ΔJ₀⁻¹
         end
         # update
-        for i ∈ 1:mesh.prprt.dim  
-            for j ∈ 1:mesh.prprt.dim
-                mpts.s.ΔFᵢⱼ[i,j,p]*= ΔJ^dim
-            end
-        end
+        mpts.s.ΔFᵢⱼ[p] = mpts.s.ΔFᵢⱼ[p] .* (ΔJ^dim)
     end
 end

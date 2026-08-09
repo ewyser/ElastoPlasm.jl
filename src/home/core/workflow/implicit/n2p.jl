@@ -24,7 +24,7 @@ Update material point velocities and positions from solid-type mesh nodes using 
         end
         mpts.s.v[1,p] = δvx
         # find maximum velocity component over mpts
-        @atom mpts.vmax[1] = max(mpts.vmax[1],abs(mpts.s.v[1,p]))
+        @atom mpts.vmax[1] = max(mpts.vmax[1],abs(δvx))
     end  
 end
 @kernel inbounds = true function n2p(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2,C_pf::T2) where {T1,T2,D<:TwoDimension}
@@ -39,13 +39,10 @@ end
             δvx += N*mesh.s.v[1,no]
             δvy += N*mesh.s.v[2,no]
         end
-        mpts.s.v[1,p] = δvx
-        mpts.s.v[2,p] = δvy
-        mpts.s.u[1,p] = dt*δvx
-        mpts.s.u[2,p] = dt*δvy
-        # find maximum velocity component over mpts
-        @atom mpts.vmax[1] = max(mpts.vmax[1],abs(mpts.s.v[1,p]))
-        @atom mpts.vmax[2] = max(mpts.vmax[2],abs(mpts.s.v[2,p]))
+        mpts.s.v[p] = SVector{2,T2}(δvx, δvy)
+        mpts.s.u[p] = SVector{2,T2}(dt*δvx, dt*δvy)
+        @atom mpts.vmax[1] = max(mpts.vmax[1], abs(δvx))
+        @atom mpts.vmax[2] = max(mpts.vmax[2], abs(δvy))
     end  
 end
 @kernel inbounds = true function n2p(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2,C_pf::T2) where {T1,T2,D<:ThreeDimension}
@@ -76,15 +73,14 @@ end
             δvzFLIP += N*mesh.s.v[3,no]
         end
         # picflip update for material point's velocity and position
-        mpts.s.v[1,p] = C_pf*(mpts.s.v[1,p]+dt*δaxFLIP) + (T2(1.0)-C_pf)*δvxPIC
-        mpts.s.v[2,p] = C_pf*(mpts.s.v[2,p]+dt*δayFLIP) + (T2(1.0)-C_pf)*δvyPIC
-        mpts.s.v[3,p] = C_pf*(mpts.s.v[3,p]+dt*δazFLIP) + (T2(1.0)-C_pf)*δvzPIC
-        mpts.s.u[1,p] = dt*δvxPIC
-        mpts.s.u[2,p] = dt*δvyPIC
-        mpts.s.u[3,p] = dt*δvzPIC
-        # find maximum velocity component over mpts
-        @atom mpts.vmax[1] = max(mpts.vmax[1],abs(mpts.s.v[1,p]))
-        @atom mpts.vmax[2] = max(mpts.vmax[2],abs(mpts.s.v[2,p]))
-        @atom mpts.vmax[3] = max(mpts.vmax[3],abs(mpts.s.v[3,p]))
+        v = mpts.s.v[p]
+        vx = C_pf*(v[1]+dt*δaxFLIP) + (T2(1.0)-C_pf)*δvxPIC
+        vy = C_pf*(v[2]+dt*δayFLIP) + (T2(1.0)-C_pf)*δvyPIC
+        vz = C_pf*(v[3]+dt*δazFLIP) + (T2(1.0)-C_pf)*δvzPIC
+        mpts.s.v[p] = SVector{3,T2}(vx, vy, vz)
+        mpts.s.u[p] = SVector{3,T2}(dt*δvxPIC, dt*δvyPIC, dt*δvzPIC)
+        @atom mpts.vmax[1] = max(mpts.vmax[1], abs(vx))
+        @atom mpts.vmax[2] = max(mpts.vmax[2], abs(vy))
+        @atom mpts.vmax[3] = max(mpts.vmax[3], abs(vz))
     end  
 end

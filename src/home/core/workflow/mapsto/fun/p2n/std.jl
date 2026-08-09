@@ -19,7 +19,7 @@ Project 1D material point data to mesh nodes (FLIP scheme).
     if p ≤ mpts.nmp 
         # buffering 
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        px    = ms*mpts.s.v[p]
+        px    = ms*mpts.s.v[p][1]
         σxx   = mpts.s.σᵢ[1,p]
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
@@ -37,8 +37,8 @@ end
     if p ≤ mpts.nmp
         # buffering 
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        mvx, mvy      = ms*mpts.s.v[1,p]     , ms*mpts.s.v[2,p]
-        σxx, σyy, σxy = mpts.s.σᵢ[1,p]       , mpts.s.σᵢ[2,p] , mpts.s.σᵢ[3,p]
+        mvx, mvy      = ms*mpts.s.v[p][1]     , ms*mpts.s.v[p][2]
+        σxx, σyy, σxy = mpts.s.σᵢ[p][1]       , mpts.s.σᵢ[p][2] , mpts.s.σᵢ[p][3]
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, ∂N = basis(mpts, mesh, p, nn)
@@ -57,9 +57,9 @@ end
     if p ≤ mpts.nmp
         # buffering 
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        px , py , pz  = ms*mpts.s.v[1,p]     , ms*mpts.s.v[2,p], ms*mpts.s.v[3,p]
-        σxx, σyy, σzz = mpts.s.σᵢ[1,p]       , mpts.s.σᵢ[2,p]  , mpts.s.σᵢ[3,p]
-        σyx, σzy, σzx = mpts.s.σᵢ[6,p]       , mpts.s.σᵢ[4,p]  , mpts.s.σᵢ[5,p]
+        px , py , pz  = ms*mpts.s.v[p][1]     , ms*mpts.s.v[p][2], ms*mpts.s.v[p][3]
+        σxx, σyy, σzz = mpts.s.σᵢ[p][1]       , mpts.s.σᵢ[p][2]  , mpts.s.σᵢ[p][3]
+        σyx, σzy, σzx = mpts.s.σᵢ[p][6]       , mpts.s.σᵢ[p][4]  , mpts.s.σᵢ[p][5]
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, ∂N = basis(mpts, mesh, p, nn)

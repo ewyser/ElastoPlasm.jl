@@ -18,7 +18,8 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         Ω    = mpts.Ω[p]
-        divv = mpts.s.∇vᵢⱼ[1,1,p] + mpts.s.∇vᵢⱼ[2,2,p] + mpts.s.∇vᵢⱼ[3,3,p]
+        ∇v = mpts.s.∇vᵢⱼ[p]
+        divv = ∇v[1,1] + ∇v[2,2] + ∇v[3,3]
         Δpp  = mpts.s.p[p] - p_n[p]
         for nn ∈ 1:mesh.prprt.nn
             no, N, _ = basis(mpts, mesh, T1(p), T1(nn))
