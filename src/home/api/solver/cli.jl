@@ -1,4 +1,82 @@
-export cli, process_cli_option
+export get_option, process_cli_option, cli
+
+"""
+    get_option(::Type{Instruction}) -> NamedTuple
+
+Return all possible values for each configuration field as vectors.
+
+# Arguments
+- `::Type{Instruction}`: The type to get options for
+
+# Returns
+- `NamedTuple`: Structure matching `get_default(Instruction)` but with vectors of possible values instead of single values.
+
+# Example
+```julia
+opts = get_option(Instruction)
+println(opts.basis.which)  # ["bsmpm", "gimpm", "smpm"]
+println(opts.fwrk.deform)  # ["finite", "infinitesimal"]
+```
+
+# Notes
+- Useful for validation, UI generation, and documentation
+- Fields with continuous values (like damping) show reasonable ranges
+- Boolean fields are represented as `[true, false]`
+"""
+function get_option()
+    return (
+
+            dtype = (
+                T0 = ("Select arithmetic types",[(Int64,Float64),(Int32,Float32)]),
+                bits = ("Select arithmetic precision",[Int64(64),Int32(32)]),
+                precision = ("Select precision",["64-bit precision (or double precision)","32-bit precision (or single precision)"]),
+            ),
+            basis = (
+                which = ("Select basis type",["bsmpm", "gimpm", "smpm"]),
+                how = ("Select material point domain update",[nothing]),
+                ghost = ("Add ghost element(s) ?",[0, 1, 2]),
+            ),
+            fwrk  = (
+                deform = ("Select the deformation framework",["finite", "infinitesimal"]),
+                trsfr = ("Select the mapping scheme",["std", "tpic", "apic"]),
+                C_pf = ("Select picflip ratio",[1.0, 0.99, 0.95]),
+                musl = ("Enable musl update",[true, false]),
+                locking = ("Enable volumetric locking mitigation",[true, false]),
+                damping = ("Select damping coefficient",[0.0, 0.1, 0.2, 0.4])
+            ),
+            grf   = (
+                status = ("Enable Gaussian Random Field ",[true, false]),
+                covariance = ("Select covariance function",["gaussian", "exponential"]),
+                param = ( 
+                    Iₓ = ("Select correlation length",[[1.0,1.0,1.0], [2.5,2.5,2.5], [5.0,5.0,5.0]]), 
+                    Nₕ = ("Select number of points",[1000, 5000, 10000]), 
+                    kₘ = ("Select maximum wavenumber",[50, 100, 200]),
+                ),
+            ),
+            plast = (
+                status = ("Enable plasticity",[true, false]),
+                constitutive = ("Select constitutive model",["DP", "MC", "VM"]),
+            ),
+            nonloc = (
+                status = ("Enable nonlocal effects",[true, false]),
+                ls = ("Select length scale",[0.125 ,0.25, 0.5]),
+            ),
+            plot  = (
+                status = ("Enable plotting",[true, false]),
+                freq   = ("Select plot frequency",[0.1, 0.5, 1.0, 5.0]),
+                dpi    = ("Select plot resolution",[100, 300, 500, 1000]),
+                what   = ("Select plot variable(s)", get_variable_plot_options()),
+            ),
+            perf  = (
+                status = ("Enable optimized implementation",[true, false]),
+            ),
+            backend = (
+                select = ("Select backend",["host", "cuda", "rocm"]),
+                distributed = ("Enable distributed computing",[true, false])
+            ),
+        )
+end
+
 
 """
     process_cli_option(value, default_val, key_path=())
@@ -38,7 +116,7 @@ function process_cli_option(value, default_val, key_path=())
             return NamedTuple{Tuple(keys(value))}(getindex(processed, k) for k in keys(value))
         end
         return NamedTuple{keys(value)}(process_cli_option(getfield(value, k), getfield(default_val, k), (key_path..., k)) for k in keys(value))
-    elseif isa(value, Tuple) && length(value) == 2
+    elseif isa(value, Tuple) && length(value) == 2 && isa(value[1], AbstractString)
         prompt, vals = value
         # Special handling for plot.what: allow multi-selection of NamedTuples, keep original definition
         if key_path[end] == :what && occursin("plot", string(key_path))
@@ -101,7 +179,7 @@ instr = kwargser(kwargs; dim=2)
 ```
 """
 function cli(; ui::Bool=false)    
-    default_config = get_default(Instruction)
+    _, default_config = get_default()
     if !ui
         kwargs = Dict{Any,Any}()
         for (K, V) ∈ pairs(default_config)
@@ -114,10 +192,10 @@ function cli(; ui::Bool=false)
         - use arrow keys to navigate and Enter to select.
         """
         kwargs    = Dict{Any,Any}()
-        top_level = collect(keys(get_option(Instruction)))
+        top_level = collect(keys(get_option()))
         menu      = MultiSelectMenu(string.(top_level), pagesize=length(top_level))
         selection = Set(top_level[i] for i ∈ request("Select simulation configuration option(s):", menu))
-        for (K, V) ∈ pairs(get_option(Instruction))
+        for (K, V) ∈ pairs(get_option())
             if K ∈ selection
                 kwargs[K] = process_cli_option(V, getfield(default_config, K), (K,))
             else
@@ -125,5 +203,5 @@ function cli(; ui::Bool=false)
             end
         end
     end
-    return kwargs
+    return kwargs::Dict{Any,Any}
 end

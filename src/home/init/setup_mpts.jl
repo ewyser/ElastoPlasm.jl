@@ -24,7 +24,7 @@ println(mpts.nmp)  # Number of material points
 - Sets up connectivity arrays and phase properties (solid and liquid).
 - Handles both 2D and 3D cases.
 """
-function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,D}
+function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     props = mesh.prprt
     # non-dimensional constant
     if D == TwoDimension
@@ -45,9 +45,9 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
     vp = haskey(geom, :vp) ? geom.vp : zeros(size(xp))
     #vp = zeros(size(xp))
     # constructor - create components
-    if instr.fwrk.deform == "finite"
+    if solver.fwrk.deform == "finite"
         elast = FiniteElasticity(T1, T2, nmp, props.dim)
-    elseif instr.fwrk.deform == "infinitesimal"
+    elseif solver.fwrk.deform == "infinitesimal"
         elast = LinearElasticity(T1, T2, nmp, props.dim)
     end
     
@@ -112,11 +112,11 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
     )
     =#
 
-    basis = if instr.basis.which == "bsmpm"
+    basis = if solver.basis.which == "bsmpm"
         BSplineBasis()
-    elseif instr.basis.which == "gimpm"
+    elseif solver.basis.which == "gimpm"
         GimpBasis()
-    elseif instr.basis.which == "smpm"
+    elseif solver.basis.which == "smpm"
         LinearBasis()
     end
     mpts = Point{T1,T2,D,typeof(basis),typeof(elast),typeof(rheo),TM,TV,TS}(

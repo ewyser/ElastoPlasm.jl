@@ -1,36 +1,7 @@
-export kwargser
+export get_solver
 
-"""
-    kwargser(kwargs::Any; dim::Number=2, constructor::Type=Instruction) -> Instruction
-
-Generate a configuration object by merging user-supplied keyword arguments with default values.
-
-# Arguments
-- `kwargs::Any`: Dictionary or named tuple of user-supplied keyword arguments to override defaults
-- `::Type{Instruction}`: The type to construct
-- `dim::Number=2`: Spatial dimension, used for kernel initialization
-
-# Returns
-- `Instruction`: Fully configured instruction object with kernels and precision settings
-
-# Example
-```julia
-# Top-level overrides
-instr = kwargser(Dict(:dtype => 64, :locking => true); dim=3)
-println(instr.cairn.shpfun)  # prints the initialized shape function kernel
-
-# To override nested fields, use a nested NamedTuple or Dict:
-instr = kwargser((;fwrk = (deform="infinitesimal", trsfr="tpic", locking=false)))
-println(instr.fwrk.deform)  # prints "infinitesimal"
-```
-
-# Notes
-- Merges `kwargs` with default configuration
-- Sets precision and attaches kernel functions for shape functions, mapping, and constitutive updates
-- Warns about any unused keyword arguments
-"""
-function kwargser(kwargs::Any; dim::Number=2, constructor::Type=Instruction)
-    ref    = get_default(constructor)
+function get_solver(; dim::Number=2, kwargs...)
+    solver, ref = get_default()
     # Only keep keys in kwargs that are also in ref
     valids = intersect(keys(kwargs), keys(ref))
     user   = NamedTuple{Tuple(valids)}(getindex.(Ref(kwargs), valids))
@@ -40,19 +11,13 @@ function kwargser(kwargs::Any; dim::Number=2, constructor::Type=Instruction)
     if !isempty(unused)
         @warn join(vcat("miscellaneous kwargs:", "\n\t- ".*String.(unused)))
     end
-    # Set precision
-    if instr.dtype == 64
-        instr = merge(instr, (; dtype = (;T0=(Int64,Float64),bits=Int64(64),precision="64-bit precision (or double precision)"),))
-    elseif instr.dtype == 32
-        instr = merge(instr, (;dtype = (;T0=(Int32,Float32),bits=Int32(32),precision="32-bit precision (or single precision)"),))
-    end
     # Get dimension type
     if dim == 1
-        dim = OneDimension()
+        dim = OneDimension
     elseif dim == 2
-        dim = TwoDimension()
+        dim = TwoDimension
     elseif dim == 3
-        dim = ThreeDimension()
+        dim = ThreeDimension
     else
         error("Unsupported dimension type: $ndim")
     end
@@ -79,7 +44,7 @@ function kwargser(kwargs::Any; dim::Number=2, constructor::Type=Instruction)
     )
     instr = merge(instr, (; cairn = cairn,))
     # Create Instruction type
-    return constructor{instr[:dtype][:T0]...,typeof(dim)}(
+    return solver{instr[:dtype][:T0]...,dim}(
         instr[:dtype],
         instr[:basis],
         instr[:fwrk],

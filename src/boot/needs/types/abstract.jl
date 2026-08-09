@@ -1,9 +1,13 @@
+abstract type AbstractDimension end
+
+abstract type AbstractSolver{T1<:Integer,T2<:Real,D<:AbstractDimension} end
+
 abstract type AbstractInstruction end
 
 abstract type AbstractTime end
 
 
-abstract type AbstractDimension end
+
 
 abstract type AbstractGeometry end
 

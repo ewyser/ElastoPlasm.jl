@@ -15,10 +15,10 @@ Initialize geometry and material point fields for a slump test problem.
 - `nmp`: Number of material points.
 - `fields`: NamedTuple with coordinates and material properties.
 """=#
-function get_slump(mesh,cmpr,instr; ni = 2, lz = 12.80 )
+function get_slump(mesh,cmpr,solver; ni = 2, lz = 12.80 )
     props = mesh.prprt
     #@info "Init slump geometry"
-    out = mpts_populate(props,cmpr,instr; ni=ni)
+    out = mpts_populate(props,cmpr,solver; ni=ni)
     wl  = 0.15*lz
     id  = findall(x -> x ≤ lz-(0.5*props.h[end]/ni), out.x[end,:])
     if props.dim == 2

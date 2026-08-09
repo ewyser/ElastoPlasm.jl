@@ -17,9 +17,9 @@ Construct the element-to-element connectivity matrix for a structured mesh.
 e2e_mat = e2e(2, [10, 10], [0.1, 0.1], Dict(:nonloc => Dict(:ls => [0.2, 0.2])))
 ```
 """
-function e2e(ndim::T1,nel::Vector{T1},h::Vector{T2},instr::Instruction{T1,T2,D}) where {T1,T2,D}
+function e2e(ndim::T1,nel::Vector{T1},h::Vector{T2},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     e2e  = spzeros(T1,nel[end],nel[end])
-    nnel = ceil.(T1,instr.nonloc.ls./h)
+    nnel = ceil.(T1,solver.nonloc.ls./h)
     gnum = collect(T1(1):nel[end])
     if ndim == 1
         iel  = 0

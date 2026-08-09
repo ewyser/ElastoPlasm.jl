@@ -23,14 +23,14 @@ println(mesh.nel)
 - Initializes nodal quantities (mass, force, acceleration, etc.) and mesh-to-node topology.
 - Handles ghost nodes if required by the basis.
 """
-function setup_mesh(geom::Geometry{T1,T2,D,N},instr::Instruction{T1,T2,D}) where {T1,T2,D,N}
+function setup_mesh(geom::Geometry{T1,T2,D,N},solver::S) where {T1,T2,D,N,S<:AbstractSolver{T1,T2,D}}
     # Mesh & boundary condition setup   
     ndim       = geom.dim                                  
     L,nel,nn,h = geom.L,geom.nel,geom.nn,geom.h 
     xn,nel,nno = get_coords(geom)
     e2n        = get_element_to_nodes(nel, nno, nn)
     node_type  = get_node_type(ndim,nno)
-    status,xB  = get_bc(xn,instr; ghosts=geom.ghost*h)
+    status,xB  = get_bc(xn,solver; ghosts=geom.ghost*h)
     # static array type for node coords, velocity, acceleration
     TV = SVector{ndim,T2}
     nn_total = nno[end]
@@ -83,7 +83,7 @@ function setup_mesh(geom::Geometry{T1,T2,D,N},instr::Instruction{T1,T2,D}) where
         nothing                          , # thermal phase
         # connectivity
         T1.(e2n                        ) , # e2n
-        T1.(e2e(ndim,nel,h,instr       )), # e2e
+        T1.(e2e(ndim,nel,h,solver       )), # e2e
     )
     return mesh
 end

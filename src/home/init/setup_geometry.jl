@@ -25,12 +25,12 @@ geom = get_geom([10, 10], [1.0, 1.0], Dict(:basis => Dict(:which => "bsmpm", :gh
 ```
 """
 
-function Geometry(L::Vector{T2}, nel::Vector{T1}, instr::Instruction{T1,T2,D}; x₀::Vector=[0.0,]) where {T1<:Integer,T2<:Real,D<:OneDimension}    
+function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0,]) where {T1<:Integer,T2<:Real,D<:OneDimension, S<:AbstractSolver{T1,T2,D}}    
     # Calculate problem dimensionality & node spacing
     dim,h = length(L),L ./ nel
     
     # Add ghost element(s) (?) and modify nel vector accordingly
-    ghost = instr.basis.ghost
+    ghost = solver.basis.ghost
     nel   = [nel[1]+ghost, (nel[1]+ghost),]
     xB    = [x₀[1]-ghost*h[1] L[1]+ghost*h[1]]
 
@@ -38,7 +38,7 @@ function Geometry(L::Vector{T2}, nel::Vector{T1}, instr::Instruction{T1,T2,D}; x
     nno = [nel[1]+1, nel[1]+1,]
     
     # Define shape function compact support based on basis type
-    if instr.basis == "smpm"
+    if solver.basis.which == "smpm"
         neighbour  = neighbs((T1(0):T1(1),))
     else
         neighbour  = neighbs((T1(-1):T1(2),))
@@ -56,29 +56,20 @@ function Geometry(L::Vector{T2}, nel::Vector{T1}, instr::Instruction{T1,T2,D}; x
     )
 end
 
-function Geometry(L::Vector{T2}, nel::Vector{T1}, instr::Instruction{T1,T2,D}; x₀::Vector=[0.0, 0.0,]) where {T1<:Integer,T2<:Real,D<:TwoDimension}    
+function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0, 0.0,]) where {T1<:Integer,T2<:Real,D<:TwoDimension, S<:AbstractSolver{T1,T2,D}}    
     # Calculate problem dimensionality & node spacing
     dim,h = length(L),L ./ nel
 
-    # Add ghost element(s) (?) and modify nel vector accordingly
-    ghost = instr.basis.ghost
+    # Add ghost element(s) and modify nel vector accordingly
+    ghost = solver.basis.ghost
     nel   = [nel[1]+ghost, nel[2]+ghost, (nel[1]+ghost) * (nel[2]+ghost),]
     xB    = vcat([x₀[1]-ghost*h[1] L[1]+ghost*h[1]], [x₀[2]-ghost*h[2] L[2]+ghost*h[2]])    
-
-#TODO: Add the following formulation for easier reuse and clarity later on
-#=
-ghosts = [ghost*h[1], ghost*h[2]]
-domain = (;
-    physical      = vcat([x₀[1]           x₀[1]+L[1]          ], [x₀[2]           x₀[2]+L[2]          ]),
-    computational = vcat([x₀[1]-ghosts[1] x₀[1]+L[1]+ghosts[1]], [x₀[2]-ghosts[2] x₀[2]+L[2]+ghosts[2]]),
-)
-=#
 
     # Create nno vector
     nno = [nel[1]+1, nel[2]+1, (nel[1]+1) * (nel[2]+1),]
     
     # Define shape function compact support based on basis type
-    if instr.basis == "smpm"
+    if solver.basis.which == "smpm"
         neighbour  = neighbs((T1(0):T1(1), T1(0):T1(1)))
     else
         neighbour  = neighbs((T1(-1):T1(2), T1(-1):T1(2)))
@@ -96,7 +87,7 @@ domain = (;
     )
 end
 
-function Geometry(L::Vector{T2}, nel::Vector{T1}, instr::Instruction{T1,T2,D}; x₀::Vector=[0.0, 0.0, 0.0]) where {T1<:Integer,T2<:Real,D<:ThreeDimension}    
+function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0, 0.0, 0.0]) where {T1<:Integer,T2<:Real,D<:ThreeDimension, S<:AbstractSolver{T1,T2,D}}
     # Calculate problem dimensionality & node spacing
     dim,h = length(L),L ./ nel
 
@@ -105,20 +96,11 @@ function Geometry(L::Vector{T2}, nel::Vector{T1}, instr::Instruction{T1,T2,D}; x
     nel   = [nel[1]+ghost, nel[2]+ghost, nel[3]+ghost, (nel[1]+ghost) * (nel[2]+ghost) * (nel[3]+ghost),]
     xB    = vcat([x₀[1]-ghost*h[1] L[1]+ghost*h[1]], [x₀[2]-ghost*h[2] L[2]+ghost*h[2]], [x₀[3]-ghost*h[3] L[3]+ghost*h[3]])  
 
-#TODO: Add the following formulation for easier reuse and clarity later on
-#=
-ghosts = [ghost*h[1], ghost*h[2], ghost*h[3]]
-domain = (;
-    physical      = vcat([x₀[1]           x₀[1]+L[1]          ], [x₀[2]           x₀[2]+L[2]          ], [x₀[3]           x₀[3]+L[3]          ]),
-    computational = vcat([x₀[1]-ghosts[1] x₀[1]+L[1]+ghosts[1]], [x₀[2]-ghosts[2] x₀[2]+L[2]+ghosts[2]], [x₀[3]-ghosts[3] x₀[3]+L[3]+ghosts[3]]),
-)
-=#
-
     # Create nno vector
     nno = [nel[1]+1, nel[2]+1, nel[3]+1, (nel[1]+1) * (nel[2]+1) * (nel[3]+1),]
     
     # Define shape function compact support based on basis type
-    if instr.basis == "smpm"
+    if instr.basis.which == "smpm"
         neighbour  = neighbs((T1(0):T1(1), T1(0):T1(1), T1(0):T1(1)))
     else
         neighbour  = neighbs((T1(-1):T1(2), T1(-1):T1(2), T1(-1):T1(2)))
@@ -136,6 +118,6 @@ domain = (;
     )
 end
 
-function setup_geometry(L::Vector{T2}, nel::Vector{T1}, instr::Instruction{T1,T2,D}) where {T1,T2,D}
-    return Geometry(L,nel,instr)
+function setup_geometry(L::Vector{T2}, nel::Vector{T1}, solver::S) where {T1,T2,D,S<:AbstractSolver}
+    return Geometry(L,nel,solver)
 end

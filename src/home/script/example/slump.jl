@@ -21,24 +21,24 @@ ic, cfg = ic_slump([64.0, 16.0], [40, 10]; fid="run1")
 """
 function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
     @info "Setting up mesh & material point system for $(length(L))d slump problem"
-    # init & kwargs
-    instr = kwargser(kwargs; dim=length(L))
-    paths = set_paths(fid,info.sys.out;interactive=false)  
+    # get solver and paths
+    solver = get_solver(; dim=length(L), kwargs...)
+    paths  = set_paths(fid,info.sys.out;interactive=false)  
     # mesh, mpts, cmpr & time initial conditions
-    geom  = setup_geometry(L,nel,instr)
-    mesh  = setup_mesh(geom,instr)
-    cmpr  = setup_cmpr(mesh                                         )                       
-    mpts  = setup_mpts(mesh,instr,cmpr ; geom = get_slump(mesh,cmpr,instr))
-    time  = setup_time(instr     ; te = 10.0, tg = 10.0, tep = 5.0  ) 
+    geom   = setup_geometry(L,nel,solver)
+    mesh   = setup_mesh(geom,solver)
+    cmpr   = setup_cmpr(mesh                                         )                       
+    mpts   = setup_mpts(mesh,solver,cmpr ; geom = get_slump(mesh,cmpr,solver))
+    time   = setup_time(solver     ; te = 10.0, tg = 10.0, tep = 5.0  ) 
     # plot initial cohesion field
-    if instr.plot.status
+    if solver.plot.status
         @info "Plotting initial cohesion & friction fields..."
-        dims  = instr.plot.dpi.*(mesh.prprt.L[1]./mesh.prprt.L)
+        dims  = solver.plot.dpi.*(mesh.prprt.L[1]./mesh.prprt.L)
         ms    = dims[1]/(mesh.prprt.nel[1]*2)
 
         what = [(;mpts=get_mpts_variable_config()[name]) for name ∈ ["coh0", "phi0"]]
         opts = (;
-            dims    = instr.plot.dpi.*(mesh.prprt.L./mesh.prprt.L[1]),
+            dims    = solver.plot.dpi.*(mesh.prprt.L./mesh.prprt.L[1]),
             what    = what,
             xlim    = (minimum(getindex.(mesh.x, 1)), maximum(getindex.(mesh.x, 1))),
             ylim    = (minimum(getindex.(mesh.x, 2)), maximum(getindex.(mesh.x, 2))),
@@ -49,10 +49,10 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
         get_plot_field(mpts,mesh,opts);save_plot(opts)
     end
     # display summary
-    @info ic_log(mesh,mpts,time,instr)
+    @info ic_log(mesh,mpts,time,solver)
     misc = (;
-        prefix = "$(mesh.prprt.dim)d_$(instr.fwrk.trsfr)"
+        prefix = "$(mesh.prprt.dim)d_$(solver.fwrk.trsfr)"
     )
     # export to jld2 file and return path
-    return export_setup(mesh,mpts,cmpr,time,instr,paths,misc; path = paths[:dat], file = "slump_simulation")
+    return export_setup(mesh,mpts,cmpr,time,solver,paths,misc; path = paths[:dat], file = "slump_simulation")
 end

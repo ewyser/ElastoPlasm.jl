@@ -28,9 +28,14 @@ println(cfg.basis.which)  # prints the default basis type
 - `:plot`    — Plotting options
 - `:perf`    — Performance mode options
 """
-function get_default(::Type{Instruction})
-    return (;
-        dtype = 64,
+function get_default()
+    solver  = ExplicitSolver
+    default = (;
+        dtype = (;
+            T0=(Int64,Float64),
+            bits=Int64(64),
+            precision="64-bit precision (or double precision)"
+        ),
         basis = (;
             which = "bsmpm",
             how = nothing,
@@ -81,4 +86,5 @@ function get_default(::Type{Instruction})
             distributed=false
         ),
     )
+    return solver, default
 end
