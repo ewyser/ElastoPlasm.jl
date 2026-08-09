@@ -72,38 +72,29 @@ end
 @kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,D,B,E,R},mesh::Mesh{T1,T2,D},g::Vector{T2},dt::T2,Kc::T2,Gc::T2) where {T1,T2,D<:TwoDimension,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
     mp = @index(Global)
     if mp ≤ mpts.nmp
-        # Get previous deformation gradient and logarithmic strain tensor
-        Fn = mpts.s.Fn[mp]
-        ϵn = mpts.s.ϵn[mp]
-
         # Compute velocity & displacement gradients
         ∇vᵢⱼ = zeros(MMatrix{2,2,T2})
         for nn ∈ 1:mesh.prprt.nn
             # Buffering & compute basis functions on-the-fly
             no, _, ∂N = basis(mpts, mesh, mp, nn)
-            if iszero(no) continue end                                     
-            for i ∈ 1:mesh.prprt.dim  
-                for j ∈ 1:mesh.prprt.dim
-                    ∇vᵢⱼ[i,j]+= ∂N[j]*mesh.s.v[i,no]
-                end
-            end
+            if iszero(no) continue end
+            ∇vᵢⱼ += ∂N * mesh.s.v[no]'
         end
-        
         # Compute incremental deformation, update current deformation gradient and get the deformation determinant
         ΔFᵢⱼ = SMatrix{2,2,T2}(I) + dt .* SMatrix(∇vᵢⱼ)
-        Fᵢⱼ  = ΔFᵢⱼ*Fn
+        Fᵢⱼ  = ΔFᵢⱼ*mpts.s.Fn[mp]
         J⁻¹  = T2(1.0)/det(Fᵢⱼ)
 
         # Compute trial left Cauchy-Green tensor
-        λ,n = eigen(ϵn)
-        bᵢⱼ = ΔFᵢⱼ*(n*diagm(exp.(T2(2.0).*λ))*n')*ΔFᵢⱼ'
+        λ,n = eigen(mpts.s.ϵn[mp])
+        bᵢⱼ = ΔFᵢⱼ*(n*diagm(exp.(T2(2.0)*λ))*n')*ΔFᵢⱼ'
         
         # Compute trial logarithmic strain tensor
         λ,n = eigen(bᵢⱼ)
-        ϵᵢⱼ = T2(0.5).*(n*diagm(log.(λ))*n')
+        ϵᵢⱼ = T2(0.5)*(n*diagm(log.(λ))*n')
         
         # Compute volumetric strain
-        ϵV  = (ϵᵢⱼ[1,1] + ϵᵢⱼ[2,2]) / T2(3.0)
+        ϵV  = tr(ϵᵢⱼ) / T2(3.0)
 
         # Calculate pressure (positive in compression)
         P   = - T2(3.0) * Kc * ϵV

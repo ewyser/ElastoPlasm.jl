@@ -38,10 +38,10 @@ end
     if iszero(no) 
         return T1(0), T2(0.0), T2(0.0), T2(0.0)
     else
-        ξ      = (mpts.x[1,ip]-mesh.x[no][1])
-        η      = (mpts.x[2,ip]-mesh.x[no][2])
-        Sx,dSx = S∂S(ξ,mesh.prprt.h[1],mpts.ℓ[1,ip])
-        Sy,dSy = S∂S(η,mesh.prprt.h[2],mpts.ℓ[2,ip])
+        ξ      = (mpts.x[ip][1]-mesh.x[no][1])
+        η      = (mpts.x[ip][2]-mesh.x[no][2])
+        Sx,dSx = S∂S(ξ,mesh.prprt.h[1],mpts.ℓ[ip][1])
+        Sy,dSy = S∂S(η,mesh.prprt.h[2],mpts.ℓ[ip][2])
         # convolution of basis function
         N      =  Sx*  Sy                                                                                
         ∂Nx    = dSx*  Sy                                                                                
@@ -54,12 +54,12 @@ end
     if iszero(no) 
         return T1(0), T2(0.0), T2(0.0), T2(0.0), T2(0.0)
     else
-        ξ      = (mpts.x[1,ip]-mesh.x[no][1])
-        η      = (mpts.x[2,ip]-mesh.x[no][2])
-        ζ      = (mpts.x[3,ip]-mesh.x[no][3])
-        Sx,dSx = S∂S(ξ,mesh.prprt.h[1],mpts.ℓ[1,ip]) 
-        Sy,dSy = S∂S(η,mesh.prprt.h[2],mpts.ℓ[2,ip]) 
-        Sz,dSz = S∂S(ζ,mesh.prprt.h[3],mpts.ℓ[3,ip]) 
+        ξ      = (mpts.x[ip][1]-mesh.x[no][1])
+        η      = (mpts.x[ip][2]-mesh.x[no][2])
+        ζ      = (mpts.x[ip][3]-mesh.x[no][3])
+        Sx,dSx = S∂S(ξ,mesh.prprt.h[1],mpts.ℓ[ip][1])
+        Sy,dSy = S∂S(η,mesh.prprt.h[2],mpts.ℓ[ip][2])
+        Sz,dSz = S∂S(ζ,mesh.prprt.h[3],mpts.ℓ[ip][3])
         # convolution of basis function
         N      =  Sx*  Sy*  Sz                                                                                
         ∂Nx    = dSx*  Sy*  Sz                                                                                
