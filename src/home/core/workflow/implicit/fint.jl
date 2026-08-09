@@ -71,8 +71,12 @@ end
 @kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,D,B,E,R},mesh::Mesh{T1,T2,D},g::Vector{T2},dt::T2,Kc::T2,Gc::T2) where {T1,T2,D<:TwoDimension,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
     mp = @index(Global)
     if mp ≤ mpts.nmp
+        # Get previous deformation gradient and logarithmic strain tensor
+        Fn = SMatrix{2,2,T2}(mpts.s.Fn[:, :, mp])
+        ϵn = SMatrix{2,2,T2}(mpts.s.ϵn[:, :, mp])
+
         # Compute velocity & displacement gradients
-        ∇vᵢⱼ = zeros(T2,2,2)
+        ∇vᵢⱼ = zeros(MMatrix{2,2,T2})
         for nn ∈ 1:mesh.prprt.nn
             # Buffering & compute basis functions on-the-fly
             no, _, ∂N = basis(mpts, mesh, mp, nn)
@@ -86,18 +90,15 @@ end
         
         # Compute incremental deformation, update current deformation gradient and get the deformation determinant
         ΔFᵢⱼ = mpts.δᵢⱼ+(dt.*∇vᵢⱼ)
-        Fᵢⱼ  = ΔFᵢⱼ*mpts.s.Fn[:,:,mp]
+        Fᵢⱼ  = ΔFᵢⱼ*Fn
         J⁻¹  = T2(1.0)/det(Fᵢⱼ)
-        
-        # Get previous logarithmic strain tensor
-        ϵᵢⱼ  = copy(mpts.s.ϵn[:,:,mp])
 
         # Compute trial left Cauchy-Green tensor
-        λ,n = eigen(ϵᵢⱼ,sortby=nothing)
+        λ,n = eigen(ϵn)
         bᵢⱼ = ΔFᵢⱼ*(n*diagm(exp.(T2(2.0).*λ))*n')*ΔFᵢⱼ'
         
         # Compute trial logarithmic strain tensor
-        λ,n = eigen(bᵢⱼ,sortby=nothing)
+        λ,n = eigen(bᵢⱼ)
         ϵᵢⱼ = T2(0.5).*(n*diagm(log.(λ))*n')
         
         # Compute volumetric strain
@@ -112,12 +113,16 @@ end
         τxy = T2(2.0) * Gc *  ϵᵢⱼ[1,2]
 
         # Buffered values
-        ms , Ω        = mpts.s.ρ[mp]*mpts.Ω[mp], mpts.Ω[mp]
+        ms , Ω        = mpts.s.ρ₀[mp]*mpts.Ω₀[mp], mpts.Ω[mp]*det(ΔFᵢⱼ)
         σxx, σyy, σxy = J⁻¹*τxx, J⁻¹*τyy, J⁻¹*τxy
         
         # Accumulate oobf
         for nn ∈ 1:mesh.prprt.nn
+            # Buffering & compute basis functions on-the-fly
             no, N, ∂N = basis(mpts, mesh, mp, nn)
+            # Transform shape function derivatives to current configuration
+            ∂N = ∂N' *inv(ΔFᵢⱼ)
+            # Assemble oobf contributions from material point level to mesh level
             if iszero(no) continue end
             @atom mesh.s.oobf[1,no] -= Ω * (∂N[1] * σxx + ∂N[2] * σxy)
             @atom mesh.s.oobf[2,no] -= Ω * (∂N[1] * σxy + ∂N[2] * σyy) - N * (ms * g[2])

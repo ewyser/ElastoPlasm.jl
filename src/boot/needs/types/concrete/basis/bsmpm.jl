@@ -87,33 +87,36 @@ end
 @inline function basis(mpts::Point{T1,T2,D,B,E,R}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:OneDimension,B<:BSplineBasis,E,R}
     no = mpts.p2n[nn,ip]
     if iszero(no) 
-        return T1(0), T2(0.0), (T2(0.0),)
+        N, ∂N  = T2(0.0), SVector{1,T2}(0.0, 0.0)
     else
         ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[1,ip]-mesh.x[1,no]),mesh.type[1,no],mesh.prprt.h[1])
         # return convolution of basis function
-        return T1(no), T2(ϕξ), (T2(∂ϕξ),)
+        N, ∂N  = T2(ϕξ*ϕη), SVector{1,T2}(∂ϕξ*ϕη)
     end
+    return no, N, ∂N
 end
-@inline function basis(mpts::Point{T1,T2,D,B,E,R}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:TwoDimension,B<:BSplineBasis,E,R} 
+@inline function basis(mpts::Point{T1,T2,D,B}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:TwoDimension,B<:BSplineBasis} 
     no = mpts.p2n[nn,ip]
     if iszero(no) 
-        return T1(0), T2(0.0), (T2(0.0), T2(0.0))
+        N, ∂N  = T2(0.0), SVector{2,T2}(0.0, 0.0)
     else
         ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[1,ip]-mesh.x[1,no]),mesh.type[1,no],mesh.prprt.h[1]) 
         ϕη,∂ϕη = ϕ∂ϕ((mpts.x[2,ip]-mesh.x[2,no]),mesh.type[2,no],mesh.prprt.h[2])
-        # return convolution of basis function
-        return T1(no), T2(ϕξ*ϕη), (T2(∂ϕξ*ϕη),T2(ϕξ*∂ϕη),)
+        # Construct the convolution of basis function and derivatives
+        N, ∂N  = T2(ϕξ*ϕη), SVector{2,T2}(∂ϕξ*ϕη, ϕξ*∂ϕη)
     end
+    return no, N, ∂N
 end
 @inline function basis(mpts::Point{T1,T2,D,B,E,R}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:ThreeDimension,B<:BSplineBasis,E,R} 
     no = mpts.p2n[nn,ip]
     if iszero(no) 
-        return T1(0), T2(0.0), (T2(0.0), T2(0.0), T2(0.0))
+        N, ∂N  = T2(0.0), SVector{3,T2}(0.0, 0.0, 0.0)
     else
         ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[1,ip]-mesh.x[1,no]),mesh.type[1,no],mesh.prprt.h[1])
         ϕη,∂ϕη = ϕ∂ϕ((mpts.x[2,ip]-mesh.x[2,no]),mesh.type[2,no],mesh.prprt.h[2])
         ϕζ,∂ϕζ = ϕ∂ϕ((mpts.x[3,ip]-mesh.x[3,no]),mesh.type[3,no],mesh.prprt.h[3])
-        # return convolution of basis function
-        return T1(no), T2(ϕξ*ϕη*ϕζ), (T2(∂ϕξ*ϕη*ϕζ),T2(ϕξ*∂ϕη*ϕζ),T2(ϕξ*ϕη*∂ϕζ),)
+        # Construct the convolution of basis function and derivatives
+        N, ∂N  = T2(ϕξ*ϕη*ϕζ), SVector{3,T2}(∂ϕξ*ϕη*ϕζ, ϕξ*∂ϕη*ϕζ, ϕξ*ϕη*∂ϕζ)
     end
+    return no, N, ∂N
 end

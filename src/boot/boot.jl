@@ -1,7 +1,7 @@
 # include dependencies
 using Revise,Pkg,Test
 using Plots,LaTeXStrings,ProgressMeter,REPL.TerminalMenus
-using LinearAlgebra,SparseArrays,Random
+using LinearAlgebra,StaticArrays,SparseArrays,Random
 using JLD2,HDF5
 using KernelAbstractions,Adapt,Base.Threads
 import KernelAbstractions.@atomic as @atom
