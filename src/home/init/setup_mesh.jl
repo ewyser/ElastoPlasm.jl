@@ -28,9 +28,12 @@ function setup_mesh(geom::Geometry{T1,T2,D,N},instr::Instruction{T1,T2,D}) where
     ndim       = geom.dim                                  
     L,nel,nn,h = geom.L,geom.nel,geom.nn,geom.h 
     xn,nel,nno = get_coords(geom)
-    e2n        = get_element_to_nodes(nel, nno, nn)  # precompute e2n for topology kernel
+    e2n        = get_element_to_nodes(nel, nno, nn)
     node_type  = get_node_type(ndim,nno)
     status,xB  = get_bc(xn,instr; ghosts=geom.ghost*h)
+    # static array type for node coords, velocity, acceleration
+    TV = SVector{ndim,T2}
+    nn_total = nno[end]
     # Constructors
     prop = MeshProperties{T1,T2,D}(
         T1(ndim                         ), # dim
@@ -44,17 +47,17 @@ function setup_mesh(geom::Geometry{T1,T2,D,N},instr::Instruction{T1,T2,D}) where
     bcs = MeshBoundary(
         status
     )
-    s = MeshSolidPhase{T1,T2,D}(
+    s = MeshSolidPhase{T1,T2,D,TV}(
         prop,
         bcs,
-        T2.(zeros(nno[end]             )), # m
-        T2.(zeros(nno[end],nno[end]    )), # mⱼ
-        T2.(zeros(ndim,nno[end]        )), # oobf
-        T2.(zeros(nno[end]             )), # oobp
-        T2.(zeros(ndim,nno[end]        )), # a
-        T2.(zeros(ndim,nno[end]        )), # mv
-        T2.(zeros(ndim,nno[end]        )), # v
-        T2.(zeros(nno[end]             )), # p
+        T2.(zeros(nn_total             )), # m
+        T2.(zeros(nn_total,nn_total    )), # Mᵢⱼ
+        T2.(zeros(ndim,nn_total        )), # oobf  (Matrix: atomic writes)
+        T2.(zeros(nn_total             )), # oobp
+        [zero(TV) for _ in 1:nn_total]  , # a
+        T2.(zeros(ndim,nn_total        )), # mv    (Matrix: atomic writes)
+        [zero(TV) for _ in 1:nn_total]  , # v
+        T2.(zeros(nn_total             )), # p
     )
     #=
     t = MeshThermalPhase{T1,T2,D}(
@@ -67,13 +70,13 @@ function setup_mesh(geom::Geometry{T1,T2,D,N},instr::Instruction{T1,T2,D}) where
         T2.(zeros(nno[end]             )), # T
     )
     =#
-    mesh = Mesh{T1,T2,D}(
+    mesh = Mesh{T1,T2,D,TV}(
         prop,
         # nodal quantities
-        T2.(vec(minimum(xn,dims=2)     )), # x₀
-        T2.(xn                          ), # x
-        T1.(node_type                   ), # node
-        T2.(zeros(nno[end]             )), # ΔJ
+        T2.(vec(minimum(xn,dims=2)          )), # x₀
+        [TV(T2.(xn[:,i])) for i in 1:nn_total], # x
+        T1.(node_type                        ), # node
+        T2.(zeros(nn_total                  )), # ΔJ
         # solid phase
         s                                , # solid phase
         # thermal phase

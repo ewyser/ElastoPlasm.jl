@@ -60,17 +60,17 @@ end
 
 @views function what_plot_field(mesh::Mesh{T1,T2,D},opts) where {T1,T2,D<:AbstractDimension}
     if opts.what == "v"
-        d     = sqrt.(mesh.s.v[1,:].^2 .+ mesh.s.v[2,:].^2)
+        d     = [sqrt(v[1]^2 + v[2]^2) for v in mesh.s.v]
         lab   = L"$v(x_n)$"*" [m/s]"
         tit   = "nodal solid velocity"
         cb    = :viridis
     elseif opts.what == "vx"
-        d     = mesh.s.v[1,:]
+        d     = getindex.(mesh.s.v, 1)
         lab   = L"$v_x(x_n)$"*" [m/s]"
         tit   = "nodal solid x-velocity"
         cb    = :vik
     elseif opts.what == "vz"
-        d     = mesh.s.v[2,:]
+        d     = getindex.(mesh.s.v, 2)
         lab   = L"$v_z(x_n)$"*" [m/s]"
         tit   = "nodal solid z-velocity"
         cb    = :vik
@@ -98,12 +98,12 @@ end
         throw(error("UndefinedPlotOption: $(opts.what)"))
     end
     
-    if size(mesh.x,1) == 2
-        x = mesh.x[1,:][1:mesh.prprt.nno[2]:end]
-        z = mesh.x[2,:][1:mesh.prprt.nno[2]    ]
-    elseif size(mesh.x,1) == 3
-        x = mesh.x[1,:][1:mesh.prprt.nno[3]:end]
-        z = mesh.x[3,:][1:mesh.prprt.nno[3]    ]
+    if length(mesh.x[1]) == 2
+        x = getindex.(mesh.x, 1)[1:mesh.prprt.nno[2]:end]
+        z = getindex.(mesh.x, 2)[1:mesh.prprt.nno[2]    ]
+    elseif length(mesh.x[1]) == 3
+        x = getindex.(mesh.x, 1)[1:mesh.prprt.nno[3]:end]
+        z = getindex.(mesh.x, 3)[1:mesh.prprt.nno[3]    ]
     end
     d = reshape(d, mesh.prprt.nno[2], mesh.prprt.nno[1])
     p = heatmap(

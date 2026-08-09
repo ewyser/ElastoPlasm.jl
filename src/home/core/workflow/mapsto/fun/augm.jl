@@ -13,34 +13,27 @@ Accumulate material point momentum to mesh nodes for DM augmentation.
 @kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:TwoDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
-        # buffering 
-        ms       = mpts.s.ρ[p]*mpts.Ω[p]
-        mvx, mvy = ms*mpts.s.v[p][1], ms*mpts.s.v[p][2]
+        ms = mpts.s.ρ[p]*mpts.Ω[p]
+        mv = ms * mpts.s.v[p]
         for nn ∈ 1:mesh.prprt.nn
-            # buffering & compute basis functions on-the-fly
             no, N, _ = basis(mpts, mesh, p, nn)
-            if iszero(no) continue end 
-            # accumulation
-            @atom mesh.s.mv[1,no]  += N * mvx
-            @atom mesh.s.mv[2,no]  += N * mvy
+            if iszero(no) continue end
+            @atom mesh.s.mv[1,no] += N * mv[1]
+            @atom mesh.s.mv[2,no] += N * mv[2]
         end
     end
 end
 @kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:ThreeDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
-        # buffering 
-        ms            = mpts.s.ρ[p]*mpts.Ω[p]
-        v = mpts.s.v[p]
-        mvx, mvy, mvz = ms*v[1], ms*v[2], ms*v[3]
+        ms = mpts.s.ρ[p]*mpts.Ω[p]
+        mv = ms * mpts.s.v[p]
         for nn ∈ 1:mesh.prprt.nn
-            # buffering & compute basis functions on-the-fly
             no, N, _ = basis(mpts, mesh, p, nn)
-            if iszero(no) continue end 
-            # accumulation
-            @atom mesh.s.mv[1,no]  += N * mvx
-            @atom mesh.s.mv[2,no]  += N * mvy
-            @atom mesh.s.mv[3,no]  += N * mvz
+            if iszero(no) continue end
+            @atom mesh.s.mv[1,no] += N * mv[1]
+            @atom mesh.s.mv[2,no] += N * mv[2]
+            @atom mesh.s.mv[3,no] += N * mv[3]
         end
     end
 end
@@ -62,14 +55,10 @@ Update mesh node velocities for DM augmentation.
             nothing         
         else
             m⁻¹ = (T2(1.0)/mesh.s.m[no])
-            for dim ∈ 1:mesh.prprt.dim       
-                # apply boundary contidions || forward euler solution
-                if mesh.s.bcs.status[dim,no]
-                    mesh.s.v[dim,no] = T2(0.0)                                         
-                else
-                    mesh.s.v[dim,no] = mesh.s.mv[dim,no]*m⁻¹  
-                end
-            end
+            TV = eltype(mesh.s.v)
+            mesh.s.v[no] = TV(ntuple(Val(length(TV))) do d
+                mesh.s.bcs.status[d,no] ? T2(0) : mesh.s.mv[d,no]*m⁻¹
+            end)
         end
     end
 end

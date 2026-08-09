@@ -11,7 +11,7 @@
             if iszero(no) continue end
             for i ∈ 1:mesh.prprt.dim
                 for j ∈ 1:mesh.prprt.dim
-                    ∇v[i,j] += ∂N[j]*mesh.s.v[i,no]
+                    ∇v[i,j] += ∂N[j]*mesh.s.v[no][i]
                 end
             end
         end

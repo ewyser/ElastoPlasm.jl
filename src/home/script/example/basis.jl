@@ -110,8 +110,8 @@ function basisfunction(; fid::String=first(splitext(basename(@__FILE__))), kwarg
         end
     end
 
-    x_coord = reshape(mesh.x[1, :], Int(mesh.nno[2]), Int(mesh.nno[1]))
-    y_coord = reshape(mesh.x[2, :], Int(mesh.nno[2]), Int(mesh.nno[1]))
+    x_coord = reshape(getindex.(mesh.x, 1), Int(mesh.nno[2]), Int(mesh.nno[1]))
+    y_coord = reshape(getindex.(mesh.x, 2), Int(mesh.nno[2]), Int(mesh.nno[1]))
 
     config_plot()
     gr(size=(250,250),legend=false,markersize=2.0,markerstrokecolor=:auto)

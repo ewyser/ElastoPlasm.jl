@@ -21,16 +21,16 @@ struct MeshBoundary
 end
 @adapt_struct MeshBoundary
 
-struct MeshSolidPhase{T1,T2,D} <: MeshPhase{T1,T2}
+struct MeshSolidPhase{T1,T2,D,TV} <: MeshPhase{T1,T2}
     prprt ::MeshProperties{T1,T2,D}
     bcs   ::MeshBoundary
     m    ::Vector{T2} # consistent lumped mass matrix
     Mᵢⱼ   ::Matrix{T2}
-    oobf  ::Matrix{T2} # out-of-balance mechanical load
+    oobf  ::Matrix{T2} # out-of-balance mechanical load (atomic writes: keep Matrix)
     oobp  ::Vector{T2} # out-of-balance continuity residual (u-P)
-    a     ::Matrix{T2} # acceleration
-    mv    ::Matrix{T2} # momentum
-    v     ::Matrix{T2} # velocity
+    a     ::Vector{TV} # acceleration per node : SVector{ndim,T2}
+    mv    ::Matrix{T2} # momentum (atomic writes: keep Matrix)
+    v     ::Vector{TV} # velocity per node    : SVector{ndim,T2}
     p     ::Vector{T2} # nodal pressure (u-P)
 end
 @adapt_struct MeshSolidPhase
@@ -46,17 +46,17 @@ struct MeshThermalPhase{T1,T2,D} <: MeshPhase{T1,T2}
 end
 @adapt_struct MeshThermalPhase
 
-struct Mesh{T1,T2,D} <: UniformMesh{T1, T2}
+struct Mesh{T1,T2,D,TV} <: UniformMesh{T1, T2}
     prprt ::MeshProperties{T1,T2,D}
     # nodal quantities
     x₀    ::Vector{T2}
-    x     ::Matrix{T2}
-    type  ::Matrix{T1} #TODO: add implmementation node: [[x1...xn],[y1...yn],[z1...zn]] instead
+    x     ::Vector{TV} # node coordinates : SVector{ndim,T2}
+    type  ::Matrix{T1}
     ΔJ    ::Vector{T2}
     # solid phase
-    s     ::MeshSolidPhase{T1,T2,D} # phase ::Vector{MeshPhase{T1,T2}}
+    s     ::MeshSolidPhase{T1,T2,D,TV}
     # thermal phase
-    t     ::Union{Nothing, MeshThermalPhase{T1,T2,D}} # phase ::Vector{MeshPhase{T1,T2}}
+    t     ::Union{Nothing, MeshThermalPhase{T1,T2,D}}
     # connectivity
     e2n   ::Matrix{T1}
     e2e   ::SparseMatrixCSC{T1,T1}

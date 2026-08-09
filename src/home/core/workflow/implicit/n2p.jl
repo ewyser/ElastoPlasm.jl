@@ -20,7 +20,7 @@ Update material point velocities and positions from solid-type mesh nodes using 
             # buffering & compute basis functions on-the-fly
             no, N, _ = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
-            δvx += N*mesh.s.v[1,no]
+            δvx += N*mesh.s.v[no][1]
         end
         mpts.s.v[1,p] = δvx
         # find maximum velocity component over mpts
@@ -36,8 +36,8 @@ end
             # buffering & compute basis functions on-the-fly
             no, N, _ = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
-            δvx += N*mesh.s.v[1,no]
-            δvy += N*mesh.s.v[2,no]
+            δvx += N*mesh.s.v[no][1]
+            δvy += N*mesh.s.v[no][2]
         end
         mpts.s.v[p] = SVector{2,T2}(δvx, δvy)
         mpts.s.u[p] = SVector{2,T2}(dt*δvx, dt*δvy)
@@ -54,23 +54,22 @@ end
             # buffering & compute basis functions on-the-fly
             no, N, _ = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
-            δvxPIC += N*mesh.s.v[1,no]
-            δvyPIC += N*mesh.s.v[2,no]
-            δvzPIC += N*mesh.s.v[3,no]
+            δvxPIC += N*mesh.s.v[no][1]
+            δvyPIC += N*mesh.s.v[no][2]
+            δvzPIC += N*mesh.s.v[no][3]
         end
         # flip update
         δaxFLIP = δayFLIP = δazFLIP = T2(0.0)
         δvxFLIP = δvyFLIP = δvzFLIP = T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
-            # buffering & compute basis functions on-the-fly
             no, N, _ = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
-            δaxFLIP += N*mesh.s.a[1,no]
-            δayFLIP += N*mesh.s.a[2,no]
-            δazFLIP += N*mesh.s.a[3,no]
-            δvxFLIP += N*mesh.s.v[1,no]
-            δvyFLIP += N*mesh.s.v[2,no]
-            δvzFLIP += N*mesh.s.v[3,no]
+            δaxFLIP += N*mesh.s.a[no][1]
+            δayFLIP += N*mesh.s.a[no][2]
+            δazFLIP += N*mesh.s.a[no][3]
+            δvxFLIP += N*mesh.s.v[no][1]
+            δvyFLIP += N*mesh.s.v[no][2]
+            δvzFLIP += N*mesh.s.v[no][3]
         end
         # picflip update for material point's velocity and position
         v = mpts.s.v[p]

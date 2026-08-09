@@ -58,8 +58,8 @@ function mapsto(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},g::
     fill!(mesh.s.m  ,T2(0.0))
     fill!(mesh.s.mv  ,T2(0.0))
     fill!(mesh.s.oobf,T2(0.0))
-    fill!(mesh.s.a   ,T2(0.0))
-    fill!(mesh.s.v   ,T2(0.0))
+    fill!(mesh.s.a   , zero(eltype(mesh.s.a)))
+    fill!(mesh.s.v   , zero(eltype(mesh.s.v)))
     # mapping to mesh
     instr.cairn.mapsto.map.p2n!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
     # solve Eulerian momentum equation
@@ -69,8 +69,8 @@ function mapsto(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},g::
     # (if musl) reproject nodal velocities
     if instr.fwrk.musl
         # reset nodal quantities
-        fill!(mesh.s.mv,T2(0.0))
-        fill!(mesh.s.v ,T2(0.0))
+        fill!(mesh.s.mv, T2(0.0))
+        fill!(mesh.s.v , zero(eltype(mesh.s.v)))
         # accumulate material point contributions
         instr.cairn.mapsto.augm.p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
         # solve for nodal incremental displacement

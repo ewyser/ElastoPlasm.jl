@@ -23,7 +23,7 @@ end
     if iszero(no) 
         return T1(0), T2(0.0), T2(0.0)
     else
-        ϕξ,∂ϕξ = N∂N((mpts.x[1,ip]-mesh.x[1,no]),mesh.prprt.h[1])
+        φξ,∂φξ = N∂N((mpts.x[1,ip]-mesh.x[no][1]),mesh.prprt.h[1])
         # return convolution of basis function
         return T1(no), T2(ϕξ), (T2(∂ϕξ),)
     end
@@ -33,8 +33,8 @@ end
     if iszero(no) 
         return T1(0), T2(0.0), T2(0.0), T2(0.0)
     else
-        ϕξ,∂ϕξ = N∂N((mpts.x[1,ip]-mesh.x[1,no]),mesh.prprt.h[1])
-        ϕη,∂ϕη = N∂N((mpts.x[2,ip]-mesh.x[2,no]),mesh.prprt.h[2])
+        φξ,∂φξ = N∂N((mpts.x[1,ip]-mesh.x[no][1]),mesh.prprt.h[1])
+        φη,∂φη = N∂N((mpts.x[2,ip]-mesh.x[no][2]),mesh.prprt.h[2])
         # return convolution of basis function
         return T1(no), T2(ϕξ*ϕη), (T2(∂ϕξ*ϕη),T2(ϕξ*∂ϕη),)
     end
@@ -44,9 +44,9 @@ end
     if iszero(no) 
         return T1(0), T2(0.0), T2(0.0), T2(0.0), T2(0.0)
     else
-        ϕξ,∂ϕξ = N∂N((mpts.x[1,ip]-mesh.x[1,no]),mesh.prprt.h[1])
-        ϕη,∂ϕη = N∂N((mpts.x[2,ip]-mesh.x[2,no]),mesh.prprt.h[2])
-        ϕζ,∂ϕζ = N∂N((mpts.x[3,ip]-mesh.x[3,no]),mesh.prprt.h[3])
+        φξ,∂φξ = N∂N((mpts.x[1,ip]-mesh.x[no][1]),mesh.prprt.h[1])
+        φη,∂φη = N∂N((mpts.x[2,ip]-mesh.x[no][2]),mesh.prprt.h[2])
+        φζ,∂φζ = N∂N((mpts.x[3,ip]-mesh.x[no][3]),mesh.prprt.h[3])
         # return convolution of basis function
         return T1(no), T2(ϕξ*ϕη*ϕζ), (T2(∂ϕξ*ϕη*ϕζ),T2(ϕξ*∂ϕη*ϕζ),T2(ϕξ*ϕη*∂ϕζ),)
     end

@@ -160,8 +160,8 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
     
     # Common plot settings
     common = (;
-        xlim = (minimum(mesh.x[1, :]), maximum(mesh.x[1, :])),
-        ylim = (minimum(mesh.x[2, :]), maximum(mesh.x[2, :])),
+        xlim = (minimum(getindex.(mesh.x, 1)), maximum(getindex.(mesh.x, 1))),
+        ylim = (minimum(getindex.(mesh.x, 2)), maximum(getindex.(mesh.x, 2))),
         size = instr.plot.dpi .* (mesh.prprt.L ./ mesh.prprt.L[1]),
     )
     

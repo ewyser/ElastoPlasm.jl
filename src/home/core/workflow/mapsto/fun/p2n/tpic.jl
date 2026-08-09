@@ -25,7 +25,7 @@ Project 1D material point data to mesh nodes (TPIC scheme).
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, ∂N = basis(mpts, mesh, p, nn)
-            δx        = mesh.x[1,no]-mpts.x[1,p]
+            δx        = mesh.x[no][1]-mpts.x[1,p]
             if iszero(no) continue end
             # accumulation
             @atom mesh.s.m[no]   += N * ms
@@ -37,53 +37,44 @@ end
 @kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
-        # buffering 
-        ms ,Ω       = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        vx ,vy      = mpts.s.v[p][1]        ,mpts.s.v[p][2]
-        σxx,σyy,σxy = mpts.s.σᵢ[p][1]       ,mpts.s.σᵢ[p][2]   ,mpts.s.σᵢ[p][3]
-        ∇v = mpts.s.∇vᵢⱼ[p]
-        ∇vxx,∇vxy   = ∇v[1,1],∇v[1,2]
-        ∇vyx,∇vyy   = ∇v[2,1],∇v[2,2]
+        ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        v_p   = mpts.s.v[p]
+        σ     = mpts.s.σᵢ[p]
+        ∇v    = mpts.s.∇vᵢⱼ[p]          # SMatrix: (∇v * δx) gives TPIC correction
+        x_p   = SVector{2,T2}(mpts.x[1,p], mpts.x[2,p])  # zero-alloc, hoisted
         for nn ∈ 1:mesh.prprt.nn
-            # buffering & compute basis functions on-the-fly
             no, N, ∂N = basis(mpts, mesh, p, nn)
-            δx, δy    = mesh.x[1,no]-mpts.x[1,p], mesh.x[2,no]-mpts.x[2,p]
             if iszero(no) continue end
-            # accumulation
+            δx = mesh.x[no] - x_p
+            mv  = N * ms * (v_p + ∇v * δx)
             @atom mesh.s.m[no]     += N * ms
-            @atom mesh.s.mv[1,no]  += N * ms * (vx + ∇vxx * δx + ∇vxy * δy)
-            @atom mesh.s.mv[2,no]  += N * ms * (vy + ∇vyx * δx + ∇vyy * δy)
-            @atom mesh.s.oobf[1,no]-= Ω * (∂N[1] * σxx + ∂N[2] * σxy)
-            @atom mesh.s.oobf[2,no]-= Ω * (∂N[1] * σxy + ∂N[2] * σyy) - N * (ms * g[2])
-
+            @atom mesh.s.mv[1,no]  += mv[1]
+            @atom mesh.s.mv[2,no]  += mv[2]
+            @atom mesh.s.oobf[1,no]-= Ω * (∂N[1] * σ[1] + ∂N[2] * σ[3])
+            @atom mesh.s.oobf[2,no]-= Ω * (∂N[1] * σ[3] + ∂N[2] * σ[2]) - N * (ms * g[2])
         end
     end
 end
 @kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:ThreeDimension}
     p = @index(Global)
     if p ≤ mpts.nmp
-        # buffering 
-        ms  ,Ω         = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        vx  ,vy  ,vz   = mpts.s.v[p][1]        ,mpts.s.v[p][2]     ,mpts.s.v[p][3]
-        σxx ,σyy ,σzz  = mpts.s.σᵢ[p][1]       ,mpts.s.σᵢ[p][2]    ,mpts.s.σᵢ[p][3]
-        σyx ,σzy ,σzx  = mpts.s.σᵢ[p][6]       ,mpts.s.σᵢ[p][4]    ,mpts.s.σᵢ[p][5]
-        ∇v = mpts.s.∇vᵢⱼ[p]
-        ∇vxx,∇vxy,∇vxz = ∇v[1,1],∇v[1,2],∇v[1,3]
-        ∇vyx,∇vyy,∇vyz = ∇v[2,1],∇v[2,2],∇v[2,3]
-        ∇vzx,∇vzy,∇vzz = ∇v[3,1],∇v[3,2],∇v[3,3]
+        ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        v_p   = mpts.s.v[p]
+        σ     = mpts.s.σᵢ[p]
+        ∇v    = mpts.s.∇vᵢⱼ[p]
+        x_p   = SVector{3,T2}(mpts.x[1,p], mpts.x[2,p], mpts.x[3,p])
         for nn ∈ 1:mesh.prprt.nn
-            # buffering & compute basis functions on-the-fly
-            no, N, ∂N  = basis(mpts, mesh, p, nn)
-            δx, δy, δz = mesh.x[1,no]-mpts.x[1,p], mesh.x[2,no]-mpts.x[2,p], mesh.x[3,no]-mpts.x[3,p]
+            no, N, ∂N = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
-            # accumulation
+            δx = mesh.x[no] - x_p
+            mv  = N * ms * (v_p + ∇v * δx)
             @atom mesh.s.m[no]   += N * ms
-            @atom mesh.s.mv[1,no]+= N * ms * (vx + ∇vxx * δx + ∇vxy * δy + ∇vxz * δz)
-            @atom mesh.s.mv[2,no]+= N * ms * (vy + ∇vyx * δx + ∇vyy * δy + ∇vyz * δz)
-            @atom mesh.s.mv[3,no]+= N * ms * (vz + ∇vzx * δx + ∇vzy * δy + ∇vzz * δz)
-            @atom mesh.oobf[1,no]-= Ω * ( ∂N[1] * σxx + ∂N[2] * σyx + ∂N[3] * σzx)
-            @atom mesh.oobf[2,no]-= Ω * ( ∂N[1] * σyx + ∂N[2] * σyy + ∂N[3] * σzy)
-            @atom mesh.oobf[3,no]-= Ω * ( ∂N[1] * σzx + ∂N[2] * σzy + ∂N[3] * σzz) - N * (ms * g[3])
+            @atom mesh.s.mv[1,no]+= mv[1]
+            @atom mesh.s.mv[2,no]+= mv[2]
+            @atom mesh.s.mv[3,no]+= mv[3]
+            @atom mesh.oobf[1,no]-= Ω * (∂N[1]*σ[1]+∂N[2]*σ[6]+∂N[3]*σ[5])
+            @atom mesh.oobf[2,no]-= Ω * (∂N[1]*σ[6]+∂N[2]*σ[2]+∂N[3]*σ[4])
+            @atom mesh.oobf[3,no]-= Ω * (∂N[1]*σ[5]+∂N[2]*σ[4]+∂N[3]*σ[3]) - N*(ms*g[3])
         end
     end
 end

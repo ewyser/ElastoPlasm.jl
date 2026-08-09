@@ -25,8 +25,8 @@ savlot(mpts, mesh, t, instr)
         opts = (;
             dims    = instr.plot.dpi.*(mesh.prprt.L./mesh.prprt.L[1]), 
             what    = instr.plot.what,
-            xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])), 
-            ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),
+            xlim    = (minimum(getindex.(mesh.x, 1)), maximum(getindex.(mesh.x, 1))),
+            ylim    = (minimum(getindex.(mesh.x, 2)), maximum(getindex.(mesh.x, 2))),
             tit     = L" t = "*string(round(t,digits=1))*" [s]",
             backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
         )

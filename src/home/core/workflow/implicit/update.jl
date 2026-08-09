@@ -4,11 +4,10 @@
         # update material point displacement
         δvx = δvy = T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
-            # buffering & compute basis functions on-the-fly
             no, N, _ = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
-            δvx += N * mesh.s.v[1,no]
-            δvy += N * mesh.s.v[2,no]
+            δvx += N * mesh.s.v[no][1]
+            δvy += N * mesh.s.v[no][2]
         end
         mpts.J[p] = det(mpts.s.Fᵢⱼ[p])
         mpts.Ω[p] = mpts.J[p] * mpts.Ω₀[p]
@@ -30,11 +29,10 @@ end
         mpts.s.ϵn[p] = mpts.s.ϵᵢⱼ[p]
         δvx = δvy = T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
-            # buffering & compute basis functions on-the-fly
             no, N, _ = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
-            δvx += N * mesh.s.v[1,no]
-            δvy += N * mesh.s.v[2,no]
+            δvx += N * mesh.s.v[no][1]
+            δvy += N * mesh.s.v[no][2]
         end
         mpts.s.u[p] = SVector{2,T2}(dt * δvx, dt * δvy)
         mpts.x[1,p] += dt * δvx

@@ -9,7 +9,7 @@
             if iszero(no) continue end
             for i ∈ 1:mesh.prprt.dim
                 for j ∈ 1:mesh.prprt.dim
-                    ∇v[i,j] += ∂N[j]*mesh.s.v[i,no]
+                    ∇v[i,j] += ∂N[j]*mesh.s.v[no][i]
                 end
             end
         end
@@ -38,10 +38,10 @@ end
             # buffering & compute basis functions on-the-fly
             no, _, ∂N = basis(mpts, mesh, p, nn)
             if iszero(no) continue end   
-            ∇vxx += ∂N[1]*mesh.s.v[1,no]
-            ∇vxy += ∂N[1]*mesh.s.v[2,no]
-            ∇vyx += ∂N[2]*mesh.s.v[1,no]
-            ∇vyy += ∂N[2]*mesh.s.v[2,no]
+            ∇vxx += ∂N[1]*mesh.s.v[no][1]
+            ∇vxy += ∂N[1]*mesh.s.v[no][2]
+            ∇vyx += ∂N[2]*mesh.s.v[no][1]
+            ∇vyy += ∂N[2]*mesh.s.v[no][2]
         end
         # compute incremental deformation tensor (SMatrix, column-major: [col1..., col2...])
         ΔFxx,ΔFxy = T2(1.0)+(dt*∇vxx),        (dt*∇vxy)
@@ -77,15 +77,15 @@ end
             # buffering & compute basis functions on-the-fly
             no, _, ∂N = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
-            ∇vxx += ∂N[1]*mesh.s.v[1,no]
-            ∇vxy += ∂N[1]*mesh.s.v[2,no]
-            ∇vxz += ∂N[1]*mesh.s.v[3,no]
-            ∇vyx += ∂N[2]*mesh.s.v[1,no]
-            ∇vyy += ∂N[2]*mesh.s.v[2,no]
-            ∇vyz += ∂N[2]*mesh.s.v[3,no]
-            ∇vzx += ∂N[3]*mesh.s.v[1,no]
-            ∇vzy += ∂N[3]*mesh.s.v[2,no]
-            ∇vzz += ∂N[3]*mesh.s.v[3,no]
+            ∇vxx += ∂N[1]*mesh.s.v[no][1]
+            ∇vxy += ∂N[1]*mesh.s.v[no][2]
+            ∇vxz += ∂N[1]*mesh.s.v[no][3]
+            ∇vyx += ∂N[2]*mesh.s.v[no][1]
+            ∇vyy += ∂N[2]*mesh.s.v[no][2]
+            ∇vyz += ∂N[2]*mesh.s.v[no][3]
+            ∇vzx += ∂N[3]*mesh.s.v[no][1]
+            ∇vzy += ∂N[3]*mesh.s.v[no][2]
+            ∇vzz += ∂N[3]*mesh.s.v[no][3]
         end
         ΔFxx,ΔFxy,ΔFxz = T2(1.0)+(dt*∇vxx),        (dt*∇vxy),        (dt*∇vxz)
         ΔFyx,ΔFyy,ΔFyz =         (dt*∇vyx),T2(1.0)+(dt*∇vyy),        (dt*∇vyz)

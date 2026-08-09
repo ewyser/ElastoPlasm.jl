@@ -72,12 +72,14 @@ function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
             iszero(mesh.s.m[no]) && continue
             pc = c_el² * mesh.s.m[no] / h_min^2
             for d in 1:ndim
-                ∂v∂τ[d,no]      = R[d,no]/pc + β * ∂v∂τ[d,no]
-                mesh.s.v[d,no] += α * ∂v∂τ[d,no]
-                if mesh.s.bcs.status[d,no]
-                    mesh.s.v[d,no] = T(0)
-                end
+                ∂v∂τ[d,no] = R[d,no]/pc + β * ∂v∂τ[d,no]
             end
+            v = MVector(mesh.s.v[no])
+            for d in 1:ndim
+                v[d] += α * ∂v∂τ[d,no]
+                mesh.s.bcs.status[d,no] && (v[d] = T(0))
+            end
+            mesh.s.v[no] = SVector(v)
         end
 
         # Convergence check and λ_min update (Rayleigh quotient)
@@ -119,7 +121,7 @@ end
 function relax(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     fill!(mesh.s.m   ,T2(0))
     fill!(mesh.s.oobf,T2(0))
-    fill!(mesh.s.v   ,T2(0))
+    fill!(mesh.s.v   , zero(eltype(mesh.s.v)))
     instr.cairn.implicit.mass_assembly!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
     return pt_solve!(mpts,mesh,cmpr,g,dt,instr; quasi_static=true)
 end
@@ -233,9 +235,10 @@ function pt_solve_uP!(mpts, mesh, cmpr, g, dt, instr;
         @inbounds for no in 1:nno
             mi = mesh.s.m[no]
             iszero(mi) && continue
+            v_no = mesh.s.v[no]
             for d in 1:ndim
                 r = mesh.s.oobf[d,no]
-                quasi_static || (r -= mi * (mesh.s.v[d,no] - mv_n[d,no]/mi) / dt)
+                quasi_static || (r -= mi * (v_no[d] - mv_n[d,no]/mi) / dt)
                 mesh.s.bcs.status[d,no] && (r = T(0); ∂v∂τ[d,no] = T(0))
                 R_u[d,no] = r
             end
@@ -252,10 +255,14 @@ function pt_solve_uP!(mpts, mesh, cmpr, g, dt, instr;
             iszero(mesh.s.m[no]) && continue
             pc_u = quasi_static ? Gc * mesh.s.m[no] / h_min^2 : mesh.s.m[no] / dt
             for d in 1:ndim
-                ∂v∂τ[d,no]     = R_u[d,no]/pc_u + β_u * ∂v∂τ[d,no]
-                mesh.s.v[d,no] += α_u * ∂v∂τ[d,no]
-                mesh.s.bcs.status[d,no] && (mesh.s.v[d,no] = T(0))
+                ∂v∂τ[d,no] = R_u[d,no]/pc_u + β_u * ∂v∂τ[d,no]
             end
+            v = MVector(mesh.s.v[no])
+            for d in 1:ndim
+                v[d] += α_u * ∂v∂τ[d,no]
+                mesh.s.bcs.status[d,no] && (v[d] = T(0))
+            end
+            mesh.s.v[no] = SVector(v)
         end
 
         # --- pressure update (explicit, no Chebyshev needed for scalar) ---
@@ -319,7 +326,7 @@ function pt_solve_uP!(mpts, mesh, cmpr, g, dt, instr;
         iszero(mesh.s.m[no]) && continue
         for d in 1:ndim
             v_n_d = mv_n[d,no] / mesh.s.m[no]
-            mesh.s.a[d,no] = (mesh.s.v[d,no] - v_n_d) / dt
+            mesh.s.a[no] = setindex(mesh.s.a[no], (mesh.s.v[no][d] - v_n_d) / dt, d)
         end
     end
 
@@ -337,17 +344,17 @@ function mapsto_uP(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},
     fill!(mesh.s.mv  ,T2(0))
     fill!(mesh.s.oobf,T2(0))
     fill!(mesh.s.oobp,T2(0))
-    fill!(mesh.s.a   ,T2(0))
-    fill!(mesh.s.v   ,T2(0))
+    fill!(mesh.s.a   , zero(eltype(mesh.s.a)))
+    fill!(mesh.s.v   , zero(eltype(mesh.s.v)))
     fill!(mesh.s.p   ,T2(0))
     instr.cairn.mapsto.map.p2n!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
     @inbounds for no in 1:mesh.prprt.nno[end]
         iszero(mesh.s.m[no]) && continue
         mi = mesh.s.m[no]
-        for d in 1:mesh.prprt.dim
-            mesh.s.v[d,no] = mesh.s.mv[d,no] / mi
-            mesh.s.bcs.status[d,no] && (mesh.s.v[d,no] = T2(0))
-        end
+        TV = eltype(mesh.s.v)
+        mesh.s.v[no] = TV(ntuple(Val(length(TV))) do d
+            mesh.s.bcs.status[d,no] ? T2(0) : mesh.s.mv[d,no] / mi
+        end)
     end
     # warm-start nodal pressure from carried particle pressures so the first PT
     # scatter doesn't wipe the load-step history

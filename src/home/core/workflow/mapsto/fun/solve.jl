@@ -18,22 +18,24 @@ Solve the Eulerian momentum equation for solid phase on the mesh with viscous da
             nothing         
         else
             m⁻¹ = (T2(1.0)/mesh.s.m[no])
-            for dim ∈ 1:mesh.prprt.dim
-                # apply boundary contidions
-                if mesh.s.bcs.status[dim,no]
-                    mesh.s.a[dim,no] = T2(0.0)                                         
-                    mesh.s.v[dim,no] = T2(0.0)                                         
-                else
-                    # calculate damping
-                    D  = η*norm(mesh.s.oobf[:,no])*sign(mesh.s.mv[dim,no]*m⁻¹)      
+            TV = eltype(mesh.s.v)
+            N  = length(TV)
+            # apply damping correction on oobf (Matrix, unchanged)
+            for dim ∈ 1:N
+                if !mesh.s.bcs.status[dim,no]
+                    D  = η*norm(mesh.s.oobf[:,no])*sign(mesh.s.mv[dim,no]*m⁻¹)
                     if (abs(mesh.s.mv[dim,no]*m⁻¹)) ≥ T2(1.0e-3)
-                        mesh.s.oobf[dim,no] = mesh.s.oobf[dim,no]-D                 
+                        mesh.s.oobf[dim,no] -= D
                     end
-                    # forward euler solution
-                    mesh.s.a[dim,no] = mesh.s.oobf[dim,no]*m⁻¹                       
-                    mesh.s.v[dim,no] = (mesh.s.mv[dim,no]+dt*mesh.s.oobf[dim,no])*m⁻¹  
                 end
             end
+            # assign new a and v as SVectors
+            mesh.s.a[no] = TV(ntuple(Val(N)) do d
+                mesh.s.bcs.status[d,no] ? T2(0) : mesh.s.oobf[d,no]*m⁻¹
+            end)
+            mesh.s.v[no] = TV(ntuple(Val(N)) do d
+                mesh.s.bcs.status[d,no] ? T2(0) : (mesh.s.mv[d,no]+dt*mesh.s.oobf[d,no])*m⁻¹
+            end)
         end
     end
 end

@@ -51,8 +51,8 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
         backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
         tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
         cblim   = [(0.0,20.0),],
-        xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])), 
-        ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),
+        xlim    = (minimum(getindex.(mesh.x, 1)), maximum(getindex.(mesh.x, 1))),
+        ylim    = (minimum(getindex.(mesh.x, 2)), maximum(getindex.(mesh.x, 2))),
         file    = joinpath(paths[:plot],"$(mesh.prprt.dim)d_T.png"),
     )
     get_plot_field(mpts,mesh,opts);save_plot(opts)
