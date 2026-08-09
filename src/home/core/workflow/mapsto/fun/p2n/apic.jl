@@ -23,7 +23,7 @@ Project 1D material point data to mesh nodes (APIC scheme).
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, ∂N = basis(mpts, mesh, p, nn)
-            δx        = mesh.x[no][1]-mpts.x[1,p]
+            δx        = mesh.x[no][1]-mpts.x[p][1]
             if iszero(no) continue end
             if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
                 D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p])
@@ -46,7 +46,7 @@ end
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, ∂N = basis(mpts, mesh, p, nn)
-            δx, δy    = mesh.x[no][1]-mpts.x[1,p], mesh.x[no][2]-mpts.x[2,p]
+            δx, δy    = mesh.x[no][1]-mpts.x[p][1], mesh.x[no][2]-mpts.x[p][2]
             if iszero(no) continue end
             if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
                 D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p])

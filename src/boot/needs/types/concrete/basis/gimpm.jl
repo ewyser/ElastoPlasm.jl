@@ -25,7 +25,7 @@ end
     if iszero(no) 
         return T1(0), T2(0.0), T2(0.0)
     else
-        ξ      = (mpts.x[1,ip]-mesh.x[no][1])
+        ξ      = (mpts.x[ip][1]-mesh.x[no][1])
         Sx,dSx = S∂S(ξ,mesh.prprt.h[1],mpts.ℓ[1,ip]) 
         # convolution of basis function
         N      =  Sx                                     

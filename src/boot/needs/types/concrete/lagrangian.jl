@@ -128,7 +128,7 @@ struct Point{T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:AbstractElasticity,R
     p2e  ::Vector{T1}
     p2n  ::Matrix{T1}
     # material point properties
-    x    ::Matrix{T2}
+    x    ::Vector{TV}  # coordinates per MP : SVector{ndim,T2}
     ℓ₀   ::Matrix{T2}
     ℓ    ::Matrix{T2}
     n₀   ::Vector{T2}

@@ -38,10 +38,10 @@ function what_plot_field(mpts::Point{T1,T2,D,B,E,R},opts) where {T1,T2,D<:Abstra
     end
     # Plotting
     return plot(
-        if size(mpts.x,1) == 2
-            mpts.x[1,:],mpts.x[2,:]
-        elseif size(mpts.x,1) == 3
-            mpts.x[1,:],mpts.x[3,:]
+        if length(mpts.x[1]) == 2
+            getindex.(mpts.x, 1), getindex.(mpts.x, 2)
+        elseif length(mpts.x[1]) == 3
+            getindex.(mpts.x, 1), getindex.(mpts.x, 3)
         end,
         seriestype  = :scatter,
         marker_z    = data,

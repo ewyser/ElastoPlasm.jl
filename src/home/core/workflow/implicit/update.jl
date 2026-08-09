@@ -14,8 +14,7 @@
         mpts.s.ρ[p] = mpts.s.ρ[p] / mpts.ΔJ[p]
         mpts.n[p]   = T2(1.0) - T2(1.0) / mpts.J[p] * (T2(1.0) - mpts.n[p])
         mpts.s.u[p] = SVector{2,T2}(dt * δvx, dt * δvy)
-        mpts.x[1,p] += dt * δvx
-        mpts.x[2,p] += dt * δvy
+        mpts.x[p] += mpts.s.u[p]
         mpts.s.Fn[p] = mpts.s.Fᵢⱼ[p]
         mpts.s.σn[p] = mpts.s.σᵢ[p]
     end
@@ -35,8 +34,7 @@ end
             δvy += N * mesh.s.v[no][2]
         end
         mpts.s.u[p] = SVector{2,T2}(dt * δvx, dt * δvy)
-        mpts.x[1,p] += dt * δvx
-        mpts.x[2,p] += dt * δvy
+        mpts.x[p] += mpts.s.u[p]
         mpts.J[p] = det(mpts.s.Fn[p])
         mpts.s.σᵢ[p] = mpts.s.τᵢ[p] ./ mpts.J[p]
 

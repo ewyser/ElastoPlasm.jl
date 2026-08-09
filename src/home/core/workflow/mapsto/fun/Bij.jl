@@ -15,12 +15,12 @@ Update material point velocities and positions from mesh nodes (PIC scheme, n-di
     p = @index(Global)
     if p ≤ mpts.nmp    
         # Bᵢⱼ update
-        Bᵢⱼ,xₚ = zeros(T2,mesh.prprt.dim,mesh.prprt.dim), mpts.x[:,p]
+        Bᵢⱼ,xₚ = zeros(T2,mesh.prprt.dim,mesh.prprt.dim), mpts.x[p]
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, _ = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
-            δ    = mesh.x[no] .- mpts.x[:,p]
+            δ    = mesh.x[no] - xₚ
             Bᵢⱼ.+= N .* (mesh.s.v[no] * δ')
         end
         mpts.Bᵢⱼ[:,:,p].= Bᵢⱼ

@@ -23,7 +23,7 @@ end
     if iszero(no) 
         return T1(0), T2(0.0), T2(0.0)
     else
-        φξ,∂φξ = N∂N((mpts.x[1,ip]-mesh.x[no][1]),mesh.prprt.h[1])
+        φξ,∂φξ = N∂N((mpts.x[ip][1]-mesh.x[no][1]),mesh.prprt.h[1])
         # return convolution of basis function
         return T1(no), T2(ϕξ), (T2(∂ϕξ),)
     end

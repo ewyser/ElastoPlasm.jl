@@ -41,7 +41,7 @@ end
         v_p   = mpts.s.v[p]
         σ     = mpts.s.σᵢ[p]
         ∇v    = mpts.s.∇vᵢⱼ[p]          # SMatrix: (∇v * δx) gives TPIC correction
-        x_p   = SVector{2,T2}(mpts.x[1,p], mpts.x[2,p])  # zero-alloc, hoisted
+        x_p   = mpts.x[p]  # SVector: zero-alloc, hoisted before nn loop
         for nn ∈ 1:mesh.prprt.nn
             no, N, ∂N = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
@@ -62,7 +62,7 @@ end
         v_p   = mpts.s.v[p]
         σ     = mpts.s.σᵢ[p]
         ∇v    = mpts.s.∇vᵢⱼ[p]
-        x_p   = SVector{3,T2}(mpts.x[1,p], mpts.x[2,p], mpts.x[3,p])
+        x_p   = mpts.x[p]
         for nn ∈ 1:mesh.prprt.nn
             no, N, ∂N = basis(mpts, mesh, p, nn)
             if iszero(no) continue end

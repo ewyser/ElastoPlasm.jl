@@ -24,8 +24,7 @@ Apply nonlocal averaging for regularization of plastic strain at material points
         end
     elseif type == "p->q" && p ≤ mpts.nmp && mpts.s.Δλ[p] != T2(0.0)
         for (it,q) ∈ enumerate(findall(!iszero,mpts.e2p[:,mpts.p2e[p]]))
-            ξ,η = (mpts.x[1,p]-mpts.x[1,q]),(mpts.x[2,p]-mpts.x[2,q])
-            d   = sqrt(ξ^2+η^2)
+            d   = norm(mpts.x[p] - mpts.x[q])
             if w[p,q] == T2(0.0)
                 ω₀     = d/ls*exp(-(d/ls)^2)
                 w[p,q] = ω₀

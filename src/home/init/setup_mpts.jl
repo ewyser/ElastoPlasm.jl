@@ -138,7 +138,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},instr::Instruction{T1,T2,D},cmpr::NamedT
         T1.(zeros(Int,nmp                ))  , # p2e
         T1.(zeros(Int,props.nn,nmp        ))  , # p2n
         # material point properties
-        T2.(copy(xp))                        , # x
+        [TV(T2.(xp[:,i])) for i in 1:nmp]           , # x
         T2.(copy(l0))                        , # ℓ₀
         T2.(copy(l0))                        , # ℓ
         T2.(copy(n0))                        , # n₀

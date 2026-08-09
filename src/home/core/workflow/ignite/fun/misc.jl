@@ -7,7 +7,7 @@
             no, N, _ = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
             # compute Dᵢⱼ tensor
-            δ                = mesh.x[no] .- mpts.x[:,p]
+            δ                = mesh.x[no] .- mpts.x[p]
             mpts.Δnp[nn,:,p].= δ
             mpts.Dᵢⱼ[:,:,p] .= N.*(δ*δ')
         end
