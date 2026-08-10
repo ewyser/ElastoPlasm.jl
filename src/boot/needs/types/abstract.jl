@@ -6,6 +6,10 @@ abstract type AbstractInstruction end
 
 abstract type AbstractTime end
 
+abstract type AbstractTensor{T,D} end
+
+abstract type AbstractStrain{T,D} <: AbstractTensor{T,D} end
+abstract type AbstractStress{T,D} <: AbstractTensor{T,D} end
 
 
 

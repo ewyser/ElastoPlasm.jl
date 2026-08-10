@@ -26,53 +26,65 @@ Convert between tensor and Voigt notation for strain or stress, or mutate tensor
         end
     end
 end
-"""
-    finite_elast(mpts::Point{T1,T2}, Del) where {T1,T2}
 
-Kernel for finite deformation elasticity update at material points.
+@inline function _mutate(ϵ::SMatrix{2,2,T}) where {T}
+    return SVector{3,T}(ϵ[1,1], ϵ[2,2], 2.0*ϵ[1,2])
+end
+@inline function _mutate(ϵ::SMatrix{3,3,T}) where {T}
+    return SVector{6,T}(ϵ[1,1], ϵ[2,2], ϵ[3,3], 2.0*ϵ[2,3], 2.0*ϵ[1,3], 2.0*ϵ[1,2])
+end
 
-# Arguments
-- `mpts::Point{T1,T2}`: Material point data structure.
-- `Del`: Elasticity matrix.
-
-# Returns
-- Updates stress and strain fields in-place.
-"""
-@inline function _logarithmic_strain(ΔF::SMatrix{D,D,T2}, b::SMatrix{D,D,T2}) where {D,T2}
-    # Compute the left Cauchy-Green deformation tensor
-    b    = ΔF * b * ΔF'
-
+@inline function _mutate(ϵ::SVector{3,T}) where {T}
+    return SMatrix{2,2,T}(ϵ[1], 0.5*ϵ[3], 0.5*ϵ[3], ϵ[2])
+end
+@inline function _mutate(ϵ::SVector{6,T}) where {T}
+    return SMatrix{3,3,T}(ϵ[1],0.5*ϵ[6],0.5*ϵ[5], 0.5*ϵ[6],ϵ[2],0.5*ϵ[4], 0.5*ϵ[5],0.5*ϵ[4],ϵ[3])
+end
+#=
+@inline function _logarithmic_strain(ΔFᵢⱼ::SMatrix{D,D,T2}, ϵᵢⱼ::SMatrix{D,D,T2}) where {D,T2}
+    # Compute trial left Cauchy-Green tensor
+    λ,n = eigen(Symmetric(ϵᵢⱼ))
+    bᵢⱼ = ΔFᵢⱼ * (n * diagm(exp.(2.0 * λ)) * n') * ΔFᵢⱼ'
     # Compute the logarithmic strain tensor using eigen decomposition
-    λ, n = eigen(Symmetric(b))
-
+    λ, n = eigen(Symmetric(bᵢⱼ))
     # Compute the logarithmic strain tensor
-    ϵ    = T2(0.5) * (n * diagm(log.(λ)) * n')
-
+    ϵᵢⱼ  = T2(0.5) * (n * diagm(log.(λ)) * n')
+    # Return updated logarithmic strain tensor
+    return SMatrix{D,D,T2}(ϵᵢⱼ)
+end
+=#
+@inline function _logarithmic_strain(ΔFᵢⱼ::SMatrix{D,D,T2}, bᵢⱼ::SMatrix{D,D,T2}) where {D,T2}
+    #=
+    # Compute trial left Cauchy-Green tensor
+    λ,n = eigen(Symmetric(ϵᵢⱼ))
+    bᵢⱼ = ΔFᵢⱼ * (n * diagm(exp.(2.0 * λ)) * n') * ΔFᵢⱼ'
+    =#      
+    # Compute the left Cauchy-Green deformation tensor
+    bᵢⱼ    = ΔFᵢⱼ * bᵢⱼ * ΔFᵢⱼ'
+    # Compute the logarithmic strain tensor using eigen decomposition
+    λ, n = eigen(Symmetric(bᵢⱼ))
+    # Compute the logarithmic strain tensor
+    ϵᵢⱼ  = T2(0.5) * (n * diagm(log.(λ)) * n')
     # Return updated left Cauchy-Green tensor and logarithmic strain tensor
-    return b, ϵ
+    return bᵢⱼ, ϵᵢⱼ
 end
 @inline function _kirchoff_stress(ϵᵢⱼ::SMatrix{2,2,T2}, Kc::T2, Gc::T2) where {D,T2}
     # Compute volumetric strain
     ϵV  = tr(ϵᵢⱼ) / T2(3.0)
-
     # Calculate pressure (positive in compression)
     P   = - T2(3.0) * Kc * ϵV
-
     # Calculate Krichhoff stress tensor
     τxx = T2(2.0) * Gc * (ϵᵢⱼ[1,1] - ϵV) - P
     τyy = T2(2.0) * Gc * (ϵᵢⱼ[2,2] - ϵV) - P
     τxy = T2(2.0) * Gc *  ϵᵢⱼ[1,2]
-    
     # Return Krichhoff stress in Voigt notation
     return SVector{3,T2}(τxx, τyy, τxy)
 end
 @inline function _kirchoff_stress(ϵᵢⱼ::SMatrix{3,3,T2}, Kc::T2, Gc::T2) where {T2}
     # Compute volumetric strain
     ϵV  = tr(ϵᵢⱼ) / T2(3.0)
-
     # Calculate pressure (positive in compression)
     P   = - T2(3.0) * Kc * ϵV
-
     # Calculate Krichhoff stress tensor
     τxx = T2(2.0) * Gc * (ϵᵢⱼ[1,1] - ϵV) - P
     τyy = T2(2.0) * Gc * (ϵᵢⱼ[2,2] - ϵV) - P
@@ -80,7 +92,6 @@ end
     τxy = T2(2.0) * Gc *  ϵᵢⱼ[1,2]
     τxz = T2(2.0) * Gc *  ϵᵢⱼ[1,3]
     τyz = T2(2.0) * Gc *  ϵᵢⱼ[2,3]
-
     # Return Krichhoff stress in Voigt notation
     return SVector{6,T2}(τxx, τyy, τzz, τxy, τxz, τyz)
 end
@@ -91,7 +102,7 @@ end
         b, ϵ = _logarithmic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.bᵢⱼ[p])
         mpts.s.bᵢⱼ[p] = b
         mpts.s.ϵᵢⱼ[p] = ϵ
-        mpts.s.τᵢ[p]  = eltype(mpts.s.τᵢ)(Del * mutate(ϵ, T2(2.0), :voigt))
+        mpts.s.τᵢ[p]  = eltype(mpts.s.τᵢ)(Del * _mutate(ϵ))
     end
 end
 """
