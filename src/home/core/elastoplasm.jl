@@ -40,9 +40,8 @@ function elastoplasm(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <
                 opts = (; file = path, )
                 save_plot(opts)
             end
+            sleep(1.0)
         end
-        sleep(1.0)
-
     end
     # return success message
     exit_log("(✓) Done! exiting...\n")
@@ -57,23 +56,27 @@ function elastoplasm!(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S 
         # action
         for (k,workflow!) ∈ enumerate(workflows)
             @info elastoplasm_log(solver; msg = "$workflow!")
-            workflow!(mpts,mesh,cmpr,time,solver)
+            workflow!(mpts,mesh,cmpr,time,solver)         
+            # postprocessing
+            if solver.plot.status
+                dimension   = string(Base.unwrap_unionall(typeof(solver)).parameters[3])
+                solution    = string(nameof(typeof(solver)))
+                deformation = string(solver.fwrk.deform)
+                workflow    = string(workflow!)
+                quantity    = join([v.mpts.name for v in solver.plot.what if haskey(v, :mpts)], "_")
+                name        = "$(dimension)_$(solution)_$(deformation)_$(workflow)_$(quantity).png"
+                path        = joinpath(paths[:plot],replace(name, " " => "_"))
+                opts = (; file = path, )
+                save_plot(opts)
+            end
+            # update initial conditions in jld2 file
+            delete!(file, "ic")
+            file["ic/mesh"] = mesh
+            file["ic/mpts"] = mpts
+            file["ic/cmpr"] = cmpr
+            file["ic/time"] = time
+            sleep(1.0)
         end
-        sleep(1.0)
-        # postprocessing
-        if solver.plot.status
-            names     = [v.mpts.name for v in solver.plot.what if haskey(v, :mpts)]
-            figname   = "$(misc.prefix)_$(lowercase(join(names, "_"))).png"
-            file_path = joinpath(paths[:plot], replace(figname, " " => "_"))
-            opts = (; file = file_path, )
-            save_plot(opts)
-        end
-        # update initial conditions in jld2 file
-        delete!(file, "ic")
-        file["ic/mesh"] = mesh
-        file["ic/mpts"] = mpts
-        file["ic/cmpr"] = cmpr
-        file["ic/time"] = time
     end
     # return success message
     exit_log("(✓) Done! exiting...\n")
