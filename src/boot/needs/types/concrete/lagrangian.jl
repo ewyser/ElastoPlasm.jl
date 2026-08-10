@@ -33,7 +33,6 @@ struct FiniteElasticity{T1,T2,D} <: AbstractElasticity{T1,T2}
     σᵢ   ::Matrix{T2}
     τᵢ   ::Matrix{T2}
     # tensor in matrix notation
-    bᵢⱼ  ::Array{T2,3}
     ϵᵢⱼ  ::Array{T2,3}
 end
 function FiniteElasticity(::Type{T1}, ::Type{T2}, nmp::Integer, ndim::Integer) where {T1,T2}
@@ -44,9 +43,8 @@ function FiniteElasticity(::Type{T1}, ::Type{T2}, nmp::Integer, ndim::Integer) w
     end
     σᵢ  = zeros(T2, nstr, nmp)
     τᵢ  = zeros(T2, nstr, nmp)
-    bᵢⱼ = zeros(T2, ndim, ndim, nmp)
     ϵᵢⱼ = zeros(T2, ndim, ndim, nmp)
-    return FiniteElasticity{T1,T2,ndim}(σᵢ, τᵢ, bᵢⱼ, ϵᵢⱼ)
+    return FiniteElasticity{T1,T2,ndim}(σᵢ, τᵢ, ϵᵢⱼ)
 end
 @adapt_struct FiniteElasticity
 
@@ -83,8 +81,6 @@ struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology,TM,TV,T
     ΔFᵢⱼ ::Vector{TM}
     Fᵢⱼ  ::Vector{TM}
     Fn   ::Vector{TM}
-    bᵢⱼ  ::Vector{TM}
-    bn   ::Vector{TM}
     ϵᵢⱼ  ::Vector{TM}
     ϵn   ::Vector{TM}
     ωᵢⱼ  ::Vector{TM}

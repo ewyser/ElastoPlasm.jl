@@ -94,8 +94,6 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedT
         [zero(TM) for _ in 1:nmp]                          , # ΔFᵢⱼ
         [TM(I)    for _ in 1:nmp]                          , # Fᵢⱼ
         [TM(I)    for _ in 1:nmp]                          , # Fn
-        [TM(I)    for _ in 1:nmp]                          , # bᵢⱼ
-        [TM(I)    for _ in 1:nmp]                          , # bn
         [zero(TM) for _ in 1:nmp]                          , # ϵᵢⱼ
         [zero(TM) for _ in 1:nmp]                          , # ϵn
         [zero(TM) for _ in 1:nmp]                          , # ωᵢⱼ

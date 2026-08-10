@@ -40,7 +40,6 @@ end
 @inline function _mutate(ϵ::SVector{6,T}) where {T}
     return SMatrix{3,3,T}(ϵ[1],0.5*ϵ[6],0.5*ϵ[5], 0.5*ϵ[6],ϵ[2],0.5*ϵ[4], 0.5*ϵ[5],0.5*ϵ[4],ϵ[3])
 end
-#=
 @inline function _logarithmic_strain(ΔFᵢⱼ::SMatrix{D,D,T2}, ϵᵢⱼ::SMatrix{D,D,T2}) where {D,T2}
     # Compute trial left Cauchy-Green tensor
     λ,n = eigen(Symmetric(ϵᵢⱼ))
@@ -51,22 +50,6 @@ end
     ϵᵢⱼ  = T2(0.5) * (n * diagm(log.(λ)) * n')
     # Return updated logarithmic strain tensor
     return SMatrix{D,D,T2}(ϵᵢⱼ)
-end
-=#
-@inline function _logarithmic_strain(ΔFᵢⱼ::SMatrix{D,D,T2}, bᵢⱼ::SMatrix{D,D,T2}) where {D,T2}
-    #=
-    # Compute trial left Cauchy-Green tensor
-    λ,n = eigen(Symmetric(ϵᵢⱼ))
-    bᵢⱼ = ΔFᵢⱼ * (n * diagm(exp.(2.0 * λ)) * n') * ΔFᵢⱼ'
-    =#      
-    # Compute the left Cauchy-Green deformation tensor
-    bᵢⱼ    = ΔFᵢⱼ * bᵢⱼ * ΔFᵢⱼ'
-    # Compute the logarithmic strain tensor using eigen decomposition
-    λ, n = eigen(Symmetric(bᵢⱼ))
-    # Compute the logarithmic strain tensor
-    ϵᵢⱼ  = T2(0.5) * (n * diagm(log.(λ)) * n')
-    # Return updated left Cauchy-Green tensor and logarithmic strain tensor
-    return bᵢⱼ, ϵᵢⱼ
 end
 @inline function _kirchoff_stress(ϵᵢⱼ::SMatrix{2,2,T2}, Kc::T2, Gc::T2) where {D,T2}
     # Compute volumetric strain
@@ -99,12 +82,20 @@ end
 @kernel inbounds = true function elast(mpts::Point{T1,T2,D,B,E,R},Del) where {T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
-        b, ϵ = _logarithmic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.bᵢⱼ[p])
-        mpts.s.bᵢⱼ[p] = b
+        ϵ = _logarithmic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.ϵᵢⱼ[p])
         mpts.s.ϵᵢⱼ[p] = ϵ
         mpts.s.τᵢ[p]  = eltype(mpts.s.τᵢ)(Del * _mutate(ϵ))
     end
 end
+#=
+@kernel inbounds = true function elast(mpts::Point{T1,T2,D,B,E,R},Del) where {T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        mpts.s.ϵᵢⱼ[p] = _logarithmic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.ϵᵢⱼ[p])
+        mpts.s.τᵢ[p]  = _kirchoff_stress(mpts.s.ϵᵢⱼ[p], Kc, Gc)
+    end
+end
+=#
 """
     infinitesimal_elast(mpts::Point{T1,T2}, Del) where {T1,T2}
 

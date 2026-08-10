@@ -60,11 +60,9 @@ end
             mpts.s.τᵢ[p]   = eltype(mpts.s.τᵢ)(σn(Pn,τ0,T2(0.0),τII,nstr))
             mpts.s.ϵpII[1,p]+= sqrt(T2(2.0))*Δλ/T2(3.0)
         end
-        # update strain tensor & left cauchy green deformation tensor
+        # update logarithmicstrain tensor
         ϵ_mat = mutate(cmp.Del\mpts.s.τᵢ[p],T2(0.5),:tensor)
         mpts.s.ϵᵢⱼ[p] = eltype(mpts.s.ϵᵢⱼ)(ϵ_mat)
-        λ,n = eigen(ϵ_mat)
-        mpts.s.bᵢⱼ[p] = eltype(mpts.s.bᵢⱼ)(n*diagm(exp.(T2(2.0).*λ))*n')
     end
 end
 @views @kernel inbounds = true function infinitesimal_DP(mpts::Point{T1,T2},cmp::NamedTuple) where {T1,T2}
