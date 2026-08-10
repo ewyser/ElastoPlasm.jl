@@ -38,15 +38,59 @@ Kernel for finite deformation elasticity update at material points.
 # Returns
 - Updates stress and strain fields in-place.
 """
+@inline function _logarithmic_strain(ΔF::SMatrix{D,D,T2}, b::SMatrix{D,D,T2}) where {D,T2}
+    # Compute the left Cauchy-Green deformation tensor
+    b    = ΔF * b * ΔF'
+
+    # Compute the logarithmic strain tensor using eigen decomposition
+    λ, n = eigen(Symmetric(b))
+
+    # Compute the logarithmic strain tensor
+    ϵ    = T2(0.5) * (n * diagm(log.(λ)) * n')
+
+    # Return updated left Cauchy-Green tensor and logarithmic strain tensor
+    return b, ϵ
+end
+@inline function _kirchoff_stress(ϵᵢⱼ::SMatrix{2,2,T2}, Kc::T2, Gc::T2) where {D,T2}
+    # Compute volumetric strain
+    ϵV  = tr(ϵᵢⱼ) / T2(3.0)
+
+    # Calculate pressure (positive in compression)
+    P   = - T2(3.0) * Kc * ϵV
+
+    # Calculate Krichhoff stress tensor
+    τxx = T2(2.0) * Gc * (ϵᵢⱼ[1,1] - ϵV) - P
+    τyy = T2(2.0) * Gc * (ϵᵢⱼ[2,2] - ϵV) - P
+    τxy = T2(2.0) * Gc *  ϵᵢⱼ[1,2]
+    
+    # Return Krichhoff stress in Voigt notation
+    return SVector{3,T2}(τxx, τyy, τxy)
+end
+@inline function _kirchoff_stress(ϵᵢⱼ::SMatrix{3,3,T2}, Kc::T2, Gc::T2) where {T2}
+    # Compute volumetric strain
+    ϵV  = tr(ϵᵢⱼ) / T2(3.0)
+
+    # Calculate pressure (positive in compression)
+    P   = - T2(3.0) * Kc * ϵV
+
+    # Calculate Krichhoff stress tensor
+    τxx = T2(2.0) * Gc * (ϵᵢⱼ[1,1] - ϵV) - P
+    τyy = T2(2.0) * Gc * (ϵᵢⱼ[2,2] - ϵV) - P
+    τzz = T2(2.0) * Gc * (ϵᵢⱼ[3,3] - ϵV) - P
+    τxy = T2(2.0) * Gc *  ϵᵢⱼ[1,2]
+    τxz = T2(2.0) * Gc *  ϵᵢⱼ[1,3]
+    τyz = T2(2.0) * Gc *  ϵᵢⱼ[2,3]
+
+    # Return Krichhoff stress in Voigt notation
+    return SVector{6,T2}(τxx, τyy, τzz, τxy, τxz, τyz)
+end
+
 @kernel inbounds = true function elast(mpts::Point{T1,T2,D,B,E,R},Del) where {T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
-        ΔF = mpts.s.ΔFᵢⱼ[p]
-        b  = ΔF * mpts.s.bᵢⱼ[p] * ΔF'
-        λ, n = eigen(b)
-        ϵ = T2(0.5) .* (n * diagm(log.(λ)) * n')
+        b, ϵ = _logarithmic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.bᵢⱼ[p])
         mpts.s.bᵢⱼ[p] = b
-        mpts.s.ϵᵢⱼ[p] = eltype(mpts.s.ϵᵢⱼ)(ϵ)
+        mpts.s.ϵᵢⱼ[p] = ϵ
         mpts.s.τᵢ[p]  = eltype(mpts.s.τᵢ)(Del * mutate(ϵ, T2(2.0), :voigt))
     end
 end
