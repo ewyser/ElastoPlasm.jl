@@ -21,7 +21,7 @@ function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_ve
     if showcase == "slumping"
         printstyled("│", color=:green, bold=true); println("   L,nel  = [64.1584,64.1584/4.0],[40,10];")
         printstyled("│", color=:green, bold=true); println("   jld2   = ic_slump(L,nel;cli()...);")
-        printstyled("└", color=:green, bold=true); println("   out    = elastoplasm(jld2; workflow = [elastodynamic!,elastoplastic!]);")
+        printstyled("└", color=:green, bold=true); println("   out    = elastoplasm(jld2; workflows = [elastodynamic!,elastoplastic!]);")
     elseif showcase == "collapsing"
         printstyled("│", color=:green, bold=true); println("   plot    = (; status=true, freq=1.0, what=[\"sigxx\"], dims=(500.0,250.0) );")
         printstyled("│", color=:green, bold=true); println("   nel     = [5,10];")
@@ -102,7 +102,7 @@ function elastoplasm_log(solver::S; msg::String="elastodynamic") where {T1<:Inte
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "└ $(nthreads()) active thread(s)",
-        "- solver: $(typeof(solver))",
+        "- solver: $(string(nameof(typeof(solver))))",
         "- $(solver.fwrk.deform) strain formulation",
         "- $(solver.fwrk.trsfr) mapping scheme",
         "- $(solver.basis.which) calculation cycle",
