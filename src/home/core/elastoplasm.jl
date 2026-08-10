@@ -30,9 +30,14 @@ function elastoplasm(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <
             workflow!(mpts,mesh,cmpr,time,solver)
             # postprocessing
             if solver.plot.status
-                names     = [v.mpts.name for v in solver.plot.what if haskey(v, :mpts)]
-                file_path = joinpath(paths[:plot], "$(misc.prefix)_$(join(names, "_"))_$(string(nameof(typeof(solver))))_$(string(workflow!))_$(solver.fwrk.deform).png")
-                opts = (; file = file_path, )
+                dimension   = string(Base.unwrap_unionall(typeof(solver)).parameters[3])
+                solution    = string(nameof(typeof(solver)))
+                deformation = string(solver.fwrk.deform)
+                workflow    = string(workflow!)
+                quantity    = join([v.mpts.name for v in solver.plot.what if haskey(v, :mpts)], "_")
+                name        = "$(dimension)_$(solution)_$(deformation)_$(workflow)_$(quantity).png"
+                path        = joinpath(paths[:plot],replace(name, " " => "_"))
+                opts = (; file = path, )
                 save_plot(opts)
             end
         end
