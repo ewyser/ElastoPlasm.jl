@@ -27,21 +27,23 @@ end
 
 
 
-abstract type AbstractStress{T} <: AbstractTensor{T} end
+abstract type AbstractStress{S,T,L} <: AbstractTensor{T} end
 
-struct CauchyStress{S, T, L} <: AbstractStress{T}
+@inline function _get_tensor(stress::AbstractStress{S, T, L}) where {S, T, L}
+    return stress.dev - stress.p * SMatrix{S,S,T,L}(I) # positive in compression
+end
+
+struct CauchyStress{S, T, L} <: AbstractStress{S, T, L}
     p  ::T
     dev::SMatrix{S,S,T,L}
 end
-struct KirchhoffStress{S, T, L} <: AbstractStress{T}
+struct KirchhoffStress{S, T, L} <: AbstractStress{S, T, L}
     p  ::T
     dev::SMatrix{S,S,T,L}
 end
 
 
 
-@inline function _get_tensor(stress::AbstractStress{S1, S2, T, L}) where {S1, S2, T, L}
-    return stress.dev - stress.p * SMatrix{L,L,T}(I) # positive in compression
-end
+
 
 
