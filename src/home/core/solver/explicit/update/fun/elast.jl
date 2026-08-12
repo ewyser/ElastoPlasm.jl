@@ -40,7 +40,25 @@ end
 @inline function _mutate(ϵ::SVector{6,T}) where {T}
     return SMatrix{3,3,T}(ϵ[1],0.5*ϵ[6],0.5*ϵ[5], 0.5*ϵ[6],ϵ[2],0.5*ϵ[4], 0.5*ϵ[5],0.5*ϵ[4],ϵ[3])
 end
-@inline function _logarithmic_strain(ΔFᵢⱼ::SMatrix{D,D,T2}, ϵᵢⱼ::SMatrix{D,D,T2}) where {D,T2}
+
+
+@inline function _to_voigt(ϵ::SMatrix{2,2,T}; coeff::T = 2.0) where {T}
+    return SVector{3,T}(ϵ[1,1], ϵ[2,2], coeff*ϵ[1,2])
+end
+@inline function _to_voigt(ϵ::SMatrix{3,3,T}; coeff::T = 2.0) where {T}
+    return SVector{6,T}(ϵ[1,1], ϵ[2,2], ϵ[3,3], coeff*ϵ[2,3], coeff*ϵ[1,3], coeff*ϵ[1,2])
+end
+
+@inline function _from_voigt(ϵ::SVector{3,T}; coeff::T = 0.5) where {T}
+    return SMatrix{2,2,T}(ϵ[1], coeff*ϵ[3], coeff*ϵ[3], ϵ[2])
+end
+@inline function _from_voigt(ϵ::SVector{6,T}; coeff::T = 0.5) where {T}
+    return SMatrix{3,3,T}(ϵ[1],coeff*ϵ[6],coeff*ϵ[5], coeff*ϵ[6],ϵ[2],coeff*ϵ[4], coeff*ϵ[5],coeff*ϵ[4],ϵ[3])
+end
+
+
+
+@inline function _logarithmic_strain(ΔFᵢⱼ::SMatrix{D,D,T2}, ϵᵢⱼ::SMatrix{D,D,T2}) where {D,T2} # -> function _update_strain(ΔFᵢⱼ::SMatrix{D,D,T2}, ϵᵢⱼ::LogarithmicSrain{D,D,T2}) where {D,T2} using @inline function _get_tensor(strain::AbstractStrain{T,D})
     # Compute trial left Cauchy-Green tensor
     λ,n = eigen(Symmetric(ϵᵢⱼ))
     bᵢⱼ = ΔFᵢⱼ * (n * diagm(exp.(2.0 * λ)) * n') * ΔFᵢⱼ'
@@ -63,6 +81,18 @@ end
     # Return Krichhoff stress in Voigt notation
     return SVector{3,T2}(τxx, τyy, τxy)
 end
+@inline function _kirchoff_stress(ϵᵢ::SVector{3,T2}, Kc::T2, Gc::T2) where {D,T2}
+    # Compute volumetric strain
+    ϵV  = (ϵᵢ[1]+ϵᵢ[2]) / T2(3.0)
+    # Calculate pressure (positive in compression)
+    P   = - T2(3.0) * Kc * ϵV
+    # Calculate Krichhoff stress tensor
+    τxx = T2(2.0) * Gc * (ϵᵢ[1] - ϵV) - P
+    τyy = T2(2.0) * Gc * (ϵᵢ[2] - ϵV) - P
+    τxy = T2(2.0) * Gc *  ϵᵢ[3]
+    # Return Krichhoff stress in Voigt notation
+    return SVector{3,T2}(τxx, τyy, τxy)
+end
 @inline function _kirchoff_stress(ϵᵢⱼ::SMatrix{3,3,T2}, Kc::T2, Gc::T2) where {T2}
     # Compute volumetric strain
     ϵV  = tr(ϵᵢⱼ) / T2(3.0)
@@ -78,13 +108,29 @@ end
     # Return Krichhoff stress in Voigt notation
     return SVector{6,T2}(τxx, τyy, τzz, τxy, τxz, τyz)
 end
+@inline function _kirchoff_stress(ϵᵢ::SVector{6,T2}, Kc::T2, Gc::T2) where {T2}
+    # Compute volumetric strain
+    ϵV  = (ϵᵢ[1]+ϵᵢ[2]+ϵᵢ[3]) / T2(3.0)
+    # Calculate pressure (positive in compression)
+    P   = - T2(3.0) * Kc * ϵV
+    # Calculate Krichhoff stress tensor
+    τxx = T2(2.0) * Gc * (ϵᵢ[1] - ϵV) - P
+    τyy = T2(2.0) * Gc * (ϵᵢ[2] - ϵV) - P
+    τzz = T2(2.0) * Gc * (ϵᵢ[3] - ϵV) - P
+    τxy = T2(2.0) * Gc *  ϵᵢ[4]
+    τxz = T2(2.0) * Gc *  ϵᵢ[5]
+    τyz = T2(2.0) * Gc *  ϵᵢ[6]
+    # Return Krichhoff stress in Voigt notation
+    return SVector{6,T2}(τxx, τyy, τzz, τxy, τxz, τyz)
+end
+
 
 @kernel inbounds = true function elast(mpts::Point{T1,T2,D,B,E,R},Del) where {T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
-        ϵ = _logarithmic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.ϵᵢⱼ[p])
-        mpts.s.ϵᵢⱼ[p] = ϵ
-        mpts.s.τᵢ[p]  = eltype(mpts.s.τᵢ)(Del * _mutate(ϵ))
+        ϵᵢⱼ           = _logarithmic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.ϵᵢⱼ[p])
+        mpts.s.ϵᵢⱼ[p] = ϵᵢⱼ
+        mpts.s.τᵢ[p]  = eltype(mpts.s.τᵢ)(Del * _to_voigt(ϵᵢⱼ))
     end
 end
 #=
