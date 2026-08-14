@@ -69,7 +69,7 @@ function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,sol
     # update {logarithmic|infinitesimal} strains
     solver.cairn.update.deform!(mpts,mesh,dt; ndrange=mpts.nmp);sync(CPU())
     # update {kirchoff|cauchy} stresses
-    solver.cairn.update.elast!(mpts,cmpr.Del; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.update.elast!(mpts,cmpr.Kc, cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
     # update mp's coordinates
     solver.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     return nothing
@@ -94,7 +94,7 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T
         solver.cairn.update.ΔJp!(mpts,mesh,dim; ndrange=mpts.nmp);sync(CPU())
     end
     # update {kirchoff|cauchy} stresses
-    solver.cairn.update.elast!(mpts,cmpr.Del; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.update.elast!(mpts,cmpr.Kc, cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
     # plastic corrector
     if solver.nonloc.status
         fill!(mpts.e2p,T1(0))
