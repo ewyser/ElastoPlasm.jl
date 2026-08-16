@@ -57,25 +57,25 @@ function get_nodes(el::T, nno::Vector{T}, nel::Vector{T}, nbs::Neighbs{T,3,NN}; 
 end
 
 """
-    e2n(nel::Vector{T}, nno::Vector{T}, nbs::neighbs{T,D}) where {T<:Integer, D}
+    get_element_to_nodes(nel::Vector{T}, nno::Vector{T}, nbs::Neighbs{T,D,NN}) where {T,D,NN}
 
-Construct the element-to-node connectivity matrix for a structured mesh using a generic neighbor stencil.
+Construct the element-to-node connectivity for a structured mesh using a generic neighbor stencil.
 
 # Arguments
 - `nel::Vector{T}`: Number of elements in each direction and total.
 - `nno::Vector{T}`: Number of nodes in each direction and total.
-- `nbs::neighbs{T,D}`: Neighbor stencil object (see `neighbs` struct).
+- `nbs::Neighbs{T,D,NN}`: Neighbor stencil object (see `Neighbs` struct).
 
 # Returns
-- `e2n::Matrix{T}`: Element-to-node connectivity matrix (each column contains the node indices for one element, padded with zeros for out-of-bounds neighbors).
+- `e2n::Vector{SVector{NN,T}}`: Element-to-node connectivity — one `SVector` of `NN` node indices per element, padded with zeros for out-of-bounds neighbors.
 
 # Example
 ```julia
 # 2D mesh: 10x10 elements, 11x11 nodes
 nno = [11, 11, 121]
 nel = [10, 10, 100]
-stencil = neighbs((Int(-1):Int(2), Int(-1):Int(2)))  # 4x4 stencil
-e2n_mat = get_element_to_nodes(nel, nno, stencil)
+stencil = Neighbs((Int(-1):Int(2), Int(-1):Int(2)))  # 4x4 stencil
+e2n = get_element_to_nodes(nel, nno, stencil)
 ```
 """
 function get_element_to_nodes(nel::Vector{T}, nno::Vector{T}, nbs::Neighbs{T,D,NN}) where {T, D, NN}

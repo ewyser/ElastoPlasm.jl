@@ -16,7 +16,7 @@ export elastoimplicit!,elastoquasistatic!,elastouP!,elastoquasistaticuP!
 
 
 
-function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
+function pt_solve!(mpts, mesh, basis, cmpr, g, dt, instr;
     nit::Int         = 50000,
     ncheck::Int      = 50,
     CFL              = 0.9,
@@ -52,7 +52,7 @@ function pt_solve!(mpts, mesh, cmpr, g, dt, instr;
 
         # Compute oobf
         fill!(mesh.s.oobf, T(0.0))
-        instr.cairn.implicit.oobf_assembly!(mpts,mesh,g,dt,cmpr.Kc,cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
+        instr.cairn.implicit.oobf_assembly!(mpts,mesh,basis,g,dt,cmpr.Kc,cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
 
         # Residual
         @inbounds for no in 1:nno
@@ -118,12 +118,12 @@ function init_implicit(instr::NamedTuple; implicit::Dict{Symbol,Cairn} = Dict{Sy
     return (; implicit...)
 end
 
-function relax(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::S) where {T1,T2,D,NN,E,R,S<:AbstractSolver{T1,T2,D}}
+function relax(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
     fill!(mesh.s.m   ,T2(0))
     fill!(mesh.s.oobf,T2(0))
     fill!(mesh.s.v   , zero(eltype(mesh.s.v)))
-    instr.cairn.implicit.mass_assembly!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
-    return pt_solve!(mpts,mesh,cmpr,g,dt,instr; quasi_static=true)
+    instr.cairn.implicit.mass_assembly!(mpts,mesh,basis,g; ndrange=mpts.nmp);sync(CPU())
+    return pt_solve!(mpts,mesh,basis,cmpr,g,dt,instr; quasi_static=true)
 end
 
 
@@ -169,7 +169,7 @@ elastoplasm(sim; workflow=[elastoquasistatic!])
 #   R_p = ∫N(div v + p/K) dΩ                 (continuity, pressure DOF)
 # Two independent PT loops: velocity (Δτ_u) and pressure (Δτ_p).
 # ---------------------------------------------------------------------------
-function pt_solve_uP!(mpts, mesh, cmpr, g, dt, instr;
+function pt_solve_uP!(mpts, mesh, basis, cmpr, g, dt, instr;
     iterMax    ::Int  = 500,
     ncheck     ::Int  = 50,
     CFL              = 0.9,
@@ -253,7 +253,7 @@ function pt_solve_uP!(mpts, mesh, cmpr, g, dt, instr;
         @inbounds for p_idx in 1:mpts.nmp
             pp = T(0)
             for nn in 1:mesh.prprt.nn
-                no, N, _ = basis(mpts, mesh, T1(p_idx), T1(nn))
+                no, N, _ = eval_basis(mpts, mesh, basis, T1(p_idx), T1(nn))
                 iszero(no) && continue
                 pp += N * mesh.s.p[no]
             end
@@ -261,15 +261,15 @@ function pt_solve_uP!(mpts, mesh, cmpr, g, dt, instr;
         end
 
         # --- trial deformation + deviatoric stress reset + elast_dev ---
-        instr.cairn.implicit.trial_deform!(mpts,mesh,dt; ndrange=mpts.nmp);sync(CPU())
+        instr.cairn.implicit.trial_deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
         mpts.s.σᵢ .= σ_n
         instr.cairn.implicit.elast_dev!(mpts,cmpr.Gc,p_n; ndrange=mpts.nmp);sync(CPU())
 
         # --- recompute f_int and continuity residual ---
         fill!(mesh.s.oobf, T(0))
         fill!(mesh.s.oobp, T(0))
-        instr.cairn.implicit.fint_p2n!(mpts,mesh,g;   ndrange=mpts.nmp);sync(CPU())
-        instr.cairn.implicit.div_p2n!( mpts,mesh,Kc,p_n;  ndrange=mpts.nmp);sync(CPU())
+        instr.cairn.implicit.fint_p2n!(mpts,mesh,basis,g;   ndrange=mpts.nmp);sync(CPU())
+        instr.cairn.implicit.div_p2n!( mpts,mesh,basis,Kc,p_n;  ndrange=mpts.nmp);sync(CPU())
 
         if do_check
             nr_u = norm(R_u);  nr_p = norm(R_p)
@@ -316,7 +316,7 @@ function pt_solve_uP!(mpts, mesh, cmpr, g, dt, instr;
     return nothing
 end
 
-function mapsto_uP(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::S; quasi_static::Bool=false) where {T1,T2,D,NN,E,R,S<:AbstractSolver{T1,T2,D}}
+function mapsto_uP(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::S; quasi_static::Bool=false) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
     fill!(mesh.s.m   ,T2(0))
     fill!(mesh.s.mv  ,T2(0))
     fill!(mesh.s.oobf,T2(0))
@@ -324,7 +324,7 @@ function mapsto_uP(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,
     fill!(mesh.s.a   , zero(eltype(mesh.s.a)))
     fill!(mesh.s.v   , zero(eltype(mesh.s.v)))
     fill!(mesh.s.p   ,T2(0))
-    instr.cairn.mapsto.map.p2n!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
+    instr.cairn.mapsto.map.p2n!(mpts,mesh,basis,g; ndrange=mpts.nmp);sync(CPU())
     @inbounds for no in 1:mesh.prprt.nno[end]
         iszero(mesh.s.m[no]) && continue
         mi = mesh.s.m[no]
@@ -338,7 +338,7 @@ function mapsto_uP(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,
     let vol = zeros(T2, mesh.prprt.nno[end])
         @inbounds for p_idx in T1(1):T1(mpts.nmp)
             for nn in T1(1):T1(mesh.prprt.nn)
-                no, N, _ = basis(mpts, mesh, p_idx, nn)
+                no, N, _ = eval_basis(mpts, mesh, basis, p_idx, nn)
                 iszero(no) && continue
                 mesh.s.p[no] += N * mpts.Ω[p_idx] * mpts.s.p[p_idx]
                 vol[no]       += N * mpts.Ω[p_idx]
@@ -348,12 +348,12 @@ function mapsto_uP(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,
             iszero(vol[no]) || (mesh.s.p[no] /= vol[no])
         end
     end
-    pt_solve_uP!(mpts,mesh,cmpr,g,dt,instr; quasi_static=quasi_static)
-    instr.cairn.implicit.n2p!(mpts,mesh,dt,T2(instr.fwrk.C_pf); ndrange=mpts.nmp);sync(CPU())
+    pt_solve_uP!(mpts,mesh,basis,cmpr,g,dt,instr; quasi_static=quasi_static)
+    instr.cairn.implicit.n2p!(mpts,mesh,basis,dt,T2(instr.fwrk.C_pf); ndrange=mpts.nmp);sync(CPU())
     return nothing
 end
 
-function elastoquasistaticuP!(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::S) where {T1,T2,D,NN,E,R,S<:AbstractSolver{T1,T2,D}}
+function elastoquasistaticuP!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,D},cmpr::NamedTuple,time::Time{T1,T2},instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
     it   = T1(0)
     prog = Progress(40; dt=0.5, desc="Solving elasto quasi-static u-P...", barlen=10)
     lstps = collect(range(0, 9.8; length=40))
@@ -362,9 +362,9 @@ function elastoquasistaticuP!(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::
         dt  = T2(1)
         g   = T2[T2(0), -lstp]
 
-        ignite(mpts, mesh, instr)
-        mapsto_uP(mpts, mesh, cmpr, g, dt, instr; quasi_static=true)
-        elasto(mpts, mesh, cmpr, dt, instr)
+        ignite(mpts, mesh, basis, instr)
+        mapsto_uP(mpts, mesh, basis, cmpr, g, dt, instr; quasi_static=true)
+        elasto(mpts, mesh, basis, cmpr, dt, instr)
         time.t[1], it, toc = time.t[1]+dt, it+T1(1), (time_ns()-tic)
 
         savlot(mpts, mesh, time.t[1], instr)
@@ -374,7 +374,7 @@ function elastoquasistaticuP!(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::
     return nothing
 end
 
-function elastouP!(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::S) where {T1,T2,D,NN,E,R,S<:AbstractSolver{T1,T2,D}}
+function elastouP!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,D},cmpr::NamedTuple,time::Time{T1,T2},instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.te)))
     prog = Progress(length(checks);dt=0.5,desc="Solving elasto u-P...",barlen=10)
     for ck ∈ checks
@@ -382,9 +382,9 @@ function elastouP!(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,
             tic    = time_ns()
             g, dt  = get_spacetime(mpts,mesh,cmpr,time,ck)
 
-            ignite(mpts,mesh,instr)
-            mapsto_uP(mpts,mesh,cmpr,g,dt,instr)
-            elasto(mpts,mesh,cmpr,dt,instr)
+            ignite(mpts,mesh,basis,instr)
+            mapsto_uP(mpts,mesh,basis,cmpr,g,dt,instr)
+            elasto(mpts,mesh,basis,cmpr,dt,instr)
             time.t[1], it, toc = time.t[1]+dt, it+T1(1), (time_ns()-tic)
         end
         savlot(mpts,mesh,time.t[1],instr)

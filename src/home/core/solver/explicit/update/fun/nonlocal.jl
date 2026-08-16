@@ -15,18 +15,18 @@ Apply nonlocal averaging for regularization of plastic strain at material points
 # Returns
 - Updates weights and plastic strain fields in-place.
 """
-@views @kernel inbounds = true function nonlocal(W,w,mpts::Point{T1,T2},mesh::Mesh{T1,T2},ls::T2,type::String) where {T1,T2}
+@views @kernel inbounds = true function nonlocal(W,w,mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},ls::T2,type::String) where {T1,T2}
     p = @index(Global)
 
     if type == "tplgy" && p ≤ mpts.nmp
-        for k ∈ nzrange(mesh.e2e, mpts.p2e[p])
-            el = rowvals(mesh.e2e)[k]
-            mpts.e2p[p,el] = p
+        for k ∈ nzrange(basis.e2e, basis.p2e[p])
+            el = rowvals(basis.e2e)[k]
+            basis.e2p[p,el] = p
         end
     elseif type == "p->q" && p ≤ mpts.nmp && mpts.s.Δλ[p] != T2(0.0)
-        el = mpts.p2e[p]
-        for q ∈ axes(mpts.e2p,1)
-            if !iszero(mpts.e2p[q,el])
+        el = basis.p2e[p]
+        for q ∈ axes(basis.e2p,1)
+            if !iszero(basis.e2p[q,el])
                 d   = norm(mpts.x[p] - mpts.x[q])
                 if w[p,q] == T2(0.0)
                     ω₀     = d/ls*exp(-(d/ls)^2)
@@ -34,7 +34,7 @@ Apply nonlocal averaging for regularization of plastic strain at material points
                     w[q,p] = ω₀
                     W[p]  += ω₀
                     W[q]  += ω₀
-                    mpts.p2p[q,p] = q
+                    basis.p2p[q,p] = q
                 end
             end
         end
@@ -42,8 +42,8 @@ Apply nonlocal averaging for regularization of plastic strain at material points
         if isapprox(W[p]>T2(1e-16),T2(0.0),atol=T2(1e-16))
             mpts.s.ϵpII[2,p] = mpts.s.ϵpII[1,p]
         else
-            for q ∈ axes(mpts.p2p,1)
-                if !iszero(mpts.p2p[q,p])
+            for q ∈ axes(basis.p2p,1)
+                if !iszero(basis.p2p[q,p])
                     mpts.s.ϵpII[2,p]+= (w[p,q]/W[p])*mpts.s.ϵpII[1,q]
                 end
             end

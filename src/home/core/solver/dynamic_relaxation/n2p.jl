@@ -11,14 +11,14 @@ Update material point velocities and positions from solid-type mesh nodes using 
 # Returns
 - Updates material point fields in-place.
 """
-@kernel inbounds = true function n2p(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},dt::T2,C_pf::T2) where {T1,T2}
+@kernel inbounds = true function n2p(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,1},dt::T2,C_pf::T2) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp    
+    if p≤mpts.nmp
         # pic update
         δvx = T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
-            no, N, _ = basis(mpts, mesh, p, nn)
+            no, N, _ = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             δvx += N*mesh.s.v[no][1]
         end
@@ -27,14 +27,14 @@ Update material point velocities and positions from solid-type mesh nodes using 
         @atom mpts.vmax[1] = max(mpts.vmax[1],abs(δvx))
     end  
 end
-@kernel inbounds = true function n2p(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},dt::T2,C_pf::T2) where {T1,T2}
+@kernel inbounds = true function n2p(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,2},dt::T2,C_pf::T2) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp    
+    if p≤mpts.nmp
         # pic update
         δvx = δvy = T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
-            no, N, _ = basis(mpts, mesh, p, nn)
+            no, N, _ = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             δvx += N*mesh.s.v[no][1]
             δvy += N*mesh.s.v[no][2]
@@ -45,14 +45,14 @@ end
         @atom mpts.vmax[2] = max(mpts.vmax[2], abs(δvy))
     end  
 end
-@kernel inbounds = true function n2p(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},dt::T2,C_pf::T2) where {T1,T2}
+@kernel inbounds = true function n2p(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,3},dt::T2,C_pf::T2) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp    
+    if p≤mpts.nmp
         # pic update
         δvxPIC = δvyPIC = δvzPIC = T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
-            no, N, _ = basis(mpts, mesh, p, nn)
+            no, N, _ = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             δvxPIC += N*mesh.s.v[no][1]
             δvyPIC += N*mesh.s.v[no][2]
@@ -62,7 +62,7 @@ end
         δaxFLIP = δayFLIP = δazFLIP = T2(0.0)
         δvxFLIP = δvyFLIP = δvzFLIP = T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
-            no, N, _ = basis(mpts, mesh, p, nn)
+            no, N, _ = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             δaxFLIP += N*mesh.s.a[no][1]
             δayFLIP += N*mesh.s.a[no][2]

@@ -1,11 +1,11 @@
-@kernel inbounds = true function deform(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2) where {T1,T2,D}
+@kernel inbounds = true function deform(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,D},dt::T2) where {T1,T2,D}
     p = @index(Global)
-    if p ≤ mpts.nmp 
+    if p ≤ mpts.nmp
         # accumulate ∇vᵢⱼ into a local mutable buffer then convert
         TM = eltype(mpts.s.∇vᵢⱼ)
         ∇v = zeros(MMatrix{size(TM,1),size(TM,2),T2})
         for nn ∈ 1:mesh.prprt.nn
-            no, _, ∂N = basis(mpts, mesh, p, nn)
+            no, _, ∂N = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             for i ∈ 1:(length(mesh.prprt.nel)-1)
                 for j ∈ 1:(length(mesh.prprt.nel)-1)
@@ -29,14 +29,14 @@
     end
 end
 
-@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},dt::T2) where {T1,T2}
+@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,2},dt::T2) where {T1,T2}
     p = @index(Global)
-    if p ≤ mpts.nmp 
+    if p ≤ mpts.nmp
         # compute velocity & displacement gradients
         ∇vxx,∇vxy,∇vyx,∇vyy = T2(0.0),T2(0.0),T2(0.0),T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
-            no, _, ∂N = basis(mpts, mesh, p, nn)
+            no, _, ∂N = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end   
             ∇vxx += ∂N[1]*mesh.s.v[no][1]
             ∇vxy += ∂N[1]*mesh.s.v[no][2]
@@ -66,16 +66,16 @@ end
     end
 end
 
-@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},dt::T2) where {T1,T2}
+@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,3},dt::T2) where {T1,T2}
     p = @index(Global)
-    if p ≤ mpts.nmp 
+    if p ≤ mpts.nmp
         # compute velocity & displacement gradients
         ∇vxx,∇vxy,∇vxz = T2(0.0),T2(0.0),T2(0.0)
         ∇vyx,∇vyy,∇vyz = T2(0.0),T2(0.0),T2(0.0)
         ∇vzx,∇vzy,∇vzz = T2(0.0),T2(0.0),T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
-            no, _, ∂N = basis(mpts, mesh, p, nn)
+            no, _, ∂N = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             ∇vxx += ∂N[1]*mesh.s.v[no][1]
             ∇vxy += ∂N[1]*mesh.s.v[no][2]

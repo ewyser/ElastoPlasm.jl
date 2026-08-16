@@ -6,6 +6,8 @@ export BSplineBasis
 
 struct BSplineBasis <: AbstractBasis end
 
+stencil_range(::BSplineBasis, ::Type{T1}) where {T1} = T1(-1):T1(2)
+
 @inline function t1_ϕ∂ϕ(ξ::T2) where {T2}
     ϕ,∂ϕ = T2(0.0),T2(0.0)
     if T2(-2.0)<=ξ<=T2(-1.0) 
@@ -84,20 +86,20 @@ end
     return ϕ,∂ϕ*Δx⁻¹ 
 end
 
-@inline function basis(mpts::Point{T1,T2,1,NN,B,E,R}, mesh::Mesh{T1,T2,1}, ip::T1, nn::T1) where {T1,T2,NN,B<:BSplineBasis,E,R}
-    no = mpts.p2n[ip][nn]
-    if iszero(no) 
-        N, ∂N  = T2(0.0), SVector{1,T2}(0.0, 0.0)
+@inline function eval_basis(mpts::Point{T1,T2,1,E,R}, mesh::Mesh{T1,T2,1}, basis::Basis{T1,1,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E,R}
+    no = basis.p2n[ip][nn]
+    if iszero(no)
+        N, ∂N  = T2(0.0), SVector{1,T2}(0.0)
     else
         ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[ip][1]-mesh.x[no][1]),mesh.type[1,no],mesh.prprt.h[1])
         # return convolution of basis function
-        N, ∂N  = T2(ϕξ*ϕη), SVector{1,T2}(∂ϕξ*ϕη)
+        N, ∂N  = T2(ϕξ), SVector{1,T2}(∂ϕξ)
     end
     return no, N, ∂N
 end
-@inline function basis(mpts::Point{T1,T2,2,NN,B}, mesh::Mesh{T1,T2,2}, ip::T1, nn::T1) where {T1,T2,NN,B<:BSplineBasis}
-    no = mpts.p2n[ip][nn]
-    if iszero(no) 
+@inline function eval_basis(mpts::Point{T1,T2,2,E,R}, mesh::Mesh{T1,T2,2}, basis::Basis{T1,2,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E,R}
+    no = basis.p2n[ip][nn]
+    if iszero(no)
         N, ∂N  = T2(0.0), SVector{2,T2}(0.0, 0.0)
     else
         ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[ip][1]-mesh.x[no][1]),mesh.type[1,no],mesh.prprt.h[1])
@@ -107,9 +109,9 @@ end
     end
     return no, N, ∂N
 end
-@inline function basis(mpts::Point{T1,T2,3,NN,B,E,R}, mesh::Mesh{T1,T2,3}, ip::T1, nn::T1) where {T1,T2,NN,B<:BSplineBasis,E,R}
-    no = mpts.p2n[ip][nn]
-    if iszero(no) 
+@inline function eval_basis(mpts::Point{T1,T2,3,E,R}, mesh::Mesh{T1,T2,3}, basis::Basis{T1,3,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E,R}
+    no = basis.p2n[ip][nn]
+    if iszero(no)
         N, ∂N  = T2(0.0), SVector{3,T2}(0.0, 0.0, 0.0)
     else
         ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[ip][1]-mesh.x[no][1]),mesh.type[1,no],mesh.prprt.h[1])
@@ -122,9 +124,9 @@ end
 end
 
 
-@inline function get_ξηζ(xp::SVector{S,T}, xn::Vector{SVector{S,T}}, h::SVector{S,T},p2n::SVector{N,Int}) where {S,T,N}
-    nno = ntuple(i -> p2n[i], Val(N))
-    ξηζ = ntuple(Val(N)) do i
+@inline function get_ξηζ(xp::SVector{S,T}, xn::Vector{SVector{S,T}}, h::SVector{S,T},p2n::SVector{NN,Int}) where {S,T,NN}
+    nno = ntuple(i -> p2n[i], Val(NN))
+    ξηζ = ntuple(Val(NN)) do i
         no = nno[i]
         (
             ntuple(j -> (xp[j] - xn[no][j]) / h[j], Val(S))

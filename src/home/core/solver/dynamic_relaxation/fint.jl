@@ -7,27 +7,27 @@ end
 =#
 
 
-@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,1},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms, Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         σxx   = mpts.s.σᵢ[p][1]
         for nn ∈ 1:mesh.prprt.nn
-            no, N, ∂N = basis(mpts, mesh, p, nn)
+            no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             @atom mesh.s.oobf[1,no] -= Ω * (∂N[1] * σxx) - N * (ms * g[1])
         end
     end
 end
 
-@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,NN,B,E,R},mesh::Mesh{T1,T2,2},g::Vector{T2},dt::T2,Del) where {T1,T2,NN,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,E,R},mesh::Mesh{T1,T2,2},basis::Basis{T1,2},g::Vector{T2},dt::T2,Del) where {T1,T2,E<:LinearElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
         # compute velocity & displacement gradients
         ∇v = zeros(MMatrix{2,2,T2})
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
-            no, _, ∂N = basis(mpts, mesh, p, nn)
+            no, _, ∂N = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             for i ∈ 1:(length(mesh.prprt.nel)-1)
                 for j ∈ 1:(length(mesh.prprt.nel)-1)
@@ -57,7 +57,7 @@ end
         
         # calculate oobf
         for nn ∈ 1:mesh.prprt.nn
-            no, N, ∂N = basis(mpts, mesh, p, nn)
+            no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             @atom mesh.s.oobf[1,no] -= Ω * (∂N[1] * σxx + ∂N[2] * σxy)
             @atom mesh.s.oobf[2,no] -= Ω * (∂N[1] * σxy + ∂N[2] * σyy) - N * (ms * g[2])
@@ -69,14 +69,14 @@ end
     end
 end
 
-@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,NN,B,E,R},mesh::Mesh{T1,T2,2},g::Vector{T2},dt::T2,Kc::T2,Gc::T2) where {T1,T2,NN,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,E,R},mesh::Mesh{T1,T2,2},basis::Basis{T1,2},g::Vector{T2},dt::T2,Kc::T2,Gc::T2) where {T1,T2,E<:FiniteElasticity,R<:AbstractRheology}
     mp = @index(Global)
     if mp ≤ mpts.nmp
         # Compute velocity & displacement gradients
         ∇vᵢⱼ = zeros(MMatrix{2,2,T2})
         for nn ∈ 1:mesh.prprt.nn
             # Buffering & compute basis functions on-the-fly
-            no, _, ∂N = basis(mpts, mesh, mp, nn)
+            no, _, ∂N = eval_basis(mpts, mesh, basis, mp, nn)
             if iszero(no) continue end
             ∇vᵢⱼ += ∂N * mesh.s.v[no]'
         end
@@ -111,7 +111,7 @@ end
         # Accumulate oobf
         for nn ∈ 1:mesh.prprt.nn
             # Buffering & compute basis functions on-the-fly
-            no, N, ∂N = basis(mpts, mesh, mp, nn)
+            no, N, ∂N = eval_basis(mpts, mesh, basis, mp, nn)
             # Transform shape function derivatives to current configuration
             ∂N = ∂N' *inv(ΔFᵢⱼ)
             # Assemble oobf contributions from material point level to mesh level
@@ -127,14 +127,14 @@ end
     end
 end
 
-@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,3},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         σxx, σyy, σzz = mpts.s.σᵢ[p][1], mpts.s.σᵢ[p][2], mpts.s.σᵢ[p][3]
         σyx, σzy, σzx = mpts.s.σᵢ[6,p], mpts.s.σᵢ[4,p], mpts.s.σᵢ[5,p]
         for nn ∈ 1:mesh.prprt.nn
-            no, N, ∂N = basis(mpts, mesh, p, nn)
+            no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             @atom mesh.s.oobf[1,no] -= Ω * ( ∂N[1] * σxx + ∂N[2] * σyx + ∂N[3] * σzx)
             @atom mesh.s.oobf[2,no] -= Ω * ( ∂N[1] * σyx + ∂N[2] * σyy + ∂N[3] * σzy)

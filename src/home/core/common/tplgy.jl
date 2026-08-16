@@ -1,79 +1,37 @@
-"""
-    p2e2n_1d(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2,D}) where {T1,T2,E,R,D}
-
-Assign 1D material points to elements and nodes (topology kernel).
-
-# Arguments
-- `mpts::Point{T1,T2,E,R}`: Material point data structure.
-- `mesh::Mesh{T1,T2}`: Mesh data structure.
-
-# Returns
-- Updates connectivity fields in-place.
-"""
-@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,1,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,1}) where {T1,T2,NN,E,R}
-    p = @index(Global)
-    if p ≤ mpts.nmp 
-        # Compute element indices
-        elx = clamp(fld(mpts.x[p][1]-mesh.x₀[1],mesh.prprt.h[1]),0,mesh.prprt.nel[1]-1)
-        el  = round(T1,1+elx)
-        #=
-        elx = unsafe_trunc(T1,floor((mpts.x[p][1]-mesh.x₀[1])/mesh.h[1]))
-        el  = round(T1,1+elx)  # +1 because Julia is 1-based 
-        =#
-        # Assign mpts-to-node connectivity
-        mpts.p2n[p] = mesh.e2n[el]
-        # Store element index in mpts
-        mpts.p2e[p] = el
-    end
+@inline function element_to_nodes_topology(xp::SVector{1,T2},x₀::SVector{1,T2},e2n::Vector{SVector{NN,T1}},h::SVector{1,T2},nel::Vector{T1}) where {T1,T2,NN}
+    # Compute element indices
+    elx = clamp(fld(xp[1]-x₀[1],h[1]),0,nel[1]-1)
+    el  = round(T1,1+elx)
+    # Assign mp-to-no connectivity
+    p2n = e2n[el]
+    return el,p2n
 end
-"""
-    p2e2n_2d(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2,D}) where {T1,T2,E,R,D}
-
-Assign 2D material points to elements and nodes (topology kernel).
-
-# Arguments
-- `mpts::Point{T1,T2,E,R}`: Material point data structure.
-- `mesh::Mesh{T1,T2}`: Mesh data structure.
-
-# Returns
-- Updates connectivity fields in-place.
-"""
-@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,2,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,2}) where {T1,T2,NN,E,R}
-    p = @index(Global)
-    if p ≤ mpts.nmp 
-        # Compute element indices
-        elx = clamp(fld(mpts.x[p][1] - mesh.x₀[1], mesh.prprt.h[1]), 0, mesh.prprt.nel[1] - 1)
-        ely = clamp(fld(mpts.x[p][2] - mesh.x₀[2], mesh.prprt.h[2]), 0, mesh.prprt.nel[2] - 1)
-        el  = round(T1, 1 + elx + mesh.prprt.nel[1] * ely)  # x varies fastest, (nx, ny) ordering
-        # Assign mpts-to-node connectivity
-        mpts.p2n[p] = mesh.e2n[el]
-        # Store element index in mpts
-        mpts.p2e[p] = el
-    end
+@inline function element_to_nodes_topology(xp::SVector{2,T2},x₀::SVector{2,T2},e2n::Vector{SVector{NN,T1}},h::SVector{2,T2},nel::Vector{T1}) where {T1,T2,NN}
+    # Compute element indices
+    elx = clamp(fld(xp[1] - x₀[1], h[1]), 0, nel[1] - 1)
+    ely = clamp(fld(xp[2] - x₀[2], h[2]), 0, nel[2] - 1)
+    el  = round(T1, 1 + elx + nel[1] * ely)  # x varies fastest, (nx, ny) ordering
+    # Assign mp-to-no connectivity
+    p2n = e2n[el]
+    return el,p2n
 end
-"""
-    p2e2n_3d(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2,D}) where {T1,T2,E,R,D}
-
-Assign 3D material points to elements and nodes (topology kernel).
-
-# Arguments
-- `mpts::Point{T1,T2,E,R}`: Material point data structure.
-- `mesh::Mesh{T1,T2}`: Mesh data structure.
-
-# Returns
-- Updates connectivity fields in-place.
-"""
-@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,3,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,3}) where {T1,T2,NN,E,R}
+@inline function element_to_nodes_topology(xp::SVector{3,T2},x₀::SVector{3,T2},e2n::Vector{SVector{NN,T1}},h::SVector{3,T2},nel::Vector{T1}) where {T1,T2,NN}
+    # Compute element indices
+    elx = clamp(fld(xp[1] - x₀[1], h[1]), 0, nel[1] - 1)
+    ely = clamp(fld(xp[2] - x₀[2], h[2]), 0, nel[2] - 1)
+    elz = clamp(fld(xp[3] - x₀[3], h[3]), 0, nel[3] - 1)
+    el  = round(T1, 1 + elx + nel[1] * ely + nel[1] * nel[2] * elz)
+    # Assign mp-to-no connectivity
+    p2n = e2n[el]
+    return el,p2n
+end
+@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,D,NN}) where {T1,T2,D,NN,E,R}
     p = @index(Global)
-    if p ≤ mpts.nmp 
-        # Compute element indices
-        elx = clamp(fld( mpts.x[p][1] - mesh.x₀[1], mesh.prprt.h[1]), 0, mesh.prprt.nel[1] - 1)
-        ely = clamp(fld( mpts.x[p][2] - mesh.x₀[2], mesh.prprt.h[2]), 0, mesh.prprt.nel[2] - 1)
-        elz = clamp(fld( mpts.x[p][3] - mesh.x₀[3], mesh.prprt.h[3]), 0, mesh.prprt.nel[3] - 1)
-        el  = round(T1, 1 + elx + mesh.prprt.nel[1] * ely + mesh.prprt.nel[1] * mesh.prprt.nel[2] * elz)
+    if p ≤ mpts.nmp
+        el, e2n = element_to_nodes_topology(mpts.x[p], mesh.x₀, basis.e2n, mesh.prprt.h, mesh.prprt.nel)
         # Assign mpts-to-node connectivity
-        mpts.p2n[p] = mesh.e2n[el]
+        basis.p2n[p] = e2n
         # Store element index in mpts
-        mpts.p2e[p] = el
+        basis.p2e[p] = el
     end
 end

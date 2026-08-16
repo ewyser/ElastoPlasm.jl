@@ -61,7 +61,7 @@ function execute_simulations(meta_path, nsim)
         sim_path = joinpath(meta_path, sim)
         for file in filter(f -> endswith(f, ".jld2"), readdir(sim_path))
             @suppress begin
-                out = elastoplasm!(joinpath(sim_path, file); workflow=[elastodynamic!, elastoplastic!])
+                out = elastoplasm!(joinpath(sim_path, file); workflows=[elastodynamic!, elastoplastic!])
                 push!(outputs, out.simulation)
             end
         end
@@ -89,7 +89,7 @@ function postprocess_fields(outputs, path)
 
     # Load reference data
     reference = load(outputs[1])
-    npts      = size(reference["ic/mpts"].x, 2)
+    npts      = length(reference["ic/mpts"].x)
     
     # Process each selected field
     for field in selection
@@ -121,8 +121,8 @@ function extract_field_data(outputs, get, npts, nsim)
     prog = make_progress(nsim; desc="Extracting $(get.name)")
     for (k, output) ∈ enumerate(outputs)
         jldopen(output,"r+") do file
-            X[:, k] = vec(file["ic/mpts"].x[1, :])
-            Y[:, k] = vec(file["ic/mpts"].x[2, :])
+            X[:, k] = getindex.(file["ic/mpts"].x, 1)
+            Y[:, k] = getindex.(file["ic/mpts"].x, 2)
             D[:, k] = get.data(file["ic/mpts"])
         end
         next!(prog; desc="Extracting $(get.name) $k/$nsim...")
@@ -152,7 +152,7 @@ end
 Generate and save plots for field statistics.
 """
 function plot_field_statistics(stats, field_info, reference, path, field_name, nsim)
-    @info "Plotting averaged $(field_self.name) with standard deviation..."
+    @info "Plotting averaged $(field_info.name) with standard deviation..."
     
     instr = reference["cfg/instr"]
     mesh = reference["ic/mesh"]
@@ -171,9 +171,9 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
     
     plot_specs = [
         (data=stats.D_mean, color=:viridis, clim=(D_mean_min, D_mean_max),
-         label=field_self.label, title="Average $(lowercase(field_self.name)) " * L"\leftangle" * field_self.label * L"\rightangle_{n=%$nsim}"),
+         label=field_info.label, title="Average $(lowercase(field_info.name)) " * L"\leftangle" * field_info.label * L"\rightangle_{n=%$nsim}"),
         (data=stats.D_std, color=:plasma, clim=(0, D_std_max),
-         label=L"\sigma(" * field_self.label * L")", title="Standard deviation " * L"\sigma(" * field_self.label * L")"),
+         label=L"\sigma(" * field_info.label * L")", title="Standard deviation " * L"\sigma(" * field_info.label * L")"),
     ]
     
     # Generate plots

@@ -20,14 +20,14 @@ Run the main simulation workflow for the given initial conditions and configurat
 """
 function elastoplasm(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <:String, F <: Function}
     jldopen(sim) do file
-        # unpack mesh, mpts, cmpr, instr, paths as aliases
-        mesh,mpts,cmpr    = file["ic/mesh"]   , file["ic/mpts"]  , file["ic/cmpr"]
-        time              = file["ic/time"]
-        solver,paths,misc = file["cfg/solver"], file["cfg/paths"], file["cfg/misc"]
+        # unpack mesh, mpts, basis, cmpr, instr, paths as aliases
+        mesh,mpts,basis,cmpr = file["ic/mesh"]   , file["ic/mpts"]  , file["ic/basis"], file["ic/cmpr"]
+        time                 = file["ic/time"]
+        solver,paths,misc    = file["cfg/solver"], file["cfg/paths"], file["cfg/misc"]
         # action
         for (k,workflow!) ∈ enumerate(workflows)
             @info elastoplasm_log(solver; msg = "$workflow!")
-            workflow!(mpts,mesh,cmpr,time,solver)
+            workflow!(mpts,mesh,basis,cmpr,time,solver)
             # postprocessing
             if solver.plot.status
                 dimension   = string(Base.unwrap_unionall(typeof(solver)).parameters[3])
@@ -40,8 +40,8 @@ function elastoplasm(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <
                 opts = (; file = path, )
                 save_plot(opts)
             end
-            sleep(1.0)
         end
+        sleep(1.0)
     end
     # return success message
     exit_log("(✓) Done! exiting...\n")
@@ -49,14 +49,14 @@ function elastoplasm(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <
 end
 function elastoplasm!(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <:String, F <: Function}
     jldopen(sim,"r+") do file
-        # unpack mesh, mpts, cmpr, instr, paths as aliases
-        mesh,mpts,cmpr    = file["ic/mesh"]   , file["ic/mpts"]  , file["ic/cmpr"]
-        time              = file["ic/time"]
-        solver,paths,misc = file["cfg/solver"], file["cfg/paths"], file["cfg/misc"]
+        # unpack mesh, mpts, basis, cmpr, instr, paths as aliases
+        mesh,mpts,basis,cmpr = file["ic/mesh"]   , file["ic/mpts"]  , file["ic/basis"], file["ic/cmpr"]
+        time                 = file["ic/time"]
+        solver,paths,misc    = file["cfg/solver"], file["cfg/paths"], file["cfg/misc"]
         # action
         for (k,workflow!) ∈ enumerate(workflows)
             @info elastoplasm_log(solver; msg = "$workflow!")
-            workflow!(mpts,mesh,cmpr,time,solver)         
+            workflow!(mpts,mesh,basis,cmpr,time,solver)
             # postprocessing
             if solver.plot.status
                 dimension   = string(Base.unwrap_unionall(typeof(solver)).parameters[3])
@@ -71,12 +71,13 @@ function elastoplasm!(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S 
             end
             # update initial conditions in jld2 file
             delete!(file, "ic")
-            file["ic/mesh"] = mesh
-            file["ic/mpts"] = mpts
-            file["ic/cmpr"] = cmpr
-            file["ic/time"] = time
-            sleep(1.0)
+            file["ic/mesh"]  = mesh
+            file["ic/mpts"]  = mpts
+            file["ic/basis"] = basis
+            file["ic/cmpr"]  = cmpr
+            file["ic/time"]  = time
         end
+        sleep(1.0)
     end
     # return success message
     exit_log("(✓) Done! exiting...\n")

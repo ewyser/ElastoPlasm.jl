@@ -32,12 +32,12 @@ Initialize and compute shape functions and topological relations for material po
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function ignite(mpts::Point,mesh::Mesh,solver::ExplicitSolver)
+function ignite(mpts::Point,mesh::Mesh,basis::Basis,solver::ExplicitSolver)
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
-    solver.cairn.ignite.tplgy!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
+    solver.cairn.ignite.tplgy!(mpts,mesh,basis; ndrange=(mpts.nmp));sync(CPU())
     # calculate identity shape functions
     if solver.fwrk.trsfr == "apic"
-        solver.cairn.ignite.Dᵢⱼ!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
+        solver.cairn.ignite.Dᵢⱼ!(mpts,mesh,basis; ndrange=(mpts.nmp));sync(CPU())
     end
     return nothing
 end

@@ -1,12 +1,12 @@
-#="""
-    mpts_populate(props, cmpr, instr; ni=2)
+"""
+    mpts_populate(props, cmpr, solver::S; ni=2) where {S<:AbstractSolver}
 
-Initialize material point fields and coordinates for a props, for use in MPM/ElastoPlasm simulations.
+Initialize candidate material point fields and coordinates on a regular per-element grid, for use in MPM/ElastoPlasm simulations.
 
 # Arguments
-- `props`: props object containing geometry and boundary information.
+- `props`: `MeshProperties` object containing geometry and boundary information.
 - `cmpr`: Material parameters (Dict or NamedTuple), must include at least `:c0` and `:cr`.
-- `instr`: Instruction NamedTuple or Dict, may include Gaussian Random Field (GRF) options under `:grf`.
+- `solver::S`: Solver instance (e.g. `ExplicitSolver`), may enable Gaussian Random Field (GRF) cohesion via `solver.grf`.
 - `ni`: Number of intervals per element (default: 2).
 
 # Returns
@@ -18,22 +18,21 @@ Initialize material point fields and coordinates for a props, for use in MPM/Ela
 
 # Example
 ```julia
-fields = mpts_populate(props, cmpr, instr; ni=4)
+fields = mpts_populate(props, cmpr, solver; ni=4)
 @show fields.x
 @show fields.c0
 ```
-"""=#
+"""
 function mpts_populate(props,cmpr,solver::S; ni = 2,) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     out  = Dict{Symbol, Any}(:ni => ni)
-    ndim = length(props.nel) - 1
-    if ndim == 2
+    if D == 2
         x       = collect(props.xB[1,1]+(0.5*props.h[1]/ni):props.h[1]/ni:props.xB[1,2]-(0.5*props.h[1]/ni))
         z       = collect(props.xB[2,1]+(0.5*props.h[2]/ni):props.h[2]/ni:props.xB[2,2]-(0.5*props.h[2]/ni))
         nmp     = [length(x),length(z),length(x)*length(z)]
         xp      = repeat(reshape(x,1     ,nmp[1]),nmp[2],1     )
         zp      = repeat(reshape(z,nmp[2],1     ),1     ,nmp[1])
         out[:x] = vcat(vec(xp)',vec(zp)')
-    elseif ndim == 3
+    elseif D == 3
         x       = collect(props.xB[1,1]+(0.5*props.h[1]/ni):props.h[1]/ni:props.xB[1,2]-(0.5*props.h[1]/ni))
         y       = collect(props.xB[2,1]+(0.5*props.h[2]/ni):props.h[2]/ni:props.xB[2,2]-(0.5*props.h[2]/ni))
         z       = collect(props.xB[3,1]+(0.5*props.h[3]/ni):props.h[3]/ni:props.xB[3,2]-(0.5*props.h[3]/ni))

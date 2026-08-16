@@ -6,6 +6,8 @@ export LinearBasis
 
 struct LinearBasis <: AbstractBasis end
 
+stencil_range(::LinearBasis, ::Type{T1}) where {T1} = T1(0):T1(1)
+
 @inline function N∂N(δx::T2,h::T2) where {T2}                                                     
     if -h < δx <= T2(0.0)                       
         N,∂N = T2(1.0)+δx/h,T2(1.0)/h                                                                         
@@ -18,37 +20,39 @@ struct LinearBasis <: AbstractBasis end
 end
 
 
-@inline function linear(mpts::Point{T1,T2,1}, mesh::Mesh{T1,T2,1}, ip::T1, nn::T1) where {T1,T2}
-    no = mpts.p2n[ip][nn]
-    if iszero(no) 
-        return T1(0), T2(0.0), T2(0.0)
+@inline function eval_basis(mpts::Point{T1,T2,1,E,R}, mesh::Mesh{T1,T2,1}, basis::Basis{T1,1,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:LinearBasis,E,R}
+    no = basis.p2n[ip][nn]
+    if iszero(no)
+        N, ∂N = T2(0.0), SVector{1,T2}(0.0)
     else
-        φξ,∂φξ = N∂N((mpts.x[ip][1]-mesh.x[no][1]),mesh.prprt.h[1])
-        # return convolution of basis function
-        return T1(no), T2(ϕξ), (T2(∂ϕξ),)
+        ϕξ,∂ϕξ = N∂N((mpts.x[ip][1]-mesh.x[no][1]),mesh.prprt.h[1])
+        # convolution of basis function
+        N, ∂N  = T2(ϕξ), SVector{1,T2}(∂ϕξ)
     end
+    return no, N, ∂N
 end
-@inline function linear(mpts::Point{T1,T2,2}, mesh::Mesh{T1,T2,2}, ip::T1, nn::T1) where {T1,T2}
-    no = mpts.p2n[ip][nn]
-    if iszero(no) 
-        return T1(0), T2(0.0), T2(0.0), T2(0.0)
+@inline function eval_basis(mpts::Point{T1,T2,2,E,R}, mesh::Mesh{T1,T2,2}, basis::Basis{T1,2,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:LinearBasis,E,R}
+    no = basis.p2n[ip][nn]
+    if iszero(no)
+        N, ∂N = T2(0.0), SVector{2,T2}(0.0, 0.0)
     else
-        φξ,∂φξ = N∂N((mpts.x[1,ip]-mesh.x[no][1]),mesh.prprt.h[1])
-        φη,∂φη = N∂N((mpts.x[2,ip]-mesh.x[no][2]),mesh.prprt.h[2])
-        # return convolution of basis function
-        return T1(no), T2(ϕξ*ϕη), (T2(∂ϕξ*ϕη),T2(ϕξ*∂ϕη),)
+        ϕξ,∂ϕξ = N∂N((mpts.x[ip][1]-mesh.x[no][1]),mesh.prprt.h[1])
+        ϕη,∂ϕη = N∂N((mpts.x[ip][2]-mesh.x[no][2]),mesh.prprt.h[2])
+        # convolution of basis function
+        N, ∂N  = T2(ϕξ*ϕη), SVector{2,T2}(∂ϕξ*ϕη, ϕξ*∂ϕη)
     end
+    return no, N, ∂N
 end
-@inline function linear(mpts::Point{T1,T2,3}, mesh::Mesh{T1,T2,3}, ip::T1, nn::T1) where {T1,T2}
-    no = mpts.p2n[ip][nn]
-    if iszero(no) 
-        return T1(0), T2(0.0), T2(0.0), T2(0.0), T2(0.0)
+@inline function eval_basis(mpts::Point{T1,T2,3,E,R}, mesh::Mesh{T1,T2,3}, basis::Basis{T1,3,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:LinearBasis,E,R}
+    no = basis.p2n[ip][nn]
+    if iszero(no)
+        N, ∂N = T2(0.0), SVector{3,T2}(0.0, 0.0, 0.0)
     else
-        φξ,∂φξ = N∂N((mpts.x[1,ip]-mesh.x[no][1]),mesh.prprt.h[1])
-        φη,∂φη = N∂N((mpts.x[2,ip]-mesh.x[no][2]),mesh.prprt.h[2])
-        φζ,∂φζ = N∂N((mpts.x[3,ip]-mesh.x[no][3]),mesh.prprt.h[3])
-        # return convolution of basis function
-        return T1(no), T2(ϕξ*ϕη*ϕζ), (T2(∂ϕξ*ϕη*ϕζ),T2(ϕξ*∂ϕη*ϕζ),T2(ϕξ*ϕη*∂ϕζ),)
+        ϕξ,∂ϕξ = N∂N((mpts.x[ip][1]-mesh.x[no][1]),mesh.prprt.h[1])
+        ϕη,∂ϕη = N∂N((mpts.x[ip][2]-mesh.x[no][2]),mesh.prprt.h[2])
+        ϕζ,∂ϕζ = N∂N((mpts.x[ip][3]-mesh.x[no][3]),mesh.prprt.h[3])
+        # convolution of basis function
+        N, ∂N  = T2(ϕξ*ϕη*ϕζ), SVector{3,T2}(∂ϕξ*ϕη*ϕζ, ϕξ*∂ϕη*ϕζ, ϕξ*ϕη*∂ϕζ)
     end
+    return no, N, ∂N
 end
-@inline Base.@propagate_inbounds (::LinearBasis)(mpts, mesh, p, nn) = linear(mpts, mesh, p, nn)
