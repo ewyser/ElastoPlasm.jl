@@ -2,16 +2,15 @@
 # Concrete Basis types
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-export neighbs
+export Neighbs
 
-struct neighbs{T<:Integer,D<:AbstractDimension} <: AbstractNeighbs
-    stencils::NTuple{N,UnitRange{T}} where N
-    nn::T
+struct Neighbs{T,D,NN} <: AbstractNeighbs
+    stencils::NTuple{D,UnitRange{T}}
+    nn      ::T
 end
 
 # Generic constructor: infers dimension and dispatches
-function neighbs(stencils::NTuple{N,UnitRange{T}}) where {T,N}
-    D = N == 1 ? OneDimension : N == 2 ? TwoDimension : N == 3 ? ThreeDimension : error("Unsupported dimension")
-    nn = T(prod(length.(stencils)))
-    neighbs{T,D}(stencils, nn)
+function Neighbs(stencils::NTuple{D,UnitRange{T}}) where {T,D}
+    NN = prod(length.(stencils))
+    Neighbs{T,D,NN}(stencils, T(NN))
 end

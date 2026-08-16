@@ -1,4 +1,4 @@
-@kernel inbounds = true function update(mpts::Point{T1,T2,D,B,E,R},mesh::Mesh{T1,T2,D},dt::T2) where {T1,T2,D<:TwoDimension,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function update(mpts::Point{T1,T2,2,NN,B,E,R},mesh::Mesh{T1,T2,2},dt::T2) where {T1,T2,NN,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
         # update material point displacement
@@ -20,7 +20,7 @@
     end
 end
 
-@kernel inbounds = true function update(mpts::Point{T1,T2,D,B,E,R},mesh::Mesh{T1,T2,D},dt::T2) where {T1,T2,D<:TwoDimension,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
+@kernel inbounds = true function update(mpts::Point{T1,T2,2,NN,B,E,R},mesh::Mesh{T1,T2,2},dt::T2) where {T1,T2,NN,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
         # store converged current deformation gradient and logarithmic strain

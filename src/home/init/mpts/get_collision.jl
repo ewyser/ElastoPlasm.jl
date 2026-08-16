@@ -44,7 +44,7 @@ function get_collision(mesh, cmpr, instr; ni=2, r=0.1, v=10.5)
     # Get candidate positions
     id = findall(x -> x ≤ lz - (0.5*props.h[end]/ni), out.x[end,:])
     
-    if props.dim == 2
+    if (length(props.nel)-1) == 2
         xp, zp = out.x[1, id], out.x[2, id]
         c = out.c0[id]
         
@@ -105,7 +105,7 @@ function get_collision(mesh, cmpr, instr; ni=2, r=0.1, v=10.5)
         xp = vcat(xlt', zlt')
         vp = vcat(vxlt', vzlt')
         
-    elseif props.dim == 3
+    elseif (length(props.nel)-1) == 3
         xp, yp, zp = out.x[1, id], out.x[2, id], out.x[3, id]
         c = out.c0[id]
         

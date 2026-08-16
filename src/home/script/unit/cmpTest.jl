@@ -1,12 +1,12 @@
 function inicmp(mesh,cmp,instr,ni;ℓ₀=0.0)
     coh0,cohr,phi0= cmp[:c0],cmp[:cr],cmp[:ϕ0]
-    if mesh.dim == 2
+    if (length(mesh.prprt.nel)-1) == 2
         xL          = mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2]
         zL          = mesh.xB[3]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:ℓ₀-0.5*mesh.h[2]/ni
         npx,npz     = length(xL),length(zL)
         xp,zp       = ((xL'.*ones(npz,1  )      )),((     ones(npx,1  )'.*zL )) 
         xp,zp       = vec(xp),vec(zp)
-    elseif mesh.dim == 3
+    elseif (length(mesh.prprt.nel)-1) == 3
         xL          = mesh.xB[1]+(0.5*mesh.h[1]/ni):mesh.h[1]/ni:mesh.xB[2]
         yL          = mesh.xB[3]+(0.5*mesh.h[2]/ni):mesh.h[2]/ni:mesh.xB[4]
         zL          = mesh.xB[5]+(0.5*mesh.h[3]/ni):mesh.h[3]/ni:ℓ₀-0.5*mesh.h[3]/ni
@@ -16,9 +16,9 @@ function inicmp(mesh,cmp,instr,ni;ℓ₀=0.0)
         zp          = (     ones(npx,1  )'.*zL ).*ones(1,1,npy)
         xp,yp,zp    = vec(xp),vec(yp),vec(zp)
     end
-    if mesh.dim == 2 
+    if (length(mesh.prprt.nel)-1) == 2 
         xp = hcat(xp,zp) 
-    elseif mesh.dim == 3 
+    elseif (length(mesh.prprt.nel)-1) == 3 
         xp = hcat(xp,yp,zp) 
     end
     id   = shuffle(collect(1:size(xp,1)))
@@ -73,9 +73,9 @@ function compactTest(dim,nel,varPlot,ν,E,ρ0,l0; kwargs...)
     # action
     out = ϵp23De!(mpts,mesh,cmp,g,T,te,tg,instr)    
     # analytics
-    if mesh.dim==2
+    if (length(mesh.prprt.nel)-1)==2
         xN,yN = abs.(mpts.σᵢ[2,:]),z0
-    elseif mesh.dim==3
+    elseif (length(mesh.prprt.nel)-1)==3
         xN,yN = abs.(mpts.σᵢ[3,:]),z0
     end
     xA,yA = abs.(cmp.ρ0.*g.*(l0.-z0)),z0

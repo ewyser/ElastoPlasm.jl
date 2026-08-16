@@ -14,7 +14,7 @@ Project 1D material point data to mesh nodes (TPIC scheme).
 # Returns 
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:OneDimension}
+@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -34,7 +34,7 @@ Project 1D material point data to mesh nodes (TPIC scheme).
         end
     end
 end
-@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
+@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
@@ -55,7 +55,7 @@ end
         end
     end
 end
-@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:ThreeDimension}
+@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]

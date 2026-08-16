@@ -14,7 +14,7 @@ Project 1D material point data to mesh nodes (APIC scheme).
 # Returns
 - Updates mesh fields in-place.
 """
-@views @kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:OneDimension}
+@views @kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -37,7 +37,7 @@ Project 1D material point data to mesh nodes (APIC scheme).
         end
     end
 end
-@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
+@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -61,7 +61,7 @@ end
         end
     end
 end
-@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,D},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:ThreeDimension}
+@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,3},mesh::MeshSolidPhase{T1,T2,3},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -70,7 +70,7 @@ end
         σyx ,σzy ,σzx = mpts.s.σᵢ[p][6]       ,mpts.s.σᵢ[p][4] ,mpts.s.σᵢ[p][5]
         for nn ∈ 1:mesh.prprt.nn
             # buffering
-            no            = mpts.p2n[nn,p]
+            no            = mpts.p2n[p][nn]
             N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3],mpts.ϕ∂ϕ[nn,p,4]
             # accumulation
             if iszero(no) continue end

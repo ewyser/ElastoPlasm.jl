@@ -14,7 +14,7 @@ Project 1D material point data to mesh nodes (FLIP scheme).
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:OneDimension}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # buffering 
@@ -32,7 +32,7 @@ Project 1D material point data to mesh nodes (FLIP scheme).
         end
     end
 end
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:TwoDimension}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -52,7 +52,7 @@ end
         end
     end
 end
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:ThreeDimension}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -89,7 +89,7 @@ end
 
 
 
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,D},mesh::MeshThermalPhase{T1,T2,D}) where {T1,T2,D<:OneDimension}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,1},mesh::MeshThermalPhase{T1,T2,1}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -99,7 +99,7 @@ end
         γ      = T2(0.0) # heat source
         for nn ∈ 1:mesh.prprt.nn
             # buffering 
-            no     = mpts.p2n[nn,p]
+            no     = mpts.p2n[p][nn]
             N, ∂Nx = mpts.ϕ∂ϕ[nn,p,1], mpts.ϕ∂ϕ[nn,p,2]
             # accumulation
             if iszero(no) continue end
@@ -111,7 +111,7 @@ end
     end
 end
 
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,D},mesh::MeshThermalPhase{T1,T2,D}) where {T1,T2,D<:TwoDimension}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,2},mesh::MeshThermalPhase{T1,T2,2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -121,7 +121,7 @@ end
         γ       = T2(0.0) # heat source
         for nn ∈ 1:mesh.prprt.nn
             # buffering 
-            no        = mpts.p2n[nn,p]
+            no        = mpts.p2n[p][nn]
             N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
             # accumulation
             if iszero(no) continue end
@@ -132,7 +132,7 @@ end
         end
     end
 end
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:ThreeDimension}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 
@@ -142,7 +142,7 @@ end
         γ           = T2(0.0) # heat source
         for nn ∈ 1:mesh.prprt.nn
             # buffering 
-            no            = mpts.p2n[nn,p]
+            no            = mpts.p2n[p][nn]
             N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1], mpts.ϕ∂ϕ[nn,p,2], mpts.ϕ∂ϕ[nn,p,3], mpts.ϕ∂ϕ[nn,p,4]
             # accumulation
             if iszero(no) continue end

@@ -84,8 +84,8 @@ end
     return ϕ,∂ϕ*Δx⁻¹ 
 end
 
-@inline function basis(mpts::Point{T1,T2,D,B,E,R}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:OneDimension,B<:BSplineBasis,E,R}
-    no = mpts.p2n[nn,ip]
+@inline function basis(mpts::Point{T1,T2,1,NN,B,E,R}, mesh::Mesh{T1,T2,1}, ip::T1, nn::T1) where {T1,T2,NN,B<:BSplineBasis,E,R}
+    no = mpts.p2n[ip][nn]
     if iszero(no) 
         N, ∂N  = T2(0.0), SVector{1,T2}(0.0, 0.0)
     else
@@ -95,8 +95,8 @@ end
     end
     return no, N, ∂N
 end
-@inline function basis(mpts::Point{T1,T2,D,B}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:TwoDimension,B<:BSplineBasis} 
-    no = mpts.p2n[nn,ip]
+@inline function basis(mpts::Point{T1,T2,2,NN,B}, mesh::Mesh{T1,T2,2}, ip::T1, nn::T1) where {T1,T2,NN,B<:BSplineBasis}
+    no = mpts.p2n[ip][nn]
     if iszero(no) 
         N, ∂N  = T2(0.0), SVector{2,T2}(0.0, 0.0)
     else
@@ -107,8 +107,8 @@ end
     end
     return no, N, ∂N
 end
-@inline function basis(mpts::Point{T1,T2,D,B,E,R}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:ThreeDimension,B<:BSplineBasis,E,R} 
-    no = mpts.p2n[nn,ip]
+@inline function basis(mpts::Point{T1,T2,3,NN,B,E,R}, mesh::Mesh{T1,T2,3}, ip::T1, nn::T1) where {T1,T2,NN,B<:BSplineBasis,E,R}
+    no = mpts.p2n[ip][nn]
     if iszero(no) 
         N, ∂N  = T2(0.0), SVector{3,T2}(0.0, 0.0, 0.0)
     else

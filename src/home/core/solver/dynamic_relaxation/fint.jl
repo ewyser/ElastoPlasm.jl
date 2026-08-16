@@ -7,7 +7,7 @@ end
 =#
 
 
-@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:OneDimension}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms, Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
@@ -20,7 +20,7 @@ end
     end
 end
 
-@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,D,B,E,R},mesh::Mesh{T1,T2,D},g::Vector{T2},dt::T2,Del) where {T1,T2,D<:TwoDimension,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,NN,B,E,R},mesh::Mesh{T1,T2,2},g::Vector{T2},dt::T2,Del) where {T1,T2,NN,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
         # compute velocity & displacement gradients
@@ -29,8 +29,8 @@ end
             # buffering & compute basis functions on-the-fly
             no, _, ∂N = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
-            for i ∈ 1:mesh.prprt.dim
-                for j ∈ 1:mesh.prprt.dim
+            for i ∈ 1:(length(mesh.prprt.nel)-1)
+                for j ∈ 1:(length(mesh.prprt.nel)-1)
                     ∇v[i,j] += ∂N[j]*mesh.s.v[no][i]
                 end
             end
@@ -69,7 +69,7 @@ end
     end
 end
 
-@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,D,B,E,R},mesh::Mesh{T1,T2,D},g::Vector{T2},dt::T2,Kc::T2,Gc::T2) where {T1,T2,D<:TwoDimension,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,NN,B,E,R},mesh::Mesh{T1,T2,2},g::Vector{T2},dt::T2,Kc::T2,Gc::T2) where {T1,T2,NN,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
     mp = @index(Global)
     if mp ≤ mpts.nmp
         # Compute velocity & displacement gradients
@@ -127,7 +127,7 @@ end
     end
 end
 
-@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:ThreeDimension}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]

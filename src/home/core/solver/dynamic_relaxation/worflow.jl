@@ -1,6 +1,6 @@
 export elastoquasistatic!  
 
-function elastoquasistatic!(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
+function elastoquasistatic!(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::S) where {T1,T2,D,NN,E,R,S<:AbstractSolver{T1,T2,D}}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.te)))
     prog = Progress(length(checks);dt=0.5,desc="Solving elastoquasistatic...",barlen=10)
     lstps = collect(range(0, 9.8; length=10))

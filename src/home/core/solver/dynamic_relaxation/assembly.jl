@@ -1,4 +1,4 @@
-@kernel inbounds = true function mass_assembly(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D<:AbstractDimension}
+@kernel inbounds = true function mass_assembly(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},g::Vector{T2}) where {T1,T2,D}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering 

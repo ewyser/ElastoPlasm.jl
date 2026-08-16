@@ -7,8 +7,8 @@
         for nn ∈ 1:mesh.prprt.nn
             no, _, ∂N = basis(mpts, mesh, p, nn)
             if iszero(no) continue end
-            for i ∈ 1:mesh.prprt.dim
-                for j ∈ 1:mesh.prprt.dim
+            for i ∈ 1:(length(mesh.prprt.nel)-1)
+                for j ∈ 1:(length(mesh.prprt.nel)-1)
                     ∇v[i,j] += ∂N[j]*mesh.s.v[no][i]
                 end
             end
@@ -29,7 +29,7 @@
     end
 end
 
-@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2) where {T1,T2,D<:TwoDimension}
+@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},dt::T2) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # compute velocity & displacement gradients
@@ -66,7 +66,7 @@ end
     end
 end
 
-@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2) where {T1,T2,D<:ThreeDimension}
+@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},dt::T2) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # compute velocity & displacement gradients

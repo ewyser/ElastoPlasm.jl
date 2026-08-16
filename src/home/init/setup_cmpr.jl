@@ -22,26 +22,25 @@ function get_elastic_stiffness(E::T2,ν::T2,ndim::T1) where {T1,T2}
     Kc,Gc = E/(3.0*(1.0-2.0*ν)),E/(2.0*(1.0+ν))  
     i ,I  = 1.0-ν              ,(1.0-2.0*ν)/2.0                              # bulk & shear modulus               [Pa] 
     if ndim == 1
-        D  = [ 
-            i   0.0;
-            0.0 I  ;
-        ]
+        D = SMatrix{2,2,T2,4}(
+            i  ,0.0,
+            0.0,I  ,
+        )
     elseif ndim == 2
-        D  = [ 
-            i   ν   0.0 ;
-            ν   i   0.0 ;
-            0.0 0.0 I   ;
-        ]
-        
+        D = SMatrix{3,3,T2,9}(
+            i   ,ν   ,0.0,
+            ν   ,i   ,0.0,
+            0.0 ,0.0 ,I  ,
+        )
     elseif ndim == 3
-        D  = [ 
-            i   ν   ν   0.0 0.0 0.0;
-            ν   i   ν   0.0 0.0 0.0;
-            ν   ν   i   0.0 0.0 0.0;
-            0.0 0.0 0.0 I   0.0 0.0;
-            0.0 0.0 0.0 0.0 I   0.0;
-            0.0 0.0 0.0 0.0 0.0 I  ;
-        ]
+        D = SMatrix{6,6,T2,36}(
+            i   ,ν   ,ν   ,0.0 ,0.0 ,0.0,
+            ν   ,i   ,ν   ,0.0 ,0.0 ,0.0,
+            ν   ,ν   ,i   ,0.0 ,0.0 ,0.0,
+            0.0 ,0.0 ,0.0 ,I   ,0.0 ,0.0,
+            0.0 ,0.0 ,0.0 ,0.0 ,I   ,0.0,
+            0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,I  ,
+        )
     end
     Del = E/((1.0+ν)*(1.0-2.0*ν)).*D
     return T2(Kc),T2(Gc),T2.(Del)
@@ -123,7 +122,7 @@ function setup_cmpr(mesh::Mesh{T1,T2,D};
     ρ0::T2= T2(2700.0),
     ) where {T1,T2,D}
     # independant physical constant          
-    K,G,Del = get_elastic_stiffness(E,ν,mesh.prprt.dim)                         # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]    
+    K,G,Del = get_elastic_stiffness(E,ν,T1(D))                                  # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]
     c       = sqrt((K+4.0/3.0*G)/ρ0)                                            # elastic wave speed [m/s]
     c0,cr   = 20.0e3,4.0e3                                                      # cohesion [Pa]
     ϕ0,ϕr,ψ0= 20.0*π/180,7.5*π/180,0.0                                          # friction angle [Rad], dilation angle [Rad]                                                              

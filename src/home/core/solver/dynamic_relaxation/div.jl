@@ -1,6 +1,6 @@
 # Incremental continuity residual: ∫N(div v + Δp/K)dΩ = 0  where Δp = p - p_n (pressure increment this step)
 
-@kernel inbounds = true function div_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},Kc::T2,p_n::Vector{T2}) where {T1,T2,D<:TwoDimension}
+@kernel inbounds = true function div_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},Kc::T2,p_n::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         Ω    = mpts.Ω[p]
@@ -14,7 +14,7 @@
     end
 end
 
-@kernel inbounds = true function div_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},Kc::T2,p_n::Vector{T2}) where {T1,T2,D<:ThreeDimension}
+@kernel inbounds = true function div_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},Kc::T2,p_n::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         Ω    = mpts.Ω[p]

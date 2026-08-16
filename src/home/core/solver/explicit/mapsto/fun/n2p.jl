@@ -55,7 +55,7 @@ Update material point velocities and positions from thermal-type mesh nodes usin
         δTPIC  = T2(0.0)
         δTFLIP = T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
-            no = mpts.p2n[nn,p]
+            no = mpts.p2n[p][nn]
             if iszero(no) continue end
             w = mpts.ϕ∂ϕ[nn,p,1]
             δTPIC  += w * mesh.T[no]

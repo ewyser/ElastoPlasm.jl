@@ -57,7 +57,7 @@ summary = ic_log(mesh, mpts, time)
 println(summary)
 ```
 """
-function ic_log(mesh::Mesh,mpts::Point,time::Time,solver::S) where {T1<:Integer,T2<:Real,D<:AbstractDimension, S<:AbstractSolver{T1,T2,D}}
+function ic_log(mesh::Mesh,mpts::Point,time::Time,solver::S) where {T1<:Integer,T2<:Real,D, S<:AbstractSolver{T1,T2,D}}
     # build the list of constant log lines
     logs = [
         "Summary: ",
@@ -97,7 +97,7 @@ logstr = elastoplasm_log(instr)
 println(logstr)
 ```
 """
-function elastoplasm_log(solver::S; msg::String="elastodynamic") where {T1<:Integer,T2<:Real, D<:AbstractDimension, S<:AbstractSolver{T1,T2,D}}
+function elastoplasm_log(solver::S; msg::String="elastodynamic") where {T1<:Integer,T2<:Real, D, S<:AbstractSolver{T1,T2,D}}
     # build the list of log lines
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",

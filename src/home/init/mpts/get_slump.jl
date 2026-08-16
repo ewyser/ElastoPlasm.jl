@@ -17,11 +17,12 @@ Initialize geometry and material point fields for a slump test problem.
 """=#
 function get_slump(mesh,cmpr,solver; ni = 2, lz = 12.80 )
     props = mesh.prprt
+    ndim  = length(props.nel) - 1
     #@info "Init slump geometry"
     out = mpts_populate(props,cmpr,solver; ni=ni)
     wl  = 0.15*lz
     id  = findall(x -> x ≤ lz-(0.5*props.h[end]/ni), out.x[end,:])
-    if props.dim == 2
+    if ndim == 2
         xp,zp,c     = out.x[1,id],out.x[2,id],out.c0[id]
         x           = LinRange(minimum(xp),maximum(xp),200)
         a           = -1.25
@@ -47,7 +48,7 @@ function get_slump(mesh,cmpr,solver; ni = 2, lz = 12.80 )
                 push!(clt, c[mpts])
             end
         end
-    elseif props.dim == 3
+    elseif ndim == 3
         xp,yp,zp,c  = out.x[1,id],out.x[2,id],out.x[3,id],out.c0[id]
         x           = LinRange(minimum(xp),maximum(xp),200)
         a           = -1.25
@@ -80,10 +81,10 @@ function get_slump(mesh,cmpr,solver; ni = 2, lz = 12.80 )
         end
     end
     
-    if props.dim == 2 
-        xp = vcat(xlt',zlt') 
-    elseif props.dim == 3 
-        xp = vcat(xlt',ylt',zlt') 
+    if ndim == 2
+        xp = vcat(xlt',zlt')
+    elseif ndim == 3
+        xp = vcat(xlt',ylt',zlt')
     end
     nmp    = size(xp,2)
     id     = shuffle(collect(1:nmp))

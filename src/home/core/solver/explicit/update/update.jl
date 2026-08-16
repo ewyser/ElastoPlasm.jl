@@ -87,7 +87,7 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T
         # init mesh quantities to zero
         fill!(mesh.ΔJ,T2(0.0))
         # calculate dimensional cst.
-        dim = T2(1.0/mesh.prprt.dim)
+        dim = T2(1.0/(length(mesh.prprt.nel)-1))
         # mapping to mesh 
         solver.cairn.update.ΔJn!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
         # compute determinant Jbar 

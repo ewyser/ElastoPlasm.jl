@@ -11,7 +11,7 @@ Update material point velocities and positions from solid-type mesh nodes using 
 # Returns
 - Updates material point fields in-place.
 """
-@kernel inbounds = true function n2p(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2,C_pf::T2) where {T1,T2,D<:OneDimension}
+@kernel inbounds = true function n2p(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},dt::T2,C_pf::T2) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp    
         # pic update
@@ -27,7 +27,7 @@ Update material point velocities and positions from solid-type mesh nodes using 
         @atom mpts.vmax[1] = max(mpts.vmax[1],abs(δvx))
     end  
 end
-@kernel inbounds = true function n2p(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2,C_pf::T2) where {T1,T2,D<:TwoDimension}
+@kernel inbounds = true function n2p(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},dt::T2,C_pf::T2) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp    
         # pic update
@@ -45,7 +45,7 @@ end
         @atom mpts.vmax[2] = max(mpts.vmax[2], abs(δvy))
     end  
 end
-@kernel inbounds = true function n2p(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},dt::T2,C_pf::T2) where {T1,T2,D<:ThreeDimension}
+@kernel inbounds = true function n2p(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},dt::T2,C_pf::T2) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp    
         # pic update

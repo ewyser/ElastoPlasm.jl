@@ -23,7 +23,7 @@ println(mesh.nel)
 - Initializes nodal quantities (mass, force, acceleration, etc.) and mesh-to-node topology.
 - Handles ghost nodes if required by the basis.
 """
-function setup_mesh(geom::Geometry{T1,T2,D,N},solver::S) where {T1,T2,D,N,S<:AbstractSolver{T1,T2,D}}
+function setup_mesh(geom::Geometry{T1,T2,D},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     # Mesh & boundary condition setup   
     ndim       = geom.dim                                  
     L,nel,nn,h = geom.L,geom.nel,geom.nn,geom.h 
@@ -32,14 +32,18 @@ function setup_mesh(geom::Geometry{T1,T2,D,N},solver::S) where {T1,T2,D,N,S<:Abs
     node_type  = get_node_type(ndim,nno)
     status,xB  = get_bc(xn,solver; ghosts=geom.ghost*h)
     # static array type for node coords, velocity, acceleration
-    TV = SVector{ndim,T2}
+
+
+    NN  = nn.nn
+    DIM = D
+    SVD = SVector{DIM,T2}
     nn_total = nno[end]
-    # Constructors
-    prop = MeshProperties{T1,T2,D}(
-        T1(ndim                         ), # dim
+
+
+    prop = MeshProperties{T1,T2,DIM,NN}(
         T1.(nel                         ), # nel
         T1.(nno                         ), # nno
-        T1(nn.nn                        ), # nn
+        T1(NN                           ), # nn
         T2.(L                           ), # L
         T2.(h                           ), # h
         T2.(xB                          ), # xB
@@ -47,16 +51,16 @@ function setup_mesh(geom::Geometry{T1,T2,D,N},solver::S) where {T1,T2,D,N,S<:Abs
     bcs = MeshBoundary(
         status
     )
-    s = MeshSolidPhase{T1,T2,D,TV}(
+    s = MeshSolidPhase{T1,T2,DIM,NN}(
         prop,
         bcs,
         T2.(zeros(nn_total             )), # m
         T2.(zeros(nn_total,nn_total    )), # Mᵢⱼ
-        T2.(zeros(ndim,nn_total        )), # oobf  (Matrix: atomic writes)
+        T2.(zeros(DIM,nn_total        )), # oobf  (Matrix: atomic writes)
         T2.(zeros(nn_total             )), # oobp
-        [zero(TV) for _ in 1:nn_total]  , # a
-        T2.(zeros(ndim,nn_total        )), # mv    (Matrix: atomic writes)
-        [zero(TV) for _ in 1:nn_total]  , # v
+        [zero(SVD) for _ in 1:nn_total]  , # a
+        T2.(zeros(DIM,nn_total        )), # mv    (Matrix: atomic writes)
+        [zero(SVD) for _ in 1:nn_total]  , # v
         T2.(zeros(nn_total             )), # p
     )
     #=
@@ -70,11 +74,11 @@ function setup_mesh(geom::Geometry{T1,T2,D,N},solver::S) where {T1,T2,D,N,S<:Abs
         T2.(zeros(nno[end]             )), # T
     )
     =#
-    mesh = Mesh{T1,T2,D,TV}(
+    mesh = Mesh{T1,T2,DIM,NN}(
         prop,
         # nodal quantities
         T2.(vec(minimum(xn,dims=2)          )), # x₀
-        [TV(T2.(xn[:,i])) for i in 1:nn_total], # x
+        [SVD(T2.(xn[:,i])) for i in 1:nn_total], # x
         T1.(node_type                        ), # node
         T2.(zeros(nn_total                  )), # ΔJ
         # solid phase
@@ -82,7 +86,7 @@ function setup_mesh(geom::Geometry{T1,T2,D,N},solver::S) where {T1,T2,D,N,S<:Abs
         # thermal phase
         nothing                          , # thermal phase
         # connectivity
-        T1.(e2n                        ) , # e2n
+        e2n                              , # e2n
         T1.(e2e(ndim,nel,h,solver       )), # e2e
     )
     return mesh

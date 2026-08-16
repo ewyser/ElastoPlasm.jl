@@ -24,15 +24,16 @@ println(mpts.nmp)  # Number of material points
 - Sets up connectivity arrays and phase properties (solid and liquid).
 - Handles both 2D and 3D cases.
 """
-function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function setup_mpts(mesh::Mesh{T1,T2,D,NN},solver::S,cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,D,NN,S<:AbstractSolver{T1,T2,D}}
     props = mesh.prprt
+    ndim  = length(props.nel) - 1
     # non-dimensional constant
-    if D == TwoDimension
+    if D == 2
         nstr = 3
-    elseif D == ThreeDimension
+    elseif D == 3
         nstr = 6
     else
-        error("Unsupported dimension type: $D")
+        error("Unsupported dimension: $D")
     end
     # unpack material geometry
     ni,nmp,xp = geom.ni,geom.nmp,geom.xp 
@@ -46,9 +47,9 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedT
     #vp = zeros(size(xp))
     # constructor - create components
     if solver.fwrk.deform == "finite"
-        elast = FiniteElasticity(T1, T2, nmp, props.dim)
+        elast = FiniteElasticity(T1, T2, nmp, ndim)
     elseif solver.fwrk.deform == "infinitesimal"
-        elast = LinearElasticity(T1, T2, nmp, props.dim)
+        elast = LinearElasticity(T1, T2, nmp, ndim)
     end
     
     rheo = DruckerPragerRheology{T1,T2,D}(
@@ -61,7 +62,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedT
     )
 
     # static array types for the new AoS memory layout
-    if D == TwoDimension
+    if D == 2
         TM = SMatrix{2,2,T2,4}
         TV = SVector{2,T2}
         TS = SVector{3,T2}
@@ -105,7 +106,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedT
     t = PointThermalPhase{T1,T2,D}(
         T2.(vec(copy(geom.c)))                            , # c::Vector{T2} specific heat capacity vector
         T2.(vec(copy(geom.k)))                             , # k::Vector{T2} thermal conductivity vector
-        T2.(zeros(props.dim,nmp))                            , # q::Matrix{T2} heat flux array
+        T2.(zeros(ndim,nmp))                                  , # q::Matrix{T2} heat flux array
         T2.(vec(copy(geom.T)))                            , # T::Vector{T2} temperature vector
     )
     =#
@@ -117,24 +118,24 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedT
     elseif solver.basis.which == "smpm"
         LinearBasis()
     end
-    mpts = Point{T1,T2,D,typeof(basis),typeof(elast),typeof(rheo),TM,TV,TS}(
+    mpts = Point{T1,T2,D,NN,typeof(basis),typeof(elast),typeof(rheo),TM,TV,TS}(
         # basis
         basis                                , # basis
         # general information
-        T1(props.dim)                         , # ndim
+        T1(ndim)                              , # ndim
         T1(nmp)                              , # nmp
-        T2.(zeros(props.dim))                 , # vmax
+        T2.(zeros(ndim))                      , # vmax
         # basis-related quantities
-        T2.(zeros(props.nn,props.dim,nmp   ))  , # Δnp
+        T2.(zeros(props.nn,ndim,nmp        ))  , # Δnp
         # APIC-related
-        T2.(zeros(props.dim,props.dim,nmp  ))  , # Bᵢⱼ
-        T2.(zeros(props.dim,props.dim,nmp  ))  , # Dᵢⱼ  
+        T2.(zeros(ndim,ndim,nmp            ))  , # Bᵢⱼ
+        T2.(zeros(ndim,ndim,nmp            ))  , # Dᵢⱼ
         # connectivity
         T1(props.nn)                          , # nn
         T1.(spzeros(Int,nmp,props.nel[end]))  , # e2p
         T1.(spzeros(Int,nmp,nmp          ))  , # p2p
         T1.(zeros(Int,nmp                ))  , # p2e
-        T1.(zeros(Int,props.nn,nmp        ))  , # p2n
+        [zero(SVector{NN,T1}) for _ in 1:nmp]  , # p2n
         # material point properties
         [TV(T2.(xp[:,i])) for i in 1:nmp]           , # x
         [TV(T2.(l0[:,i])) for i in 1:nmp]           , # ℓ₀
