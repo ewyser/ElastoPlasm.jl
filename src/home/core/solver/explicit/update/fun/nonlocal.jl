@@ -19,27 +19,33 @@ Apply nonlocal averaging for regularization of plastic strain at material points
     p = @index(Global)
 
     if type == "tplgy" && p ≤ mpts.nmp
-        for el ∈ findall(!iszero,mesh.e2e[:,mpts.p2e[p]])
-            mpts.e2p[p,el] = p       
+        for k ∈ nzrange(mesh.e2e, mpts.p2e[p])
+            el = rowvals(mesh.e2e)[k]
+            mpts.e2p[p,el] = p
         end
     elseif type == "p->q" && p ≤ mpts.nmp && mpts.s.Δλ[p] != T2(0.0)
-        for (it,q) ∈ enumerate(findall(!iszero,mpts.e2p[:,mpts.p2e[p]]))
-            d   = norm(mpts.x[p] - mpts.x[q])
-            if w[p,q] == T2(0.0)
-                ω₀     = d/ls*exp(-(d/ls)^2)
-                w[p,q] = ω₀
-                w[q,p] = ω₀
-                W[p]  += ω₀
-                W[q]  += ω₀
-                mpts.p2p[q,p] = q
+        el = mpts.p2e[p]
+        for q ∈ axes(mpts.e2p,1)
+            if !iszero(mpts.e2p[q,el])
+                d   = norm(mpts.x[p] - mpts.x[q])
+                if w[p,q] == T2(0.0)
+                    ω₀     = d/ls*exp(-(d/ls)^2)
+                    w[p,q] = ω₀
+                    w[q,p] = ω₀
+                    W[p]  += ω₀
+                    W[q]  += ω₀
+                    mpts.p2p[q,p] = q
+                end
             end
         end
     elseif type == "p<-q" && p ≤ mpts.nmp && mpts.s.Δλ[p] != T2(0.0)
         if isapprox(W[p]>T2(1e-16),T2(0.0),atol=T2(1e-16))
             mpts.s.ϵpII[2,p] = mpts.s.ϵpII[1,p]
         else
-            for (k,q) ∈ enumerate(findall(!iszero,mpts.p2p[:,p]))
-                mpts.s.ϵpII[2,p]+= (w[p,q]/W[p])*mpts.s.ϵpII[1,q]
+            for q ∈ axes(mpts.p2p,1)
+                if !iszero(mpts.p2p[q,p])
+                    mpts.s.ϵpII[2,p]+= (w[p,q]/W[p])*mpts.s.ϵpII[1,q]
+                end
             end
         end
     end

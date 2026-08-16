@@ -104,7 +104,7 @@ struct PointThermalPhase{T1,T2,D} <: MaterialPointPhase{T1,T2}
 end
 @adapt_struct PointThermalPhase
 
-struct Point{T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:AbstractElasticity,R<:AbstractRheology,TM,TV,TS} <: MaterialPoint{T1,T2}
+struct Point{T1,T2,D,NN,B<:AbstractBasis,E<:AbstractElasticity,R<:AbstractRheology,TM,TV,TS} <: MaterialPoint{T1,T2}
     # basis
     basis::B
     # general information
@@ -122,7 +122,7 @@ struct Point{T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:AbstractElasticity,R
     e2p  ::Matrix{T1}
     p2p  ::Matrix{T1}
     p2e  ::Vector{T1}
-    p2n  ::Matrix{T1}
+    p2n  ::Vector{SVector{NN,T1}}
     # material point properties
     x    ::Vector{TV}  # coordinates per MP : SVector{ndim,T2}
     ℓ₀   ::Vector{TV}  # reference domain half-lengths per MP

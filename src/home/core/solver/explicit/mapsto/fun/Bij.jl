@@ -11,11 +11,11 @@ Update material point velocities and positions from mesh nodes (PIC scheme, n-di
 # Returns
 - Updates material point fields in-place.
 """
-@kernel inbounds = true function Bij(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:AbstractDimension}
+@kernel inbounds = true function Bij(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D}) where {T1,T2,D}
     p = @index(Global)
     if p ≤ mpts.nmp    
         # Bᵢⱼ update
-        Bᵢⱼ,xₚ = zeros(T2,mesh.prprt.dim,mesh.prprt.dim), mpts.x[p]
+        Bᵢⱼ,xₚ = zeros(T2,(length(mesh.prprt.nel)-1),(length(mesh.prprt.nel)-1)), mpts.x[p]
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
             no, N, _ = basis(mpts, mesh, p, nn)

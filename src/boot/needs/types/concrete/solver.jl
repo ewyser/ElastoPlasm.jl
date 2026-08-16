@@ -1,71 +1,58 @@
-export ExplicitSolver,ImplicitSolver,DynamicRelaxationSolver,Instruction, Time
+export ExplicitSolver,ImplicitSolver,DynamicRelaxationSolver, Time
 
-struct ExplicitSolver{T1<:Integer,T2<:Real,D<:AbstractDimension} <: AbstractSolver{T1,T2,D}
-    dtype  ::NamedTuple
-    basis  ::NamedTuple
-    fwrk   ::NamedTuple
-    bcs    ::NamedTuple
-    grf    ::NamedTuple
-    plast  ::NamedTuple
-    nonloc ::NamedTuple
-    plot   ::NamedTuple
-    perf   ::NamedTuple
-    backend::NamedTuple
-    cairn  ::NamedTuple
+struct ExplicitSolver{T1<:Integer,T2<:Real,D,DT,BA,FW,BC,GR,PL,NL,PT,PF,BK,CN} <: AbstractSolver{T1,T2,D}
+    dtype  ::DT
+    basis  ::BA
+    fwrk   ::FW
+    bcs    ::BC
+    grf    ::GR
+    plast  ::PL
+    nonloc ::NL
+    plot   ::PT
+    perf   ::PF
+    backend::BK
+    cairn  ::CN
+end
+function ExplicitSolver{T1,T2,D}(dtype::DT,basis::BA,fwrk::FW,bcs::BC,grf::GR,plast::PL,nonloc::NL,plot::PT,perf::PF,backend::BK,cairn::CN) where {T1,T2,D,DT,BA,FW,BC,GR,PL,NL,PT,PF,BK,CN}
+    return ExplicitSolver{T1,T2,D,DT,BA,FW,BC,GR,PL,NL,PT,PF,BK,CN}(dtype,basis,fwrk,bcs,grf,plast,nonloc,plot,perf,backend,cairn)
 end
 @adapt_struct ExplicitSolver
 
-struct DynamicRelaxationSolver{T1<:Integer,T2<:Real,D<:AbstractDimension} <: AbstractSolver{T1,T2,D} 
-    dtype  ::NamedTuple
-    basis  ::NamedTuple
-    fwrk   ::NamedTuple
-    bcs    ::NamedTuple
-    grf    ::NamedTuple
-    plast  ::NamedTuple
-    nonloc ::NamedTuple
-    plot   ::NamedTuple
-    perf   ::NamedTuple
-    backend::NamedTuple
-    cairn  ::NamedTuple
+struct DynamicRelaxationSolver{T1<:Integer,T2<:Real,D,DT,BA,FW,BC,GR,PL,NL,PT,PF,BK,CN} <: AbstractSolver{T1,T2,D}
+    dtype  ::DT
+    basis  ::BA
+    fwrk   ::FW
+    bcs    ::BC
+    grf    ::GR
+    plast  ::PL
+    nonloc ::NL
+    plot   ::PT
+    perf   ::PF
+    backend::BK
+    cairn  ::CN
+end
+function DynamicRelaxationSolver{T1,T2,D}(dtype::DT,basis::BA,fwrk::FW,bcs::BC,grf::GR,plast::PL,nonloc::NL,plot::PT,perf::PF,backend::BK,cairn::CN) where {T1,T2,D,DT,BA,FW,BC,GR,PL,NL,PT,PF,BK,CN}
+    return DynamicRelaxationSolver{T1,T2,D,DT,BA,FW,BC,GR,PL,NL,PT,PF,BK,CN}(dtype,basis,fwrk,bcs,grf,plast,nonloc,plot,perf,backend,cairn)
 end
 @adapt_struct DynamicRelaxationSolver
 
-struct ImplicitSolver{T1<:Integer,T2<:Real,D<:AbstractDimension} <: AbstractSolver{T1,T2,D}
-    dtype  ::NamedTuple
-    basis  ::NamedTuple
-    fwrk   ::NamedTuple
-    bcs    ::NamedTuple
-    grf    ::NamedTuple
-    plast  ::NamedTuple
-    nonloc ::NamedTuple
-    plot   ::NamedTuple
-    perf   ::NamedTuple
-    backend::NamedTuple
-    cairn  ::NamedTuple
+struct ImplicitSolver{T1<:Integer,T2<:Real,D,DT,BA,FW,BC,GR,PL,NL,PT,PF,BK,CN} <: AbstractSolver{T1,T2,D}
+    dtype  ::DT
+    basis  ::BA
+    fwrk   ::FW
+    bcs    ::BC
+    grf    ::GR
+    plast  ::PL
+    nonloc ::NL
+    plot   ::PT
+    perf   ::PF
+    backend::BK
+    cairn  ::CN
+end
+function ImplicitSolver{T1,T2,D}(dtype::DT,basis::BA,fwrk::FW,bcs::BC,grf::GR,plast::PL,nonloc::NL,plot::PT,perf::PF,backend::BK,cairn::CN) where {T1,T2,D,DT,BA,FW,BC,GR,PL,NL,PT,PF,BK,CN}
+    return ImplicitSolver{T1,T2,D,DT,BA,FW,BC,GR,PL,NL,PT,PF,BK,CN}(dtype,basis,fwrk,bcs,grf,plast,nonloc,plot,perf,backend,cairn)
 end
 @adapt_struct ImplicitSolver
-
-
-
-
-
-
-export Instruction, Time
-
-struct Instruction{T1<:Integer,T2<:Real,D<:AbstractDimension}
-    dtype  ::NamedTuple
-    basis  ::NamedTuple
-    fwrk   ::NamedTuple
-    bcs    ::NamedTuple
-    grf    ::NamedTuple
-    plast  ::NamedTuple
-    nonloc ::NamedTuple
-    plot   ::NamedTuple
-    perf   ::NamedTuple
-    backend::NamedTuple
-    cairn  ::NamedTuple
-end
-@adapt_struct Instruction
 
 
 

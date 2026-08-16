@@ -15,10 +15,10 @@ Update material point velocities and positions from thermal-type mesh nodes usin
     p = @index(Global)
     if p ≤ mpts.nmp 
         # compute heat flux
-        for dim ∈ 1:mesh.prprt.dim
+        for dim ∈ 1:(length(mesh.prprt.nel)-1)
             dQᵢ = T2(0.0)
             for nn ∈ 1:mesh.prprt.nn
-                no = mpts.p2n[nn,p]
+                no = mpts.p2n[p][nn]
                 if iszero(no) continue end
                 dQᵢ += mpts.ϕ∂ϕ[nn,p,dim+1]*mesh.T[no]
             end    

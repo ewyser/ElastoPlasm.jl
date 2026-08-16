@@ -10,7 +10,7 @@ Assign 1D material points to elements and nodes (topology kernel).
 # Returns
 - Updates connectivity fields in-place.
 """
-@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:OneDimension,E,R}
+@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,1,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,1}) where {T1,T2,NN,E,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # Compute element indices
@@ -21,9 +21,7 @@ Assign 1D material points to elements and nodes (topology kernel).
         el  = round(T1,1+elx)  # +1 because Julia is 1-based 
         =#
         # Assign mpts-to-node connectivity
-        for nn ∈ 1:mesh.prprt.nn
-            mpts.p2n[nn,p] = mesh.prprt.e2n[nn,el]
-        end
+        mpts.p2n[p] = mesh.e2n[el]
         # Store element index in mpts
         mpts.p2e[p] = el
     end
@@ -40,7 +38,7 @@ Assign 2D material points to elements and nodes (topology kernel).
 # Returns
 - Updates connectivity fields in-place.
 """
-@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:TwoDimension,E,R}
+@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,2,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,2}) where {T1,T2,NN,E,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # Compute element indices
@@ -48,9 +46,7 @@ Assign 2D material points to elements and nodes (topology kernel).
         ely = clamp(fld(mpts.x[p][2] - mesh.x₀[2], mesh.prprt.h[2]), 0, mesh.prprt.nel[2] - 1)
         el  = round(T1, 1 + elx + mesh.prprt.nel[1] * ely)  # x varies fastest, (nx, ny) ordering
         # Assign mpts-to-node connectivity
-        for nn ∈ 1:mesh.prprt.nn
-            mpts.p2n[nn,p] = mesh.e2n[nn,el]
-        end
+        mpts.p2n[p] = mesh.e2n[el]
         # Store element index in mpts
         mpts.p2e[p] = el
     end
@@ -67,7 +63,7 @@ Assign 3D material points to elements and nodes (topology kernel).
 # Returns
 - Updates connectivity fields in-place.
 """
-@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:ThreeDimension,E,R}
+@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,3,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,3}) where {T1,T2,NN,E,R}
     p = @index(Global)
     if p ≤ mpts.nmp 
         # Compute element indices
@@ -76,9 +72,7 @@ Assign 3D material points to elements and nodes (topology kernel).
         elz = clamp(fld( mpts.x[p][3] - mesh.x₀[3], mesh.prprt.h[3]), 0, mesh.prprt.nel[3] - 1)
         el  = round(T1, 1 + elx + mesh.prprt.nel[1] * ely + mesh.prprt.nel[1] * mesh.prprt.nel[2] * elz)
         # Assign mpts-to-node connectivity
-        for nn ∈ 1:mesh.prprt.nn
-            mpts.p2n[nn,p] = mesh.e2n[nn,el]
-        end
+        mpts.p2n[p] = mesh.e2n[el]
         # Store element index in mpts
         mpts.p2e[p] = el
     end

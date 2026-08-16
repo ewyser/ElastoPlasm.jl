@@ -112,7 +112,7 @@ end
 end
 
 
-@kernel inbounds = true function elast(mpts::Point{T1,T2,D,B,E,R},Kc,Gc) where {T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
+@kernel inbounds = true function elast(mpts::Point{T1,T2,D,NN,B,E,R},Kc,Gc) where {T1,T2,D,NN,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
         ϵᵢⱼ           = _logarithmic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.ϵᵢⱼ[p])
@@ -134,7 +134,7 @@ Kernel for infinitesimal (small strain) elasticity update at material points.
 # Returns
 - Updates stress and strain fields in-place.
 """
-@kernel inbounds = true function elast(mpts::Point{T1,T2,D,B,E,R},Del) where {T1,T2,D<:AbstractDimension,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function elast(mpts::Point{T1,T2,D,NN,B,E,R},Del) where {T1,T2,D,NN,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
         ΔF = mpts.s.ΔFᵢⱼ[p]
@@ -149,7 +149,7 @@ Kernel for infinitesimal (small strain) elasticity update at material points.
     end
 end
 
-@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,D,B,E,R},Del) where {T1,T2,D<:TwoDimension,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,2,NN,B,E,R},Del) where {T1,T2,NN,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
         ΔF = mpts.s.ΔFᵢⱼ[p]
@@ -166,7 +166,7 @@ end
         )
     end
 end
-@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,D,B,E,R},Del) where {T1,T2,D<:ThreeDimension,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,3,NN,B,E,R},Del) where {T1,T2,NN,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
         ΔF = mpts.s.ΔFᵢⱼ[p]

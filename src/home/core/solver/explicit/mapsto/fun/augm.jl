@@ -10,7 +10,7 @@ Accumulate material point momentum to mesh nodes for DM augmentation.
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:TwoDimension}
+@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms = mpts.s.ρ[p]*mpts.Ω[p]
@@ -23,7 +23,7 @@ Accumulate material point momentum to mesh nodes for DM augmentation.
         end
     end
 end
-@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D}) where {T1,T2,D<:ThreeDimension}
+@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms = mpts.s.ρ[p]*mpts.Ω[p]
@@ -90,7 +90,7 @@ Accumulate material point heat capacity to mesh nodes for DM augmentation.
     if p ≤ mpts.nmp
         # accumulation
         for nn ∈ 1:mesh.prprt.nn
-            no = mpts.p2n[nn,p]
+            no = mpts.p2n[p][nn]
             if iszero(no) continue end
             @atom mesh.mcT[no]+= mpts.ϕ∂ϕ[nn,p,1] * mpts.s.ρ[p]*mpts.Ω[p] * mpts.t.c[p] * mpts.t.T[p]
         end

@@ -18,8 +18,8 @@ struct LinearBasis <: AbstractBasis end
 end
 
 
-@inline function linear(mpts::Point{T1,T2,D}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:OneDimension}
-    no = mpts.p2n[nn,ip]
+@inline function linear(mpts::Point{T1,T2,1}, mesh::Mesh{T1,T2,1}, ip::T1, nn::T1) where {T1,T2}
+    no = mpts.p2n[ip][nn]
     if iszero(no) 
         return T1(0), T2(0.0), T2(0.0)
     else
@@ -28,8 +28,8 @@ end
         return T1(no), T2(ϕξ), (T2(∂ϕξ),)
     end
 end
-@inline function linear(mpts::Point{T1,T2,D}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:TwoDimension}
-    no = mpts.p2n[nn,ip]
+@inline function linear(mpts::Point{T1,T2,2}, mesh::Mesh{T1,T2,2}, ip::T1, nn::T1) where {T1,T2}
+    no = mpts.p2n[ip][nn]
     if iszero(no) 
         return T1(0), T2(0.0), T2(0.0), T2(0.0)
     else
@@ -39,8 +39,8 @@ end
         return T1(no), T2(ϕξ*ϕη), (T2(∂ϕξ*ϕη),T2(ϕξ*∂ϕη),)
     end
 end
-@inline function linear(mpts::Point{T1,T2,D}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:ThreeDimension}
-    no = mpts.p2n[nn,ip]
+@inline function linear(mpts::Point{T1,T2,3}, mesh::Mesh{T1,T2,3}, ip::T1, nn::T1) where {T1,T2}
+    no = mpts.p2n[ip][nn]
     if iszero(no) 
         return T1(0), T2(0.0), T2(0.0), T2(0.0), T2(0.0)
     else

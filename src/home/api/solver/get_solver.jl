@@ -11,15 +11,9 @@ function get_solver(; dim::Number=2, kwargs...)
     if !isempty(unused)
         @warn join(vcat("miscellaneous kwargs:", "\n\t- ".*String.(unused)))
     end
-    # Get dimension type
-    if dim == 1
-        dim = OneDimension
-    elseif dim == 2
-        dim = TwoDimension
-    elseif dim == 3
-        dim = ThreeDimension
-    else
-        error("Unsupported dimension type: $ndim")
+    # Validate dimension
+    if dim ∉ (1, 2, 3)
+        error("Unsupported dimension: $dim")
     end
     # Verify plotting status from ui
     if !ElastoPlasm.self.ui.plot

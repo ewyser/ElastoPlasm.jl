@@ -30,7 +30,7 @@ end
     return τ0 .* (τn / τII) .+ SVector{6,T}(Pn,Pn,Pn,zero(T),zero(T),zero(T))
 end
 
-@inline function drucker_prager(τᵢ::SVector{D,T},ϵᵢⱼ::SMatrix{S,S,T,L},ϵpII::Vector{T},ϕ₀::T,c₀::T,cᵣ::T,cmp::NamedTuple) where {D,S,T,L}
+@inline function drucker_prager(τᵢ::SVector{D,T},ϵᵢⱼ::SMatrix{S,S,T,L},ϵpII::MVector{2,T},ϕ₀::T,c₀::T,cᵣ::T,cmp::NamedTuple) where {D,S,T,L}
         Δλ     = T(0.0)
         ψ,nstr = T(0.0*π/180.0),length(τᵢ)
 
@@ -73,7 +73,7 @@ end
 @views @kernel inbounds = true function finite_DP(mpts::Point{T1,T2},cmp::NamedTuple) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp 
-        ϵᵢⱼ,τᵢ,Δλ,ϵpII = drucker_prager(mpts.s.τᵢ[p],mpts.s.ϵᵢⱼ[p],collect(mpts.s.ϵpII[:,p]),mpts.s.ϕ₀[p],mpts.s.c₀[p],mpts.s.cᵣ[p],cmp)
+        ϵᵢⱼ,τᵢ,Δλ,ϵpII = drucker_prager(mpts.s.τᵢ[p],mpts.s.ϵᵢⱼ[p],MVector{2,T2}(mpts.s.ϵpII[1,p],mpts.s.ϵpII[2,p]),mpts.s.ϕ₀[p],mpts.s.c₀[p],mpts.s.cᵣ[p],cmp)
         if Δλ > T2(0.0)
             mpts.s.ϵᵢⱼ[p]     = ϵᵢⱼ
             mpts.s.τᵢ[p]      = τᵢ

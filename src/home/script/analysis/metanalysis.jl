@@ -197,7 +197,7 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
     end
     
     fig = display(plot(plots...; layout=(length(plots), 1), size=(common.size[1], common.size[2] * length(plots))))
-    save_plot((; file=joinpath(path, "$(mesh.prprt.dim)d_av_$(lowercase(field_name)).png")))
+    save_plot((; file=joinpath(path, "$((length(mesh.prprt.nel)-1))d_av_$(lowercase(field_name)).png")))
 end
 
 """
