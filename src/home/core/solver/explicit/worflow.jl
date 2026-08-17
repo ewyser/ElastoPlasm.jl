@@ -38,7 +38,7 @@ function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cm
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
         # plot/save
-        savlot(mpts,mesh,time.t[1],solver)
+        bake(mpts,mesh,time.t[1],solver)
         # update progress bar
         next!(prog;showvalues = get_vals(mesh,mpts,it))
     end
@@ -84,7 +84,7 @@ function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cm
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
         # plot/save
-        savlot(mpts,mesh,time.t[1],solver)
+        bake(mpts,mesh,time.t[1],solver)
         # update progress bar
         next!(prog;showvalues = get_vals(mesh,mpts,it))
     end
@@ -129,7 +129,7 @@ function thermodynamic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basi
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
         # plot/save
-        savlot(mpts,mesh,time.t[1],instr)
+        bake(mpts,mesh,time.t[1],instr)
         # update progress bar
         next!(prog;showvalues = get_vals(mesh,mpts,it))
     end
