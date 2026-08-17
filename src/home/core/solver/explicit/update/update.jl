@@ -8,12 +8,15 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     update[:heat!] = heatflux(CPU())
     if instr[:basis][:which] == "gimpm"
         update[:domain!] = undeformed(CPU())
+        #update[:domain!] = Uᵢᵢ(CPU())
+        #=
+        update[:domain!] = undeformed(CPU())
         if instr[:fwrk][:deform] == "finite"
             if instr[:basis][:how] == "detFij"
                 update[:domain!] = detFᵢᵢ(CPU())
             elseif instr[:basis][:how] == "Fii"
                 update[:domain!] = Fᵢᵢ(CPU())
-            elseif instr[:basis][:how] == "Uii"
+            elseif instr[:basis][:how] == "Uii#
                 update[:domain!] = Uᵢᵢ(CPU())
             end
         elseif instr[:fwrk][:deform] == "infinitesimal"
@@ -25,6 +28,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
                 update[:domain!] = ΔUᵢᵢ(CPU())
             end
         end
+        =#
     end
     if instr[:fwrk][:locking]
         update[:ΔJn!] = ΔJn(CPU())
@@ -68,6 +72,21 @@ end
 function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr::NamedTuple,dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     # update {logarithmic|infinitesimal} strains
     solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
+    # volumetric locking correction
+    if solver.fwrk.locking
+        # init mesh quantities to zero
+        fill!(mesh.ΔJ,T2(0.0))
+        # calculate dimensional cst.
+        dim = T2(1.0/(length(mesh.prprt.nel)-1))
+        # mapping to mesh
+        solver.cairn.update.ΔJn!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+        # compute determinant Jbar
+        solver.cairn.update.ΔJp!(mpts,mesh,basis,dim; ndrange=mpts.nmp);sync(CPU())
+    end 
+    # update material point's domain
+    if solver.basis.which == "gimpm"
+        solver.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())
+    end   
     # update {kirchoff|cauchy} stresses
     if solver.fwrk.deform == "finite"
         solver.cairn.update.elast!(mpts,cmpr.Kc, cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
