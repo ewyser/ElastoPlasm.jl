@@ -24,8 +24,8 @@ display(p)
 - Throws an error if the requested field is not defined.
 """
 function what_plot_field(mpts::Point{T1,T2,D,E,R},opts) where {T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology}
-    # Extract data using the data function from opts
-    data = opts.data(mpts)
+    # Extract data using the data function from opts, scaled to the display unit
+    data = opts.data(mpts) .* opts.scale
     if isnothing(opts.cblim)
         dmin, dmax = minimum(data), maximum(data)
         if dmin == dmax
@@ -47,7 +47,7 @@ function what_plot_field(mpts::Point{T1,T2,D,E,R},opts) where {T1,T2,D,E<:Abstra
         marker_z    = data,
         xlabel      = L"$x-$direction"*" [m]",
         ylabel      = L"$z-$direction"*" [m]",
-        label       = opts.label,
+        label       = opts.label * " in " * opts.unit,
         color       = opts.cb,
         clim        = clim,
         xlim        = opts.xlim,

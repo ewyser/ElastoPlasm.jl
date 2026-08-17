@@ -123,7 +123,7 @@ function extract_field_data(outputs, get, npts, nsim)
         jldopen(output,"r+") do file
             X[:, k] = getindex.(file["ic/mpts"].x, 1)
             Y[:, k] = getindex.(file["ic/mpts"].x, 2)
-            D[:, k] = get.data(file["ic/mpts"])
+            D[:, k] = get.data(file["ic/mpts"]) .* get.scale
         end
         next!(prog; desc="Extracting $(get.name) $k/$nsim...")
     end
@@ -171,9 +171,9 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
     
     plot_specs = [
         (data=stats.D_mean, color=:viridis, clim=(D_mean_min, D_mean_max),
-         label=field_info.label, title="Average $(lowercase(field_info.name)) " * L"\leftangle" * field_info.label * L"\rightangle_{n=%$nsim}"),
+         label=field_info.label * " in " * field_info.unit, title="Average $(lowercase(field_info.name)) " * L"\leftangle" * field_info.label * L"\rightangle_{n=%$nsim}"),
         (data=stats.D_std, color=:plasma, clim=(0, D_std_max),
-         label=L"\sigma(" * field_info.label * L")", title="Standard deviation " * L"\sigma(" * field_info.label * L")"),
+         label=L"\sigma(" * field_info.label * L")" * " in " * field_info.unit, title="Standard deviation " * L"\sigma(" * field_info.label * L")"),
     ]
     
     # Generate plots
@@ -185,7 +185,7 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
             marker_z = spec.data,
             xlabel = L"$x-$direction" * " [m]",
             ylabel = L"$z-$direction" * " [m]",
-            label = spec.label * " [-]",
+            label = spec.label,
             color = spec.color,
             clim = spec.clim,
             xlim = common.xlim,
