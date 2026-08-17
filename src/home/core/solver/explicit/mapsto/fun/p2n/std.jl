@@ -1,0 +1,156 @@
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# FLIP transfer scheme, see Nakamura etal, 2023, https://doi.org/10.1016/j.cma.2022.115720
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+"""
+    std_1d_p2n(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, g::Vector{T2}) where {T1,T2}
+
+Project 1D material point data to mesh nodes (FLIP scheme).
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::Mesh{T1,T2}`: Mesh data structure.
+- `g::Vector{T2}`: Gravity vector.
+
+# Returns
+- Updates mesh fields in-place.
+"""
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,1},g::Vector{T2}) where {T1,T2}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        # buffering
+        ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
+        px    = ms*mpts.s.v[p][1]
+        σxx   = mpts.s.σᵢ[1,p]
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering & compute basis functions on-the-fly
+            no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
+            if iszero(no) continue end
+            # accumulation
+            @atom mesh.s.m[no]  += N * ms
+            @atom mesh.s.mv[no]  += N * px
+            @atom mesh.s.oobf[no]-= Ω * (∂N[1] * σxx) - N * (ms * g[1])
+        end
+    end
+end
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,2},g::Vector{T2}) where {T1,T2}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        # buffering
+        ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        mvx, mvy      = ms*mpts.s.v[p][1]     , ms*mpts.s.v[p][2]
+        σxx, σyy, σxy = mpts.s.σᵢ[p][1]       , mpts.s.σᵢ[p][2] , mpts.s.σᵢ[p][3]
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering & compute basis functions on-the-fly
+            no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
+            if iszero(no) continue end
+            # accumulation
+            @atom mesh.s.m[no]     += N * ms
+            @atom mesh.s.mv[1,no]  += N * mvx
+            @atom mesh.s.mv[2,no]  += N * mvy
+            @atom mesh.s.oobf[1,no]-= Ω * (∂N[1] * σxx + ∂N[2] * σxy)
+            @atom mesh.s.oobf[2,no]-= Ω * (∂N[1] * σxy + ∂N[2] * σyy) - N * (ms * g[2])
+        end
+    end
+end
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,3},g::Vector{T2}) where {T1,T2}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        # buffering
+        ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        px , py , pz  = ms*mpts.s.v[p][1]     , ms*mpts.s.v[p][2], ms*mpts.s.v[p][3]
+        σxx, σyy, σzz = mpts.s.σᵢ[p][1]       , mpts.s.σᵢ[p][2]  , mpts.s.σᵢ[p][3]
+        σyx, σzy, σzx = mpts.s.σᵢ[p][6]       , mpts.s.σᵢ[p][4]  , mpts.s.σᵢ[p][5]
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering & compute basis functions on-the-fly
+            no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
+            if iszero(no) continue end
+            # accumulation
+            @atom mesh.s.m[no]     += N * ms
+            @atom mesh.s.mv[1,no]  += N * px
+            @atom mesh.s.mv[2,no]  += N * py
+            @atom mesh.s.mv[3,no]  += N * pz
+            @atom mesh.s.oobf[1,no]-= Ω * ( ∂N[1] * σxx + ∂N[2] * σyx + ∂N[3] * σzx)
+            @atom mesh.s.oobf[2,no]-= Ω * ( ∂N[1] * σyx + ∂N[2] * σyy + ∂N[3] * σzy)
+            @atom mesh.s.oobf[3,no]-= Ω * ( ∂N[1] * σzx + ∂N[2] * σzy + ∂N[3] * σzz) - N * (ms * g[3])
+        end
+    end
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,1},mesh::MeshThermalPhase{T1,T2,1},basis::Basis{T1,1}) where {T1,T2}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        # buffering
+        ms ,Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        c  ,T  = mpts.t.c[p]          , mpts.t.T[p]
+        qx     = mpts.t.q[1,p]
+        γ      = T2(0.0) # heat source
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering
+            no     = basis.p2n[p][nn]
+            N, ∂Nx = mpts.ϕ∂ϕ[nn,p,1], mpts.ϕ∂ϕ[nn,p,2]
+            # accumulation
+            if iszero(no) continue end
+            @atom mesh.cᵢ[no]  += N * ms * c
+            @atom mesh.mcT[no] += N * ms * c * T
+            @atom mesh.oobq[no]+= Ω * (∂Nx * qx)
+            #@atom mesh.oobq[no]+= Ω * γ * N
+        end
+    end
+end
+
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,2},mesh::MeshThermalPhase{T1,T2,2},basis::Basis{T1,2}) where {T1,T2}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        # buffering
+        ms , Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        c  , T  = mpts.t.c[p]          , mpts.t.T[p]
+        qx , qy = mpts.t.q[1,p]        , mpts.t.q[2,p]
+        γ       = T2(0.0) # heat source
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering
+            no        = basis.p2n[p][nn]
+            N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
+            # accumulation
+            if iszero(no) continue end
+            @atom mesh.cᵢ[no]  += N * ms * c
+            @atom mesh.mcT[no] += N * ms * c * T
+            @atom mesh.oobq[no]+= Ω * (∂Nx * qx + ∂Ny * qy)
+            #@atom mesh.oobq[no]+= Ω * γ * N
+        end
+    end
+end
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,3}) where {T1,T2}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        # buffering
+        ms , Ω      = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        c  , T      = mpts.t.c[p]          , mpts.t.T[p]
+        qx , qy, qz = mpts.t.q[1,p]        , mpts.t.q[2,p], mpts.t.q[3,p]
+        γ           = T2(0.0) # heat source
+        for nn ∈ 1:mesh.prprt.nn
+            # buffering
+            no            = basis.p2n[p][nn]
+            N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1], mpts.ϕ∂ϕ[nn,p,2], mpts.ϕ∂ϕ[nn,p,3], mpts.ϕ∂ϕ[nn,p,4]
+            # accumulation
+            if iszero(no) continue end
+            @atom mesh.cᵢ[no]  += N * ms * c
+            @atom mesh.mcT[no] += N * ms * c * T
+            @atom mesh.oobq[no]+= Ω * (∂Nx * qx + ∂Ny * qy + ∂Nz * qz)
+            #@atom mesh.oobq[no]+= Ω * γ * N
+        end
+    end
+end
+

@@ -30,34 +30,3 @@ Base.@kwdef mutable struct Self
 	bckd::Execution
     mpi ::Distributed
 end
-
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Instruction, Time Types and subtypes
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-export Instruction, Time
-
-struct Instruction{T1<:Integer,T2<:Real,D<:AbstractDimension}
-    dtype  ::NamedTuple
-    basis  ::NamedTuple
-    fwrk   ::NamedTuple
-    bcs    ::NamedTuple
-    grf    ::NamedTuple
-    plast  ::NamedTuple
-    nonloc ::NamedTuple
-    plot   ::NamedTuple
-    perf   ::NamedTuple
-    backend::NamedTuple
-    cairn  ::NamedTuple
-end
-@adapt_struct Instruction
-
-
-
-struct Time{T1<:Integer,T2<:Real}
-    t  ::Vector{T2}
-    te ::T2
-    tg ::T2
-    tep::T2
-end
-@adapt_struct Time

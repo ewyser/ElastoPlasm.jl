@@ -23,7 +23,7 @@ function ic_collision(L, nel; fid::String=first(splitext(basename(@__FILE__))), 
     @info "Setting up mesh & material point system for $(length(L))d disk collision problem"
     # init & kwargs
     instr = kwargser(kwargs; dim=length(L))
-    paths = set_paths(fid, info.sys.out; interactive=false)  
+    paths = set_paths(fid, self.sys.out; interactive=false)  
     # mesh, mpts, cmpr & time initial conditions
     mesh  = setup_mesh(instr     ; geom = get_geom(nel, L, instr)     )
     cmpr  = setup_cmpr(mesh                                           )                       
@@ -45,14 +45,14 @@ function ic_collision(L, nel; fid::String=first(splitext(basename(@__FILE__))), 
             ylim    = (mesh.prprt.xB[2, 1], mesh.prprt.xB[2, 2]),
             tit     = L" t = " * string(round(0.0, digits=1)) * " [s]",
             backend = gr(legend=true, markersize=ms, markershape=:circle, markerstrokewidth=0.75,),
-            file    = joinpath(paths[:plot], "$(mesh.prprt.dim)d_collision_velocity.png"),
+            file    = joinpath(paths[:plot], "$((length(mesh.prprt.nel)-1))d_collision_velocity.png"),
         )
         get_plot_field(mpts, mesh, opts); save_plot(opts)
     end
     # display summary
     @info ic_log(mesh, mpts, time, instr)
     misc = (;
-        prefix = "$(mesh.prprt.dim)d_$(instr.fwrk.trsfr)_collision"
+        prefix = "$((length(mesh.prprt.nel)-1))d_$(instr.fwrk.trsfr)_collision"
     )
     # export to jld2 file and return path
     return export_setup(mesh, mpts, cmpr, time, instr, paths, misc; path = paths[:dat], file = "collision_simulation")

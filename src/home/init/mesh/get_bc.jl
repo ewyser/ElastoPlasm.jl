@@ -1,15 +1,17 @@
 """
-    set_roller_dirichlet(nno, xn, xB)
+    set_dirichlet(bc, xn, lower_upper_lim, dim; node::Symbol=:roller)
 
-Set roller Dirichlet boundary conditions for a mesh.
+Flag Dirichlet boundary nodes in `bc` on dimension `dim`, at the coordinate `lower_upper_lim`.
 
 # Arguments
-- `nno`: Number of nodes in each direction and total.
+- `bc`: Boolean matrix (ndim × nno) to update in-place.
 - `xn`: Matrix of nodal coordinates.
-- `xB`: Boundary coordinates.
+- `lower_upper_lim`: Boundary coordinate value to match nodes against.
+- `dim`: Dimension along which to apply the condition.
+- `node::Symbol=:roller`: `:roller` flags only dimension `dim`; `:fixed` flags all dimensions.
 
 # Returns
-- `bc::Matrix{Bool}`: Boolean matrix indicating roller boundary conditions.
+- `nothing`. Updates `bc` in-place.
 """
 function set_dirichlet(bc,xn,lower_upper_lim,dim; node::Symbol=:roller)
     id = findall(x-> x ∈ lower_upper_lim,xn[dim,:])
@@ -22,13 +24,13 @@ function set_dirichlet(bc,xn,lower_upper_lim,dim; node::Symbol=:roller)
 end
 
 """
-    get_bc(xn::Matrix{T2}, instr::NamedTuple; ghosts::Vector{T2}=[T2(0.0)]) where {T2}
+    get_bc(xn::Matrix{T2}, solver::S; ghosts::Vector{T2}=[T2(0.0)]) where {S<:AbstractSolver}
 
-Compute the boundary condition matrix and boundary coordinates for a mesh, using boundary condition types specified in `instr.bcs.dirichlet`.
+Compute the boundary condition matrix and boundary coordinates for a mesh, using boundary condition types specified in `solver.bcs.dirichlet`.
 
 # Arguments
 - `xn::Matrix{T2}`: Matrix of nodal coordinates (size: ndim × nno).
-- `instr::NamedTuple`: Instruction/configuration named tuple, must contain `bcs.dirichlet` as a matrix of Symbols (e.g., `:roller`, `:fixed`).
+- `solver::S`: Solver instance (e.g. `ExplicitSolver`), must have `bcs.dirichlet` as a matrix of Symbols (e.g., `:roller`, `:fixed`).
 - `ghosts::Vector{T2}`: Optional, size of ghost cells to add at boundaries (default: `[T2(0.0)]`).
 
 # Returns
@@ -37,20 +39,20 @@ Compute the boundary condition matrix and boundary coordinates for a mesh, using
 
 # Example
 ```julia
-bc, xB = get_bc(xn, instr; ghosts=[0.0])
+bc, xB = get_bc(xn, solver; ghosts=[0.0])
 ```
 """
-function get_bc(xn::Matrix{T2},instr::Instruction{T1,T2,D}; ghosts::Vector{T2}=[T2(0.0)]) where {T1,T2,D}
+function get_bc(xn::Matrix{T2},solver::S; ghosts::Vector{T2}=[T2(0.0)]) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     xB = hcat(
         minimum(xn,dims=2).+ghosts,
         maximum(xn,dims=2).-ghosts
     )
     ndim = size(xn,1)
     nno  = size(xn,2)
-    bc   = zeros(Bool,ndim,nno[end])
+    bc   = zeros(Bool,ndim,nno)
     for dim ∈ 1:ndim
         for (k,limit) ∈ enumerate(xB[dim,:])
-            set_dirichlet(bc,xn,limit,dim; node = instr.bcs.dirichlet[dim,k]) 
+            set_dirichlet(bc,xn,limit,dim; node = solver.bcs.dirichlet[dim,k])
         end
     end
     return bc,xB

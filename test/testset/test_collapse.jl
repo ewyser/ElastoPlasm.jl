@@ -9,7 +9,7 @@
 Generate all combinations of element numbers.
 """
 function generate_nels_cases()
-    return [[4, 5], [4, 10], [4, 20], [4, 40],]
+    return [[5, 5], [5, 10], [5, 20], [5, 40],]
     #return [[5, 10], [5, 20],]
 end
 
@@ -71,19 +71,16 @@ end
 
 Run convergence tests for a given basis configuration.
 """
-function run_collapse_convergence_tests(solver)
+function run_collapse_convergence_tests(solver, fwrk)
     l0     = 50.0
     nels   = generate_nels_cases()
     nk     = length(nels) + 1
     errors = zeros(nk)
     hs     = zeros(nk)
     errors[1], hs[1] = Inf, Inf
-    
-    kwargs = cli()
-
     for (k, nel) ∈ enumerate(nels)
         @testset "- nel = $nel" verbose = true begin
-            sim = ic_collapse(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse",kwargs...)
+            sim = ic_collapse(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse",fwrk=fwrk,)
             
             setup = load_simulation_setup(sim)
             err = compute_collapse_error(sim, l0, solver)
@@ -92,8 +89,6 @@ function run_collapse_convergence_tests(solver)
             @test errors[k+1] < errors[k]
         end
     end
-    
-    # Return errors and mesh sizes for convergence plotting
     return errors, hs
 end
 
@@ -106,13 +101,37 @@ all_labels = []
 plot_path = ""
 
 
-for w in [elastoquasistatic!,] #,elastodynamic!]
-    @info "Running convergence tests for workflow: $w"
+
+fwrks = [
+    #=
+    (;
+        deform = "infinitesimal",
+        trsfr = "std",
+        C_pf = 1.0, 
+        musl = false,
+        locking = false,
+        damping = 0.0
+    ),
+    =#
+    (;
+        deform = "finite",
+        trsfr = "std",
+        C_pf = 1.0, 
+        musl = false,
+        locking = false,
+        damping = 0.0
+    ),
+]
+
+solver = elastoquasistatic!
+
+for fwrk in fwrks
+    @info "Running convergence tests for workflow: $solver"
     @testset "- 2d elastic collapse" verbose = true begin
-        errors, hs = run_collapse_convergence_tests(w)
+        errors, hs = run_collapse_convergence_tests(solver, fwrk)
         push!(all_errors, errors)
         push!(all_hs, hs)
-        push!(all_labels, string(w))
+        push!(all_labels, "$(string(solver)), $(fwrk.deform))")
     end
 end
 

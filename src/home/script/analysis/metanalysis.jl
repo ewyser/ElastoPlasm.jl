@@ -61,7 +61,7 @@ function execute_simulations(meta_path, nsim)
         sim_path = joinpath(meta_path, sim)
         for file in filter(f -> endswith(f, ".jld2"), readdir(sim_path))
             @suppress begin
-                out = elastoplasm!(joinpath(sim_path, file); workflow=[elastodynamic!, elastoplastic!])
+                out = elastoplasm!(joinpath(sim_path, file); workflows=[elastodynamic!, elastoplastic!])
                 push!(outputs, out.simulation)
             end
         end
@@ -89,7 +89,7 @@ function postprocess_fields(outputs, path)
 
     # Load reference data
     reference = load(outputs[1])
-    npts      = size(reference["ic/mpts"].x, 2)
+    npts      = length(reference["ic/mpts"].x)
     
     # Process each selected field
     for field in selection
@@ -121,8 +121,8 @@ function extract_field_data(outputs, get, npts, nsim)
     prog = make_progress(nsim; desc="Extracting $(get.name)")
     for (k, output) ∈ enumerate(outputs)
         jldopen(output,"r+") do file
-            X[:, k] = vec(file["ic/mpts"].x[1, :])
-            Y[:, k] = vec(file["ic/mpts"].x[2, :])
+            X[:, k] = getindex.(file["ic/mpts"].x, 1)
+            Y[:, k] = getindex.(file["ic/mpts"].x, 2)
             D[:, k] = get.data(file["ic/mpts"])
         end
         next!(prog; desc="Extracting $(get.name) $k/$nsim...")
@@ -160,8 +160,8 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
     
     # Common plot settings
     common = (;
-        xlim = (minimum(mesh.x[1, :]), maximum(mesh.x[1, :])),
-        ylim = (minimum(mesh.x[2, :]), maximum(mesh.x[2, :])),
+        xlim = (minimum(getindex.(mesh.x, 1)), maximum(getindex.(mesh.x, 1))),
+        ylim = (minimum(getindex.(mesh.x, 2)), maximum(getindex.(mesh.x, 2))),
         size = instr.plot.dpi .* (mesh.prprt.L ./ mesh.prprt.L[1]),
     )
     
@@ -197,7 +197,7 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
     end
     
     fig = display(plot(plots...; layout=(length(plots), 1), size=(common.size[1], common.size[2] * length(plots))))
-    save_plot((; file=joinpath(path, "$(mesh.prprt.dim)d_av_$(lowercase(field_name)).png")))
+    save_plot((; file=joinpath(path, "$((length(mesh.prprt.nel)-1))d_av_$(lowercase(field_name)).png")))
 end
 
 """
@@ -225,13 +225,13 @@ metanalysis([64.0, 16.0], [40, 10]; fid="slump_meta")
 """
 function metanalysis(L, nel; fid::String=first(splitext(basename(@__FILE__))), field::String="epII")
     @assert length(L) == length(nel) "L and nel must have same length"
-    root = mkpath(joinpath(info.sys.out, fid))
+    root = mkpath(joinpath(self.sys.out, fid))
     # Prepare and execute simulations if not already done
     if isempty(readdir(root))
         # 1. Preparation
         nsim = prepare_simulations!(L, nel, fid, root)
         # 2a. Calculation
-        meta_path = joinpath(info.sys.out, fid)
+        meta_path = joinpath(self.sys.out, fid)
         outputs = execute_simulations(meta_path, nsim)
     else
         # 2b. Load existing outputs

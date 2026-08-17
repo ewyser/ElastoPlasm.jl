@@ -1,22 +1,20 @@
 """
-    get_coords(ndim::T1, L::Vector{T2}, h::Vector{T2}; ghosts::Vector{T2}=[T2(0.0)]) where {T1,T2}
+    get_node_type(ndim::T1, nno::Vector{T1}) where {T1}
 
-Generate nodal coordinates and mesh topology for 1D, 2D, or 3D domains.
+Classify mesh nodes by boundary layer: interior nodes vs. the two layers of nodes nearest each
+domain edge, along every spatial axis.
 
 # Arguments
 - `ndim::T1`: Number of spatial dimensions.
-- `L::Vector{T2}`: Length of the domain in each spatial direction.
-- `h::Vector{T2}`: Element size in each direction.
-- `ghosts::Vector{T2}`: Optional, size of ghost cells to add at boundaries (default: `[T2(0.0)]`).
+- `nno::Vector{T1}`: Number of nodes in each direction and total.
 
 # Returns
-- `x::Matrix{T2}`: Matrix of nodal coordinates (each column is a node).
-- `nel::Vector{Int}`: Number of elements in each direction and total.
-- `nno::Vector{Int}`: Number of nodes in each direction and total.
+- `node_type::Matrix{T1}`: `ndim × nno[end]` matrix; each row classifies nodes along one axis as
+  `1` (outermost layer), `2` (second layer), `4` (second-to-last layer), or `3` (interior).
 
 # Example
 ```julia
-x, nel, nno = get_coords(2, [1.0, 1.0], [0.1, 0.1])
+node_type = get_node_type(2, [11, 11, 121])
 ```
 """
 function get_node_type(ndim::T1,nno::Vector{T1}) where {T1}

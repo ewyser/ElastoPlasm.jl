@@ -1,7 +1,7 @@
 # include dependencies
 using Revise,Pkg,Test
 using Plots,LaTeXStrings,ProgressMeter,REPL.TerminalMenus
-using LinearAlgebra,SparseArrays,Random
+using LinearAlgebra,StaticArrays,SparseArrays,Random
 using JLD2,HDF5
 using KernelAbstractions,Adapt,Base.Threads
 import KernelAbstractions.@atomic as @atom
@@ -15,7 +15,7 @@ include(joinpath(SRC,"boot/include.jl"))
 sucess = superInc(["boot/needs/types"]; root=SRC)
 
 # create primitive structs
-info = Self(
+self = Self(
     sys = Path(
         root = SRC,
 	    out  = joinpath(dirname(SRC),"dump"),
@@ -32,11 +32,11 @@ include(joinpath(SRC,"boot/needs/backend.jl"))
 include(joinpath(SRC,"boot/needs/distributed.jl"))
 
 # flushing
-rootflush(info.sys.out)
+rootflush(self.sys.out)
 
 # find & printout active backend(s)
-add_backend!(info.bckd, Val(:x86_64))
+add_backend!(self.bckd, Val(:x86_64))
 
 # include .jl files
-lists = ["home/init","home/api","home/core","home/script"]
-@info join(superInc(lists; root=SRC, lib=info.sys.lib),"\n")
+lists = ["home/api","home/init","home/plot","home/utils","home/script","home/core"]
+@info join(superInc(lists; root=SRC, lib=self.sys.lib),"\n")

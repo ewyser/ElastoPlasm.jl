@@ -35,7 +35,7 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
             ),
         )
     )
-    paths = set_paths(fid,info.sys.out;interactive=false)  
+    paths = set_paths(fid,self.sys.out;interactive=false)  
     # mesh & mpts initial conditions
     mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)       )
     cmpr  = setup_cmpr(mesh                                           )                       
@@ -51,15 +51,15 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
         backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
         tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
         cblim   = [(0.0,20.0),],
-        xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])), 
-        ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),
-        file    = joinpath(paths[:plot],"$(mesh.prprt.dim)d_T.png"),
+        xlim    = (minimum(getindex.(mesh.x, 1)), maximum(getindex.(mesh.x, 1))),
+        ylim    = (minimum(getindex.(mesh.x, 2)), maximum(getindex.(mesh.x, 2))),
+        file    = joinpath(paths[:plot],"$((length(mesh.prprt.nel)-1))d_T.png"),
     )
     get_plot_field(mpts,mesh,opts);save_plot(opts)
     # display summary
     @info ic_log(mesh,mpts,time,instr)
     misc = (;
-        prefix = "$(mesh.prprt.dim)d_$(instr[:fwrk][:trsfr])"
+        prefix = "$((length(mesh.prprt.nel)-1))d_$(instr[:fwrk][:trsfr])"
     )
     # export to jld2 file and return path
     return export_setup(mesh,mpts,cmpr,time,instr,paths,misc; path = paths[:dat], file = "thermal_simulation")

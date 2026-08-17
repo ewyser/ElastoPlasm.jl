@@ -8,17 +8,17 @@ function shpfunCheck(shp,instr,paths)
     nmp    = length(xp)
     # constructor
     mpts = (
-        ndim   = mesh.dim,
+        ndim   = (length(mesh.prprt.nel)-1),
         nmp  = nmp,
         x    = xp,
         ℓ    = ones(nmp).*3.0.*L./nmp,
-        ϕ∂ϕ  = zeros(mesh.nn,nmp ,mesh.dim+1   ),
-        Δnp  = zeros(mesh.nn,mesh.dim,nmp      ),
+        ϕ∂ϕ  = zeros(mesh.nn,nmp ,(length(mesh.prprt.nel)-1)+1   ),
+        Δnp  = zeros(mesh.nn,(length(mesh.prprt.nel)-1),nmp      ),
         # connectivity
         p2e  = zeros(Int64,nmp),
         p2n  = zeros(Int64,mesh.nn,nmp),
     )
-    instr[:cairn] = (;shpfun = init_shpfun(mesh.dim,instr[:basis]),)
+    instr[:cairn] = (;shpfun = init_shpfun((length(mesh.prprt.nel)-1),instr[:basis]),)
     # calculate tplgy and shpfun
     shpfun(mpts,mesh,instr)
     # extract and store value of mpts.ϕ∂ϕ

@@ -38,7 +38,7 @@ function collect_jl_files(d::Dict, path::String = "")
     return files
 end
 
-lib_pages(key) = collect_jl_files(ElastoPlasm.info.sys.lib[key]["files"])
+lib_pages(key) = collect_jl_files(ElastoPlasm.self.sys.lib[key]["files"])
 
 write_autodoc_page("api.md"    , lib_pages("home/api")   , :ElastoPlasm)
 write_autodoc_page("program.md", lib_pages("home/core")  , :ElastoPlasm)

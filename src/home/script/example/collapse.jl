@@ -37,7 +37,7 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
 
     # init & kwargs
     instr = kwargser(kwargs; dim=dim)
-    paths = set_paths(fid, info.sys.out; interactive=false)
+    paths = set_paths(fid, self.sys.out; interactive=false)
     T0    = instr.dtype.T0  
     T1,T2 = first(T0),last(T0) 
     L,nel = T2.(L),T1.(nel) 
@@ -56,7 +56,7 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     # display summary
     @info ic_log(mesh,mpts,time,instr)
     misc = (;
-        prefix = "$(mesh.prprt.dim)d_$(instr.fwrk.trsfr)"
+        prefix = "$((length(mesh.prprt.nel)-1))d_$(instr.fwrk.trsfr)"
     )
     # export to jld2 file and return path
     return export_setup(mesh,mpts,cmpr,time,instr,paths,misc; path = paths[:dat], file = "collapse_simulation")
