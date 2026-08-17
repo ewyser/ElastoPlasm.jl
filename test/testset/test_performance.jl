@@ -3,50 +3,50 @@ function define_benchs(ic,cfg)
     suite["ignite"]      = BenchmarkGroup(["string", "unicode"])
     suite["mapsto"]      = BenchmarkGroup(["string", "unicode"])
     suite["elastoplast"] = BenchmarkGroup(["string", "unicode"])
-    # unpack mesh, mpts, cmpr, instr, paths as aliases
-    mesh,mpts,cmpr = ic["mesh"], ic["mpts"], ic["cmpr"]
-    instr          = cfg["instr"]
+    # unpack mesh, mpts, basis, cmpr, instr, paths as aliases
+    mesh,mpts,basis,cmpr = ic["mesh"], ic["mpts"], ic["basis"], ic["cmpr"]
+    instr          = cfg["solver"]
     time           = ic["time"]
     g, dt, η, C_pf = [0.0, -9.81], 1e-3, 0.1, 0.99
     # calculate/update topology
     suite["ignite"]["tplgy!"] = @benchmarkable begin
-       $instr.cairn[:ignite].tplgy!($mpts,$mesh; ndrange=($mpts.nmp));sync(CPU()) 
+       $instr.cairn.ignite.tplgy!($mpts,$mesh,$basis; ndrange=($mpts.nmp));sync(CPU())
     end
     # map material point to node
     suite["mapsto"]["p2n!"  ] = @benchmarkable begin
-       $instr.cairn[:mapsto][:map].p2n!(ndrange=$mpts.nmp,$mpts,$mesh,$g);sync(CPU())
+       $instr.cairn.mapsto.map.p2n!($mpts,$mesh,$basis,$g; ndrange=$mpts.nmp);sync(CPU())
     end
     # solve Eulerian momentum equation
     suite["mapsto"]["solve!"] = @benchmarkable begin
-        $instr.cairn[:mapsto][:map].solve!(ndrange=$mesh.prprt.nno[end],$mesh,$dt,$η);sync(CPU())
+        $instr.cairn.mapsto.map.solve!($mesh,$dt,$η; ndrange=$mesh.prprt.nno[end]);sync(CPU())
     end
     # map back solution to material point
     suite["mapsto"]["n2p!"  ] = @benchmarkable begin
-        $instr.cairn[:mapsto][:map].n2p!(ndrange=$mpts.nmp,$mpts,$mesh,$dt,$C_pf);sync(CPU())
+        $instr.cairn.mapsto.map.n2p!($mpts,$mesh,$basis,$dt,$C_pf; ndrange=$mpts.nmp);sync(CPU())
     end
     # volumetric locking correction
     suite["mapsto"]["augm"] = @benchmarkable begin
         # accumulate material point contributions
-        $instr.cairn[:mapsto][:augm].p2n!(ndrange=$mpts.nmp,$mpts,$mesh);sync(CPU())
+        $instr.cairn.mapsto.augm.p2n!($mpts,$mesh,$basis; ndrange=$mpts.nmp);sync(CPU())
         # solve for nodal incremental displacement
-        $instr.cairn[:mapsto][:augm].solve!(ndrange=$mesh.prprt.nno[end],$mesh);sync(CPU())
+        $instr.cairn.mapsto.augm.solve!($mesh; ndrange=$mesh.prprt.nno[end]);sync(CPU())
     end
     # get incremental deformation tensor
     suite["elastoplast"]["deform!"] = @benchmarkable begin
-        $instr.cairn[:update].deform!(ndrange=$mpts.nmp,$mpts,$mesh,$dt);sync(CPU())
+        $instr.cairn.update.deform!($mpts,$mesh,$basis,$dt; ndrange=$mpts.nmp);sync(CPU())
     end
     # volumetric locking correction
     suite["elastoplast"]["ΔJn"] = @benchmarkable begin
-        # mapping to mesh 
-        $instr.cairn[:update].ΔJn!(ndrange=$mpts.nmp,$mpts,$mesh);sync(CPU())
+        # mapping to mesh
+        $instr.cairn.update.ΔJn!($mpts,$mesh,$basis; ndrange=$mpts.nmp);sync(CPU())
     end
     suite["elastoplast"]["ΔJp!"] = @benchmarkable begin
-        # compute determinant Jbar 
-        $instr.cairn[:update].ΔJp!(ndrange=$mpts.nmp,$mpts,$mesh,1/$mesh.prprt.dim);sync(CPU())
+        # compute determinant Jbar
+        $instr.cairn.update.ΔJp!($mpts,$mesh,$basis,1.0/(length($mesh.prprt.nel)-1); ndrange=$mpts.nmp);sync(CPU())
     end
     # elastic predictor
     suite["elastoplast"]["elast"] = @benchmarkable begin
-        $instr.cairn[:update].elast!(ndrange=$mpts.nmp,$mpts,$cmpr.Del);sync(CPU())
+        $instr.cairn.update.elast!($mpts,$cmpr.Kc,$cmpr.Gc; ndrange=$mpts.nmp);sync(CPU())
     end
     return suite
 end
@@ -103,7 +103,7 @@ end
         "3d" => Dict(),
     )
 
-    L,nel   = [64.1584,64.1584/4.0],[80,20];
+    L,nel   = [64.1584,64.1584/4.0],[40,10];
     current["2d"] = run_bench(L,nel)
 
     L,nel   = [64.1584,64.1584/4.0,64.1584/4.0],[40,10,10];

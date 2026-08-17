@@ -6,6 +6,8 @@ export GimpBasis
 
 struct GimpBasis <: AbstractBasis end
 
+stencil_range(::GimpBasis, ::Type{T1}) where {T1} = T1(-1):T1(2)
+
 @inline function S∂S(δx::T2,h::T2,lp::T2) where {T2}                                                       
     S,∂S = T2(0.0),T2(0.0)
     if abs(δx) < lp                       
@@ -20,39 +22,36 @@ struct GimpBasis <: AbstractBasis end
     end
     return S,∂S    
 end
-@inline function gimp(mpts::Point{T1,T2,1}, mesh::Mesh{T1,T2,1}, ip::T1, nn::T1) where {T1,T2}
-    no = mpts.p2n[ip][nn]
-    if iszero(no) 
-        return T1(0), T2(0.0), T2(0.0)
+@inline function eval_basis(mpts::Point{T1,T2,1,E,R}, mesh::Mesh{T1,T2,1}, basis::Basis{T1,1,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:GimpBasis,E,R}
+    no = basis.p2n[ip][nn]
+    if iszero(no)
+        N, ∂N = T2(0.0), SVector{1,T2}(0.0)
     else
         ξ      = (mpts.x[ip][1]-mesh.x[no][1])
-        Sx,dSx = S∂S(ξ,mesh.prprt.h[1],mpts.ℓ[1,ip]) 
+        Sx,dSx = S∂S(ξ,mesh.prprt.h[1],mpts.ℓ[ip][1])
         # convolution of basis function
-        N      =  Sx                                     
-        ∂Nx    = dSx                                 
-        return T1(no), T2(N), T2(∂Nx)
+        N, ∂N  = T2(Sx), SVector{1,T2}(dSx)
     end
+    return no, N, ∂N
 end
-@inline function gimp(mpts::Point{T1,T2,2}, mesh::Mesh{T1,T2,2}, ip::T1, nn::T1) where {T1,T2}
-    no = mpts.p2n[ip][nn]
-    if iszero(no) 
-        return T1(0), T2(0.0), T2(0.0), T2(0.0)
+@inline function eval_basis(mpts::Point{T1,T2,2,E,R}, mesh::Mesh{T1,T2,2}, basis::Basis{T1,2,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:GimpBasis,E,R}
+    no = basis.p2n[ip][nn]
+    if iszero(no)
+        N, ∂N = T2(0.0), SVector{2,T2}(0.0, 0.0)
     else
         ξ      = (mpts.x[ip][1]-mesh.x[no][1])
         η      = (mpts.x[ip][2]-mesh.x[no][2])
         Sx,dSx = S∂S(ξ,mesh.prprt.h[1],mpts.ℓ[ip][1])
         Sy,dSy = S∂S(η,mesh.prprt.h[2],mpts.ℓ[ip][2])
         # convolution of basis function
-        N      =  Sx*  Sy                                                                                
-        ∂Nx    = dSx*  Sy                                                                                
-        ∂Ny    =  Sx* dSy  
-        return T1(no), T2(N), T2(∂Nx), T2(∂Ny)
+        N, ∂N  = T2(Sx*Sy), SVector{2,T2}(dSx*Sy, Sx*dSy)
     end
+    return no, N, ∂N
 end
-@inline function gimp(mpts::Point{T1,T2,3}, mesh::Mesh{T1,T2,3}, ip::T1, nn::T1) where {T1,T2}
-    no = mpts.p2n[ip][nn]
-    if iszero(no) 
-        return T1(0), T2(0.0), T2(0.0), T2(0.0), T2(0.0)
+@inline function eval_basis(mpts::Point{T1,T2,3,E,R}, mesh::Mesh{T1,T2,3}, basis::Basis{T1,3,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:GimpBasis,E,R}
+    no = basis.p2n[ip][nn]
+    if iszero(no)
+        N, ∂N = T2(0.0), SVector{3,T2}(0.0, 0.0, 0.0)
     else
         ξ      = (mpts.x[ip][1]-mesh.x[no][1])
         η      = (mpts.x[ip][2]-mesh.x[no][2])
@@ -61,11 +60,7 @@ end
         Sy,dSy = S∂S(η,mesh.prprt.h[2],mpts.ℓ[ip][2])
         Sz,dSz = S∂S(ζ,mesh.prprt.h[3],mpts.ℓ[ip][3])
         # convolution of basis function
-        N      =  Sx*  Sy*  Sz                                                                                
-        ∂Nx    = dSx*  Sy*  Sz                                                                                
-        ∂Ny    =  Sx* dSy*  Sz                                   
-        ∂Nz    =  Sx*  Sy* dSz
-        return T1(no), T2(N), T2(∂Nx), T2(∂Ny), T2(∂Nz)
+        N, ∂N  = T2(Sx*Sy*Sz), SVector{3,T2}(dSx*Sy*Sz, Sx*dSy*Sz, Sx*Sy*dSz)
     end
+    return no, N, ∂N
 end
-@inline Base.@propagate_inbounds (::GimpBasis)(mpts, mesh, p, nn) = gimp(mpts, mesh, p, nn)

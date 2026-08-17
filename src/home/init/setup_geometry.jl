@@ -1,12 +1,12 @@
 """
-    Geometry(L::Vector{T2}, nel::Vector{T1}, instr::Instruction{T1,T2,D}; x₀::Vector=...) where {T1,T2,D}
+    Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=...) where {S<:AbstractSolver}
 
 Constructor for the `Geometry` type. Computes mesh geometry parameters and returns a `Geometry` struct containing mesh and domain information, based on the number of elements, domain size, and basis type.
 
 # Arguments
-- `nel::Vector{T1}`: Number of elements in each spatial direction.
-- `L::Vector{T2}`: Length of the domain in each spatial direction.
-- `instr`: Instruction object or dictionary containing basis information.
+- `L::Vector`: Length of the domain in each spatial direction.
+- `nel::Vector`: Number of elements in each spatial direction.
+- `solver::S`: Solver instance (e.g. `ExplicitSolver`) containing basis information.
 
 # Returns
 - `Geometry` struct with fields:
@@ -20,7 +20,7 @@ Constructor for the `Geometry` type. Computes mesh geometry parameters and retur
 
 # Example
 ```julia
-geom = get_geom([10, 10], [1.0, 1.0], Dict(:basis => Dict(:which => "bsmpm", :ghost => 1)))
+geom = Geometry([1.0, 1.0], [10, 10], solver)
 @show geom.dim, geom.h, geom.nel, geom.nno, geom.L, geom.nn, geom.xB
 ```
 """
@@ -28,7 +28,7 @@ geom = get_geom([10, 10], [1.0, 1.0], Dict(:basis => Dict(:which => "bsmpm", :gh
 function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0,]) where {T1<:Integer,T2<:Real, S<:AbstractSolver{T1,T2,1}}
     # Calculate problem dimensionality & node spacing
     dim,h = length(L),L ./ nel
-    
+
     # Add ghost element(s) (?) and modify nel vector accordingly
     ghost = solver.basis.ghost
     nel   = [nel[1]+ghost, (nel[1]+ghost),]
@@ -36,13 +36,9 @@ function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0,]) where 
 
     # Create nno vector
     nno = [nel[1]+1, nel[1]+1,]
-    
+
     # Define shape function compact support based on basis type
-    if solver.basis.which == "smpm"
-        neighbour  = Neighbs((T1(0):T1(1),))
-    else
-        neighbour  = Neighbs((T1(-1):T1(2),))
-    end
+    neighbour = Neighbs(get_basis(solver.basis.which), dim, T1)
     NN = neighbour.nn
 
     return Geometry{T1,T2,1,NN}(
@@ -64,18 +60,14 @@ function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0, 0.0,]) w
     # Add ghost element(s) and modify nel vector accordingly
     ghost = solver.basis.ghost
     nel   = [nel[1]+ghost, nel[2]+ghost, (nel[1]+ghost) * (nel[2]+ghost),]
-    xB    = vcat([x₀[1]-ghost*h[1] L[1]+ghost*h[1]], [x₀[2]-ghost*h[2] L[2]+ghost*h[2]])    
+    xB    = vcat([x₀[1]-ghost*h[1] L[1]+ghost*h[1]], [x₀[2]-ghost*h[2] L[2]+ghost*h[2]])
 
     # Create nno vector
     nno = [nel[1]+1, nel[2]+1, (nel[1]+1) * (nel[2]+1),]
-    
+
     # Define shape function compact support based on basis type
-    if solver.basis.which == "smpm"
-        neighbour  = Neighbs((T1(0):T1(1), T1(0):T1(1)))
-    else
-        neighbour  = Neighbs((T1(-1):T1(2), T1(-1):T1(2)))
-    end
-    NN  = neighbour.nn
+    neighbour = Neighbs(get_basis(solver.basis.which), dim, T1)
+    NN = neighbour.nn
 
     return Geometry{T1,T2,2,NN}(
         T1(dim),
@@ -102,11 +94,7 @@ function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0, 0.0, 0.0
     nno = [nel[1]+1, nel[2]+1, nel[3]+1, (nel[1]+1) * (nel[2]+1) * (nel[3]+1),]
 
     # Define shape function compact support based on basis type
-    if solver.basis.which == "smpm"
-        neighbour  = Neighbs((T1(0):T1(1), T1(0):T1(1), T1(0):T1(1)))
-    else
-        neighbour  = Neighbs((T1(-1):T1(2), T1(-1):T1(2), T1(-1):T1(2)))
-    end
+    neighbour = Neighbs(get_basis(solver.basis.which), dim, T1)
     NN = neighbour.nn
 
     return Geometry{T1,T2,3,NN}(
@@ -121,6 +109,6 @@ function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0, 0.0, 0.0
     )
 end
 
-function setup_geometry(L::Vector{T2}, nel::Vector{T1}, solver::S) where {T1,T2,D,S<:AbstractSolver}
+function setup_geometry(L::Vector{T2}, nel::Vector{T1}, solver::S) where {T1,T2,S<:AbstractSolver}
     return Geometry(L,nel,solver)
 end

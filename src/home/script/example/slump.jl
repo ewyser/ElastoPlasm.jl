@@ -27,9 +27,10 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
     # mesh, mpts, cmpr & time initial conditions
     geom   = setup_geometry(L,nel,solver)
     mesh   = setup_mesh(geom,solver)
-    cmpr   = setup_cmpr(mesh                                         )     
+    cmpr   = setup_cmpr(mesh                                         )
     mpts   = setup_mpts(mesh,solver,cmpr ; geom = get_slump(mesh,cmpr,solver))
-    time   = setup_time(solver     ; te = 10.0, tg = 10.0, tep = 5.0  ) 
+    basis  = setup_basis(mesh,mpts,geom,solver)
+    time   = setup_time(solver     ; te = 10.0, tg = 10.0, tep = 5.0  )
     # plot initial cohesion field
     if solver.plot.status
         @info "Plotting initial cohesion & friction fields..."
@@ -49,5 +50,5 @@ function ic_slump(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwarg
         get_plot_field(mpts,mesh,opts);save_plot(opts)
     end
     # export to jld2 file and return path
-    return export_setup(mesh,mpts,cmpr,time,solver,paths; path = paths[:dat], file = "slump_simulation")
+    return export_setup(mesh,mpts,basis,cmpr,time,solver,paths; path = paths[:dat], file = "slump_simulation")
 end

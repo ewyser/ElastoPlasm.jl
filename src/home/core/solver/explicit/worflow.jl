@@ -20,7 +20,7 @@ Run the explicit elastodynamic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr::NamedTuple,time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:solver.plot.freq:time.te)))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving elastodynamic...",barlen=10)
@@ -31,9 +31,9 @@ function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,ti
             # adaptative dt & linear increase of gravity
             g,dt = get_spacetime(mpts,mesh,cmpr,time,T)
             # mpm cycle
-            ignite(mpts,mesh,solver)
-            mapsto(mpts,mesh,g,dt,solver)    
-            elasto(mpts,mesh,cmpr,dt,solver)
+            ignite(mpts,mesh,basis,solver)
+            mapsto(mpts,mesh,basis,g,dt,solver)
+            elasto(mpts,mesh,basis,cmpr,dt,solver)
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
@@ -65,7 +65,7 @@ Run the explicit elastoplastic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr::NamedTuple,time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:solver.plot.freq:time.t[2])))
     g         = get_g(mesh.prprt; G = T2(9.81))
     # action
@@ -77,9 +77,9 @@ function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,ti
             # adaptative dt & linear increase of gravity
             dt  = get_dt(mpts,mesh.prprt,cmpr,time,T)
             # mpm cycle
-            ignite(mpts,mesh,solver)
-            mapsto(mpts,mesh,g,dt,solver)    
-            elastoplast(mpts,mesh,cmpr,dt,solver)
+            ignite(mpts,mesh,basis,solver)
+            mapsto(mpts,mesh,basis,g,dt,solver)
+            elastoplast(mpts,mesh,basis,cmpr,dt,solver)
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
@@ -111,7 +111,7 @@ Run the explicit thermodynamic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function thermodynamic!(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::S) where {T1,T2,D,NN,E,R,S<:AbstractSolver{T1,T2,D}}
+function thermodynamic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,D},cmpr::NamedTuple,time::Time{T1,T2},instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.t[2])))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving thermodynamic!...",barlen=10)
@@ -122,9 +122,9 @@ function thermodynamic!(mpts::Point{T1,T2,D,NN,<:AbstractBasis,E,R},mesh::Mesh{T
             # adaptative dt & linear increase of gravity
             dt  = get_dt(mpts,mesh.prprt,cmpr,time,T)
             # mpm cycle
-            ignite(mpts,mesh     ,instr)
-            mapsto(mpts,mesh.t,dt,instr)    
-            thermo(mpts,mesh.t,instr)
+            ignite(mpts,mesh,basis,instr)
+            mapsto(mpts,mesh.t,basis,dt,instr)
+            thermo(mpts,mesh.t,basis,instr)
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end

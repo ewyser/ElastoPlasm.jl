@@ -19,8 +19,8 @@ Kc, Gc, D = get_elastic_stiffness(1.0e6, 0.3, 2)
 ```
 """
 function get_elastic_stiffness(E::T2,ν::T2,ndim::T1) where {T1,T2}
-    Kc,Gc = E/(3.0*(1.0-2.0*ν)),E/(2.0*(1.0+ν))  
-    i ,I  = 1.0-ν              ,(1.0-2.0*ν)/2.0                              # bulk & shear modulus               [Pa] 
+    Kc,Gc = E/(3.0*(1.0-2.0*ν)),E/(2.0*(1.0+ν))
+    i ,I  = 1.0-ν              ,(1.0-2.0*ν)/2.0                              # bulk & shear modulus               [Pa]
     if ndim == 1
         D = SMatrix{2,2,T2,4}(
             i  ,0.0,
@@ -44,56 +44,6 @@ function get_elastic_stiffness(E::T2,ν::T2,ndim::T1) where {T1,T2}
     end
     Del = E/((1.0+ν)*(1.0-2.0*ν)).*D
     return T2(Kc),T2(Gc),T2.(Del)
-end
-
-"""
-    Del(Kc, Gc, n, ::Val{dim}) -> Matrix{T2}
-
-Compute the elastic stiffness matrix for a given bulk modulus, shear modulus, porosity, and dimension.
-
-# Arguments
-- `Kc`: Bulk modulus.
-- `Gc`: Shear modulus.
-- `n`: Porosity.
-- `dim`: Dimension as Val{:1}, Val{:2}, or Val{:3}.
-
-# Returns
-- `Matrix{T2}`: Elastic stiffness matrix.
-
-# Example
-```julia
-Del(Kc, Gc, n, Val(:2))
-```
-"""
-function Del(Kc::T2,Gc::T2,n::T2,::Val{:1}) where {T2}
-    n      = max(n,1e-2)                                # small fix for small porosity value             
-    Kc′,Gc = (Kc/n),Gc                                  # bulk & shear modulus [Pa]
-    Del    = [                                          #                
-        Kc′+4/3*Gc 0.0;                                 #
-        0.0        Gc ;                                 #
-        0.0        0.0]                                 # elastic stiffness matrix [Pa]
-    return T2.(Del)
-end
-function Del(Kc::T2,Gc::T2,n::T2,::Val{:2}) where {T2}
-    n      = max(n,1e-2)                                # small fix for small porosity value             
-    Kc′,Gc = (Kc/n),Gc                                  # bulk & shear modulus [Pa]
-    Del    = [                                          #
-        Kc′+4/3*Gc Kc′-2/3*Gc 0.0 ;                     #
-        Kc′-2/3*Gc Kc′+4/3*Gc 0.0 ;                     #
-        0.0        0.0        Gc  ]                     # elastic stiffness matrix [Pa]
-    return T2.(Del)
-end
-function Del(Kc::T2,Gc::T2,n::T2,::Val{:3}) where {T2}
-    n      = max(n,1e-2)                                # small fix for small porosity value             
-    Kc′,Gc = (Kc/n),Gc                                  # bulk & shear modulus [Pa]
-    Del    = [                                          #
-        Kc′+4/3*Gc Kc′-2/3*Gc Kc′-2/3*Gc 0.0 0.0 0.0;   #
-        Kc′-2/3*Gc Kc′+4/3*Gc Kc′-2/3*Gc 0.0 0.0 0.0;   #
-        Kc′-2/3*Gc Kc′-2/3*Gc Kc′+4/3*Gc 0.0 0.0 0.0;   #
-        0.0        0.0        0.0        Gc  0.0 0.0;   #
-        0.0        0.0        0.0        0.0 Gc  0.0;   #
-        0.0        0.0        0.0        0.0 0.0 Gc ;]  # elastic stiffness matrix [Pa]
-    return T2.(Del)
 end
 
 """

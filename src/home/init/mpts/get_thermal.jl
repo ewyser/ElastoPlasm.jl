@@ -1,26 +1,24 @@
-#="""
-    geom_collapse(mesh, cmp, ni; ℓ₀=0.0)
+"""
+    get_thermal(mesh, cmpr, solver::S; ni=2) where {S<:AbstractSolver}
 
-Initialize geometry and material point fields for a column collapse problem.
+Initialize geometry and material point fields for a thermal test problem.
 
 # Arguments
 - `mesh`: Mesh object with geometry and boundary self.
-- `cmp`: Material parameters (Dict or NamedTuple).
-- `ni`: Number of intervals per element.
-- `ℓ₀`: Optional, domain height (default: 0.0).
+- `cmpr`: Material parameters (Dict or NamedTuple).
+- `solver::S`: Solver instance (e.g. `ExplicitSolver`).
+- `ni`: Number of intervals per element (default: 2).
 
 # Returns
 - `ni`: Number of intervals per element.
 - `nmp`: Number of material points.
 - `fields`: NamedTuple with coordinates and material properties.
-"""=#
-function get_thermal(mesh,cmpr,instr; ni = 2, )
+"""
+function get_thermal(mesh,cmpr,solver; ni = 2)
     props = mesh.prprt
-    #@info "Init slump geometry"
-    out = mpts_populate(props,cmpr,instr; ni=ni)
+    out = mpts_populate(props,cmpr,solver; ni=ni)
 
     xp = copy(out.x)
-
 
     nmp  = size(xp,2)
 
@@ -31,20 +29,6 @@ function get_thermal(mesh,cmpr,instr; ni = 2, )
     c    = ones(nmp).*cmpr[:specific_heat_capacity]
     k    = ones(nmp).*cmpr[:thermal_conductivity]
     T    = zeros(nmp).*cmpr[:initial_temperature]
-    #T[xp[end,:].<=0.5*mesh.prprt.xB[end,2]] .= cmpr[:initial_temperature]+60.0
-
-#=
-    id = out.x[1, :] .<= mesh.prprt.xB[1,1] + mesh.prprt.h[1]
-    T[id] .= 100.0
-    id = out.x[1, :] .>= mesh.prprt.xB[1,2] - mesh.prprt.h[1]
-    T[id] .= 100.0
-
-    id = out.x[2, :] .<= mesh.prprt.xB[2,1] + mesh.prprt.h[2]
-    #T[id] .= 100.0
-    id = out.x[2, :] .>= mesh.prprt.xB[2,2] - mesh.prprt.h[2]
-    T[id] .= 100.0
-=#
-
 
     return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,T=T,c=c,k=k,ni=ni,nmp=nmp)
 end

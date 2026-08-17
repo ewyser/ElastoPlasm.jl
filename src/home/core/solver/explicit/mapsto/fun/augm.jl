@@ -10,26 +10,26 @@ Accumulate material point momentum to mesh nodes for DM augmentation.
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2}) where {T1,T2}
+@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms = mpts.s.ρ[p]*mpts.Ω[p]
         mv = ms * mpts.s.v[p]
         for nn ∈ 1:mesh.prprt.nn
-            no, N, _ = basis(mpts, mesh, p, nn)
+            no, N, _ = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             @atom mesh.s.mv[1,no] += N * mv[1]
             @atom mesh.s.mv[2,no] += N * mv[2]
         end
     end
 end
-@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3}) where {T1,T2}
+@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,3}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms = mpts.s.ρ[p]*mpts.Ω[p]
         mv = ms * mpts.s.v[p]
         for nn ∈ 1:mesh.prprt.nn
-            no, N, _ = basis(mpts, mesh, p, nn)
+            no, N, _ = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             @atom mesh.s.mv[1,no] += N * mv[1]
             @atom mesh.s.mv[2,no] += N * mv[2]
@@ -85,12 +85,12 @@ Accumulate material point heat capacity to mesh nodes for DM augmentation.
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2}) where {T1,T2}
+@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # accumulation
         for nn ∈ 1:mesh.prprt.nn
-            no = mpts.p2n[p][nn]
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
             @atom mesh.mcT[no]+= mpts.ϕ∂ϕ[nn,p,1] * mpts.s.ρ[p]*mpts.Ω[p] * mpts.t.c[p] * mpts.t.T[p]
         end

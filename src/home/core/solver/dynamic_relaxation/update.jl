@@ -1,10 +1,10 @@
-@kernel inbounds = true function update(mpts::Point{T1,T2,2,NN,B,E,R},mesh::Mesh{T1,T2,2},dt::T2) where {T1,T2,NN,B<:AbstractBasis,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function update(mpts::Point{T1,T2,2,E,R},mesh::Mesh{T1,T2,2},basis::Basis{T1,2},dt::T2) where {T1,T2,E<:LinearElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
         # update material point displacement
         δvx = δvy = T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
-            no, N, _ = basis(mpts, mesh, p, nn)
+            no, N, _ = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             δvx += N * mesh.s.v[no][1]
             δvy += N * mesh.s.v[no][2]
@@ -20,7 +20,7 @@
     end
 end
 
-@kernel inbounds = true function update(mpts::Point{T1,T2,2,NN,B,E,R},mesh::Mesh{T1,T2,2},dt::T2) where {T1,T2,NN,B<:AbstractBasis,E<:FiniteElasticity,R<:AbstractRheology}
+@kernel inbounds = true function update(mpts::Point{T1,T2,2,E,R},mesh::Mesh{T1,T2,2},basis::Basis{T1,2},dt::T2) where {T1,T2,E<:FiniteElasticity,R<:AbstractRheology}
     p = @index(Global)
     if p ≤ mpts.nmp
         # store converged current deformation gradient and logarithmic strain
@@ -28,7 +28,7 @@ end
         mpts.s.ϵn[p] = mpts.s.ϵᵢⱼ[p]
         δvx = δvy = T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
-            no, N, _ = basis(mpts, mesh, p, nn)
+            no, N, _ = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
             δvx += N * mesh.s.v[no][1]
             δvy += N * mesh.s.v[no][2]

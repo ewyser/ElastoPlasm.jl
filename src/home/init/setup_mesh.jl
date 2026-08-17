@@ -1,57 +1,53 @@
 
 """
-    setup_mesh(nel::Vector{T1}, L::Vector{T2}, instr) -> Mesh
+    setup_mesh(geom::Geometry{T1,T2,D}, solver::S) -> Mesh
 
-Construct the mesh and associated nodal and topological data structures for a simulation domain.
+Construct the mesh and associated nodal data structures for a simulation domain. Connectivity
+(`e2n`, `e2e`) is built separately by `setup_basis`, after both `Mesh` and `Point` exist.
 
 # Arguments
-- `nel::Vector{T1}`: Number of elements in each spatial direction.
-- `L::Vector{T2}`: Domain size in each spatial direction.
-- `instr`: Simulation instruction dictionary (must include basis and boundary condition settings).
+- `geom::Geometry{T1,T2,D}`: Geometry struct (see `setup_geometry`/`Geometry`).
+- `solver::S`: Solver instance (e.g. `ExplicitSolver`), must include basis and boundary condition settings.
 
 # Returns
-- `Mesh`: Mesh object containing geometry, nodal quantities, topology, and boundary conditions.
+- `Mesh`: Mesh object containing geometry, nodal quantities, and boundary conditions.
 
 # Example
 ```julia
-mesh = setup_mesh([40, 10], [64.0, 16.0], instr)
-println(mesh.nel)
+mesh = setup_mesh(geom, solver)
+println(mesh.prprt.nel)
 ```
 
 # Notes
 - Sets up mesh geometry, nodal coordinates, and boundary conditions.
-- Initializes nodal quantities (mass, force, acceleration, etc.) and mesh-to-node topology.
+- Initializes nodal quantities (mass, force, acceleration, etc.).
 - Handles ghost nodes if required by the basis.
 """
 function setup_mesh(geom::Geometry{T1,T2,D},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
-    # Mesh & boundary condition setup   
-    ndim       = geom.dim                                  
-    L,nel,nn,h = geom.L,geom.nel,geom.nn,geom.h 
+    # Mesh & boundary condition setup
+    ndim       = geom.dim
+    L,nel,nn,h = geom.L,geom.nel,geom.nn,geom.h
     xn,nel,nno = get_coords(geom)
-    e2n        = get_element_to_nodes(nel, nno, nn)
     node_type  = get_node_type(ndim,nno)
     status,xB  = get_bc(xn,solver; ghosts=geom.ghost*h)
     # static array type for node coords, velocity, acceleration
-
-
     NN  = nn.nn
     DIM = D
     SVD = SVector{DIM,T2}
     nn_total = nno[end]
 
-
-    prop = MeshProperties{T1,T2,DIM,NN}(
+    prop = MeshProperties{T1,T2,DIM}(
         T1.(nel                         ), # nel
         T1.(nno                         ), # nno
         T1(NN                           ), # nn
         T2.(L                           ), # L
-        T2.(h                           ), # h
+        SVD(T2.(h)                      ), # h
         T2.(xB                          ), # xB
     )
     bcs = MeshBoundary(
         status
     )
-    s = MeshSolidPhase{T1,T2,DIM,NN}(
+    s = MeshSolidPhase{T1,T2,DIM}(
         prop,
         bcs,
         T2.(zeros(nn_total             )), # m
@@ -63,21 +59,10 @@ function setup_mesh(geom::Geometry{T1,T2,D},solver::S) where {T1,T2,D,S<:Abstrac
         [zero(SVD) for _ in 1:nn_total]  , # v
         T2.(zeros(nn_total             )), # p
     )
-    #=
-    t = MeshThermalPhase{T1,T2,D}(
-        prop,
-        bcs,
-        T2.(zeros(nno[end]             )), # cᵢ
-        T2.(zeros(nno[end]             )), # oobq
-        T2.(zeros(nno[end]             )), # Q
-        T2.(zeros(nno[end]             )), # mcT
-        T2.(zeros(nno[end]             )), # T
-    )
-    =#
-    mesh = Mesh{T1,T2,DIM,NN}(
+    mesh = Mesh{T1,T2,DIM}(
         prop,
         # nodal quantities
-        T2.(vec(minimum(xn,dims=2)          )), # x₀
+        SVD(T2.(vec(minimum(xn,dims=2))) )     , # x₀
         [SVD(T2.(xn[:,i])) for i in 1:nn_total], # x
         T1.(node_type                        ), # node
         T2.(zeros(nn_total                  )), # ΔJ
@@ -85,9 +70,6 @@ function setup_mesh(geom::Geometry{T1,T2,D},solver::S) where {T1,T2,D,S<:Abstrac
         s                                , # solid phase
         # thermal phase
         nothing                          , # thermal phase
-        # connectivity
-        e2n                              , # e2n
-        T1.(e2e(ndim,nel,h,solver       )), # e2e
     )
     return mesh
 end

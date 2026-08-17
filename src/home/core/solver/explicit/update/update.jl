@@ -65,9 +65,9 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     return (;update...)
 end
 
-function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr::NamedTuple,dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     # update {logarithmic|infinitesimal} strains
-    solver.cairn.update.deform!(mpts,mesh,dt; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
     # update {kirchoff|cauchy} stresses
     solver.cairn.update.elast!(mpts,cmpr.Kc, cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
     # update mp's coordinates
@@ -75,9 +75,9 @@ function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,sol
     return nothing
 end
 
-function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr::NamedTuple,dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     # update {logarithmic|infinitesimal} strains
-    solver.cairn.update.deform!(mpts,mesh,dt; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
     # update material point's domain
     if solver.basis.which == "gimpm"
         solver.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())
@@ -88,21 +88,21 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T
         fill!(mesh.ΔJ,T2(0.0))
         # calculate dimensional cst.
         dim = T2(1.0/(length(mesh.prprt.nel)-1))
-        # mapping to mesh 
-        solver.cairn.update.ΔJn!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
-        # compute determinant Jbar 
-        solver.cairn.update.ΔJp!(mpts,mesh,dim; ndrange=mpts.nmp);sync(CPU())
+        # mapping to mesh
+        solver.cairn.update.ΔJn!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+        # compute determinant Jbar
+        solver.cairn.update.ΔJp!(mpts,mesh,basis,dim; ndrange=mpts.nmp);sync(CPU())
     end
     # update {kirchoff|cauchy} stresses
     solver.cairn.update.elast!(mpts,cmpr.Kc, cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
     # plastic corrector
     if solver.nonloc.status
-        fill!(mpts.e2p,T1(0))
-        fill!(mpts.p2p,T1(0))
+        fill!(basis.e2p,T1(0))
+        fill!(basis.p2p,T1(0))
         mpts.s.ϵpII[2,:].= T2(0.0)
         W,w     = spzeros(T2,mpts.nmp),spzeros(T2,mpts.nmp,mpts.nmp)
         for proc ∈ ["tplgy","p->q","p<-q"]
-            solver.cairn.update.nonloc!(W,w,mpts,mesh,T2(solver.nonloc.ls),proc; ndrange=mpts.nmp);sync(CPU())
+            solver.cairn.update.nonloc!(W,w,mpts,mesh,basis,T2(solver.nonloc.ls),proc; ndrange=mpts.nmp);sync(CPU())
         end
     else
         mpts.s.ϵpII[2,:].= mpts.s.ϵpII[1,:]
@@ -114,14 +114,9 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},cmpr::NamedTuple,dt::T
     return nothing
 end
 
-function thermo(mpts::Point{T1,T2,E,R},mesh::MeshThermalPhase{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2,E,R}
+function thermo(mpts::Point{T1,T2,E,R},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1},solver::ExplicitSolver{T1,T2}) where {T1,T2,E,R}
     # update temperature
-    solver.cairn.update.heat!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.update.heat!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
     return nothing
 end
 
-function coord(mpts::Point,mesh::Mesh,solver::ExplicitSolver)
-    # update mp's coordinates
-    solver.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
-    return nothing
-end

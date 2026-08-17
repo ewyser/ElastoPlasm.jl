@@ -1,32 +1,33 @@
 
 """
-    setup_mpts(mesh::Mesh{T1,T2,D}, instr::Instruction{T1,T2,D}, cmpr::NamedTuple; geom::NamedTuple=()) -> Point{T1,T2}
+    setup_mpts(mesh::Mesh{T1,T2,D}, solver::S, cmpr::NamedTuple; geom::NamedTuple=()) -> Point
 
-Construct the material point system (mpts) for a simulation, initializing all relevant fields and connectivity.
+Construct the material point system (mpts) for a simulation, initializing all relevant fields.
+Connectivity (`p2n`, `p2e`, `e2p`, `p2p`) is built separately by `setup_basis`, after both `Mesh`
+and `Point` exist.
 
 # Arguments
-- `mesh::Mesh{T1,T2,D}`: Mesh object containing geometry and topology.
-- `instr::Instruction{T1,T2,D}`: Simulation instruction structure.
+- `mesh::Mesh{T1,T2,D}`: Mesh object containing geometry.
+- `solver::S`: Solver instance (e.g. `ExplicitSolver`) with matching `T1,T2,D`.
 - `cmpr::NamedTuple`: Constitutive model parameters.
 - `geom::NamedTuple=()`: (Optional) Geometry definition (e.g., number of intervals, number of material points, geometry struct).
 
 # Returns
-- `Point{T1,T2}`: Material point data structure with all fields initialized for simulation.
+- `Point`: Material point data structure with all fields initialized for simulation.
 
 # Example
 ```julia
-mpts = setup_mpts(mesh, instr, cmpr; geom=get_slump(mesh, cmpr, instr))
+mpts = setup_mpts(mesh, solver, cmpr; geom=get_slump(mesh, cmpr, solver))
 println(mpts.nmp)  # Number of material points
 ```
 
 # Notes
 - Initializes material point positions, volumes, densities, and all state variables.
-- Sets up connectivity arrays and phase properties (solid and liquid).
+- Sets up phase properties (solid and liquid).
 - Handles both 2D and 3D cases.
 """
-function setup_mpts(mesh::Mesh{T1,T2,D,NN},solver::S,cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,D,NN,S<:AbstractSolver{T1,T2,D}}
+function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     props = mesh.prprt
-    ndim  = length(props.nel) - 1
     # non-dimensional constant
     if D == 2
         nstr = 3
@@ -36,7 +37,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D,NN},solver::S,cmpr::NamedTuple; geom::Nam
         error("Unsupported dimension: $D")
     end
     # unpack material geometry
-    ni,nmp,xp = geom.ni,geom.nmp,geom.xp 
+    ni,nmp,xp = geom.ni,geom.nmp,geom.xp
     # scalars & vectors
     n0 = 0.1.*ones(nmp)
     l0 = ones(size(xp)).*0.5.*(props.h./ni)
@@ -44,14 +45,13 @@ function setup_mpts(mesh::Mesh{T1,T2,D,NN},solver::S,cmpr::NamedTuple; geom::Nam
     ρ0 = fill(cmpr[:ρ0],nmp)
     # initial velocity (if provided)
     vp = haskey(geom, :vp) ? geom.vp : zeros(size(xp))
-    #vp = zeros(size(xp))
     # constructor - create components
     if solver.fwrk.deform == "finite"
-        elast = FiniteElasticity(T1, T2, nmp, ndim)
+        elast = FiniteElasticity(T1, T2, nmp, D)
     elseif solver.fwrk.deform == "infinitesimal"
-        elast = LinearElasticity(T1, T2, nmp, ndim)
+        elast = LinearElasticity(T1, T2, nmp, D)
     end
-    
+
     rheo = DruckerPragerRheology{T1,T2,D}(
         T2.(vec(copy(geom.coh0))),  # c₀
         T2.(vec(copy(geom.cohr))),  # cᵣ
@@ -106,36 +106,23 @@ function setup_mpts(mesh::Mesh{T1,T2,D,NN},solver::S,cmpr::NamedTuple; geom::Nam
     t = PointThermalPhase{T1,T2,D}(
         T2.(vec(copy(geom.c)))                            , # c::Vector{T2} specific heat capacity vector
         T2.(vec(copy(geom.k)))                             , # k::Vector{T2} thermal conductivity vector
-        T2.(zeros(ndim,nmp))                                  , # q::Matrix{T2} heat flux array
+        T2.(zeros(D,nmp))                                  , # q::Matrix{T2} heat flux array
         T2.(vec(copy(geom.T)))                            , # T::Vector{T2} temperature vector
     )
     =#
 
-    basis = if solver.basis.which == "bsmpm"
-        BSplineBasis()
-    elseif solver.basis.which == "gimpm"
-        GimpBasis()
-    elseif solver.basis.which == "smpm"
-        LinearBasis()
-    end
-    mpts = Point{T1,T2,D,NN,typeof(basis),typeof(elast),typeof(rheo),TM,TV,TS}(
-        # basis
-        basis                                , # basis
+    mpts = Point{T1,T2,D,typeof(elast),typeof(rheo),TM,TV,TS}(
         # general information
-        T1(ndim)                              , # ndim
+        T1(D)                              , # ndim
         T1(nmp)                              , # nmp
-        T2.(zeros(ndim))                      , # vmax
+        T2.(zeros(D))                      , # vmax
         # basis-related quantities
-        T2.(zeros(props.nn,ndim,nmp        ))  , # Δnp
+        T2.(zeros(props.nn,D,nmp        ))  , # Δnp
         # APIC-related
-        T2.(zeros(ndim,ndim,nmp            ))  , # Bᵢⱼ
-        T2.(zeros(ndim,ndim,nmp            ))  , # Dᵢⱼ
+        T2.(zeros(D,D,nmp            ))  , # Bᵢⱼ
+        T2.(zeros(D,D,nmp            ))  , # Dᵢⱼ
         # connectivity
         T1(props.nn)                          , # nn
-        T1.(spzeros(Int,nmp,props.nel[end]))  , # e2p
-        T1.(spzeros(Int,nmp,nmp          ))  , # p2p
-        T1.(zeros(Int,nmp                ))  , # p2e
-        [zero(SVector{NN,T1}) for _ in 1:nmp]  , # p2n
         # material point properties
         [TV(T2.(xp[:,i])) for i in 1:nmp]           , # x
         [TV(T2.(l0[:,i])) for i in 1:nmp]           , # ℓ₀
@@ -153,5 +140,5 @@ function setup_mpts(mesh::Mesh{T1,T2,D,NN},solver::S,cmpr::NamedTuple; geom::Nam
         # thermal phase
         nothing                              , #
     )
-    return mpts 
+    return mpts
 end

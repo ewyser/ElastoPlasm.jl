@@ -49,8 +49,8 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
-    # get cauchy stress 
+function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},g::Vector{T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+    # get cauchy stress
     if solver.fwrk.deform == "finite"
         solver.cairn.mapsto.map.σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
     end
@@ -61,24 +61,24 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},g::Vector{T2},dt::T2,solver
     fill!(mesh.s.a   , zero(eltype(mesh.s.a)))
     fill!(mesh.s.v   , zero(eltype(mesh.s.v)))
     # mapping to mesh
-    solver.cairn.mapsto.map.p2n!(mpts,mesh,g; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.mapsto.map.p2n!(mpts,mesh,basis,g; ndrange=mpts.nmp);sync(CPU())
     # solve Eulerian momentum equation
     solver.cairn.mapsto.map.solve!(mesh,dt,T2(solver.fwrk.damping); ndrange=mesh.prprt.nno[end]);sync(CPU())
     # maps back solution to material point
-    solver.cairn.mapsto.map.n2p!(mpts,mesh,dt,T2(solver.fwrk.C_pf); ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.fwrk.C_pf); ndrange=mpts.nmp);sync(CPU())
     # (if musl) reproject nodal velocities
     if solver.fwrk.musl
         # reset nodal quantities
         fill!(mesh.s.mv, T2(0.0))
         fill!(mesh.s.v , zero(eltype(mesh.s.v)))
         # accumulate material point contributions
-        solver.cairn.mapsto.augm.p2n!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+        solver.cairn.mapsto.augm.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
         # solve for nodal incremental displacement
         solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
     end
     # (for APIC) compute Bᵢⱼ for material points
     if solver.fwrk.trsfr == "apic"
-        solver.cairn.mapsto.map.Bᵢⱼ!(mpts,mesh; ndrange=mpts.nmp);sync(CPU())
+        solver.cairn.mapsto.map.Bᵢⱼ!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
     end
     return nothing
 end

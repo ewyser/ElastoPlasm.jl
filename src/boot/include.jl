@@ -28,23 +28,30 @@ function superInc(lists::Vector{String}; root::String="",lib::Dict=Dict(), tree:
         dir_errors = Tuple{String, Exception, Vector{Base.StackTraces.StackFrame}}[]
         
         # Collect and include all .jl files in this subtree
+        # Files in a directory are included before its subdirectories are recursed into,
+        # since subdirectories commonly build on the types/functions defined alongside them
+        # (e.g. concrete/basis/ depends on concrete/eulerian.jl's Mesh and concrete/lagrangian.jl's Point).
+        # Both groups are sorted for deterministic, reproducible load order.
         function collect_and_include_jls(d, path="")
             files = String[]
-            for (k,v) ∈ d
-                if isa(v, Dict)
-                    append!(files, collect_and_include_jls(v, joinpath(path, k)))
-                elseif endswith(k, ".jl")
-                    try
-                        include(v)
-                        push!(files, k)
-                    catch e
-                        bt = Base.catch_backtrace()
-                        stack = Base.stacktrace(bt)
-                        rel_path = joinpath(path, k)
-                        push!(dir_errors, (rel_path, e, stack))
-                        @warn "Failed to include $(rel_path)" exception=(e, bt)
-                    end
+            entries = sort(collect(d); by=first)
+            for (k,v) ∈ entries
+                isa(v, Dict) && continue
+                endswith(k, ".jl") || continue
+                try
+                    include(v)
+                    push!(files, k)
+                catch e
+                    bt = Base.catch_backtrace()
+                    stack = Base.stacktrace(bt)
+                    rel_path = joinpath(path, k)
+                    push!(dir_errors, (rel_path, e, stack))
+                    @warn "Failed to include $(rel_path)" exception=(e, bt)
                 end
+            end
+            for (k,v) ∈ entries
+                isa(v, Dict) || continue
+                append!(files, collect_and_include_jls(v, joinpath(path, k)))
             end
             return files
         end
