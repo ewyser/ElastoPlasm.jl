@@ -36,6 +36,11 @@ function what_plot_field(mpts::Point{T1,T2,D,E,R},opts) where {T1,T2,D,E<:Abstra
     else
         clim = opts.cblim
     end
+    # Marker size: px-per-physical-unit (limiting axis, aspect-ratio-aware) times mean mp spacing
+    Δx, Δy  = opts.xlim[2]-opts.xlim[1], opts.ylim[2]-opts.ylim[1]
+    ppu     = min(opts.dims[1]/Δx, opts.dims[2]/Δy)
+    spacing = 2.0*sum(ℓ -> ℓ[1], mpts.ℓ₀)/length(mpts.ℓ₀)
+    ms      = ppu*spacing
     # Plotting
     return plot(
         if length(mpts.x[1]) == 2
@@ -45,6 +50,7 @@ function what_plot_field(mpts::Point{T1,T2,D,E,R},opts) where {T1,T2,D,E<:Abstra
         end,
         seriestype  = :scatter,
         marker_z    = data,
+        markersize  = ms,
         xlabel      = L"$x-$direction"*" [m]",
         ylabel      = L"$z-$direction"*" [m]",
         label       = opts.label * " in " * opts.unit,

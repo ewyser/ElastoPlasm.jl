@@ -156,7 +156,7 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
     
     solver = reference["cfg/solver"]
     mesh = reference["ic/mesh"]
-    ms = solver.plot.dpi * (mesh.prprt.L[1] / mesh.prprt.L[1]) / (mesh.prprt.nel[1] * 2)
+    mpts = reference["ic/mpts"]
 
     # Common plot settings
     common = (;
@@ -164,7 +164,13 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
         ylim = (minimum(getindex.(mesh.x, 2)), maximum(getindex.(mesh.x, 2))),
         size = solver.plot.dpi .* (mesh.prprt.L ./ mesh.prprt.L[1]),
     )
-    
+
+    # Marker size: px-per-physical-unit (limiting axis, aspect-ratio-aware) times mean mp spacing
+    Δx, Δy  = common.xlim[2]-common.xlim[1], common.ylim[2]-common.ylim[1]
+    ppu     = min(common.size[1]/Δx, common.size[2]/Δy)
+    spacing = 2.0*sum(ℓ -> ℓ[1], mpts.ℓ₀)/length(mpts.ℓ₀)
+    ms      = ppu*spacing
+
     # Define plot configurations with automatic color limits
     D_mean_min, D_mean_max = extrema(stats.D_mean)
     D_std_max = maximum(stats.D_std)
@@ -178,11 +184,12 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
     
     # Generate plots
     config_plot()
-    gr(legend=true, markersize=ms, markershape=:circle, markerstrokewidth=0.75)
+    gr(legend=true, markershape=:circle, markerstrokewidth=0.75)
     plots = map(plot_specs) do spec
         plot(stats.X_mean, stats.Y_mean;
             seriestype = :scatter,
             marker_z = spec.data,
+            markersize = ms,
             xlabel = L"$x-$direction" * " [m]",
             ylabel = L"$z-$direction" * " [m]",
             label = spec.label,
