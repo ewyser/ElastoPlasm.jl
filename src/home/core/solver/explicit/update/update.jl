@@ -69,7 +69,11 @@ function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr::Name
     # update {logarithmic|infinitesimal} strains
     solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
     # update {kirchoff|cauchy} stresses
-    solver.cairn.update.elast!(mpts,cmpr.Kc, cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
+    if solver.fwrk.deform == "finite"
+        solver.cairn.update.elast!(mpts,cmpr.Kc, cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
+    elseif solver.fwrk.deform == "infinitesimal"
+        solver.cairn.update.elast!(mpts,cmpr.Del; ndrange=mpts.nmp);sync(CPU())
+    end
     # update mp's coordinates
     solver.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
     return nothing
@@ -94,7 +98,11 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr:
         solver.cairn.update.ΔJp!(mpts,mesh,basis,dim; ndrange=mpts.nmp);sync(CPU())
     end
     # update {kirchoff|cauchy} stresses
-    solver.cairn.update.elast!(mpts,cmpr.Kc, cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
+    if solver.fwrk.deform == "finite"
+        solver.cairn.update.elast!(mpts,cmpr.Kc, cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
+    elseif solver.fwrk.deform == "infinitesimal"
+        solver.cairn.update.elast!(mpts,cmpr.Del; ndrange=mpts.nmp);sync(CPU())
+    end
     # plastic corrector
     if solver.nonloc.status
         fill!(basis.e2p,T1(0))

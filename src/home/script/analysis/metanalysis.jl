@@ -154,15 +154,15 @@ Generate and save plots for field statistics.
 function plot_field_statistics(stats, field_info, reference, path, field_name, nsim)
     @info "Plotting averaged $(field_info.name) with standard deviation..."
     
-    instr = reference["cfg/instr"]
+    solver = reference["cfg/solver"]
     mesh = reference["ic/mesh"]
-    ms = instr.plot.dpi * (mesh.prprt.L[1] / mesh.prprt.L[1]) / (mesh.prprt.nel[1] * 2)
-    
+    ms = solver.plot.dpi * (mesh.prprt.L[1] / mesh.prprt.L[1]) / (mesh.prprt.nel[1] * 2)
+
     # Common plot settings
     common = (;
         xlim = (minimum(getindex.(mesh.x, 1)), maximum(getindex.(mesh.x, 1))),
         ylim = (minimum(getindex.(mesh.x, 2)), maximum(getindex.(mesh.x, 2))),
-        size = instr.plot.dpi .* (mesh.prprt.L ./ mesh.prprt.L[1]),
+        size = solver.plot.dpi .* (mesh.prprt.L ./ mesh.prprt.L[1]),
     )
     
     # Define plot configurations with automatic color limits
