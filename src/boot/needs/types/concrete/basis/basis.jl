@@ -10,15 +10,15 @@ export get_basis, Basis
 Map a solver's `basis.which` string to its concrete `AbstractBasis` instance, parametrized
 by index type `T1` and problem dimension `dim`.
 """
-function get_basis(which::String, ::Type{T1}, dim::Integer) where {T1}
+function get_basis(which::String, ::Type{T1}, D::Integer) where {T1}
     if which == "bsmpm"
-        BSplineBasis{T1,dim}()
+        return BSplineBasis{T1,D}()
     elseif which == "gimpm"
-        GimpBasis{T1,dim}()
+        return GimpBasis{T1,D}()
     elseif which == "smpm"
-        LinearBasis{T1,dim}()
+        return LinearBasis{T1,D}()
     else
-        error("Unsupported basis type: $which")
+        return error("Unsupported basis type: $which")
     end
 end
 
