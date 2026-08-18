@@ -81,10 +81,8 @@ function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","
         end
 
         # 1) shape value/gradient
-        labels = reshape([latexstring("N_{$row,$c}(x)") for c ∈ cols], 1, :)
-        pnl_shape = plot(xs, Nline; label=labels, lw=1.5, ls=:solid,
-                         title=w, titlefontsize=10,
-                         legend=(w==first(which) ? :outerright : false),
+        pnl_shape = plot(xs, Nline; label=false, lw=1.5, ls=:solid,
+                         title=w, titlefontsize=10, legend=false,
                          xlabel=L"x", ylabel=L"N_i(x),\ \partial N_i/\partial x",
                          ylims=(-1,1), framestyle=:box)
         plot!(pnl_shape, xs, ∂Nline; label=false, lw=1.0, ls=:dash)
@@ -108,7 +106,15 @@ function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","
 
     ncols = length(which) > 1 ? 2 : 1
     nrows = ceil(Int, length(which)/ncols)
-    fig_shape = plot(shape_panels...; layout=(nrows,ncols), size=(560*ncols,380*nrows))
+
+    # shared legend panel (one entry per tracked node, colors matching each subplot's
+    # default color cycle) placed outside the grid instead of inside any one subplot
+    legend_panel = plot(; legend=:left, grid=false, showaxis=false, ticks=nothing, framestyle=:none)
+    for (i,c) ∈ enumerate(cols)
+        plot!(legend_panel, [NaN], [NaN]; label=latexstring("N_{$row,$c}(x)"), lw=1.5, lc=i)
+    end
+    l = @layout [grid(nrows,ncols) a{0.16w}]
+    fig_shape = plot(shape_panels..., legend_panel; layout=l, size=(560*ncols+140,380*nrows))
     fig_pou   = plot(pou_panels...;   layout=(nrows,ncols), size=(480*ncols,360*nrows))
     if save
         dir_shape = joinpath(ElastoPlasm.self.sys.out, "test", "basis_shape")
