@@ -119,14 +119,23 @@ on an unrelated branch.**
   `init_implicit` never registers. Out of scope until someone designs what `fint_p2n!`
   should do; `elastoquasistatic!` itself doesn't reach this code path, so it isn't
   blocked by this.
-- **`test/testset/test_collapse.jl` is likely fully non-functional**, beyond the
-  `fwrk`→`strain`/`transfer`/`stab` kwarg fix already applied to it. Found but not
-  fixed while doing that: `load_simulation_setup` reads `file["cfg"]["instr"]`, the
+- **`test/testset/test_collapse.jl` is fully non-functional**, beyond the
+  `fwrk`→`strain`/`transfer`/`stab` kwarg fix already applied to it. Confirmed root
+  cause by actually running it: **`ic_collapse` (`src/home/script/example/collapse.jl`)
+  itself is broken** — it calls an undefined `kwargser` function and predates the
+  current `get_solver`/`setup_geometry`/`setup_basis` pipeline entirely, the same
+  vintage bug `ic_collision` had before this session's fix (see `collision.jl`'s
+  rewrite for the pattern to follow: `get_solver` → `setup_geometry` → `setup_mesh` →
+  `setup_cmpr` → `setup_mpts` → `setup_basis` → `setup_time` → `export_setup`).
+  `ic_collapse` also never calls `setup_basis` at all (no `basis` in its `export_setup`
+  call, which now requires one) and passes `misc` positionally to `export_setup`, which
+  no longer accepts it (`export_setup` builds `misc` internally now). Once `ic_collapse`
+  itself is fixed, three more bugs downstream in `test_collapse.jl` are already known
+  and still need fixing: `load_simulation_setup` reads `file["cfg"]["instr"]`, the
   stale key name (`cfg["solver"]` is correct, see Persistence below);
   `compute_collapse_error` calls `elastoplasm!(jld2; workflow=[solver])` — singular
   `workflow`, not the real `workflows` kwarg; and `z0 = copy(setup.mpts.x[end, :])`
-  matrix-style-indexes `mpts.x`, which is `Vector{SVector}` (see Core types). Someone
-  needs to actually run this file and fix it properly rather than patch around it.
+  matrix-style-indexes `mpts.x`, which is `Vector{SVector}` (see Core types).
 - **`test/testset/test_slump.jl`'s full sweep (48 cases: 2 geom × 1 basis × 24
   `strain`/`transfer`/`stab` combos) fails 20/48, all under `locking=true`** —
   `infinitesimal`+`std`+`locking=true` cases in particular take 1+ minute each (vs
