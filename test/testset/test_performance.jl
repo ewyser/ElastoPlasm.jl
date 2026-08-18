@@ -12,6 +12,11 @@ function define_benchs(ic,cfg)
     suite["ignite"]["tplgy!"] = @benchmarkable begin
        $instr.cairn.ignite.tplgy!($mpts,$mesh,$basis; ndrange=($mpts.nmp));sync(CPU())
     end
+    # cache shape values/gradients for all NN neighbors of every particle
+    instr.cairn.ignite.tplgy!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+    suite["ignite"]["shpfun!"] = @benchmarkable begin
+       $instr.cairn.ignite.shpfun!($mpts,$mesh,$basis; ndrange=($mpts.nmp));sync(CPU())
+    end
     # map material point to node
     suite["mapsto"]["p2n!"  ] = @benchmarkable begin
        $instr.cairn.mapsto.map.p2n!($mpts,$mesh,$basis,$g; ndrange=$mpts.nmp);sync(CPU())
