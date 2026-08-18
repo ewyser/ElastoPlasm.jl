@@ -3,29 +3,29 @@ using LaTeXStrings
 import ElastoPlasm: eval_basis
 
 """
-    test_basis(n::Integer=4, m::Integer=4; which=["bsmpm","gimpm","smpm","mlsmpm"], npts::Integer=300, row::Integer=4, cols=1:4, save::Bool=true)
+    test_basis(n::Integer=4, m::Integer=4; which=["bsmpm","gimpm","smpm","mlsmpm"], npts::Integer=300, save::Bool=true)
 
 Build a 2D `n×m`-element mesh and, for every basis kind in `which`, sweep a single particle
-along `y = (row-1)*h[2]` (the physical node row selected by `row`, 1-indexed out of the
-`(n+1)×(m+1)` node grid) and compute two things at each sweep position:
+along the mesh's mid-height node row (`row = n÷2+1`, 1-indexed out of the `(n+1)×(m+1)` node
+grid, tracking every node in that row, `cols = 1:n+1`) and compute two things at each sweep
+position:
 
-1. **Shape value/gradient** — for each physical node at that row/`cols`, its shape value
-   `Nᵢ(x)` and x-gradient `∂Nᵢ/∂x(x)` (`eval_basis`).
+1. **Shape value/gradient** — for each physical node at that row, its shape value `Nᵢ(x)`
+   and x-gradient `∂Nᵢ/∂x(x)` (`eval_basis`).
 2. **Partition of unity** — `Σᵢ Nᵢ(x)`, summed over every candidate neighbor, which should
    equal 1 everywhere for a consistent basis.
 
 Returns `(fig_shape, fig_pou)` — two `LaTeXStrings`-labelled figures, each with one subplot
-per basis kind: `fig_shape` overlays the `row`/`cols` nodes' `Nᵢ` (solid) / `∂Nᵢ/∂x` (dashed)
-curves; `fig_pou` plots `Σᵢ Nᵢ(x)` against the `Σᵢ Nᵢ = 1` reference line. Also prints
-`max|ΣNᵢ-1|` per basis kind (informational, not a hard `@test` gate — some basis kinds are
-not expected to hold exact PoU everywhere, e.g. this repo's uncorrected `GimpBasis` kernel
-near boundaries; see `CLAUDE.md`'s Known bugs section).
+per basis kind: `fig_shape` overlays the mid-height row's nodes' `Nᵢ` (solid) / `∂Nᵢ/∂x`
+(dashed) curves; `fig_pou` plots `Σᵢ Nᵢ(x)` against the `Σᵢ Nᵢ = 1` reference line. Also
+prints `max|ΣNᵢ-1|` per basis kind (informational, not a hard `@test` gate — some basis
+kinds are not expected to hold exact PoU everywhere, e.g. this repo's uncorrected
+`GimpBasis` kernel near boundaries; see `CLAUDE.md`'s Known bugs section).
 
 # Arguments
 - `n::Integer`, `m::Integer`: element counts along x/y (default 4×4).
 - `which::Vector{String}`: basis kinds to test.
 - `npts::Integer`: number of sweep positions along the line.
-- `row::Integer`, `cols`: 1-indexed physical node-grid coordinates to track.
 - `save::Bool`: if true, saves the figures under `dump/test/basis_shape/` and `basis_pou/`.
 
 # Example
@@ -34,7 +34,10 @@ fig_shape, fig_pou = test_basis(4, 4)
 ```
 """
 function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","gimpm","smpm","mlsmpm"],
-                     npts::Integer=300, row::Integer=4, cols=1:4, save::Bool=true)
+                     npts::Integer=300, save::Bool=true)
+    cols   = 1:n+1
+    row    = n÷2 + 1
+
     L, nel = Float64.([n, m]), [n, m]
     hx, hy = L[1]/n, L[2]/m
     target_x = [hx*(c-1) for c ∈ cols]
@@ -80,9 +83,10 @@ function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","
         # 1) shape value/gradient
         labels = reshape([latexstring("N_{$row,$c}(x)") for c ∈ cols], 1, :)
         pnl_shape = plot(xs, Nline; label=labels, lw=1.5, ls=:solid,
-                         title=w, titlefontsize=10, legend=(w==first(which) ? :outerright : false),
-                         xlabel=L"x", ylabel = (w==first(which) ? L"N_i(x),\ \partial N_i/\partial x" : ""),
-                         framestyle=:box)
+                         title=w, titlefontsize=10,
+                         legend=(w==first(which) ? :outerright : false),
+                         xlabel=L"x", ylabel=L"N_i(x),\ \partial N_i/\partial x",
+                         ylims=(-1,1), framestyle=:box)
         plot!(pnl_shape, xs, ∂Nline; label=false, lw=1.0, ls=:dash)
         vline!(pnl_shape, target_x; lc=:gray, ls=:dot, lw=0.75, label=false)
         push!(shape_panels, pnl_shape)
@@ -92,8 +96,8 @@ function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","
         println("  $w: max|ΣN-1| along y=$(round(ysweep,digits=2)) = $err")
 
         pnl_pou = plot(xs, pouline; label=false, lw=1.5,
-                       title=latexstring("$w:\\ \\max|\\Sigma_i N_i - 1| = $(round(err,sigdigits=3))"), titlefontsize=10,
-                       xlabel=L"x", ylabel = (w==first(which) ? L"\sum_i N_i(x)" : ""),
+                       title="$w:  max|ΣᵢNᵢ-1| = $(round(err,sigdigits=3))", titlefontsize=10,
+                       xlabel=L"x", ylabel=L"\sum_i N_i(x)",
                        ylims=(0.85,1.05), framestyle=:box)
         hline!(pnl_pou, [1.0]; lc=:gray, ls=:dash, lw=1.0, label=false)
         vline!(pnl_pou, target_x; lc=:gray, ls=:dot, lw=0.75, label=false)
@@ -104,12 +108,8 @@ function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","
 
     ncols = length(which) > 1 ? 2 : 1
     nrows = ceil(Int, length(which)/ncols)
-    fig_shape = plot(shape_panels...; layout=(nrows,ncols), size=(560*ncols,380*nrows),
-                     plot_title=latexstring("N_i(x)\\ \\mathrm{(solid)},\\ \\partial N_i/\\partial x\\ \\mathrm{(dashed)},\\ y=$(round(ysweep,digits=2)),\\ \\mathrm{nodes}[row=$row,\\,cols=$cols]"),
-                     plot_titlefontsize=11)
-    fig_pou = plot(pou_panels...; layout=(nrows,ncols), size=(480*ncols,360*nrows),
-                   plot_title=latexstring("\\mathrm{Partition\\ of\\ unity}\\ \\Sigma_i N_i(x) = 1,\\ y=$(round(ysweep,digits=2))"),
-                   plot_titlefontsize=11)
+    fig_shape = plot(shape_panels...; layout=(nrows,ncols), size=(560*ncols,380*nrows))
+    fig_pou   = plot(pou_panels...;   layout=(nrows,ncols), size=(480*ncols,360*nrows))
     if save
         dir_shape = joinpath(ElastoPlasm.self.sys.out, "test", "basis_shape")
         dir_pou   = joinpath(ElastoPlasm.self.sys.out, "test", "basis_pou")
