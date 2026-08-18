@@ -1,33 +1,31 @@
 using StaticArrays
+using LaTeXStrings
 import ElastoPlasm: eval_basis
 
 """
-    test_basis(n::Integer=4, m::Integer=4; which=["bsmpm","gimpm","smpm","mlsmpm"], npts::Integer=300, nx::Integer=60, ny::Integer=60, row::Integer=4, cols=1:4, save::Bool=true)
+    test_basis(n::Integer=4, m::Integer=4; which=["bsmpm","gimpm","smpm","mlsmpm"], npts::Integer=300, row::Integer=4, cols=1:4, save::Bool=true)
 
-Build a 2D `n×m`-element mesh and, for every basis kind in `which`, compute two things:
+Build a 2D `n×m`-element mesh and, for every basis kind in `which`, sweep a single particle
+along `y = (row-1)*h[2]` (the physical node row selected by `row`, 1-indexed out of the
+`(n+1)×(m+1)` node grid) and compute two things at each sweep position:
 
-1. **Shape value/gradient along a line** — sweep a particle along `y = (row-1)*h[2]` (the
-   physical node row selected by `row`) and track, for each of the physical nodes at that
-   row/`cols` (1-indexed, out of the `(n+1)×(m+1)` node grid), its shape value `N(x)` and
-   x-gradient `∂N/∂x(x)`.
-2. **Partition of unity across the whole mesh** — sweep a particle over a fine 2D grid
-   covering the *entire* mesh and compute `ΣNᵢ(xp)` at every point (mirroring the
-   `dev`-branch mlsmpm prototype's 2D heatmap verification, generalized from "one node's
-   kernel" to "PoU everywhere").
+1. **Shape value/gradient** — for each physical node at that row/`cols`, its shape value
+   `Nᵢ(x)` and x-gradient `∂Nᵢ/∂x(x)` (`eval_basis`).
+2. **Partition of unity** — `Σᵢ Nᵢ(x)`, summed over every candidate neighbor, which should
+   equal 1 everywhere for a consistent basis.
 
-Returns `(fig_shape, fig_pou)` — two figures, each with one subplot per basis kind (not per
-node): `fig_shape`'s panels overlay the `row`/`cols` nodes' `N`/`∂N/∂x` curves; `fig_pou`'s
-panels are PoU heatmaps with those same nodes marked as red crosses for reference. Also
-prints `max|ΣN-1|` per basis kind (informational, not a hard `@test` gate — some basis kinds
-are not expected to hold exact PoU everywhere, e.g. this repo's uncorrected `GimpBasis`
-kernel near boundaries; see `CLAUDE.md`'s Known bugs section).
+Returns `(fig_shape, fig_pou)` — two `LaTeXStrings`-labelled figures, each with one subplot
+per basis kind: `fig_shape` overlays the `row`/`cols` nodes' `Nᵢ` (solid) / `∂Nᵢ/∂x` (dashed)
+curves; `fig_pou` plots `Σᵢ Nᵢ(x)` against the `Σᵢ Nᵢ = 1` reference line. Also prints
+`max|ΣNᵢ-1|` per basis kind (informational, not a hard `@test` gate — some basis kinds are
+not expected to hold exact PoU everywhere, e.g. this repo's uncorrected `GimpBasis` kernel
+near boundaries; see `CLAUDE.md`'s Known bugs section).
 
 # Arguments
 - `n::Integer`, `m::Integer`: element counts along x/y (default 4×4).
 - `which::Vector{String}`: basis kinds to test.
-- `npts::Integer`: number of sweep positions for the line sweep (1).
-- `nx::Integer`, `ny::Integer`: sweep-grid resolution along x/y for the PoU heatmap (2).
-- `row::Integer`, `cols`: 1-indexed physical node-grid coordinates to track/mark.
+- `npts::Integer`: number of sweep positions along the line.
+- `row::Integer`, `cols`: 1-indexed physical node-grid coordinates to track.
 - `save::Bool`: if true, saves the figures under `dump/test/basis_shape/` and `basis_pou/`.
 
 # Example
@@ -36,16 +34,12 @@ fig_shape, fig_pou = test_basis(4, 4)
 ```
 """
 function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","gimpm","smpm","mlsmpm"],
-                     npts::Integer=300, nx::Integer=60, ny::Integer=60, row::Integer=4, cols=1:4, save::Bool=true)
+                     npts::Integer=300, row::Integer=4, cols=1:4, save::Bool=true)
     L, nel = Float64.([n, m]), [n, m]
     hx, hy = L[1]/n, L[2]/m
-    target_x  = [hx*(c-1) for c ∈ cols]
-    target_y  = fill(hy*(row-1), length(cols))
-    ysweep    = hy*(row-1)
-
-    xs_line = range(1e-6, L[1]-1e-6, length=npts)
-    xs_grid = range(1e-6, L[1]-1e-6, length=nx)
-    ys_grid = range(1e-6, L[2]-1e-6, length=ny)
+    target_x = [hx*(c-1) for c ∈ cols]
+    ysweep   = hy*(row-1)
+    xs       = range(1e-6, L[1]-1e-6, length=npts)
 
     shape_panels = Any[]
     pou_panels   = Any[]
@@ -64,45 +58,45 @@ function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","
         NN = size(basis.p2n[1])[1]
         ip = Int64(1)
 
-        # 1) shape value/gradient of the target nodes along the sweep line
-        Nline  = zeros(npts, length(cols))
-        ∂Nline = zeros(npts, length(cols))
-        for (k,x) ∈ enumerate(xs_line)
+        Nline   = zeros(npts, length(cols))
+        ∂Nline  = zeros(npts, length(cols))
+        pouline = zeros(npts)
+        for (k,x) ∈ enumerate(xs)
             mpts.x[ip] = SVector{2,Float64}(x, ysweep)
             solver.cairn.ignite.tplgy!(mpts, mesh, basis; ndrange=1); sync(CPU())
+            s = 0.0
             for nn ∈ 1:NN
                 no, N, ∂N = eval_basis(mpts, mesh, basis, ip, Int64(nn))
+                s += N
                 idx = findfirst(==(no), target_ids)
                 if idx !== nothing
                     Nline[k,idx]  = N
                     ∂Nline[k,idx] = ∂N[1]
                 end
             end
+            pouline[k] = s
         end
-        labels = reshape(["node[$(row),$(c)]" for c ∈ cols], 1, :)
-        pnl_shape = plot(xs_line, Nline; label=labels, lw=1.5, ls=:solid,
-                         title="$w", titlefontsize=9, legend=(w==first(which) ? :outerright : false))
-        plot!(pnl_shape, xs_line, ∂Nline; label=false, lw=1.0, ls=:dash)
+
+        # 1) shape value/gradient
+        labels = reshape([latexstring("N_{$row,$c}(x)") for c ∈ cols], 1, :)
+        pnl_shape = plot(xs, Nline; label=labels, lw=1.5, ls=:solid,
+                         title=w, titlefontsize=10, legend=(w==first(which) ? :outerright : false),
+                         xlabel=L"x", ylabel = (w==first(which) ? L"N_i(x),\ \partial N_i/\partial x" : ""),
+                         framestyle=:box)
+        plot!(pnl_shape, xs, ∂Nline; label=false, lw=1.0, ls=:dash)
+        vline!(pnl_shape, target_x; lc=:gray, ls=:dot, lw=0.75, label=false)
         push!(shape_panels, pnl_shape)
 
-        # 2) partition of unity over the whole mesh
-        pou = zeros(ny, nx)
-        for (j,y) ∈ enumerate(ys_grid), (i,x) ∈ enumerate(xs_grid)
-            mpts.x[ip] = SVector{2,Float64}(x, y)
-            solver.cairn.ignite.tplgy!(mpts, mesh, basis; ndrange=1); sync(CPU())
-            s = 0.0
-            for nn ∈ 1:NN
-                _, N, _ = eval_basis(mpts, mesh, basis, ip, Int64(nn))
-                s += N
-            end
-            pou[j,i] = s
-        end
-        err = maximum(abs.(pou .- 1.0))
-        println("  $w: max|ΣN-1| over full $(n)x$(m)-element mesh = $err")
+        # 2) partition of unity, informational (not a hard @test gate)
+        err = maximum(abs.(pouline .- 1.0))
+        println("  $w: max|ΣN-1| along y=$(round(ysweep,digits=2)) = $err")
 
-        pnl_pou = heatmap(xs_grid, ys_grid, pou; title="$w (max|ΣN-1|=$(round(err,sigdigits=3)))", titlefontsize=9,
-                          c=:viridis, clims=(0.9,1.1), xlabel="x", ylabel="y", aspect_ratio=:equal)
-        scatter!(pnl_pou, target_x, target_y; m=:xcross, ms=6, mc=:red, label=false)
+        pnl_pou = plot(xs, pouline; label=false, lw=1.5,
+                       title=latexstring("$w:\\ \\max|\\Sigma_i N_i - 1| = $(round(err,sigdigits=3))"), titlefontsize=10,
+                       xlabel=L"x", ylabel = (w==first(which) ? L"\sum_i N_i(x)" : ""),
+                       ylims=(0.85,1.05), framestyle=:box)
+        hline!(pnl_pou, [1.0]; lc=:gray, ls=:dash, lw=1.0, label=false)
+        vline!(pnl_pou, target_x; lc=:gray, ls=:dot, lw=0.75, label=false)
         push!(pou_panels, pnl_pou)
       end
     end
@@ -111,10 +105,11 @@ function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","
     ncols = length(which) > 1 ? 2 : 1
     nrows = ceil(Int, length(which)/ncols)
     fig_shape = plot(shape_panels...; layout=(nrows,ncols), size=(560*ncols,380*nrows),
-                     plot_title="N (solid) / ∂N/∂x (dash) along y=$(round(ysweep,digits=2)), nodes[row=$row,cols=$cols]",
-                     plot_titlefontsize=10)
-    fig_pou = plot(pou_panels...; layout=(nrows,ncols), size=(520*ncols,440*nrows),
-                   plot_title="Partition of unity across $(n)x$(m)-element mesh", plot_titlefontsize=11)
+                     plot_title=latexstring("N_i(x)\\ \\mathrm{(solid)},\\ \\partial N_i/\\partial x\\ \\mathrm{(dashed)},\\ y=$(round(ysweep,digits=2)),\\ \\mathrm{nodes}[row=$row,\\,cols=$cols]"),
+                     plot_titlefontsize=11)
+    fig_pou = plot(pou_panels...; layout=(nrows,ncols), size=(480*ncols,360*nrows),
+                   plot_title=latexstring("\\mathrm{Partition\\ of\\ unity}\\ \\Sigma_i N_i(x) = 1,\\ y=$(round(ysweep,digits=2))"),
+                   plot_titlefontsize=11)
     if save
         dir_shape = joinpath(ElastoPlasm.self.sys.out, "test", "basis_shape")
         dir_pou   = joinpath(ElastoPlasm.self.sys.out, "test", "basis_pou")
