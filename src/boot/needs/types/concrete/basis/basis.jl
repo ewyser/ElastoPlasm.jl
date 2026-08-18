@@ -28,6 +28,8 @@ end
 Owns the topology that links a `Mesh` and a `Point` container: which nodes neighbor each element
 (`e2n`) and each material point (`p2n`), which elements neighbor each other (`e2e`) and each
 material point (`e2p`), and which points neighbor each other (`p2p`, nonlocal regularization only).
+Also owns `type`, the per-axis node boundary-layer classification consumed by `BSplineBasis`'s
+`eval_basis` — basis-kind-specific data, not mesh/point state.
 Threaded through the solver as a third argument alongside `mpts`/`mesh`, e.g. `p2e2n(mpts,mesh,basis)`.
 """
 struct Basis{T1,D,NN,K<:AbstractBasis}
@@ -38,5 +40,6 @@ struct Basis{T1,D,NN,K<:AbstractBasis}
     p2e  ::Vector{T1}
     e2p  ::Matrix{T1}
     p2p  ::Matrix{T1}
+    type ::Matrix{T1}
 end
 @adapt_struct Basis

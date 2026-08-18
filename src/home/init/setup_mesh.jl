@@ -25,10 +25,8 @@ println(mesh.prprt.nel)
 """
 function setup_mesh(geom::Geometry{T1,T2,D},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     # Mesh & boundary condition setup
-    ndim    = geom.dim
     L,nel,h = geom.L,geom.nel,geom.h
     xn,nel,nno = get_coords(geom)
-    node_type  = get_node_type(ndim,nno)
     status,xB  = get_bc(xn,solver; ghosts=geom.ghost*h)
     # static array type for node coords, velocity, acceleration
     NN  = prod(length.(get_basis(solver.basis.which, T1, D).stencils))
@@ -64,7 +62,6 @@ function setup_mesh(geom::Geometry{T1,T2,D},solver::S) where {T1,T2,D,S<:Abstrac
         # nodal quantities
         SVD(T2.(vec(minimum(xn,dims=2))) )     , # x₀
         [SVD(T2.(xn[:,i])) for i in 1:nn_total], # x
-        T1.(node_type                        ), # node
         T2.(zeros(nn_total                  )), # ΔJ
         # solid phase
         s                                , # solid phase
