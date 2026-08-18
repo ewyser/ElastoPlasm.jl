@@ -90,13 +90,15 @@ function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","
         push!(shape_panels, pnl_shape)
 
         # 2) partition of unity, informational (not a hard @test gate)
-        err = maximum(abs.(pouline .- 1.0))
-        println("  $w: max|ΣN-1| along y=$(round(ysweep,digits=2)) = $err")
+        err    = maximum(abs.(pouline .- 1.0))
+        logerr = log10(max(err, eps(Float64)))
+        println("  $w: max|ΣN-1| along y=$(round(ysweep,digits=2)) = $err  (log10 = $logerr)")
 
+        title_pou = LaTeXString("$(w):  \$\\log_{10}\\left(\\max|\\Sigma_i N_i - 1|\\right) = $(round(logerr,digits=2))\$")
         pnl_pou = plot(xs, pouline; label=false, lw=1.5,
-                       title="$w:  max|ΣᵢNᵢ-1| = $(round(err,sigdigits=3))", titlefontsize=10,
+                       title=title_pou, titlefontsize=10,
                        xlabel=L"x", ylabel=L"\sum_i N_i(x)",
-                       ylims=(0.85,1.05), framestyle=:box)
+                       ylims=(0.95,1.05), framestyle=:box)
         hline!(pnl_pou, [1.0]; lc=:gray, ls=:dash, lw=1.0, label=false)
         vline!(pnl_pou, target_x; lc=:gray, ls=:dot, lw=0.75, label=false)
         push!(pou_panels, pnl_pou)
