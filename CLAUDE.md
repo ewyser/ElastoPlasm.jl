@@ -119,6 +119,100 @@ on an unrelated branch.**
   `init_implicit` never registers. Out of scope until someone designs what `fint_p2n!`
   should do; `elastoquasistatic!` itself doesn't reach this code path, so it isn't
   blocked by this.
+- **`test/testset/test_collapse.jl` is likely fully non-functional**, beyond the
+  `fwrk`→`strain`/`transfer`/`stab` kwarg fix already applied to it. Found but not
+  fixed while doing that: `load_simulation_setup` reads `file["cfg"]["instr"]`, the
+  stale key name (`cfg["solver"]` is correct, see Persistence below);
+  `compute_collapse_error` calls `elastoplasm!(jld2; workflow=[solver])` — singular
+  `workflow`, not the real `workflows` kwarg; and `z0 = copy(setup.mpts.x[end, :])`
+  matrix-style-indexes `mpts.x`, which is `Vector{SVector}` (see Core types). Someone
+  needs to actually run this file and fix it properly rather than patch around it.
+- **`test/testset/test_slump.jl`'s full sweep (48 cases: 2 geom × 1 basis × 24
+  `strain`/`transfer`/`stab` combos) fails 20/48, all under `locking=true`** —
+  `infinitesimal`+`std`+`locking=true` cases in particular take 1+ minute each (vs
+  ~15-20s for `locking=false` cases) before failing. Puzzling: a standalone
+  single-case reproduction with the *identical* config (`bsmpm`, `infinitesimal`,
+  `std`, `locking=true`) outside the test loop succeeded cleanly. Not yet root-caused
+  — could be a real numerical issue specific to running many geometries/configs in
+  sequence within one process (leftover global/mutable state between cases?), or
+  something specific to the test harness's `@suppress`/`try`-`catch` interacting badly
+  with a slow-but-eventually-successful run. Needs investigation with the full,
+  untruncated test output (the run that surfaced this only had its last ~15 lines
+  captured) before assuming it's the same class of issue as the already-diagnosed
+  gimpm/mlsmpm F-bar locking NaN bug above (this was `bsmpm` only, which isn't
+  supposed to hit that one).
+- **`ic_collision`'s initial-velocity plot crashes**: `what_plot_field` errors with
+  `type NamedTuple has no field data`, because `collision.jl`'s `plot.what` entries are
+  hand-built as `(;mpts=(name="u",cblim=(...)))` instead of going through
+  `get_mpts_variable_config()[name]` like `ic_slump`'s equivalent plot section does —
+  the hand-built `NamedTuple` is missing the `data`/`label`/`unit`/`scale`/`cb` fields
+  `what_plot_field` expects. `ic_collision` itself was also just rewritten this session
+  (it previously called an undefined `kwargser` function and predated the current
+  `get_solver`/`setup_geometry`/`setup_basis` pipeline entirely — that part is fixed),
+  but this plot-config bug was pre-existing in the file and wasn't fixed. Workaround:
+  run with `plot.status=false` until fixed.
+
+## Planned improvements (not bugs, just known follow-up work)
+
+- **Kernel granularity**: `elast!` is the model to follow — decomposed into small
+  functions each doing one specific task (e.g. computing log strain), rather than one
+  monolithic kernel body. Other large kernels (e.g. `update.jl`'s `elastoplast`/
+  `elasto` dispatch functions, which branch on `strain.deform`/`basis.how` inline)
+  would benefit from being split the same way.
+- **Typed constitutive-model/tensor abstractions**, prototyped on branch
+  `fancy-implementation` (`git show origin/fancy-implementation:<path>` — not merged,
+  don't rebase onto it wholesale, see caveats below):
+  - `lagrangian.jl`'s `AbstractConstitutiveModel{T,D}` with concrete `PerfectlyElastic`/
+    `DruckerPrager` subtypes bundling *all* material parameters (elastic + plastic:
+    `Gc`, `Kc`, `Del`, `Hp`, `c₀`, `cᵣ`, `ϕ₀`, `state`) into one typed object per
+    particle (`cmp::Vector{CM}` on `PointSolidPhase`) — would replace the current split
+    `E<:AbstractElasticity`/`R<:AbstractRheology` component design plus the loose
+    `cmpr::NamedTuple` bag and `plast.constitutive::String` branch-dispatch in
+    `update.jl`'s `init_update`.
+  - `tensor.jl`'s `AbstractStrain`/`AbstractStress` typed tensors, each storing a
+    **volumetric/deviatoric split** rather than a flat Voigt vector, with small
+    dedicated functions per operation (`_trial_elastic_strain`, `_trial_elastic_stress`,
+    `get_J2`, `get_τII`, `_get_cauchy_stress`, ...) dispatched on tensor *type*
+    (`LogarithmicStrain`/`InfinitesimalStrain`, `CauchyStress`/`KirchhoffStress`)
+    instead of on strings — a concrete instance of the kernel-granularity item above.
+
+  Two caveats before adopting either: (1) that branch's `Point` embeds `basis::B`
+  directly and uses a type-level `D<:AbstractDimension` instead of the current
+  `D::Integer` — both predate/diverge from the current `Mesh`/`Point`/`Basis`
+  separation and integer-dimension convention, so re-implement the constitutive-
+  model/tensor ideas against the *current* architecture rather than merging that
+  branch's `Point`/`Basis` shape backward; (2) the branch itself looks mid-refactor —
+  `PerfectlyElastic` stores `Gc`/`Kc` as `Vector{T}` (one shared model, per-particle
+  vectors) while `DruckerPrager` stores them as scalar `T` (one model instance per
+  particle), an inconsistent convention for the same abstract type — so this isn't a
+  drop-in copy-paste even for the parts worth keeping.
+- **3D conformity check**: verify 3D simulations behave consistently across the
+  explicit solver's configuration space (basis kind, `stab.locking`, `strain.deform`)
+  — most of this session's verification was 2D-only.
+- **`basis.how`/`basis.ghost` are GIMP-specific concepts living in the generic `basis`
+  config section.** `how` (particle-domain update mode) is read unconditionally in
+  `update.jl`'s dispatch regardless of which basis kind is actually active, and
+  `ghost` similarly sits at the top level even though it only meaningfully matters for
+  `GimpBasis`'s wider stencil. Worth exploring moving both to live on `GimpBasis`
+  itself (construction-time fields, defaults, and validation co-located with the kind
+  that actually uses them) rather than as basis-kind-agnostic top-level knobs that
+  `bsmpm`/`smpm`/`mlsmpm` silently ignore.
+- **`Basis.N`/`∂N` storage rework**: currently plain `Matrix{T2}`/`Array{T2,3}`
+  specifically to dodge the StaticArrays allocation-elision limits documented below —
+  correct and fast, but a workaround rather than a considered data-layout design; worth
+  revisiting once/if a cleaner approach is found that doesn't reintroduce the
+  allocation regression.
+- **`smpm`'s isolated gradient-consistency glitch**: `test_basis.jl` found
+  `max|Σᵢ∂Nᵢ|` off by exactly `1.0` at one sweep point for `LinearBasis`, unlike
+  `gimpm`'s broadly-degraded boundary PoU. Never root-caused — an error of exactly
+  `1.0` smells like a real (if narrow, single-point) bug rather than float noise, worth
+  a closer look.
+- **`DynamicRelaxationSolver`'s fate**: now that `solution` picks between
+  `ExplicitSolver`/`ImplicitSolver` only (see "Controlling solver behaviour" below),
+  this third struct is even more clearly orphaned than before. Decide: wire it in as a
+  third `solution` value with real semantics, or state plainly (here, or in
+  `solver.jl`) that it's intentionally dormant scaffolding, so nobody "completes" the
+  selection logic to include it without knowing whether that's actually wanted.
 
 ## Precision (32-bit) and StaticArrays performance gotchas
 

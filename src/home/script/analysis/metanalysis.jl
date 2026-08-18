@@ -25,11 +25,15 @@ function prepare_simulations!(L, nel, fid, paths)
                     how = nothing,
                     ghost = 0,
                 )
-                fwrk = (;
+                strain = (;
                     deform = deform,
+                )
+                transfer = (;
                     trsfr = trsfr,
                     C_pf = 1.0,
                     musl = true,
+                )
+                stab = (;
                     locking = false,
                     damping = 0.1
                 )
@@ -40,7 +44,7 @@ function prepare_simulations!(L, nel, fid, paths)
                     what = [(; mpts=(name="epII", cblim=(0.0, 1.5)),),],
                 )
                 @suppress begin
-                    _ = ic_slump(L, nel; fid="$fid/sim_$sim", fwrk=fwrk, plot=plot)
+                    _ = ic_slump(L, nel; fid="$fid/sim_$sim", strain=strain, transfer=transfer, stab=stab, plot=plot)
                 end
                 next!(prog; desc="Preparing simulation(s) $sim/$nsim...")
                 sim += 1
