@@ -2,42 +2,53 @@ using StaticArrays
 import ElastoPlasm: eval_basis
 
 """
-    test_basis(n::Integer, m::Integer; which=["bsmpm","gimpm","smpm","mlsmpm"], npts::Integer=300, save::Bool=true)
+    test_basis(n::Integer=4, m::Integer=4; which=["bsmpm","gimpm","smpm","mlsmpm"], npts::Integer=300, nx::Integer=60, ny::Integer=60, row::Integer=4, cols=1:4, save::Bool=true)
 
-Build a 2D `n×m`-element mesh and, for every basis kind in `which`, sweep a single material
-point along the mesh's mid-height horizontal line and evaluate every candidate neighbor
-node's shape value/gradient (`eval_basis`) at each sweep position.
+Build a 2D `n×m`-element mesh and, for every basis kind in `which`, compute two things:
 
-At each sweep position, checks:
-- partition of unity:    `Σ Nᵢ = 1`
-- linear consistency:    `Σ Nᵢ·δxᵢ = 0`   (δxᵢ = node position - particle position)
-- gradient consistency:  `Σ ∂Nᵢ = 0`
+1. **Shape value/gradient along a line** — sweep a particle along `y = (row-1)*h[2]` (the
+   physical node row selected by `row`) and track, for each of the physical nodes at that
+   row/`cols` (1-indexed, out of the `(n+1)×(m+1)` node grid), its shape value `N(x)` and
+   x-gradient `∂N/∂x(x)`.
+2. **Partition of unity across the whole mesh** — sweep a particle over a fine 2D grid
+   covering the *entire* mesh and compute `ΣNᵢ(xp)` at every point (mirroring the
+   `dev`-branch mlsmpm prototype's 2D heatmap verification, generalized from "one node's
+   kernel" to "PoU everywhere").
 
-reported (printed, and annotated on each figure's title) rather than hard-gated with `@test`
-— some basis kinds are not expected to hold these exactly everywhere (this repo's uncorrected
-`GimpBasis` kernel does not reproduce exact PoU near boundaries, a known, pre-existing
-property; see `CLAUDE.md`'s Known bugs section). Returns `Dict{String,Plots.Plot}` — one
-figure per basis kind, one panel per candidate neighbor-node index, showing that node's
-shape value `N(xp)` and x-gradient `∂N/∂x(xp)` swept over the sweep line. Node-panel plots
-double as a visual check too (e.g. `BSplineBasis`'s piecewise boundary correction should show
-up as kinks at the node-type transition, `MLSBasis` should stay smooth everywhere including
-boundaries).
+Returns `(fig_shape, fig_pou)` — two figures, each with one subplot per basis kind (not per
+node): `fig_shape`'s panels overlay the `row`/`cols` nodes' `N`/`∂N/∂x` curves; `fig_pou`'s
+panels are PoU heatmaps with those same nodes marked as red crosses for reference. Also
+prints `max|ΣN-1|` per basis kind (informational, not a hard `@test` gate — some basis kinds
+are not expected to hold exact PoU everywhere, e.g. this repo's uncorrected `GimpBasis`
+kernel near boundaries; see `CLAUDE.md`'s Known bugs section).
 
 # Arguments
-- `n::Integer`, `m::Integer`: element counts along x/y.
-- `which::Vector{String}`: basis kinds to test (`get_option().basis.which` lists valid values).
-- `npts::Integer`: number of sweep positions along the mid-height line.
-- `save::Bool`: if true, also saves each figure to `dump/test/basis_<kind>/basis_<kind>.png`.
+- `n::Integer`, `m::Integer`: element counts along x/y (default 4×4).
+- `which::Vector{String}`: basis kinds to test.
+- `npts::Integer`: number of sweep positions for the line sweep (1).
+- `nx::Integer`, `ny::Integer`: sweep-grid resolution along x/y for the PoU heatmap (2).
+- `row::Integer`, `cols`: 1-indexed physical node-grid coordinates to track/mark.
+- `save::Bool`: if true, saves the figures under `dump/test/basis_shape/` and `basis_pou/`.
 
 # Example
 ```julia
-figs = test_basis(6, 4)
-figs["mlsmpm"]  # the MLS figure
+fig_shape, fig_pou = test_basis(4, 4)
 ```
 """
-function test_basis(n::Integer, m::Integer; which::Vector{String}=["bsmpm","gimpm","smpm","mlsmpm"], npts::Integer=300, save::Bool=true)
+function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","gimpm","smpm","mlsmpm"],
+                     npts::Integer=300, nx::Integer=60, ny::Integer=60, row::Integer=4, cols=1:4, save::Bool=true)
     L, nel = Float64.([n, m]), [n, m]
-    figs = Dict{String,Any}()
+    hx, hy = L[1]/n, L[2]/m
+    target_x  = [hx*(c-1) for c ∈ cols]
+    target_y  = fill(hy*(row-1), length(cols))
+    ysweep    = hy*(row-1)
+
+    xs_line = range(1e-6, L[1]-1e-6, length=npts)
+    xs_grid = range(1e-6, L[1]-1e-6, length=nx)
+    ys_grid = range(1e-6, L[2]-1e-6, length=ny)
+
+    shape_panels = Any[]
+    pou_panels   = Any[]
 
     @testset "+ test_basis($n,$m)" verbose = true begin
     for w ∈ which
@@ -48,69 +59,70 @@ function test_basis(n::Integer, m::Integer; which::Vector{String}=["bsmpm","gimp
         basis = load(jld2, "ic/basis")
         solver= load(jld2, "cfg/solver")
 
-        NN   = size(basis.p2n[1])[1]
-        ymid = mesh.prprt.L[2] / 2
-        xs   = collect(range(1e-6, mesh.prprt.L[1] - 1e-6, length=npts))
-
-        N   = zeros(npts, NN)
-        ∂Nx = zeros(npts, NN)
-        ∂Ny = zeros(npts, NN)
-        pou    = zeros(npts)
-        lincon = zeros(npts, 2)
-        gradcon= zeros(npts, 2)
-
+        nxnodes    = mesh.prprt.nno[1]
+        target_ids = Int64[1 + (c-1) + nxnodes*(row-1) for c ∈ cols]
+        NN = size(basis.p2n[1])[1]
         ip = Int64(1)
-        for (k,x) ∈ enumerate(xs)
-            mpts.x[ip] = SVector{2,Float64}(x, ymid)
-            solver.cairn.ignite.tplgy!(mpts, mesh, basis; ndrange=1); sync(CPU())
 
-            active = Int64[]
+        # 1) shape value/gradient of the target nodes along the sweep line
+        Nline  = zeros(npts, length(cols))
+        ∂Nline = zeros(npts, length(cols))
+        for (k,x) ∈ enumerate(xs_line)
+            mpts.x[ip] = SVector{2,Float64}(x, ysweep)
+            solver.cairn.ignite.tplgy!(mpts, mesh, basis; ndrange=1); sync(CPU())
             for nn ∈ 1:NN
-                no, Nv, ∂Nv = eval_basis(mpts, mesh, basis, ip, Int64(nn))
-                N[k,nn]   = Nv
-                ∂Nx[k,nn] = ∂Nv[1]
-                ∂Ny[k,nn] = ∂Nv[2]
-                if !iszero(no)
-                    push!(active, nn)
+                no, N, ∂N = eval_basis(mpts, mesh, basis, ip, Int64(nn))
+                idx = findfirst(==(no), target_ids)
+                if idx !== nothing
+                    Nline[k,idx]  = N
+                    ∂Nline[k,idx] = ∂N[1]
                 end
             end
-            pou[k] = sum(N[k,:])
-            δx = [mesh.x[basis.p2n[ip][nn]] .- mpts.x[ip] for nn ∈ active]
-            lincon[k,:]  .= sum(N[k,active[i]].*δx[i] for i ∈ eachindex(δx))
-            gradcon[k,:] .= (sum(∂Nx[k,:]), sum(∂Ny[k,:]))
         end
+        labels = reshape(["node[$(row),$(c)]" for c ∈ cols], 1, :)
+        pnl_shape = plot(xs_line, Nline; label=labels, lw=1.5, ls=:solid,
+                         title="$w", titlefontsize=9, legend=(w==first(which) ? :outerright : false))
+        plot!(pnl_shape, xs_line, ∂Nline; label=false, lw=1.0, ls=:dash)
+        push!(shape_panels, pnl_shape)
 
-        # informational, not a hard pass/fail gate (matches test_performance.jl's style) —
-        # some basis kinds are not expected to hold these exactly everywhere (e.g. this
-        # repo's uncorrected GimpBasis kernel does not reproduce exact PoU near boundaries;
-        # see CLAUDE.md's known-bugs section for basis-kind-specific caveats)
-        pou_err  = maximum(abs.(pou .- 1.0))
-        lin_err  = maximum(abs.(lincon))
-        grad_err = maximum(abs.(gradcon))
-        println("  $w: max|ΣN-1|=$pou_err  max|Σ N·δx|=$lin_err  max|Σ∂N|=$grad_err")
-
-        ncols = ceil(Int, sqrt(NN))
-        nrows = ceil(Int, NN/ncols)
-        panels = [
-            plot(xs, [N[:,nn] ∂Nx[:,nn]];
-                 label=["N" "∂N/∂x"], title="node $nn", titlefontsize=8,
-                 legend = nn==1 ? :topright : false, lw=1.5)
+        # 2) partition of unity over the whole mesh
+        pou = zeros(ny, nx)
+        for (j,y) ∈ enumerate(ys_grid), (i,x) ∈ enumerate(xs_grid)
+            mpts.x[ip] = SVector{2,Float64}(x, y)
+            solver.cairn.ignite.tplgy!(mpts, mesh, basis; ndrange=1); sync(CPU())
+            s = 0.0
             for nn ∈ 1:NN
-        ]
-        title = "$w — shape value/gradient vs particle x (y=$(round(ymid,digits=2)))\n" *
-                "max|ΣN-1|=$(round(pou_err,sigdigits=3))  max|ΣN·δx|=$(round(lin_err,sigdigits=3))  max|Σ∂N|=$(round(grad_err,sigdigits=3))"
-        fig = plot(panels...; layout=(nrows,ncols), size=(300*ncols,220*nrows+40),
-                   plot_title=title, plot_titlefontsize=10)
-        figs[w] = fig
-        if save
-            dir = joinpath(ElastoPlasm.self.sys.out, "test", "basis_$(w)")
-            mkpath(dir)
-            savefig(fig, joinpath(dir, "basis_$(w).png"))
+                _, N, _ = eval_basis(mpts, mesh, basis, ip, Int64(nn))
+                s += N
+            end
+            pou[j,i] = s
         end
+        err = maximum(abs.(pou .- 1.0))
+        println("  $w: max|ΣN-1| over full $(n)x$(m)-element mesh = $err")
+
+        pnl_pou = heatmap(xs_grid, ys_grid, pou; title="$w (max|ΣN-1|=$(round(err,sigdigits=3)))", titlefontsize=9,
+                          c=:viridis, clims=(0.9,1.1), xlabel="x", ylabel="y", aspect_ratio=:equal)
+        scatter!(pnl_pou, target_x, target_y; m=:xcross, ms=6, mc=:red, label=false)
+        push!(pou_panels, pnl_pou)
       end
     end
     end
-    return figs
+
+    ncols = length(which) > 1 ? 2 : 1
+    nrows = ceil(Int, length(which)/ncols)
+    fig_shape = plot(shape_panels...; layout=(nrows,ncols), size=(560*ncols,380*nrows),
+                     plot_title="N (solid) / ∂N/∂x (dash) along y=$(round(ysweep,digits=2)), nodes[row=$row,cols=$cols]",
+                     plot_titlefontsize=10)
+    fig_pou = plot(pou_panels...; layout=(nrows,ncols), size=(520*ncols,440*nrows),
+                   plot_title="Partition of unity across $(n)x$(m)-element mesh", plot_titlefontsize=11)
+    if save
+        dir_shape = joinpath(ElastoPlasm.self.sys.out, "test", "basis_shape")
+        dir_pou   = joinpath(ElastoPlasm.self.sys.out, "test", "basis_pou")
+        mkpath(dir_shape); mkpath(dir_pou)
+        savefig(fig_shape, joinpath(dir_shape, "basis_shape.png"))
+        savefig(fig_pou,   joinpath(dir_pou,   "basis_pou.png"))
+    end
+    return fig_shape, fig_pou
 end
 
-test_basis(6, 4)
+test_basis(4, 4)
