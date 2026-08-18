@@ -20,22 +20,57 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
   (Lagrangian). No longer carries `NN`, `B`, or connectivity (`p2n`/`p2e`/`e2p`/`p2p`
   moved out). `mpts.x :: Vector{SVector{D,T2}}` — NOT a matrix; index fields with
   `getindex.(x, i)` or iterate, never `x[i, :]`.
-- `Basis{T1,D,NN,K<:AbstractBasis}` (`src/boot/needs/types/concrete/basis/basis.jl`) —
+- `Basis{T1,T2,D,NN,K<:AbstractBasis}` (`src/boot/needs/types/concrete/basis/basis.jl`) —
   independent struct owning ALL mesh/point connectivity: `e2n`, `e2e`, `p2n`, `p2e`,
   `e2p`, `p2p`, plus `kind::K` (dispatches shape-function evaluation) and `NN` (nodes
   per element, only known once you fix mesh + basis kind, hence its own type param
-  rather than living on `Mesh`/`Point`).
+  rather than living on `Mesh`/`Point`). Also owns `type` (per-axis node boundary-layer
+  classification, `BSplineBasis`-specific) and the shape-function cache `N`/`∂N` (see
+  below). `T2` was added late — every field is otherwise `T1`-typed, so adding it was a
+  mechanical sweep of every `Basis{T1,...}` call site (~25 files); it exists so `N`/`∂N`
+  can live on `Basis` at all.
 - Construction order is always **mesh → material points → basis** (basis depends on
   both). Function argument order is always **`(mpts, mesh, basis, ...)`** — this
   ordering is deliberate: it signals that the mpts↔mesh relationship is governed by
   basis.
 - Shape-function evaluation is `eval_basis(mpts, mesh, basis, ip, nn)` (renamed from the
   old bare `basis(...)` to avoid colliding with the `Basis` type/struct field name).
-  Concrete kinds live in `basis/{bsmpm,gimpm,smpm}.jl`; each defines
-  `stencil_range(::ConcreteBasisKind, ::Type{T1})` used to build `Neighbs`.
+  Concrete kinds live in `basis/{bsmpm,gimpm,smpm,mlsmpm}.jl`, each defining its own
+  `stencils::NTuple{D,UnitRange{T}}` field directly on the kind struct (no separate
+  `stencil_range`/`Neighbs` indirection).
+- **Shape values/gradients are cached, not recomputed per call site.** `Basis.N` /
+  `Basis.∂N` (plain `Matrix{T2}` / `Array{T2,3}`, sized `(NN,nmp)` / `(NN,D,nmp)` — see
+  below for why not `Vector{SVector}`/`Vector{SMatrix}`) are populated once per particle
+  per timestep by the `shpfun!` ignite kernel (`src/home/core/common/shpfun.jl`), which
+  loops `nn ∈ 1:NN` calling the kind-specific `eval_basis` once each. Every P2G/G2P/
+  update kernel then just reads `basis.N[nn,p]` / `∂Nrow(basis.∂N,nn,p,Val(D))` (the
+  latter a small helper in `basis.jl` — extracts a gradient row via a `Val`-unrolled
+  `ntuple`, since `M[nn,:]` on an `SMatrix` allocates for a runtime `nn`) instead of
+  calling `eval_basis` inline. `dynamic_relaxation`'s ~14 call sites are the one
+  exception — that path has no ignite phase, so they still call `eval_basis` directly
+  per `(ip,nn)`.
+- `MLSBasis` (`basis/mlsmpm.jl`) is a fourth kind implementing structured-grid Moving
+  Least Squares shape functions (Cao et al. 2025, *Comput. Mech.* 75:655–678, §2.3.1 —
+  only the structured-grid case; the paper's unstructured-tessellation machinery does
+  not apply here). Unlike the other three kinds it needs no boundary node-type
+  correction (`basis.type`) — a per-particle moment-matrix projection restores
+  partition-of-unity/consistency everywhere on its own — but it does need a
+  once-per-particle `(D+1)×(D+1)` matrix build+inversion, which is why the `shpfun!`
+  caching above exists: without it, MLS's `eval_basis` would rebuild that matrix from
+  scratch at every one of the ~14 call sites instead of once. `basis.which` and
+  `fwrk.trsfr` (P2G/G2P transfer scheme: std/tpic/apic) are fully orthogonal — any
+  basis kind pairs with any transfer scheme, including `mlsmpm`+`std` (MLS is usually
+  *presented* alongside APIC in the literature, but nothing here couples them).
 
 ## Explicit vs dynamic_relaxation solvers
 
+- `src/home/core/common/` — kernels/wrappers shared by **both** solver paths:
+  `tplgy.jl` (`p2e2n`, topology), `shpfun.jl` (`shpfun!`/`Dij_nd`), `ignite.jl`
+  (`init_ignite`/`ignite()`). These used to live under `solver/explicit/ignite/`, which
+  was misleading — both `elastodynamic!`/`elastoplastic!` *and*
+  `elastoquasistatic!` call the same `ignite(mpts,mesh,basis,solver)` wrapper (they
+  dispatch through the same `ExplicitSolver`-typed config regardless of which solver
+  path is actually running).
 - `src/home/core/solver/explicit/` — the primary, actively-used path
   (`elastodynamic!`, `elastoplastic!`). Kernel dispatch table lives on
   `solver.cairn` (a `NamedTuple`, dot-accessed: `solver.cairn.ignite.tplgy!`,
@@ -46,7 +81,10 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
 - `src/home/core/solver/dynamic_relaxation/` — quasi-static path (`elastoquasistatic!`,
   plus the not-fully-wired u-P variant `elastoquasistaticuP!`/`elastouP!`). Converted to
   the same `Basis`-threading convention. Runs end-to-end through the same
-  `ic_slump`/`elastoplasm(jld2; workflows=[...])` pipeline as the explicit solver.
+  `ic_slump`/`elastoplasm(jld2; workflows=[...])` pipeline as the explicit solver — but
+  is much slower to smoke-test (a full `elastoquasistatic!` run took ~5–8 minutes in
+  practice, vs. seconds for `elastodynamic!`/`elastoplastic!`), so budget for that when
+  verifying a change touches this path.
 
 ## Known bugs
 
@@ -79,6 +117,46 @@ on an unrelated branch.**
   `init_implicit` never registers. Out of scope until someone designs what `fint_p2n!`
   should do; `elastoquasistatic!` itself doesn't reach this code path, so it isn't
   blocked by this.
+
+## Precision (32-bit) and StaticArrays performance gotchas
+
+`dtype=(;T0=(Int32,Float32),bits=Int32(32),...)` is a supported but rarely-exercised
+path — the default is always `(Int64,Float64)`, so bugs that only manifest under
+`T1=Int32`/`T2=Float32` silently pass every day-to-day test. Two concrete patterns
+found and fixed by actually running an `Int32`/`Float32` `ic_slump`→`elastoplasm`
+end-to-end (not just skimming the code):
+
+- **`@index(Global)` inside a `@kernel` function is always `Int64`**, regardless of the
+  solver's index type `T1`. Passing it straight into anything dispatching on `::T1`
+  (e.g. `eval_basis(mpts,mesh,basis,ip::T1,nn::T1)`) throws a `MethodError` under
+  `T1=Int32` — silently fine under the default `T1=Int64` only by coincidence. Always
+  wrap it: `T1(p)`.
+- **Bare numeric literals (`2.0`, `0.5`, `1/3`, ...) silently promote to `Float64`**,
+  even inside a function generic over `T2`. Innocuous under the default `T2=Float64`,
+  but under `T2=Float32` it produces a mix of `Float32`/`Float64` values that eventually
+  hits a `MethodError` at whatever call site requires them to match (often several
+  functions downstream of where the literal actually is — the error site is not the bug
+  site). Always write `T2(2.0)` etc., never a bare literal, in any function generic over
+  a float type parameter.
+
+Separately, when caching per-particle results into a `Vector{SVector}`/`Vector{SMatrix}`
+(or building one from scratch) inside a hot loop: **bundling `NN` computed values into
+one whole-object `SVector{NN,...}`/`SMatrix{NN,D,...}` can silently heap-allocate**,
+even when every intermediate step is individually zero-alloc in isolation — Julia's
+escape analysis has a complexity/size cutoff past which it gives up eliding the
+allocation, and this was empirically true regardless of *how* the object was built
+(`MVector` buffer, `ntuple`/`Val`, `hcat`, a flat tuple — all ~allocated the same
+amount for `NN=16`). Two mitigations that measurably worked here (see `Basis.N`/`∂N`
+above): (1) `ntuple(f, n)` needs `n` as `Val(n)`, not a plain `Int`, to compile-time
+unroll — even when `n` is itself a type parameter, if it's used as a runtime value it
+won't unroll; (2) store the *whole cached collection* as a plain `Matrix`/`Array` (like
+`Point`'s pre-existing `Δnp`/`Dᵢⱼ` fields) written via scalar element assignment,
+rather than as a `Vector` of per-particle `SVector`/`SMatrix` objects — reading a row
+back out via `M[nn,:]` still allocates for a runtime `nn`, so read it back via a small
+`Val`-unrolled `ntuple` (see `∂Nrow` in `basis.jl`) instead of array-slicing syntax.
+Always verify with `@allocated`/`@code_typed` in a wrapping *function* (not top-level
+REPL scope, which has its own unrelated allocation noise) rather than assuming a
+StaticArrays-based kernel is allocation-free because it "looks" that way.
 
 ## Persistence (JLD2)
 
@@ -124,8 +202,9 @@ out   = elastoplasm(jld2; workflows = [elastodynamic!, elastoplastic!])
   the same `(mpts, mesh, basis, cmpr, time, solver)` call signature.
 - Plotting is opt-in via `solver.plot.status` (set through `ic_slump`'s `plot=(...)`
   kwarg or `cli()`); when on, `elastoplasm` auto-saves a PNG per workflow named
-  `"$(dim)d_$(solvertype)_$(deform)_$(workflow)_$(quantity).png"` under the run's
-  `dump/.../plot` path.
+  `"$(dim)_$(basis.which)_$(solvertype)_$(deform)_$(workflow)_$(quantity).png"` under
+  the run's `dump/.../plot` path (`basis.which` was added so runs that only differ by
+  basis kind don't silently overwrite each other's output).
 
 ### Running tests / benchmarks
 
@@ -148,9 +227,24 @@ global ROOT, DATASET = joinpath(pwd(),"test"), joinpath(pwd(),"test","dataset")
 include("test/testset/test_performance.jl")
 ```
 
-`test_performance.jl` benchmarks core kernels directly via `solver.cairn.*` and compares
-against `test/dataset/performance_baseline.jld2` (keyed by CPU name); delete/update that
-file deliberately if a change is a genuine, intended perf shift rather than a regression.
+`test_performance.jl` benchmarks core kernels directly via `solver.cairn.*` (including
+`ignite.shpfun!`) and compares against `test/dataset/performance_baseline.jld2` (keyed
+by CPU name); delete/update that file deliberately if a change is a genuine, intended
+perf shift rather than a regression.
+
+`test_basis.jl` builds a small `n×m` mesh and, for every basis kind, sweeps a particle
+along the mid-height node row, plotting each tracked node's `Nᵢ(x)`/`∂Nᵢ/∂x(x)` and the
+partition-of-unity `Σᵢ Nᵢ(x)` — useful both as a quick correctness check on a new/changed
+basis kind and as a way to visually confirm findings like the `GimpBasis` boundary PoU
+issue (see Known bugs). Both this file and `test_performance.jl` report their numeric
+checks informationally (`println`, not hard `@test` gates) — deliberately, since not
+every basis kind is expected to hold e.g. exact PoU everywhere, so a strict `@test`
+would be a false failure rather than a real regression signal. When adding LaTeX to a
+generated figure (`LaTeXStrings.jl`, already a project dependency): use it for genuine
+math expressions (axis labels, legend entries like `L"N_i(x)"`) but keep plain
+identifiers — basis kind names, etc. — as plain strings; wrapping a multi-letter plain
+word in math mode (e.g. `\mathrm{bsmpm}`) does not render reliably under the default GR
+backend's mathtext support and was an actual bug hit while building `test_basis.jl`.
 
 ### Controlling solver behaviour via `defaults.jl`
 
@@ -159,9 +253,9 @@ where `default` is the base `NamedTuple` config merged by `get_solver` — this 
 single place that defines every tunable knob and its out-of-the-box value:
 
 - `dtype` — arithmetic precision (`bits`, element types `T0`)
-- `basis` — `which` (`"bsmpm"`/`"gimpm"`/`"smpm"`, see `get_basis`), `how` (GIMP domain
-  update mode: `"detFij"`/`"Fii"`/`"Uii"` finite, `"detΔFij"`/`"ΔFii"`/`"ΔUii"`
-  infinitesimal), `ghost` (ghost-node count)
+- `basis` — `which` (`"bsmpm"`/`"gimpm"`/`"smpm"`/`"mlsmpm"`, see `get_basis`), `how`
+  (GIMP domain update mode: `"detFij"`/`"Fii"`/`"Uii"` finite, `"detΔFij"`/`"ΔFii"`/
+  `"ΔUii"` infinitesimal), `ghost` (ghost-node count)
 - `fwrk` — `deform` (`"finite"`/`"infinitesimal"`), `trsfr` (transfer scheme:
   `"std"`/`"tpic"`/`"apic"`), `C_pf` (PIC/FLIP blend), `musl` (MUSL velocity
   reprojection on/off), `locking` (F-bar volumetric locking correction on/off),
@@ -254,6 +348,13 @@ tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `ic_slump`/
 - `test/testset/test_performance.jl` benchmarks core kernels directly via
   `solver.cairn.*`; keep it in sync with the `Cairn` dispatch-table shape whenever that
   shape changes.
+- `using ElastoPlasm` flushes (deletes) everything under `dump/` on load
+  (`rootflush`, `src/boot/needs/utils.jl`) if that directory already has contents.
+  Never run more than one `julia --project=. -e '...'` invocation against this repo
+  concurrently while any of them is still writing to `dump/` — a second session's
+  `using ElastoPlasm` will delete the first session's still-in-progress output out from
+  under it (this produced a very confusing "No such file or directory" `savefig` error
+  mid-session before the actual cause — concurrent sessions, not a real bug — was found).
 
 ## Commit message conventions
 
