@@ -15,13 +15,12 @@ Constructor for the `Geometry` type. Computes mesh geometry parameters and retur
     - `nel`: Number of elements (possibly with ghost elements)
     - `nno`: Number of nodes (possibly with ghost nodes)
     - `L`: Domain size in each direction
-    - `nn`: Neighbourhood information for shape functions
     - `xB`: Domain bounds (with ghost region)
 
 # Example
 ```julia
 geom = Geometry([1.0, 1.0], [10, 10], solver)
-@show geom.dim, geom.h, geom.nel, geom.nno, geom.L, geom.nn, geom.xB
+@show geom.dim, geom.h, geom.nel, geom.nno, geom.L, geom.xB
 ```
 """
 
@@ -37,18 +36,13 @@ function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0,]) where 
     # Create nno vector
     nno = [nel[1]+1, nel[1]+1,]
 
-    # Define shape function compact support based on basis type
-    neighbour = Neighbs(get_basis(solver.basis.which), dim, T1)
-    NN = neighbour.nn
-
-    return Geometry{T1,T2,1,NN}(
+    return Geometry{T1,T2,1}(
         T1(dim),
         T1(ghost),
         T2.(h),
         T1.(nel),
         T1.(nno),
         T2.(L),
-        neighbour,
         T2.(xB),
     )
 end
@@ -65,18 +59,13 @@ function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0, 0.0,]) w
     # Create nno vector
     nno = [nel[1]+1, nel[2]+1, (nel[1]+1) * (nel[2]+1),]
 
-    # Define shape function compact support based on basis type
-    neighbour = Neighbs(get_basis(solver.basis.which), dim, T1)
-    NN = neighbour.nn
-
-    return Geometry{T1,T2,2,NN}(
+    return Geometry{T1,T2,2}(
         T1(dim),
         T1(ghost),
         T2.(h),
         T1.(nel),
         T1.(nno),
         T2.(L),
-        neighbour,
         T2.(xB),
     )
 end
@@ -93,18 +82,13 @@ function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0, 0.0, 0.0
     # Create nno vector
     nno = [nel[1]+1, nel[2]+1, nel[3]+1, (nel[1]+1) * (nel[2]+1) * (nel[3]+1),]
 
-    # Define shape function compact support based on basis type
-    neighbour = Neighbs(get_basis(solver.basis.which), dim, T1)
-    NN = neighbour.nn
-
-    return Geometry{T1,T2,3,NN}(
+    return Geometry{T1,T2,3}(
         T1(dim),
         T1(ghost),
         T2.(h),
         T1.(nel),
         T1.(nno),
         T2.(L),
-        neighbour,
         T2.(xB),
     )
 end

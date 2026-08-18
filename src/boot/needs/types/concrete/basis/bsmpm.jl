@@ -4,9 +4,15 @@
 
 export BSplineBasis
 
-struct BSplineBasis <: AbstractBasis end
-
-stencil_range(::BSplineBasis, ::Type{T1}) where {T1} = T1(-1):T1(2)
+struct BSplineBasis{T,D,NN} <: AbstractBasis
+    stencils::NTuple{D,UnitRange{T}}
+    #
+    function BSplineBasis{T,D}() where {T,D}
+        stencils = ntuple(_ -> UnitRange{T}(-1:2), D)
+        NN       = prod(length.(stencils))
+        return new{T,D,NN}(stencils)
+    end
+end
 
 @inline function t1_ϕ∂ϕ(ξ::T2) where {T2}
     ϕ,∂ϕ = T2(0.0),T2(0.0)

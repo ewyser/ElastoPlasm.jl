@@ -10,8 +10,6 @@ abstract type AbstractGeometry end
 
 abstract type AbstractBasis end
 
-abstract type AbstractNeighbs end
-
 abstract type AbstractEulerian end
 abstract type CartesianMesh{T1, T2}  <: AbstractEulerian end
 abstract type UniformMesh{T1, T2}    <: CartesianMesh{T1, T2} end

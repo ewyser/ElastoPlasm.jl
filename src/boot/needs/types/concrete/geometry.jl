@@ -7,13 +7,12 @@ export Geometry
 
 #(; ndim = T1(ndim), nn = T1(nn), h =T2.(h), nel = T1.(nel), L = T2.(L))
 
-struct Geometry{T1<:Integer,T2<:Real,D,N} <: AbstractGeometry
+struct Geometry{T1<:Integer,T2<:Real,D} <: AbstractGeometry
     dim::T1
     ghost::T1
     h::Vector{T2}
     nel::Vector{T1}
     nno::Vector{T1}
     L::Vector{T2}
-    nn::AbstractNeighbs
     xB::Matrix{T2}
 end
