@@ -17,7 +17,7 @@ export elastoimplicit!,elastoquasistatic!,elastouP!,elastoquasistaticuP!
 
 
 function pt_solve!(mpts, mesh, basis, cmpr, g, dt, instr;
-    nit::Int         = 50000,
+    nit::Int         = 5000,
     ncheck::Int      = 50,
     CFL              = 0.9,
     c_fact           = 1.0,

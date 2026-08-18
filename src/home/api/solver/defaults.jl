@@ -76,7 +76,7 @@ function get_default()
             status = true,
             freq   = 1.0,
             dpi    = 500,
-            what   = [(;mpts=get_mpts_variable_config()["epII"]),],
+            what   = [(;mpts=get_mpts_variable_config()["P"]),],
         ),
         perf  = (;
             status=false,
