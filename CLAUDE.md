@@ -47,25 +47,38 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
   plus the not-fully-wired u-P variant `elastoquasistaticuP!`/`elastouP!`). Converted to
   the same `Basis`-threading convention. Runs end-to-end through the same
   `ic_slump`/`elastoplasm(jld2; workflows=[...])` pipeline as the explicit solver.
-  **Known gap**: `implicit.jl`'s `pt_solve_uP!` calls
-  `instr.cairn.implicit.fint_p2n!(...)`, a key `init_implicit` never registers — the u-P
-  path throws if actually exercised. Not fixed (out of scope until someone designs what
-  `fint_p2n!` should do); `elastoquasistatic!` itself doesn't reach this code path.
 
-**Known bug**: `basis.which="gimpm"` combined with `fwrk.locking=true` (F-bar volumetric
-locking correction) crashes with `InexactError: trunc(Int64, NaN)`. Root cause:
-`src/home/core/solver/explicit/update/fun/volumetric.jl`'s `ΔJp` divides unconditionally
-by `mesh.s.m[no]` for every node `no` in a particle's basis stencil where the shape
-function `N != 0`. GIMP's wider particle-domain support (`stencil_range` `-1:2`, reaching
-further than bsmpm/smpm's compact 2-node support) means a particle's kernel can be
-nonzero at a boundary/ghost node no particle has ever mapped mass to, so
-`mesh.s.m[no] == 0` there and `mesh.ΔJ[no]/mesh.s.m[no]` evaluates to `0.0/0.0 = NaN`,
-which propagates into `ΔFᵢⱼ` and corrupts particle positions. The analogous velocity
-kernels (`mapsto/fun/solve.jl`, `mapsto/fun/augm.jl`) already guard this same division
-pattern with an `iszero(mesh.s.m[no])` check; `volumetric.jl`'s `ΔJp` does not. Not fixed
-(needs the same guard added, and needs deciding whether `ΔJn`'s corresponding
-accumulation should also skip zero-mass nodes). Workaround: run gimpm with
-`locking=false`, or use bsmpm/smpm when locking correction is needed.
+## Known bugs
+
+Bugs discovered but not yet fixed, kept here so they don't get rediscovered from scratch.
+**When picking one up: create a new branch off the current branch, named so the fix is
+identifiable (e.g. `fix-volumetric-locking-zero-mass-guard`), rather than fixing in place
+on an unrelated branch.**
+
+- **`basis.which` ∈ {`"gimpm"`, `"mlsmpm"`} combined with `fwrk.locking=true` (F-bar
+  volumetric locking correction) crashes with `InexactError: trunc(Int64, NaN)`.**
+  Probable cause: `src/home/core/solver/explicit/update/fun/volumetric.jl`'s `ΔJp`
+  divides unconditionally by `mesh.s.m[no]` for every node `no` in a particle's basis
+  stencil where the shape function `N != 0`. Both GIMP and MLS use the wider `-1:2`
+  particle-domain support (reaching further than bsmpm/smpm's node-type-corrected
+  compact support) — GIMP because its kernel has no boundary correction at all, MLS
+  because its moment-matrix projection is *designed* to replace node-type correction —
+  so in both cases a particle's kernel can be nonzero at a boundary/ghost node no
+  particle has ever mapped mass to. `mesh.s.m[no] == 0` there, so
+  `mesh.ΔJ[no]/mesh.s.m[no]` evaluates to `0.0/0.0 = NaN`, which propagates into `ΔFᵢⱼ`
+  and corrupts particle positions over subsequent timesteps (the crash itself surfaces
+  later, in topology lookup, once positions go NaN — not at the division site). The
+  analogous velocity kernels (`mapsto/fun/solve.jl`, `mapsto/fun/augm.jl`) already guard
+  this same division pattern with an `iszero(mesh.s.m[no])` check; `volumetric.jl`'s
+  `ΔJp` does not. Needs the same guard added, plus a decision on whether `ΔJn`'s
+  corresponding accumulation should also skip zero-mass nodes. Workaround: run
+  gimpm/mlsmpm with `locking=false`, or use bsmpm/smpm when locking correction is
+  needed.
+- **`dynamic_relaxation`'s u-P path throws if exercised.** Probable cause:
+  `implicit.jl`'s `pt_solve_uP!` calls `instr.cairn.implicit.fint_p2n!(...)`, a key
+  `init_implicit` never registers. Out of scope until someone designs what `fint_p2n!`
+  should do; `elastoquasistatic!` itself doesn't reach this code path, so it isn't
+  blocked by this.
 
 ## Persistence (JLD2)
 
