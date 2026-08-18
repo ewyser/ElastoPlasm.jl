@@ -14,7 +14,7 @@ Return all possible values for each configuration field as vectors.
 # Example
 ```julia
 opts = get_option(Instruction)
-println(opts.basis.which)  # ["bsmpm", "gimpm", "smpm"]
+println(opts.basis.which)  # ["bsmpm", "gimpm", "smpm", "mlsmpm"]
 println(opts.fwrk.deform)  # ["finite", "infinitesimal"]
 ```
 
@@ -32,7 +32,7 @@ function get_option()
                 precision = ("Select precision",["64-bit precision (or double precision)","32-bit precision (or single precision)"]),
             ),
             basis = (
-                which = ("Select basis type",["bsmpm", "gimpm", "smpm"]),
+                which = ("Select basis type",["bsmpm", "gimpm", "smpm", "mlsmpm"]),
                 how = ("Select material point domain update",[nothing]),
                 ghost = ("Add ghost element(s) ?",[0, 1, 2]),
             ),

@@ -17,6 +17,8 @@ function get_basis(which::String, ::Type{T1}, D::Integer) where {T1}
         return GimpBasis{T1,D}()
     elseif which == "smpm"
         return LinearBasis{T1,D}()
+    elseif which == "mlsmpm"
+        return MLSBasis{T1,D}()
     else
         return error("Unsupported basis type: $which")
     end
