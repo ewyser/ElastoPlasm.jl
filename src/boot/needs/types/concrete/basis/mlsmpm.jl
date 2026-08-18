@@ -17,7 +17,7 @@
 #
 # M_p is built fresh inside eval_basis from all NN neighbors of the particle — cheap
 # because eval_basis is only called from the once-per-particle-per-timestep `shpfun!`
-# ignite kernel (see ignite/misc.jl), not from every P2G/G2P/update call site.
+# ignite kernel (see core/common/shpfun.jl), not from every P2G/G2P/update call site.
 #
 # Unlike BSplineBasis's t1_ϕ∂ϕ..t4_ϕ∂ϕ (node-type-dependent boundary correction), the
 # raw kernel here is a single universal formula — MLS's moment-matrix projection is
@@ -115,13 +115,13 @@ end
     return SVector{NN,T2}(Ns), SMatrix{NN,D,T2}(∂Ns)
 end
 
-# Overrides the generic per-nn shpfun! (ignite/misc.jl) with the O(NN) batched path above —
+# Overrides the generic per-nn shpfun! (core/common/shpfun.jl) with the O(NN) batched path above —
 # same role (cache basis.N/basis.∂N once per particle per timestep), cheaper for MLS since
 # the naive per-nn eval_basis loop would rebuild the moment matrix NN times (O(NN²)).
 @kernel inbounds = true function shpfun!(mpts::Point{T1,T2,D,E,R}, mesh::Mesh{T1,T2,D}, basis::Basis{T1,T2,D,NN,K}) where {T1,T2,D,NN,K<:MLSBasis,E,R}
     p = @index(Global)
     if p ≤ mpts.nmp
-        N, ∂N = eval_basis_all(mpts, mesh, basis, p)
+        N, ∂N = eval_basis_all(mpts, mesh, basis, T1(p))
         for nn ∈ 1:NN
             basis.N[nn,p] = N[nn]
             for d ∈ 1:D

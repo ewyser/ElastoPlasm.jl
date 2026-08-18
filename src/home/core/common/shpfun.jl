@@ -3,7 +3,7 @@
     # cache shape values/gradients for all NN neighbors of particle p, once per timestep
     if p ≤ mpts.nmp
         for nn ∈ 1:NN
-            _, N, ∂N     = eval_basis(mpts, mesh, basis, p, T1(nn))
+            _, N, ∂N     = eval_basis(mpts, mesh, basis, T1(p), T1(nn))
             basis.N[nn,p] = N
             for d ∈ 1:D
                 basis.∂N[nn,d,p] = ∂N[d]
