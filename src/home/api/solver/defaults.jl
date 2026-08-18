@@ -32,9 +32,9 @@ function get_default()
     solver  = ExplicitSolver
     default = (;
         dtype = (;
-            T0=(Int64,Float64),
-            bits=Int64(64),
-            precision="64-bit precision (or double precision)"
+            T0 = (Int64,Float64),
+            bits = Int64(64),
+            precision = "64-bit precision (or double precision)"
         ),
         basis = (;
             which = "bsmpm",

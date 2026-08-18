@@ -241,3 +241,23 @@ tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `ic_slump`/
 - `test/testset/test_performance.jl` benchmarks core kernels directly via
   `solver.cairn.*`; keep it in sync with the `Cairn` dispatch-table shape whenever that
   shape changes.
+
+## Commit message conventions
+
+This repo follows Conventional Commits: `<type>: <Summary>`, summary capitalized, no
+trailing period. Pick the type by what actually changed, not by what the change was
+*for*:
+
+- `feat:` — new functionality or capability that wasn't there before.
+- `fix:` — corrects behavior that was wrong (a bug, a crash, an incorrect result).
+- `refactor:` — restructures existing code without changing external behavior (e.g.
+  renaming, moving logic between files, simplifying a dispatch pattern).
+- `chore:` — maintenance with no production/behavior impact: build tooling, dependency
+  bumps, config, repo housekeeping, formatting.
+- `docs:` — documentation-only changes (README, CLAUDE.md, docstrings).
+- `test:` — adding or updating tests only, no source changes.
+- `perf:` — a performance improvement, not a correctness fix.
+
+`git log --oneline` in this repo also has some older/looser types in its history
+(`misc:`, `bug:`) — treat those as historical, not part of the current convention;
+prefer the list above for new commits.
