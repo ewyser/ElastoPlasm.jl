@@ -2,15 +2,13 @@
     p = @index(Global)
     # cache shape values/gradients for all NN neighbors of particle p, once per timestep
     if p ≤ mpts.nmp
-        Nbuf  = MVector{NN,T2}(undef)
-        ∂Nbuf = MMatrix{NN,D,T2}(undef)
         for nn ∈ 1:NN
             _, N, ∂N     = eval_basis(mpts, mesh, basis, p, T1(nn))
-            Nbuf[nn]     = N
-            ∂Nbuf[nn,:] .= ∂N
+            basis.N[nn,p] = N
+            for d ∈ 1:D
+                basis.∂N[nn,d,p] = ∂N[d]
+            end
         end
-        basis.N[p]  = SVector{NN,T2}(Nbuf)
-        basis.∂N[p] = SMatrix{NN,D,T2}(∂Nbuf)
     end
 end
 
@@ -21,7 +19,7 @@ end
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
-            N  = basis.N[p][nn]
+            N  = basis.N[nn,p]
             # compute Dᵢⱼ tensor
             δ                = mesh.x[no] .- mpts.x[p]
             mpts.Δnp[nn,:,p].= δ

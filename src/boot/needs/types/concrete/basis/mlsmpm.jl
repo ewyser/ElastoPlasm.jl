@@ -122,7 +122,11 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         N, ∂N = eval_basis_all(mpts, mesh, basis, p)
-        basis.N[p]  = N
-        basis.∂N[p] = ∂N
+        for nn ∈ 1:NN
+            basis.N[nn,p] = N[nn]
+            for d ∈ 1:D
+                basis.∂N[nn,d,p] = ∂N[nn,d]
+            end
+        end
     end
 end

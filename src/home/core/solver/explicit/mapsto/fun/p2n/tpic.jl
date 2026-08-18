@@ -26,7 +26,7 @@ Project 1D material point data to mesh nodes (TPIC scheme).
             no        = basis.p2n[p][nn]
             δx        = mesh.x[no][1]-mpts.x[1,p]
             if iszero(no) continue end
-            N, ∂N = basis.N[p][nn], basis.∂N[p][nn,:]
+            N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(1))
             # accumulation
             @atom mesh.s.m[no]   += N * ms
             @atom mesh.s.mv[no]  += N * ms * (vx + ∇vxx * δx)
@@ -45,7 +45,7 @@ end
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
-            N, ∂N = basis.N[p][nn], basis.∂N[p][nn,:]
+            N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(2))
             δx = mesh.x[no] - x_p
             mv  = N * ms * (v_p + ∇v * δx)
             @atom mesh.s.m[no]     += N * ms
@@ -67,7 +67,7 @@ end
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
-            N, ∂N = basis.N[p][nn], basis.∂N[p][nn,:]
+            N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(3))
             δx = mesh.x[no] - x_p
             mv  = N * ms * (v_p + ∇v * δx)
             @atom mesh.s.m[no]   += N * ms

@@ -6,7 +6,7 @@
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
-            N  = basis.N[p][nn]
+            N  = basis.N[nn,p]
             # accumulation
             @atom mesh.ΔJ[no]+= N*ms*ΔJ
         end
@@ -20,7 +20,7 @@ end
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
-            N  = basis.N[p][nn]
+            N  = basis.N[nn,p]
             ΔJ += N*(mesh.ΔJ[no]/mesh.s.m[no])*ΔJ₀⁻¹
         end
         # update

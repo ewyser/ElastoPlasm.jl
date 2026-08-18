@@ -40,7 +40,7 @@ function setup_basis(mesh::Mesh{T1,T2,D}, mpts::Point{T1,T2,D}, geom::Geometry{T
         T1.(spzeros(Int,nmp,nel[end]))         , # e2p
         T1.(spzeros(Int,nmp,nmp))              , # p2p
         T1.(get_node_type(T1(D),nno))          , # type
-        [zero(SVector{NN,T2}) for _ in 1:nmp]  , # N
-        [zero(SMatrix{NN,D,T2}) for _ in 1:nmp], # ∂N
+        zeros(T2,NN,nmp)                       , # N
+        zeros(T2,NN,D,nmp)                     , # ∂N
     )
 end

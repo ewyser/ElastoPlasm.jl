@@ -23,7 +23,7 @@ Update material point velocities and positions from solid-type mesh nodes using 
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
-            N      = basis.N[p][nn]
+            N      = basis.N[nn,p]
             vPIC  += N * mesh.s.v[no]
             aFLIP += N * mesh.s.a[no]
         end

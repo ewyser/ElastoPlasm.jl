@@ -7,7 +7,7 @@
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
-            ∂N = basis.∂N[p][nn,:]
+            ∂N = ∂Nrow(basis.∂N, nn, p, Val(D))
             for i ∈ 1:(length(mesh.prprt.nel)-1)
                 for j ∈ 1:(length(mesh.prprt.nel)-1)
                     ∇v[i,j] += ∂N[j]*mesh.s.v[no][i]
@@ -39,7 +39,7 @@ end
             # buffering & compute basis functions on-the-fly
             no = basis.p2n[p][nn]
             if iszero(no) continue end
-            ∂N = basis.∂N[p][nn,:]   
+            ∂N = ∂Nrow(basis.∂N, nn, p, Val(2))
             ∇vxx += ∂N[1]*mesh.s.v[no][1]
             ∇vxy += ∂N[1]*mesh.s.v[no][2]
             ∇vyx += ∂N[2]*mesh.s.v[no][1]
@@ -79,7 +79,7 @@ end
             # buffering & compute basis functions on-the-fly
             no = basis.p2n[p][nn]
             if iszero(no) continue end
-            ∂N = basis.∂N[p][nn,:]
+            ∂N = ∂Nrow(basis.∂N, nn, p, Val(3))
             ∇vxx += ∂N[1]*mesh.s.v[no][1]
             ∇vxy += ∂N[1]*mesh.s.v[no][2]
             ∇vxz += ∂N[1]*mesh.s.v[no][3]

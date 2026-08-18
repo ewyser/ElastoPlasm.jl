@@ -2,7 +2,17 @@
 # Concrete Basis types
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-export get_basis, Basis
+export get_basis, Basis, ∂Nrow
+
+"""
+    ∂Nrow(∂N::AbstractArray{T2,3}, nn, p, ::Val{D}) -> SVector{D,T2}
+
+Read neighbor `nn`'s cached shape gradient for particle `p` out of `basis.∂N` (a plain
+`(NN,D,nmp)` array — see `Basis` docstring for why it's a plain `Array`, not a
+`Vector{SMatrix}`) as an `SVector{D,T2}`, via a `Val`-unrolled `ntuple` so the small
+per-read construction stays a zero-allocation stack value.
+"""
+@inline ∂Nrow(∂N::AbstractArray{T2,3}, nn, p, ::Val{D}) where {T2,D} = SVector{D,T2}(ntuple(d -> ∂N[nn,d,p], Val(D)))
 
 """
     get_basis(which::String, ::Type{T1}, dim::Integer) -> AbstractBasis
@@ -34,7 +44,11 @@ Also owns `type`, the per-axis node boundary-layer classification consumed by `B
 `eval_basis` — basis-kind-specific data, not mesh/point state.
 `N`/`∂N` cache each particle's shape values/gradients for all `NN` neighbor nodes, computed once
 per particle per timestep by the `shpfun!` ignite kernel (via the kind-specific `eval_basis`) and
-then just read by every P2G/G2P/update kernel, instead of recomputing per call site.
+then just read by every P2G/G2P/update kernel, instead of recomputing per call site. They're plain
+`(NN,nmp)`/`(NN,D,nmp)` arrays, not `Vector{SVector}`/`Vector{SMatrix}` — bundling all `NN`
+per-particle values into one `SVector`/`SMatrix` object defeats Julia's escape analysis for
+`NN` much above a handful, causing real per-particle heap allocation; scalar writes into a
+pre-allocated plain `Array` (the same pattern already used by `Point`'s `Δnp`/`Dᵢⱼ`) do not.
 Threaded through the solver as a third argument alongside `mpts`/`mesh`, e.g. `p2e2n(mpts,mesh,basis)`.
 """
 struct Basis{T1,T2,D,NN,K<:AbstractBasis}
@@ -46,7 +60,7 @@ struct Basis{T1,T2,D,NN,K<:AbstractBasis}
     e2p  ::Matrix{T1}
     p2p  ::Matrix{T1}
     type ::Matrix{T1}
-    N    ::Vector{SVector{NN,T2}}
-    ∂N   ::Vector{SMatrix{NN,D,T2}}
+    N    ::Matrix{T2}
+    ∂N   ::Array{T2,3}
 end
 @adapt_struct Basis

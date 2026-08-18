@@ -19,7 +19,7 @@ Update material point velocities and positions from mesh nodes (PIC scheme, n-di
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
-            N    = basis.N[p][nn]
+            N    = basis.N[nn,p]
             δ    = mesh.x[no] - xₚ
             Bᵢⱼ.+= N .* (mesh.s.v[no] * δ')
         end
