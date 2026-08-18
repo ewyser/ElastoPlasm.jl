@@ -32,8 +32,8 @@ function elastoplasm(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <
             if solver.plot.status
                 dimension   = string(Base.unwrap_unionall(typeof(solver)).parameters[3])
                 basisname   = solver.basis.which
-                solution    = string(nameof(typeof(solver)))
-                deformation = string(solver.fwrk.deform)
+                solution    = solver.solution
+                deformation = string(solver.strain.deform)
                 workflow    = string(workflow!)
                 quantity    = join([v.mpts.name for v in solver.plot.what if haskey(v, :mpts)], "_")
                 name        = "$(dimension)_$(basisname)_$(solution)_$(deformation)_$(workflow)_$(quantity).png"
@@ -62,8 +62,8 @@ function elastoplasm!(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S 
             if solver.plot.status
                 dimension   = string(Base.unwrap_unionall(typeof(solver)).parameters[3])
                 basisname   = solver.basis.which
-                solution    = string(nameof(typeof(solver)))
-                deformation = string(solver.fwrk.deform)
+                solution    = solver.solution
+                deformation = string(solver.strain.deform)
                 workflow    = string(workflow!)
                 quantity    = join([v.mpts.name for v in solver.plot.what if haskey(v, :mpts)], "_")
                 name        = "$(dimension)_$(basisname)_$(solution)_$(deformation)_$(workflow)_$(quantity).png"

@@ -349,7 +349,7 @@ function mapsto_uP(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,
         end
     end
     pt_solve_uP!(mpts,mesh,basis,cmpr,g,dt,instr; quasi_static=quasi_static)
-    instr.cairn.implicit.n2p!(mpts,mesh,basis,dt,T2(instr.fwrk.C_pf); ndrange=mpts.nmp);sync(CPU())
+    instr.cairn.implicit.n2p!(mpts,mesh,basis,dt,T2(instr.transfer.C_pf); ndrange=mpts.nmp);sync(CPU())
     return nothing
 end
 

@@ -1,7 +1,7 @@
 export get_solver
 
 function get_solver(; dim::Number=2, kwargs...)
-    solver, ref = get_default()
+    ref = get_default()
     # Only keep keys in kwargs that are also in ref
     valids = intersect(keys(kwargs), keys(ref))
     user   = NamedTuple{Tuple(valids)}(getindex.(Ref(kwargs), valids))
@@ -26,7 +26,7 @@ function get_solver(; dim::Number=2, kwargs...)
     end
     # 
     if instr[:perf][:status]
-        instr = merge(instr, (; fwrk = merge(instr[:fwrk], (; deform = "infinitesimal",)),))
+        instr = merge(instr, (; strain = merge(instr[:strain], (; deform = "infinitesimal",)),))
         instr = merge(instr, (; nonloc = merge(instr[:nonloc], (; status = false,)),))
     end
     # Add cairns to instr     
@@ -37,11 +37,22 @@ function get_solver(; dim::Number=2, kwargs...)
         implicit = init_implicit(instr),
     )
     instr = merge(instr, (; cairn = cairn,))
+    # Infer the concrete solver type from instr[:solution] at construction time
+    solver = if instr[:solution] == "explicit"
+        ExplicitSolver
+    elseif instr[:solution] == "implicit"
+        ImplicitSolver
+    else
+        error("Unsupported solution: $(instr[:solution]) (expected \"explicit\" or \"implicit\")")
+    end
     # Create Instruction type
     return solver{instr[:dtype][:T0]...,dim}(
+        instr[:solution],
         instr[:dtype],
         instr[:basis],
-        instr[:fwrk],
+        instr[:strain],
+        instr[:transfer],
+        instr[:stab],
         instr[:bcs],
         instr[:grf],
         instr[:plast],

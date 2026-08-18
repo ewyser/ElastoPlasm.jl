@@ -58,7 +58,7 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
   once-per-particle `(D+1)×(D+1)` matrix build+inversion, which is why the `shpfun!`
   caching above exists: without it, MLS's `eval_basis` would rebuild that matrix from
   scratch at every one of the ~14 call sites instead of once. `basis.which` and
-  `fwrk.trsfr` (P2G/G2P transfer scheme: std/tpic/apic) are fully orthogonal — any
+  `transfer.trsfr` (P2G/G2P transfer scheme: std/tpic/apic) are fully orthogonal — any
   basis kind pairs with any transfer scheme, including `mlsmpm`+`std` (MLS is usually
   *presented* alongside APIC in the literature, but nothing here couples them).
 
@@ -67,10 +67,12 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
 - `src/home/core/common/` — kernels/wrappers shared by **both** solver paths:
   `tplgy.jl` (`p2e2n`, topology), `shpfun.jl` (`shpfun!`/`Dij_nd`), `ignite.jl`
   (`init_ignite`/`ignite()`). These used to live under `solver/explicit/ignite/`, which
-  was misleading — both `elastodynamic!`/`elastoplastic!` *and*
-  `elastoquasistatic!` call the same `ignite(mpts,mesh,basis,solver)` wrapper (they
-  dispatch through the same `ExplicitSolver`-typed config regardless of which solver
-  path is actually running).
+  was misleading — both `elastodynamic!`/`elastoplastic!` *and* `elastoquasistatic!`
+  call the same `ignite(mpts,mesh,basis,solver::AbstractSolver)` wrapper, dispatching
+  on the *abstract* solver type since `dynamic_relaxation` doesn't require any
+  particular concrete `solution` value (unlike `elastodynamic!`/`elastoplastic!`,
+  which are typed to `ExplicitSolver` specifically — see `solution` in "Controlling
+  solver behaviour" below).
 - `src/home/core/solver/explicit/` — the primary, actively-used path
   (`elastodynamic!`, `elastoplastic!`). Kernel dispatch table lives on
   `solver.cairn` (a `NamedTuple`, dot-accessed: `solver.cairn.ignite.tplgy!`,
@@ -93,7 +95,7 @@ Bugs discovered but not yet fixed, kept here so they don't get rediscovered from
 identifiable (e.g. `fix-volumetric-locking-zero-mass-guard`), rather than fixing in place
 on an unrelated branch.**
 
-- **`basis.which` ∈ {`"gimpm"`, `"mlsmpm"`} combined with `fwrk.locking=true` (F-bar
+- **`basis.which` ∈ {`"gimpm"`, `"mlsmpm"`} combined with `stab.locking=true` (F-bar
   volumetric locking correction) crashes with `InexactError: trunc(Int64, NaN)`.**
   Probable cause: `src/home/core/solver/explicit/update/fun/volumetric.jl`'s `ΔJp`
   divides unconditionally by `mesh.s.m[no]` for every node `no` in a particle's basis
@@ -248,18 +250,40 @@ backend's mathtext support and was an actual bug hit while building `test_basis.
 
 ### Controlling solver behaviour via `defaults.jl`
 
-`get_default()` (`src/home/api/solver/defaults.jl`) returns `(solver_type, default)`
-where `default` is the base `NamedTuple` config merged by `get_solver` — this is the
-single place that defines every tunable knob and its out-of-the-box value:
+`get_default()` (`src/home/api/solver/defaults.jl`) returns just `default`, the base
+`NamedTuple` config merged by `get_solver` — this is the single place that defines
+every tunable knob and its out-of-the-box value. (It used to also return a hardcoded
+`solver_type` — `ExplicitSolver` always, even for `dynamic_relaxation` runs — that's
+gone now; see `solution` below for how the concrete type is chosen instead.)
 
+- `solution` — `"explicit"`/`"implicit"`, plain user-facing string picking the concrete
+  solver struct at construction time in `get_solver.jl` (`ExplicitSolver`/
+  `ImplicitSolver` — both share the same field layout, `DynamicRelaxationSolver` is
+  unused scaffolding, not wired into this selection). This is also what
+  `elastoplasm.jl`'s generated filenames and `logs.jl`'s startup banner print
+  (`solver.solution`) — previously they used `nameof(typeof(solver))`, which printed
+  the literal type name `"ExplicitSolver"` even for `dynamic_relaxation` runs, since
+  every run constructed that one type regardless of what it was actually doing.
+  Picking `solution="explicit"` and then calling an implicit-only workflow (or vice
+  versa) now fails with a `MethodError` at the workflow call, not silently — those
+  workflow entry points (`elastodynamic!`/`elastoplastic!` in `worflow.jl`) are typed
+  to their specific concrete solver struct on purpose. The shared `ignite()`
+  (`core/common/ignite.jl`) is the one place dispatching on the abstract
+  `AbstractSolver` instead, since both `elastodynamic!`/`elastoplastic!` *and*
+  `elastoquasistatic!` (`dynamic_relaxation`) call it regardless of `solution`.
 - `dtype` — arithmetic precision (`bits`, element types `T0`)
 - `basis` — `which` (`"bsmpm"`/`"gimpm"`/`"smpm"`/`"mlsmpm"`, see `get_basis`), `how`
   (GIMP domain update mode: `"detFij"`/`"Fii"`/`"Uii"` finite, `"detΔFij"`/`"ΔFii"`/
   `"ΔUii"` infinitesimal), `ghost` (ghost-node count)
-- `fwrk` — `deform` (`"finite"`/`"infinitesimal"`), `trsfr` (transfer scheme:
-  `"std"`/`"tpic"`/`"apic"`), `C_pf` (PIC/FLIP blend), `musl` (MUSL velocity
-  reprojection on/off), `locking` (F-bar volumetric locking correction on/off),
-  `damping`
+- `strain` — `deform` (`"finite"`/`"infinitesimal"`)
+- `transfer` — `trsfr` (transfer scheme: `"std"`/`"tpic"`/`"apic"`), `C_pf` (PIC/FLIP
+  blend), `musl` (MUSL velocity reprojection on/off)
+- `stab` — `locking` (F-bar volumetric locking correction on/off), `damping`
+
+  (`strain`/`transfer`/`stab` used to be one flat `fwrk` block — split by concern since
+  `deform`, the transfer-scheme knobs, and the stabilization knobs are three genuinely
+  separate things that happened to share a vague name. `ExplicitSolver`/`ImplicitSolver`
+  now carry three corresponding fields instead of one `fwrk` field.)
 - `bcs` — `dirichlet` boundary condition matrix, one `[lower upper]` row per dimension
 - `grf` — Gaussian random field generator for heterogeneous cohesion/friction fields
   (`status` toggles it on; see `GRF.jl`)
@@ -279,11 +303,11 @@ Two ways to change solver behaviour:
    whose keys already exist in `default` (unrecognized kwargs just get a `@warn`, not
    an error), then deep-merges them over `default` via `merge(ref, user)`. Note this is
    a shallow-per-key merge — to override one field of a nested `NamedTuple` block
-   (e.g. just `fwrk.trsfr`) you must pass the *whole* `fwrk = (; deform=..., trsfr=...,
-   ...)` NamedTuple, not just the one field, since `merge` replaces the whole `:fwrk`
-   entry rather than recursing into it. Example:
+   (e.g. just `transfer.trsfr`) you must pass the *whole* `transfer = (; trsfr=...,
+   C_pf=..., musl=...)` NamedTuple, not just the one field, since `merge` replaces the
+   whole `:transfer` entry rather than recursing into it. Example:
    ```julia
-   ic_slump(L, nel; basis=(;which="gimpm",how="Uii",ghost=0), fwrk=(;deform="finite",trsfr="apic",C_pf=1.0,musl=true,locking=true,damping=0.1))
+   ic_slump(L, nel; basis=(;which="gimpm",how="Uii",ghost=0), strain=(;deform="finite"), transfer=(;trsfr="apic",C_pf=1.0,musl=true), stab=(;locking=true,damping=0.1))
    ```
 2. **Change the package-wide default** — edit the literal value in `get_default()`
    directly. Do this only for a genuine change of the shipped default behaviour, not
@@ -295,7 +319,12 @@ top-level block) in `get_default()`'s `default` NamedTuple, then threaded throug
 wherever `init_ignite`/`init_mapsto`/`init_update`/`init_implicit` (in `get_solver.jl`
 and the `explicit`/`dynamic_relaxation` solver files) branch on `instr[:section][:key]`
 to select kernels — grep those `init_*` functions for the existing pattern
-(`instr[:fwrk][:trsfr] == "apic"`-style branches) before adding a new one.
+(`instr[:transfer][:trsfr] == "apic"`-style branches) before adding a new one. If the
+new field belongs on the solver struct itself (like `solution` did), it also needs
+threading through `ExplicitSolver`'s/`ImplicitSolver`'s field list
+(`src/boot/needs/types/concrete/solver.jl`) and the corresponding positional arg in
+`get_solver.jl`'s final constructor call — both structs are kept in lockstep by hand,
+there's no shared base struct to edit once.
 
 ### Using `cli()`
 
@@ -308,8 +337,9 @@ tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `ic_slump`/
   automated runs (`ic_slump(L, nel; cli()...)`) — it's the plain-defaults path, not a
   prompt.
 - `cli(ui=true)` — **interactive**: first shows a `MultiSelectMenu` letting you pick
-  which top-level sections to configure (`dtype`, `basis`, `fwrk`, `grf`, `plast`,
-  `nonloc`, `plot`, `perf`, `backend`); for each selected section it walks
+  which top-level sections to configure (`solution`, `dtype`, `basis`, `strain`,
+  `transfer`, `stab`, `grf`, `plast`, `nonloc`, `plot`, `perf`, `backend`); for each
+  selected section it walks
   `get_option()` (the parallel tree of `("prompt", [choices])` tuples) and shows a
   `RadioMenu`/`MultiSelectMenu` per leaf option (nested sections like `grf.param.Iₓ`
   are handled recursively; sections with a `status` field skip their sub-prompts when
@@ -325,7 +355,7 @@ tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `ic_slump`/
   pass the full nested `NamedTuple` for a section, not just the one field you want to
   change.
 - `get_option()` is also useful standalone as a reference for what values are actually
-  valid per key (e.g. `get_option().fwrk.trsfr` → `["std", "tpic", "apic"]`) — treat it
+  valid per key (e.g. `get_option().transfer.trsfr` → `["std", "tpic", "apic"]`) — treat it
   as the source of truth for valid choices, since some of `get_default()`'s tunables
   (e.g. `plast.constitutive`) accept values `get_option()` doesn't fully enumerate
   (check `init_update`'s dispatch in `update/update.jl` if in doubt whether a value is

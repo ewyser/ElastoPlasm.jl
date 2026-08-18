@@ -11,7 +11,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
         #update[:domain!] = Uᵢᵢ(CPU())
         #=
         update[:domain!] = undeformed(CPU())
-        if instr[:fwrk][:deform] == "finite"
+        if instr[:strain][:deform] == "finite"
             if instr[:basis][:how] == "detFij"
                 update[:domain!] = detFᵢᵢ(CPU())
             elseif instr[:basis][:how] == "Fii"
@@ -19,7 +19,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
             elseif instr[:basis][:how] == "Uii#
                 update[:domain!] = Uᵢᵢ(CPU())
             end
-        elseif instr[:fwrk][:deform] == "infinitesimal"
+        elseif instr[:strain][:deform] == "infinitesimal"
             if instr[:basis][:how] == "detΔFij"
                 update[:domain!] = detΔFᵢᵢ(CPU())
             elseif instr[:basis][:how] == "ΔFii"
@@ -30,7 +30,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
         end
         =#
     end
-    if instr[:fwrk][:locking]
+    if instr[:stab][:locking]
         update[:ΔJn!] = ΔJn(CPU())
         update[:ΔJp!] = ΔJp(CPU())
     end
@@ -46,15 +46,15 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     if instr[:plast][:constitutive] == "MC"
         #ηmax = MCRetMap!(mpts,ϵpII,cmp,instr[:fwrk])
     elseif instr[:plast][:constitutive] == "DP"        
-        if instr[:fwrk][:deform] == "finite"
+        if instr[:strain][:deform] == "finite"
             update[:retmap!] = finite_DP(CPU())
-        elseif instr[:fwrk][:deform] == "infinitesimal"
+        elseif instr[:strain][:deform] == "infinitesimal"
             update[:retmap!] = infinitesimal_DP(CPU())
         end
     elseif instr[:plast][:constitutive] == "J2"
-        if instr[:fwrk][:deform] == "finite"
+        if instr[:strain][:deform] == "finite"
             update[:retmap!] = finite_J2(CPU())
-        elseif instr[:fwrk][:deform] == "infinitesimal"
+        elseif instr[:strain][:deform] == "infinitesimal"
             update[:retmap!] = infinitesimal_J2(CPU())
         end
     elseif instr[:plast][:constitutive] == "camC"
@@ -73,7 +73,7 @@ function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},cmpr::N
     # update {logarithmic|infinitesimal} strains
     solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
     # volumetric locking correction
-    if solver.fwrk.locking
+    if solver.stab.locking
         # init mesh quantities to zero
         fill!(mesh.ΔJ,T2(0.0))
         # calculate dimensional cst.
@@ -88,9 +88,9 @@ function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},cmpr::N
         solver.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())
     end   
     # update {kirchoff|cauchy} stresses
-    if solver.fwrk.deform == "finite"
+    if solver.strain.deform == "finite"
         solver.cairn.update.elast!(mpts,cmpr.Kc, cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
-    elseif solver.fwrk.deform == "infinitesimal"
+    elseif solver.strain.deform == "infinitesimal"
         solver.cairn.update.elast!(mpts,cmpr.Del; ndrange=mpts.nmp);sync(CPU())
     end
     # update mp's coordinates
@@ -106,7 +106,7 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},cm
         solver.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())
     end
     # volumetric locking correction
-    if solver.fwrk.locking
+    if solver.stab.locking
         # init mesh quantities to zero
         fill!(mesh.ΔJ,T2(0.0))
         # calculate dimensional cst.
@@ -117,9 +117,9 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},cm
         solver.cairn.update.ΔJp!(mpts,mesh,basis,dim; ndrange=mpts.nmp);sync(CPU())
     end
     # update {kirchoff|cauchy} stresses
-    if solver.fwrk.deform == "finite"
+    if solver.strain.deform == "finite"
         solver.cairn.update.elast!(mpts,cmpr.Kc, cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
-    elseif solver.fwrk.deform == "infinitesimal"
+    elseif solver.strain.deform == "infinitesimal"
         solver.cairn.update.elast!(mpts,cmpr.Del; ndrange=mpts.nmp);sync(CPU())
     end
     # plastic corrector
