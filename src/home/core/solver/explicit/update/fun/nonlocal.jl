@@ -15,7 +15,7 @@ Apply nonlocal averaging for regularization of plastic strain at material points
 # Returns
 - Updates weights and plastic strain fields in-place.
 """
-@views @kernel inbounds = true function nonlocal(W,w,mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},ls::T2,type::String) where {T1,T2}
+@views @kernel inbounds = true function nonlocal(W,w,mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},ls::T2,type::String) where {T1,T2}
     p = @index(Global)
 
     if type == "tplgy" && p ≤ mpts.nmp

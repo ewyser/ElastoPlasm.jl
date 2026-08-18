@@ -69,7 +69,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     return (;update...)
 end
 
-function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr::NamedTuple,dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},cmpr::NamedTuple,dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     # update {logarithmic|infinitesimal} strains
     solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
     # volumetric locking correction
@@ -98,7 +98,7 @@ function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr::Name
     return nothing
 end
 
-function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr::NamedTuple,dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},cmpr::NamedTuple,dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     # update {logarithmic|infinitesimal} strains
     solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
     # update material point's domain
@@ -141,7 +141,7 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr:
     return nothing
 end
 
-function thermo(mpts::Point{T1,T2,E,R},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1},solver::ExplicitSolver{T1,T2}) where {T1,T2,E,R}
+function thermo(mpts::Point{T1,T2,E,R},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2,E,R}
     # update temperature
     solver.cairn.update.heat!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
     return nothing

@@ -10,27 +10,29 @@ Accumulate material point momentum to mesh nodes for DM augmentation.
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,2}) where {T1,T2}
+@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms = mpts.s.ρ[p]*mpts.Ω[p]
         mv = ms * mpts.s.v[p]
         for nn ∈ 1:mesh.prprt.nn
-            no, N, _ = eval_basis(mpts, mesh, basis, p, nn)
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
+            N = basis.N[p][nn]
             @atom mesh.s.mv[1,no] += N * mv[1]
             @atom mesh.s.mv[2,no] += N * mv[2]
         end
     end
 end
-@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,3}) where {T1,T2}
+@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms = mpts.s.ρ[p]*mpts.Ω[p]
         mv = ms * mpts.s.v[p]
         for nn ∈ 1:mesh.prprt.nn
-            no, N, _ = eval_basis(mpts, mesh, basis, p, nn)
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
+            N = basis.N[p][nn]
             @atom mesh.s.mv[1,no] += N * mv[1]
             @atom mesh.s.mv[2,no] += N * mv[2]
             @atom mesh.s.mv[3,no] += N * mv[3]
@@ -85,7 +87,7 @@ Accumulate material point heat capacity to mesh nodes for DM augmentation.
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1}) where {T1,T2}
+@kernel inbounds = true function augm_p2n(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # accumulation

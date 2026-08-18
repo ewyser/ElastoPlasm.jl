@@ -14,7 +14,7 @@ Project 1D material point data to mesh nodes (FLIP scheme).
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,1},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,T2,1},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -22,9 +22,9 @@ Project 1D material point data to mesh nodes (FLIP scheme).
         px    = ms*mpts.s.v[p][1]
         σxx   = mpts.s.σᵢ[1,p]
         for nn ∈ 1:mesh.prprt.nn
-            # buffering & compute basis functions on-the-fly
-            no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
+            N, ∂N = basis.N[p][nn], basis.∂N[p][nn,:]
             # accumulation
             @atom mesh.s.m[no]  += N * ms
             @atom mesh.s.mv[no]  += N * px
@@ -32,7 +32,7 @@ Project 1D material point data to mesh nodes (FLIP scheme).
         end
     end
 end
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -40,9 +40,9 @@ end
         mvx, mvy      = ms*mpts.s.v[p][1]     , ms*mpts.s.v[p][2]
         σxx, σyy, σxy = mpts.s.σᵢ[p][1]       , mpts.s.σᵢ[p][2] , mpts.s.σᵢ[p][3]
         for nn ∈ 1:mesh.prprt.nn
-            # buffering & compute basis functions on-the-fly
-            no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
+            N, ∂N = basis.N[p][nn], basis.∂N[p][nn,:]
             # accumulation
             @atom mesh.s.m[no]     += N * ms
             @atom mesh.s.mv[1,no]  += N * mvx
@@ -52,7 +52,7 @@ end
         end
     end
 end
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,3},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -61,9 +61,9 @@ end
         σxx, σyy, σzz = mpts.s.σᵢ[p][1]       , mpts.s.σᵢ[p][2]  , mpts.s.σᵢ[p][3]
         σyx, σzy, σzx = mpts.s.σᵢ[p][6]       , mpts.s.σᵢ[p][4]  , mpts.s.σᵢ[p][5]
         for nn ∈ 1:mesh.prprt.nn
-            # buffering & compute basis functions on-the-fly
-            no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
+            N, ∂N = basis.N[p][nn], basis.∂N[p][nn,:]
             # accumulation
             @atom mesh.s.m[no]     += N * ms
             @atom mesh.s.mv[1,no]  += N * px
@@ -89,7 +89,7 @@ end
 
 
 
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,1},mesh::MeshThermalPhase{T1,T2,1},basis::Basis{T1,1}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,1},mesh::MeshThermalPhase{T1,T2,1},basis::Basis{T1,T2,1}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -111,7 +111,7 @@ end
     end
 end
 
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,2},mesh::MeshThermalPhase{T1,T2,2},basis::Basis{T1,2}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,2},mesh::MeshThermalPhase{T1,T2,2},basis::Basis{T1,T2,2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -132,7 +132,7 @@ end
         end
     end
 end
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,3}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering

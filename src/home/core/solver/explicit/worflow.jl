@@ -20,7 +20,7 @@ Run the explicit elastodynamic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr::NamedTuple,time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},cmpr::NamedTuple,time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:solver.plot.freq:time.te)))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving elastodynamic...",barlen=10)
@@ -65,7 +65,7 @@ Run the explicit elastoplastic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},cmpr::NamedTuple,time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},cmpr::NamedTuple,time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:solver.plot.freq:time.t[2])))
     g         = get_g(mesh.prprt; G = T2(9.81))
     # action
@@ -111,7 +111,7 @@ Run the explicit thermodynamic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function thermodynamic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,D},cmpr::NamedTuple,time::Time{T1,T2},instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
+function thermodynamic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.t[2])))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving thermodynamic!...",barlen=10)

@@ -23,16 +23,19 @@ function get_basis(which::String, ::Type{T1}, D::Integer) where {T1}
 end
 
 """
-    Basis{T1,D,NN,K<:AbstractBasis}
+    Basis{T1,T2,D,NN,K<:AbstractBasis}
 
 Owns the topology that links a `Mesh` and a `Point` container: which nodes neighbor each element
 (`e2n`) and each material point (`p2n`), which elements neighbor each other (`e2e`) and each
 material point (`e2p`), and which points neighbor each other (`p2p`, nonlocal regularization only).
 Also owns `type`, the per-axis node boundary-layer classification consumed by `BSplineBasis`'s
 `eval_basis` — basis-kind-specific data, not mesh/point state.
+`N`/`∂N` cache each particle's shape values/gradients for all `NN` neighbor nodes, computed once
+per particle per timestep by the `shpfun!` ignite kernel (via the kind-specific `eval_basis`) and
+then just read by every P2G/G2P/update kernel, instead of recomputing per call site.
 Threaded through the solver as a third argument alongside `mpts`/`mesh`, e.g. `p2e2n(mpts,mesh,basis)`.
 """
-struct Basis{T1,D,NN,K<:AbstractBasis}
+struct Basis{T1,T2,D,NN,K<:AbstractBasis}
     kind::K                              # BSplineBasis()/GimpBasis()/LinearBasis()
     e2n  ::Vector{SVector{NN,T1}}
     e2e  ::SparseMatrixCSC{T1,T1}
@@ -41,5 +44,7 @@ struct Basis{T1,D,NN,K<:AbstractBasis}
     e2p  ::Matrix{T1}
     p2p  ::Matrix{T1}
     type ::Matrix{T1}
+    N    ::Vector{SVector{NN,T2}}
+    ∂N   ::Vector{SMatrix{NN,D,T2}}
 end
 @adapt_struct Basis

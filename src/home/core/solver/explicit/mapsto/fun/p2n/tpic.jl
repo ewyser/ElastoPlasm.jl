@@ -14,7 +14,7 @@ Project 1D material point data to mesh nodes (TPIC scheme).
 # Returns 
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,1},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,T2,1},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -23,10 +23,10 @@ Project 1D material point data to mesh nodes (TPIC scheme).
         σxx   = mpts.s.σᵢ[p][1]
         ∇vxx  = mpts.s.∇vᵢⱼ[p][1,1]
         for nn ∈ 1:mesh.prprt.nn
-            # buffering & compute basis functions on-the-fly
-            no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
+            no        = basis.p2n[p][nn]
             δx        = mesh.x[no][1]-mpts.x[1,p]
             if iszero(no) continue end
+            N, ∂N = basis.N[p][nn], basis.∂N[p][nn,:]
             # accumulation
             @atom mesh.s.m[no]   += N * ms
             @atom mesh.s.mv[no]  += N * ms * (vx + ∇vxx * δx)
@@ -34,7 +34,7 @@ Project 1D material point data to mesh nodes (TPIC scheme).
         end
     end
 end
-@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
@@ -43,8 +43,9 @@ end
         ∇v    = mpts.s.∇vᵢⱼ[p]          # SMatrix: (∇v * δx) gives TPIC correction
         x_p   = mpts.x[p]  # SVector: zero-alloc, hoisted before nn loop
         for nn ∈ 1:mesh.prprt.nn
-            no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
+            N, ∂N = basis.N[p][nn], basis.∂N[p][nn,:]
             δx = mesh.x[no] - x_p
             mv  = N * ms * (v_p + ∇v * δx)
             @atom mesh.s.m[no]     += N * ms
@@ -55,7 +56,7 @@ end
         end
     end
 end
-@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,3},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
@@ -64,8 +65,9 @@ end
         ∇v    = mpts.s.∇vᵢⱼ[p]
         x_p   = mpts.x[p]
         for nn ∈ 1:mesh.prprt.nn
-            no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
+            N, ∂N = basis.N[p][nn], basis.∂N[p][nn,:]
             δx = mesh.x[no] - x_p
             mv  = N * ms * (v_p + ∇v * δx)
             @atom mesh.s.m[no]   += N * ms
