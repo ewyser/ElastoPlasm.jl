@@ -18,7 +18,7 @@ function elastoquasistatic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::
 
         time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
 
-        savlot(mpts,mesh,time.t[1],instr)
+        bake(mpts,mesh,time.t[1],instr)
         next!(prog;showvalues = get_vals(mesh,mpts,it))
     end
     finish!(prog)

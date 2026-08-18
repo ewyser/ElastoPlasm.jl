@@ -2,37 +2,21 @@
 # Concrete Basis types
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-export Neighbs, get_basis, Basis
-
-struct Neighbs{T,D,NN} <: AbstractNeighbs
-    stencils::NTuple{D,UnitRange{T}}
-    nn      ::T
-end
-
-# Generic constructor: infers dimension and dispatches
-function Neighbs(stencils::NTuple{D,UnitRange{T}}) where {T,D}
-    NN = prod(length.(stencils))
-    Neighbs{T,D,NN}(stencils, T(NN))
-end
-
-# Fuse the neighbor stencil into the basis type: each concrete basis defines its own
-# stencil_range(::ConcreteBasis, ::Type{T1}), and this constructor builds the Neighbs from it.
-function Neighbs(basis::AbstractBasis, dim::Integer, ::Type{T1}) where {T1}
-    Neighbs(ntuple(_ -> stencil_range(basis, T1), dim))
-end
+export get_basis, Basis
 
 """
-    get_basis(which::String) -> AbstractBasis
+    get_basis(which::String, ::Type{T1}, dim::Integer) -> AbstractBasis
 
-Map a solver's `basis.which` string to its concrete `AbstractBasis` instance.
+Map a solver's `basis.which` string to its concrete `AbstractBasis` instance, parametrized
+by index type `T1` and problem dimension `dim`.
 """
-function get_basis(which::String)
+function get_basis(which::String, ::Type{T1}, dim::Integer) where {T1}
     if which == "bsmpm"
-        BSplineBasis()
+        BSplineBasis{T1,dim}()
     elseif which == "gimpm"
-        GimpBasis()
+        GimpBasis{T1,dim}()
     elseif which == "smpm"
-        LinearBasis()
+        LinearBasis{T1,dim}()
     else
         error("Unsupported basis type: $which")
     end

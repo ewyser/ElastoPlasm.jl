@@ -1,5 +1,5 @@
 """
-    savlot(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2,D}, t::T2, instr::NamedTuple) where {D}
+    bake(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2,D}, t::T2, instr::NamedTuple) where {D}
 
 Plot and display simulation fields at the current time step, if plotting is enabled in the instruction dictionary.
 
@@ -14,10 +14,10 @@ Plot and display simulation fields at the current time step, if plotting is enab
 
 # Example
 ```julia
-savlot(mpts, mesh, t, instr)
+bake(mpts, mesh, t, instr)
 ```
 """
-@views function savlot(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},t::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
+@views function bake(mpts::Point{T1,T2,D,<:AbstractBasis,E,R},mesh::Mesh{T1,T2,D},t::T2,instr::Instruction{T1,T2,D}) where {T1,T2,D,E,R}
     if instr.plot.status
         dims = instr.plot.dpi.*(mesh.prprt.L[1]./mesh.prprt.L)
         ms   = dims[1]/(mesh.prprt.nel[1]*2)

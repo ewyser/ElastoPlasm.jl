@@ -1,74 +1,86 @@
 # Variable extraction configuration function with default colorbar limits
 export get_mpts_variable_config, get_variable_plot_options
 
-# Variable extraction functions for metanalysis
+# Variable extraction functions for metanalysis. All return raw (SI) values;
+# unit conversion for display is applied afterwards via each entry's `scale`.
 get_epII(mpts) = @views vec(mpts.s.ϵpII[1, :])
-get_P(mpts)    = [-sum(σ)/length(σ)/1e3 for σ in mpts.s.σᵢ]
+get_P(mpts)    = [-sum(σ)/length(σ) for σ in mpts.s.σᵢ]
 get_J(mpts)    = @views vec(mpts.J)
 get_v(mpts)    = [sqrt(v[1]^2 + v[2]^2) for v in mpts.s.v]
 get_Δu(mpts)   = [sqrt(u[1]^2 + u[2]^2) for u in mpts.s.u]
-get_coh0(mpts) = @views vec(mpts.s.c₀./1e3)
-get_phi0(mpts) = @views vec(mpts.s.ϕ₀.*180.0/π)
+get_coh0(mpts) = @views vec(mpts.s.c₀)
+get_phi0(mpts) = @views vec(mpts.s.ϕ₀)
 
 """
     get_mpts_variable_config() -> Dict{String, NamedTuple}
 
-Return a dictionary of material point variable plotting configurations, including extraction functions, labels, units, colorbar settings, and limits.
+Return a dictionary of material point variable plotting configurations, including extraction functions, labels, units, scaling factors, colorbar settings, and limits.
+
+`data` always returns raw (SI) values; `scale` is the factor applied to those values
+(e.g. `1/1e3` for Pa → kPa, `180/π` for rad → deg) to get the quantity in `unit` for display.
+`cblim` is expressed in the scaled (display) unit.
 """
 function get_mpts_variable_config()
     return Dict(
         "epII" => (
-            data=get_epII, 
-            label=L"\epsilon_{\mathrm{II}}^{\mathrm{acc}}",  
+            data=get_epII,
+            label=L"\epsilon_{\mathrm{II}}^{\mathrm{acc}}",
             unit = "[-]",
+            scale = 1.0,
             name="Plastic strain",
             cb=:viridis,
             cblim=(0.0, 1.5)
         ),
         "P" => (
-            data=get_P,    
-            label=L"p",                                     
+            data=get_P,
+            label=L"p",
             unit = "[kPa]",
+            scale = 1/1e3,
             name="Pressure",
             cb=:viridis,
             cblim=(0.0, 150)
         ),
         "J" => (
-            data=get_J,    
-            label=L"J",                                     
+            data=get_J,
+            label=L"J",
             unit = "[-]",
+            scale = 1.0,
             name="Deformation determinant",
             cb=:viridis,
             cblim=(0.5, 1.5)
         ),
         "Δu" => (
             data=get_Δu,
-            label=L"\Delta u",  
+            label=L"\Delta u",
             unit = "[m]",
+            scale = 1.0,
             name="Displacement magnitude",
             cb=:viridis,
             cblim=(0.0, 5.0)
         ),
         "v" => (
             data=get_v,
-            label=L"v",  
+            label=L"v",
             unit = "[m/s]",
+            scale = 1.0,
             name="Velocity magnitude",
             cb=:viridis,
             cblim=(0.0, 5.0)
-        ),    
+        ),
         "coh0" => (
             data=get_coh0,
-            label=L"c_{0}",  
+            label=L"c_{0}",
             unit = "[kPa]",
+            scale = 1/1e3,
             name="Initial cohesion",
             cb = :vik,
             cblim=(10.0, 30.0)
         ),
         "phi0" => (
             data=get_phi0,
-            label=L"\phi_{0}",  
+            label=L"\phi_{0}",
             unit = "[deg.]",
+            scale = 180.0/π,
             name="Initial friction angle",
             cb = :viridis,
             cblim=(20.0, 40.0)
@@ -84,9 +96,10 @@ Return a dictionary of mesh variable plotting configurations, including extracti
 function get_mesh_variable_config()
     return Dict(
         "m" => (
-            data=get_epII, 
-            label=L"m_{s}",  
+            data=get_epII,
+            label=L"m_{s}",
             unit = "[kg]",
+            scale = 1.0,
             name="Solid mass",
             cb=:viridis,
             cblim=(100.0, 1000.0)

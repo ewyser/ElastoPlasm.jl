@@ -4,9 +4,15 @@
 
 export GimpBasis
 
-struct GimpBasis <: AbstractBasis end
-
-stencil_range(::GimpBasis, ::Type{T1}) where {T1} = T1(-1):T1(2)
+struct GimpBasis{T,D,NN} <: AbstractBasis
+    stencils::NTuple{D,UnitRange{T}}
+    #
+    function GimpBasis{T,D}() where {T,D}
+        stencils = ntuple(_ -> UnitRange{T}(-1:2), D)
+        NN       = prod(length.(stencils))
+        return new{T,D,NN}(stencils)
+    end
+end
 
 @inline function S∂S(δx::T2,h::T2,lp::T2) where {T2}                                                       
     S,∂S = T2(0.0),T2(0.0)

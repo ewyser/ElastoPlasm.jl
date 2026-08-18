@@ -125,7 +125,7 @@ end
         if c<mpts.s.cᵣ[p] 
             c = mpts.s.cᵣ[p] 
         end
-        P,τ0,τII = σTr(mpts.s.σᵢ[p],nstr)
+        P,τ0,τII = σTr(mpts.s.σᵢ[p])
         η,ηB,ξ   = materialParam(mpts.s.ϕ₀[p],ψ,c,nstr)
         σm,τP    = ξ/η,ξ-η*(ξ/η)
         fs,ft    = τII+η*P-ξ,P-σm         
@@ -134,14 +134,14 @@ end
             Δλ             = fs/(cmp.Gc+cmp.Kc*η*ηB)
             mpts.s.Δλ[p]     = Δλ
             Pn,τn          = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
-            mpts.s.σᵢ[p]   = eltype(mpts.s.σᵢ)(σn(Pn,τ0,τn,τII,nstr))
+            mpts.s.σᵢ[p]   = eltype(mpts.s.σᵢ)(σn(Pn,τ0,τn,τII))
             mpts.s.ϵpII[1,p]+= Δλ*sqrt(T2(1/3)+T2(2/9)*ηB^2)
         end
         if h≤0.0 && P≥σm
             Δλ             = (P-σm)/cmp.Kc
             mpts.s.Δλ[p]     = Δλ
             Pn             = σm-P
-            mpts.s.σᵢ[p]   = eltype(mpts.s.σᵢ)(σn(Pn,τ0,T2(0.0),τII,nstr))
+            mpts.s.σᵢ[p]   = eltype(mpts.s.σᵢ)(σn(Pn,τ0,T2(0.0),τII))
             mpts.s.ϵpII[1,p]+= sqrt(T2(2.0))*Δλ/T2(3.0)
         end
     end

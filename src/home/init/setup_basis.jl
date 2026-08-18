@@ -10,7 +10,7 @@ point-to-point (`p2p`) connectivity — populated at runtime by the `p2e2n`/`non
 # Arguments
 - `mesh::Mesh{T1,T2,D}`: Mesh object (see `setup_mesh`).
 - `mpts::Point{T1,T2,D}`: Material point object (see `setup_mpts`).
-- `geom::Geometry{T1,T2,D}`: Geometry struct, provides the neighbor stencil (`geom.nn`) and element size (`geom.h`).
+- `geom::Geometry{T1,T2,D}`: Geometry struct, provides element size (`geom.h`); node count (`NN`) comes from the concrete basis kind's stencils.
 - `solver::S`: Solver instance (e.g. `ExplicitSolver`), selects the basis kind and nonlocal support length scale.
 
 # Returns
@@ -23,11 +23,11 @@ basis = setup_basis(mesh, mpts, geom, solver)
 """
 function setup_basis(mesh::Mesh{T1,T2,D}, mpts::Point{T1,T2,D}, geom::Geometry{T1,T2,D}, solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     nel, nno = mesh.prprt.nel, mesh.prprt.nno
-    NN       = geom.nn.nn
-    e2n_data = get_element_to_nodes(nel, nno, geom.nn)
+    kind     = get_basis(solver.basis.which, T1, D)
+    NN       = prod(length.(kind.stencils))
+    e2n_data = get_element_to_nodes(nel, nno, kind.stencils)
     e2e_data = T1.(e2e(T1(D), nel, geom.h, solver))
     nmp      = mpts.nmp
-    kind     = get_basis(solver.basis.which)
     return Basis{T1,D,NN,typeof(kind)}(
         kind,
         e2n_data,

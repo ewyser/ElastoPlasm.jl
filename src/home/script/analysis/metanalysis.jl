@@ -123,7 +123,7 @@ function extract_field_data(outputs, get, npts, nsim)
         jldopen(output,"r+") do file
             X[:, k] = getindex.(file["ic/mpts"].x, 1)
             Y[:, k] = getindex.(file["ic/mpts"].x, 2)
-            D[:, k] = get.data(file["ic/mpts"])
+            D[:, k] = get.data(file["ic/mpts"]) .* get.scale
         end
         next!(prog; desc="Extracting $(get.name) $k/$nsim...")
     end
@@ -154,38 +154,45 @@ Generate and save plots for field statistics.
 function plot_field_statistics(stats, field_info, reference, path, field_name, nsim)
     @info "Plotting averaged $(field_info.name) with standard deviation..."
     
-    instr = reference["cfg/instr"]
+    solver = reference["cfg/solver"]
     mesh = reference["ic/mesh"]
-    ms = instr.plot.dpi * (mesh.prprt.L[1] / mesh.prprt.L[1]) / (mesh.prprt.nel[1] * 2)
-    
+    mpts = reference["ic/mpts"]
+
     # Common plot settings
     common = (;
         xlim = (minimum(getindex.(mesh.x, 1)), maximum(getindex.(mesh.x, 1))),
         ylim = (minimum(getindex.(mesh.x, 2)), maximum(getindex.(mesh.x, 2))),
-        size = instr.plot.dpi .* (mesh.prprt.L ./ mesh.prprt.L[1]),
+        size = solver.plot.dpi .* (mesh.prprt.L ./ mesh.prprt.L[1]),
     )
-    
+
+    # Marker size: px-per-physical-unit (limiting axis, aspect-ratio-aware) times mean mp spacing
+    Δx, Δy  = common.xlim[2]-common.xlim[1], common.ylim[2]-common.ylim[1]
+    ppu     = min(common.size[1]/Δx, common.size[2]/Δy)
+    spacing = 2.0*sum(ℓ -> ℓ[1], mpts.ℓ₀)/length(mpts.ℓ₀)
+    ms      = ppu*spacing
+
     # Define plot configurations with automatic color limits
     D_mean_min, D_mean_max = extrema(stats.D_mean)
     D_std_max = maximum(stats.D_std)
     
     plot_specs = [
         (data=stats.D_mean, color=:viridis, clim=(D_mean_min, D_mean_max),
-         label=field_info.label, title="Average $(lowercase(field_info.name)) " * L"\leftangle" * field_info.label * L"\rightangle_{n=%$nsim}"),
+         label=field_info.label * " in " * field_info.unit, title="Average $(lowercase(field_info.name)) " * L"\leftangle" * field_info.label * L"\rightangle_{n=%$nsim}"),
         (data=stats.D_std, color=:plasma, clim=(0, D_std_max),
-         label=L"\sigma(" * field_info.label * L")", title="Standard deviation " * L"\sigma(" * field_info.label * L")"),
+         label=L"\sigma(" * field_info.label * L")" * " in " * field_info.unit, title="Standard deviation " * L"\sigma(" * field_info.label * L")"),
     ]
     
     # Generate plots
     config_plot()
-    gr(legend=true, markersize=ms, markershape=:circle, markerstrokewidth=0.75)
+    gr(legend=true, markershape=:circle, markerstrokewidth=0.75)
     plots = map(plot_specs) do spec
         plot(stats.X_mean, stats.Y_mean;
             seriestype = :scatter,
             marker_z = spec.data,
+            markersize = ms,
             xlabel = L"$x-$direction" * " [m]",
             ylabel = L"$z-$direction" * " [m]",
-            label = spec.label * " [-]",
+            label = spec.label,
             color = spec.color,
             clim = spec.clim,
             xlim = common.xlim,

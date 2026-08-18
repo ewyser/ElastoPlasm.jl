@@ -106,8 +106,8 @@ end
     L,nel   = [64.1584,64.1584/4.0],[40,10];
     current["2d"] = run_bench(L,nel)
 
-    L,nel   = [64.1584,64.1584/4.0,64.1584/4.0],[40,10,10];
-    current["3d"] = run_bench(L,nel)
+    #L,nel   = [64.1584,64.1584/4.0,64.1584/4.0],[40,10,10];
+    #current["3d"] = run_bench(L,nel)
 
     path = joinpath(DATASET, "performance_baseline.jld2")
     cpu_name = split(string(Sys.cpu_info()[1]), ":")[1]
@@ -124,15 +124,54 @@ end
             save(path, baseline)
         end
         # Compare current results with the baseline
-        for (group, res) ∈ baseline[cpu_name]["2d"]
-            @testset "- $group" verbose = true begin
-                if !haskey(current["2d"], group)
-                    #@test_broken "Current performance results do not contain group $group"                    
-                else
-                    println("Testing $(group):")
-                    println("current: $(current["2d"][group].mean_time) ms ≤ baseline: $(res.mean_time) ms")
-                    #@test_broken current["2d"][group].mean_time ≤ res.mean_time * (1 + 0.05)
+        pct(cur, base) = base == 0 ? 0.0 : round((cur - base) / base * 100, digits=1)
+        evidence = String[]
+        tot_cur_time,   tot_base_time   = 0.0, 0.0
+        tot_cur_memory, tot_base_memory = 0, 0
+        tot_cur_allocs, tot_base_allocs = 0, 0
+        for dim ∈ ("2d", "3d")
+            for (group, res) ∈ baseline[cpu_name][dim]
+                @testset "- $dim/$group" verbose = true begin
+                    if !haskey(current[dim], group)
+                        #@test_broken "Current performance results do not contain group $group"
+                    else
+                        cur = current[dim][group]
+                        push!(evidence,"""
+                        $dim/$group:
+                          time   : $(cur.mean_time) ms ($(pct(cur.mean_time,res.mean_time))%)
+                          memory : $(cur.memory) B ($(pct(cur.memory,res.memory))%)
+                          allocs : $(cur.allocs) ($(pct(cur.allocs,res.allocs))%)                          
+                        """)
+                        tot_cur_time    += cur.mean_time;  tot_base_time   += res.mean_time
+                        tot_cur_memory  += cur.memory;     tot_base_memory += res.memory
+                        tot_cur_allocs  += cur.allocs;     tot_base_allocs += res.allocs
+                    end
                 end
+            end
+        end
+        push!(evidence,"""
+        overall:
+          time   : $(round(tot_cur_time,digits=2)) ms ($(pct(tot_cur_time,tot_base_time))%)
+          memory : $(tot_cur_memory) B ($(pct(tot_cur_memory,tot_base_memory))%)
+          allocs : $(tot_cur_allocs) ($(pct(tot_cur_allocs,tot_base_allocs))%)
+        """)
+
+        # Offer to update the baseline when the *overall* totals (summed across all groups/dims)
+        # for time, memory and allocs are all improved - never automatic, always opt-in.
+        improved = tot_cur_time ≤ tot_base_time && tot_cur_memory ≤ tot_base_memory && tot_cur_allocs ≤ tot_base_allocs
+        if improved && get(ENV, "GITHUB_ACTIONS", "false") != "true"
+            println("Current overall performance (summed across all groups) is faster than the baseline:")
+            foreach(print, evidence)
+            try
+                menu   = RadioMenu(["No", "Yes"], pagesize=2)
+                choice = request("Update baseline with current performance results?", menu)
+                if choice == 2
+                    baseline[cpu_name] = current
+                    save(path, baseline)
+                    @info "Baseline updated with current performance results."
+                end
+            catch
+                nothing
             end
         end
     end

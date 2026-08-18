@@ -52,6 +52,21 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
   path throws if actually exercised. Not fixed (out of scope until someone designs what
   `fint_p2n!` should do); `elastoquasistatic!` itself doesn't reach this code path.
 
+**Known bug**: `basis.which="gimpm"` combined with `fwrk.locking=true` (F-bar volumetric
+locking correction) crashes with `InexactError: trunc(Int64, NaN)`. Root cause:
+`src/home/core/solver/explicit/update/fun/volumetric.jl`'s `ΔJp` divides unconditionally
+by `mesh.s.m[no]` for every node `no` in a particle's basis stencil where the shape
+function `N != 0`. GIMP's wider particle-domain support (`stencil_range` `-1:2`, reaching
+further than bsmpm/smpm's compact 2-node support) means a particle's kernel can be
+nonzero at a boundary/ghost node no particle has ever mapped mass to, so
+`mesh.s.m[no] == 0` there and `mesh.ΔJ[no]/mesh.s.m[no]` evaluates to `0.0/0.0 = NaN`,
+which propagates into `ΔFᵢⱼ` and corrupts particle positions. The analogous velocity
+kernels (`mapsto/fun/solve.jl`, `mapsto/fun/augm.jl`) already guard this same division
+pattern with an `iszero(mesh.s.m[no])` check; `volumetric.jl`'s `ΔJp` does not. Not fixed
+(needs the same guard added, and needs deciding whether `ΔJn`'s corresponding
+accumulation should also skip zero-mass nodes). Workaround: run gimpm with
+`locking=false`, or use bsmpm/smpm when locking correction is needed.
+
 ## Persistence (JLD2)
 
 Simulation setup is saved/loaded as `ic["mesh"]`, `ic["mpts"]`, `ic["basis"]`,
@@ -226,3 +241,23 @@ tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `ic_slump`/
 - `test/testset/test_performance.jl` benchmarks core kernels directly via
   `solver.cairn.*`; keep it in sync with the `Cairn` dispatch-table shape whenever that
   shape changes.
+
+## Commit message conventions
+
+This repo follows Conventional Commits: `<type>: <Summary>`, summary capitalized, no
+trailing period. Pick the type by what actually changed, not by what the change was
+*for*:
+
+- `feat:` — new functionality or capability that wasn't there before.
+- `fix:` — corrects behavior that was wrong (a bug, a crash, an incorrect result).
+- `refactor:` — restructures existing code without changing external behavior (e.g.
+  renaming, moving logic between files, simplifying a dispatch pattern).
+- `chore:` — maintenance with no production/behavior impact: build tooling, dependency
+  bumps, config, repo housekeeping, formatting.
+- `docs:` — documentation-only changes (README, CLAUDE.md, docstrings).
+- `test:` — adding or updating tests only, no source changes.
+- `perf:` — a performance improvement, not a correctness fix.
+
+`git log --oneline` in this repo also has some older/looser types in its history
+(`misc:`, `bug:`) — treat those as historical, not part of the current convention;
+prefer the list above for new commits.

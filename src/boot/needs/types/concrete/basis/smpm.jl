@@ -4,9 +4,15 @@
 
 export LinearBasis
 
-struct LinearBasis <: AbstractBasis end
-
-stencil_range(::LinearBasis, ::Type{T1}) where {T1} = T1(0):T1(1)
+struct LinearBasis{T,D,NN} <: AbstractBasis
+    stencils::NTuple{D,UnitRange{T}}
+    #
+    function LinearBasis{T,D}() where {T,D}
+        stencils = ntuple(_ -> UnitRange{T}(0:1), D)
+        NN       = prod(length.(stencils))
+        return new{T,D,NN}(stencils)
+    end
+end
 
 @inline function N∂N(δx::T2,h::T2) where {T2}                                                     
     if -h < δx <= T2(0.0)                       

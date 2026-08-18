@@ -32,9 +32,9 @@ function get_default()
     solver  = ExplicitSolver
     default = (;
         dtype = (;
-            T0=(Int64,Float64),
-            bits=Int64(64),
-            precision="64-bit precision (or double precision)"
+            T0 = (Int64,Float64),
+            bits = Int64(64),
+            precision = "64-bit precision (or double precision)"
         ),
         basis = (;
             which = "bsmpm",
@@ -76,7 +76,7 @@ function get_default()
             status = true,
             freq   = 1.0,
             dpi    = 500,
-            what   = [(;mpts=get_mpts_variable_config()["epII"]),],
+            what   = [(;mpts=get_mpts_variable_config()["P"]),],
         ),
         perf  = (;
             status=false,
