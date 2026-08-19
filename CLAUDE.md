@@ -253,7 +253,16 @@ on an unrelated branch.**
   instead (or additionally) append selected `mpts`/`mesh` field values into a JLD2
   dataset at each checkpoint — effectively a `plot.status`-style toggle (e.g.
   `export.status`/`export.what`) sitting next to `bake()` in the workflow loop rather
-  than replacing it.
+  than replacing it. Writing the export is only half the feature: nothing today reads
+  a saved time series back out either — `metanalysis.jl`'s `extract_field_data`/
+  `postprocess_fields` is the closest existing precedent (it already loads a field via
+  `get_mpts_variable_config()` and plots it, but only ever from *final-state* JLD2
+  output across many single-timestep simulation runs, never a time axis within one
+  run). A companion loader/plotter that opens one run's exported time-series dataset
+  and plots a field's evolution over `t` (reusing `get_mpts_variable_config()` for
+  field metadata the same way `metanalysis.jl`/`bake.jl` already do) would need to be
+  built alongside the export itself, not as a separate follow-up — an export nobody
+  can read back is not actually useful on its own.
 
 ## Precision (32-bit) and StaticArrays performance gotchas
 
