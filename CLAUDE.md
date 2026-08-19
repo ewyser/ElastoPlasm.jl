@@ -163,6 +163,52 @@ on an unrelated branch.**
 
 ## Planned improvements (not bugs, just known follow-up work)
 
+- **Decouple mesh/point generation from basis via a `Problem` type.** Today
+  `basis.which` (bsmpm/gimpm/smpm/mlsmpm) can't be swapped without regenerating `Mesh`
+  and `Point` from scratch, even though nothing about mesh/point generation actually
+  depends on basis kind — `Basis` already owns all connectivity independently (see
+  "Core types" above). The forced regen is purely a pipeline-structure artifact:
+  `ic_slump` (and every `setup_*` step, plus `export_setup`/`elastoplasm` persistence)
+  threads `mesh`, `mpts`, `basis`, `cmpr`, `time`, `solver` as loose separate
+  positional arguments end to end, with no object boundary separating "the initial
+  condition" (mesh + points) from "how we discretize/solve it" (basis + solver). The
+  proposed fix is a `Problem` type bundling `Mesh`+`Point` as the expensive,
+  IC-defining part, leaving `Basis` (cheap, swappable, still geometry-derived — built
+  *against* a `Problem`, e.g. `setup_basis(problem.mesh, problem.mpts, geom, solver)`)
+  and `Solver` (config+kernels) as separate objects: a **`Problem{Mesh,Point}` /
+  `Basis` / `Solver`** split, not `Problem` / `Solution{Basis,Solver}` — `Basis` is
+  geometry, the same category as `Problem`, not solver config. No new abstract
+  `Phase`/`ProblemKind` axis is introduced: the existing `MeshPhase`/
+  `MaterialPointPhase` hierarchy (already used for `MeshSolidPhase`/`PointSolidPhase`/
+  `PointFluidPhase`/`PointThermalPhase`) is reused directly, threaded through
+  `Problem` as an explicit shared type parameter rather than only implied by which
+  concrete `Problem` subtype is picked — a second, differently-scoped "Phase" concept
+  at the problem level would collide with the existing one:
+  ```julia
+  abstract type AbstractProblem{T1,T2,D,SP<:MaterialPointPhase} end
+  struct MechanicalProblem{T1,T2,D,SP<:PointSolidPhase,...} <: AbstractProblem{T1,T2,D,SP}
+      mesh ::Mesh{T1,T2,D}
+      mpts ::Point{T1,T2,D,...,SP,...}
+  end
+  ```
+  A later `HydromechanicalProblem` (`mesh.s`+`mesh.f`, `mpts.s`+`mpts.f` — solid and
+  fluid both populated) is `AbstractProblem{T1,T2,D,SP}` too, sharing the same phase
+  type-parameter slot rather than a separate axis, once the staged hydro work below
+  lands (`PointFluidPhase` gaining real fields, plus a `MeshFluidPhase` counterpart to
+  `MeshSolidPhase`, which doesn't exist yet) — this `Problem` design is meant to be the
+  seam that work attaches to, not a redesign competing with it. Open questions for
+  whoever implements this: (1) does `setup_mesh`/`setup_mpts` construct `Mesh`/`Point`
+  directly and then get wrapped in `Problem`, or does a new `setup_problem` become the
+  entry point calling them internally; (2) does JLD2 persistence gain an
+  `ic["problem"]` key replacing today's separate `ic["mesh"]`/`ic["mpts"]`, or do those
+  stay as two keys with `Problem` only a construction-time/runtime convenience
+  wrapper; (3) `elastoplasm`/workflow call signatures
+  (`workflow!(mpts,mesh,basis,cmpr,time,solver)`) currently take `mesh`/`mpts` as
+  separate positional args at every kernel call site — full adoption means touching
+  most of `explicit/`+`dynamic_relaxation/`, a much bigger lift than just defining the
+  struct, so decide whether an initial version keeps kernels on separate `mesh`/`mpts`
+  args (with `Problem` only a thin outer-API/persistence convenience) versus threading
+  `Problem` all the way through kernels immediately.
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task (e.g. computing log strain), rather than one
   monolithic kernel body. Other large kernels (e.g. `update.jl`'s `elastoplast`/
