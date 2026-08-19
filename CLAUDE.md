@@ -222,6 +222,21 @@ on an unrelated branch.**
   third `solution` value with real semantics, or state plainly (here, or in
   `solver.jl`) that it's intentionally dormant scaffolding, so nobody "completes" the
   selection logic to include it without knowing whether that's actually wanted.
+- **Solid-fluid coupling for a poro-hydro-mechanical solution.** `PointFluidPhase`
+  (`lagrangian.jl`) is currently a literally empty placeholder struct (`# Add concrete
+  fields as needed`) — `mpts.f` is always `nothing` in practice. Implementing this
+  means giving it real fields (pore pressure, fluid velocity/flux, permeability, ...)
+  and wiring a coupled solve into the explicit/dynamic_relaxation workflows, not just
+  extending the struct.
+- **Check correctness and viability of the thermal solution.** `PointThermalPhase`
+  has real fields (`c`, `k`, `q`, `T`) and several kernels reference it
+  (`update/fun/heatflux.jl`, the `MeshThermalPhase` branches of `std_p2n`/`augm_p2n`/
+  `n2p`), but those branches read `mpts.ϕ∂ϕ[nn,p,:]` — a field that does not exist
+  anywhere on `Point` (confirmed by grep; see the caching-design note above for the
+  fields that *do* exist). Any thermal-phase workflow would throw immediately if
+  actually exercised — needs a real audit of whether this path was ever functional
+  after the `Basis`/shape-function refactors, or needs rebuilding against the current
+  `basis.N`/`∂N` cache the way the solid phase already was.
 
 ## Precision (32-bit) and StaticArrays performance gotchas
 
