@@ -228,8 +228,9 @@ on an unrelated branch.**
   designing the coupled solve first. The fluid-only solver needs `PointFluidPhase`
   (`lagrangian.jl`) to gain real fields — it's currently a literally empty placeholder
   struct (`# Add concrete fields as needed`), `mpts.f` is always `nothing` in
-  practice — plus its own workflow/kernel path (mirroring how `elastodynamic!`/
-  `elastoplastic!` are the mechanical path's workflow entry points) before any
+  practice — plus its own workflow entry point, e.g. a `hydrodynamic!` in
+  `explicit/worflow.jl` mirroring `elastodynamic!`, with its own P2G/G2P/update kernel
+  path (mirroring `mapsto`/`update`'s structure) before any
   solid-fluid coupling work is meaningful.
 - **Check correctness and viability of the thermal solution.** `PointThermalPhase`
   has real fields (`c`, `k`, `q`, `T`) and several kernels reference it
