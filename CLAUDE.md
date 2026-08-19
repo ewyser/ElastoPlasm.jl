@@ -241,6 +241,19 @@ on an unrelated branch.**
   actually exercised — needs a real audit of whether this path was ever functional
   after the `Basis`/shape-function refactors, or needs rebuilding against the current
   `basis.N`/`∂N` cache the way the solid phase already was.
+- **Add a JLD2 time-series export option, as an alternative to plot-only checkpoints.**
+  Every workflow's time loop (`explicit/worflow.jl`) computes `checks =
+  sort(collect(time.t[1]:solver.plot.freq:time.te))` and calls `bake(mpts,mesh,t,solver)`
+  at each checkpoint — but `bake` (`src/home/plot/bake.jl`) only does anything if
+  `solver.plot.status` is true, and in that case it unconditionally renders/saves a PNG
+  via `get_plot_field`. There is currently no way to record a field's evolution as raw
+  data: to get numbers out today you must either turn on plotting and get pixels, not
+  values, or write ad hoc postprocessing against final-state-only JLD2 output. A natural
+  fix reuses the same `checks` cadence and `solver.plot.what`-style field selection to
+  instead (or additionally) append selected `mpts`/`mesh` field values into a JLD2
+  dataset at each checkpoint — effectively a `plot.status`-style toggle (e.g.
+  `export.status`/`export.what`) sitting next to `bake()` in the workflow loop rather
+  than replacing it.
 
 ## Precision (32-bit) and StaticArrays performance gotchas
 
