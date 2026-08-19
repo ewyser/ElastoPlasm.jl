@@ -222,12 +222,15 @@ on an unrelated branch.**
   third `solution` value with real semantics, or state plainly (here, or in
   `solver.jl`) that it's intentionally dormant scaffolding, so nobody "completes" the
   selection logic to include it without knowing whether that's actually wanted.
-- **Solid-fluid coupling for a poro-hydro-mechanical solution.** `PointFluidPhase`
-  (`lagrangian.jl`) is currently a literally empty placeholder struct (`# Add concrete
-  fields as needed`) — `mpts.f` is always `nothing` in practice. Implementing this
-  means giving it real fields (pore pressure, fluid velocity/flux, permeability, ...)
-  and wiring a coupled solve into the explicit/dynamic_relaxation workflows, not just
-  extending the struct.
+- **Staged path to a poro-hydro-mechanical solution: mechanical solver (already
+  exists) → standalone fluid-only (hydro) solver → fuse the two.** Intent is to build
+  and validate the hydro solver independently before attempting coupling, rather than
+  designing the coupled solve first. The fluid-only solver needs `PointFluidPhase`
+  (`lagrangian.jl`) to gain real fields — it's currently a literally empty placeholder
+  struct (`# Add concrete fields as needed`), `mpts.f` is always `nothing` in
+  practice — plus its own workflow/kernel path (mirroring how `elastodynamic!`/
+  `elastoplastic!` are the mechanical path's workflow entry points) before any
+  solid-fluid coupling work is meaningful.
 - **Check correctness and viability of the thermal solution.** `PointThermalPhase`
   has real fields (`c`, `k`, `q`, `T`) and several kernels reference it
   (`update/fun/heatflux.jl`, the `MeshThermalPhase` branches of `std_p2n`/`augm_p2n`/
