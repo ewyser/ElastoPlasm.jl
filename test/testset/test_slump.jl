@@ -31,7 +31,7 @@ end
 Generate all combinations of deformation frameworks, transfer schemes, and locking options.
 """
 function generate_fwrk_cases()
-    return [(deform=d, trsfr=t, locking=l, C_pf = 1.0, musl = m, damping = 0.1) 
+    return [(deform = d, trsfr = t, locking = l, C_pf = 1.0, musl = m, damping = 0.1) 
             for d in ["finite", "infinitesimal"] 
             for t in ["std", "tpic", "apic"] 
             for l in [true, false]
@@ -47,11 +47,11 @@ end
     cfg_grf   = (;
         status = false,
         covariance = "gaussian",
-        param = (;Iₓ= [2.5,2.5,2.5],Nₕ = 5000,kₘ = 100,),
+        param = (;Iₓ = [2.5, 2.5, 2.5], Nₕ = 5000, kₘ = 100,),
     )
     cfg_nonloc = (;
-        status=false,
-        ls=0.5,
+        status = false,
+        ls = 0.5,
     )
 
     sim  = 1
@@ -70,8 +70,8 @@ end
                                     strain   = (; deform = fwrk.deform)
                                     transfer = (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf, musl = fwrk.musl)
                                     stab     = (; locking = fwrk.locking, damping = fwrk.damping)
-                                    jld2   = ic_slump(geom.L, geom.nel; fid="test/$(name)", grf=cfg_grf, basis=basis, strain=strain, transfer=transfer, stab=stab, nonloc=cfg_nonloc)
-                                    status = elastoplasm!(jld2; workflows=[elastodynamic!, elastoplastic!]).success
+                                    jld2     = ic_slump(geom.L, geom.nel; fid="test/$(name)", grf=cfg_grf, basis=basis, strain=strain, transfer=transfer, stab=stab, nonloc=cfg_nonloc)
+                                    status   = elastoplasm!(jld2; workflows=[elastodynamic!, elastoplastic!]).success
                                 end
                             catch e
                                 @warn "Test case failed" test_case exception=(e, catch_backtrace())
