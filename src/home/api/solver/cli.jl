@@ -26,7 +26,7 @@ println(opts.strain.deform)  # ["finite", "infinitesimal"]
 function get_option()
     return (
 
-            solution = ("Select solver formulation",["explicit","implicit"]),
+            solution = ("Select solver formulation",["explicit","implicit","dynamic relaxation"]),
             dtype = (
                 T0 = ("Select arithmetic types",[(Int64,Float64),(Int32,Float32)]),
                 bits = ("Select arithmetic precision",[Int64(64),Int32(32)]),
