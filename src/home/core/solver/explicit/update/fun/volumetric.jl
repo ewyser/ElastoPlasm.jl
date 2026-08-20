@@ -21,7 +21,9 @@ end
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N  = basis.N[nn,p]
-            ΔJ += N*(mesh.ΔJ[no]/mesh.s.m[no])*ΔJ₀⁻¹
+            mn = mesh.s.m[no]
+            if iszero(mn) continue end
+            ΔJ += N * (mesh.ΔJ[no] / mn) * ΔJ₀⁻¹
         end
         # update
         mpts.s.ΔFᵢⱼ[p] = mpts.s.ΔFᵢⱼ[p] .* (ΔJ^dim)
