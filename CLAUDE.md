@@ -136,20 +136,25 @@ on an unrelated branch.**
   `compute_collapse_error` calls `elastoplasm!(jld2; workflow=[solver])` — singular
   `workflow`, not the real `workflows` kwarg; and `z0 = copy(setup.mpts.x[end, :])`
   matrix-style-indexes `mpts.x`, which is `Vector{SVector}` (see Core types).
-- **`test/testset/test_slump.jl`'s full sweep (48 cases: 2 geom × 1 basis × 24
-  `strain`/`transfer`/`stab` combos) fails 20/48, all under `locking=true`** —
-  `infinitesimal`+`std`+`locking=true` cases in particular take 1+ minute each (vs
-  ~15-20s for `locking=false` cases) before failing. Puzzling: a standalone
-  single-case reproduction with the *identical* config (`bsmpm`, `infinitesimal`,
-  `std`, `locking=true`) outside the test loop succeeded cleanly. Not yet root-caused
-  — could be a real numerical issue specific to running many geometries/configs in
-  sequence within one process (leftover global/mutable state between cases?), or
-  something specific to the test harness's `@suppress`/`try`-`catch` interacting badly
-  with a slow-but-eventually-successful run. Needs investigation with the full,
-  untruncated test output (the run that surfaced this only had its last ~15 lines
-  captured) before assuming it's the same class of issue as the already-diagnosed
-  gimpm/mlsmpm F-bar locking NaN bug above (this was `bsmpm` only, which isn't
-  supposed to hit that one).
+- **`test/testset/test_workflow.jl`'s full sweep (renamed from the old
+  `test_slump.jl`; 1 geom × 4 basis × 24 `strain`/`transfer`/`stab` combos) has
+  cases that fail under `locking=true`, but silently — via `elastoplasm!(...).success
+  == false`, not a thrown exception**, so the `catch`/`@warn` branch never even fires
+  for these. Confirmed again on the `smpm`+`infinitesimal`+`std`+`locking=true` case
+  (case 16/96 in the sweep): it fails inside `runtests()`, but a standalone
+  reproduction with the *identical* config (same `L`/`nel`, same `basis`/`strain`/
+  `transfer`/`stab`/`grf`/`nonloc` kwargs) run in its own fresh `julia` process
+  completes end-to-end with `success=true`. Not yet root-caused — still points at
+  leftover global/mutable state carried between cases within one process (each prior
+  case in the sweep leaves `dump/` and possibly other shared state populated before
+  the next case runs), since the isolated repro is clean every time. Needs
+  investigation with the full, untruncated in-sweep failure output before assuming
+  it's the same class of issue as the already-diagnosed gimpm/mlsmpm F-bar locking NaN
+  bug above (this repro was `smpm`, which isn't supposed to hit that one). Separately,
+  `test_workflow.jl`'s `catch` block referenced an undefined `test_case` variable in
+  its `@warn` call (should have been `name`) — fixed, since it meant any case that
+  *did* throw would itself crash with `UndefVarError` and mask the real exception;
+  worth remembering if debugging this file again turns up another opaque failure.
 - **`ic_collision`'s initial-velocity plot crashes**: `what_plot_field` errors with
   `type NamedTuple has no field data`, because `collision.jl`'s `plot.what` entries are
   hand-built as `(;mpts=(name="u",cblim=(...)))` instead of going through
