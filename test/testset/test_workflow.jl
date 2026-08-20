@@ -18,10 +18,10 @@ Generate all combinations of shape functions.
 """
 function generate_basis_cases()
     return [
-        (which = "smpm"  , how = nothing     , ghost = true ),
-        (which = "gimpm" , how = "undeformed", ghost = true ),
-        (which = "bsmpm" , how = nothing     , ghost = false),
-        (which = "mlsmpm", how = nothing     , ghost = false),        
+        (which = "smpm"  , how = nothing     , ghost = 0),
+        (which = "gimpm" , how = "undeformed", ghost = 1),
+        (which = "bsmpm" , how = nothing     , ghost = 0),
+        (which = "mlsmpm", how = nothing     , ghost = 0),
     ]
 end
 
@@ -74,7 +74,7 @@ end
                                     status   = elastoplasm!(jld2; workflows=[elastodynamic!, elastoplastic!]).success
                                 end
                             catch e
-                                @warn "Test case failed" test_case exception=(e, catch_backtrace())
+                                @warn "Test case failed" name exception=(e, catch_backtrace())
                             end
                             @test status
                             sim += 1
