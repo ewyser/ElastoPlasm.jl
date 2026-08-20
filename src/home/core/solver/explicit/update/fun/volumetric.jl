@@ -2,13 +2,13 @@
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
-        ms,ΔJ = mpts.s.ρ[p]*mpts.Ω[p], mpts.ΔJ[p]
+        ms, ΔJ = mpts.s.ρ[p] * mpts.Ω[p], mpts.ΔJ[p]
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N  = basis.N[nn,p]
             # accumulation
-            @atom mesh.ΔJ[no]+= N*ms*ΔJ
+            @atom mesh.ΔJ[no] += N * ms * ΔJ
         end
     end
 end
@@ -16,7 +16,7 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         # mapping back to mpts's
-        ΔJ,ΔJ₀⁻¹ = T2(0.0),T2(1.0)/mpts.ΔJ[p]
+        ΔJ, ΔJ₀⁻¹ = T2(0.0), T2(1.0) / mpts.ΔJ[p]
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
