@@ -14,8 +14,8 @@ Return all possible values for each configuration field as vectors.
 # Example
 ```julia
 opts = get_option(Instruction)
-println(opts.basis.which)  # ["bsmpm", "gimpm", "smpm"]
-println(opts.fwrk.deform)  # ["finite", "infinitesimal"]
+println(opts.basis.which)  # ["bsmpm", "gimpm", "smpm", "mlsmpm"]
+println(opts.strain.deform)  # ["finite", "infinitesimal"]
 ```
 
 # Notes
@@ -26,21 +26,26 @@ println(opts.fwrk.deform)  # ["finite", "infinitesimal"]
 function get_option()
     return (
 
+            solution = ("Select solver formulation",["explicit","implicit"]),
             dtype = (
                 T0 = ("Select arithmetic types",[(Int64,Float64),(Int32,Float32)]),
                 bits = ("Select arithmetic precision",[Int64(64),Int32(32)]),
                 precision = ("Select precision",["64-bit precision (or double precision)","32-bit precision (or single precision)"]),
             ),
             basis = (
-                which = ("Select basis type",["bsmpm", "gimpm", "smpm"]),
+                which = ("Select basis type",["bsmpm", "gimpm", "smpm", "mlsmpm"]),
                 how = ("Select material point domain update",[nothing]),
                 ghost = ("Add ghost element(s) ?",[0, 1, 2]),
             ),
-            fwrk  = (
+            strain   = (
                 deform = ("Select the deformation framework",["finite", "infinitesimal"]),
+            ),
+            transfer = (
                 trsfr = ("Select the mapping scheme",["std", "tpic", "apic"]),
                 C_pf = ("Select picflip ratio",[1.0, 0.99, 0.95]),
                 musl = ("Enable musl update",[true, false]),
+            ),
+            stab     = (
                 locking = ("Enable volumetric locking mitigation",[true, false]),
                 damping = ("Select damping coefficient",[0.0, 0.1, 0.2, 0.4])
             ),
@@ -178,8 +183,8 @@ instr = kwargser(kwargs; dim=2)
 # - backend selection
 ```
 """
-function cli(; ui::Bool=false)    
-    _, default_config = get_default()
+function cli(; ui::Bool=false)
+    default_config = get_default()
     if !ui
         kwargs = Dict{Any,Any}()
         for (K, V) ∈ pairs(default_config)

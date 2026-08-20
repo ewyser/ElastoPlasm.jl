@@ -31,11 +31,12 @@ function elastoplasm(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <
             # postprocessing
             if solver.plot.status
                 dimension   = string(Base.unwrap_unionall(typeof(solver)).parameters[3])
-                solution    = string(nameof(typeof(solver)))
-                deformation = string(solver.fwrk.deform)
+                basisname   = solver.basis.which
+                solution    = solver.solution
+                deformation = string(solver.strain.deform)
                 workflow    = string(workflow!)
                 quantity    = join([v.mpts.name for v in solver.plot.what if haskey(v, :mpts)], "_")
-                name        = "$(dimension)_$(solution)_$(deformation)_$(workflow)_$(quantity).png"
+                name        = "$(solution)_$(dimension)d_$(basisname)_$(deformation)_$(workflow)_$(quantity).png"
                 path        = joinpath(paths[:plot],replace(name, " " => "_"))
                 opts = (; file = path, )
                 save_plot(opts)
@@ -60,11 +61,12 @@ function elastoplasm!(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S 
             # postprocessing
             if solver.plot.status
                 dimension   = string(Base.unwrap_unionall(typeof(solver)).parameters[3])
-                solution    = string(nameof(typeof(solver)))
-                deformation = string(solver.fwrk.deform)
+                basisname   = solver.basis.which
+                solution    = solver.solution
+                deformation = string(solver.strain.deform)
                 workflow    = string(workflow!)
                 quantity    = join([v.mpts.name for v in solver.plot.what if haskey(v, :mpts)], "_")
-                name        = "$(dimension)_$(solution)_$(deformation)_$(workflow)_$(quantity).png"
+                name        = "$(solution)_$(dimension)d_$(basisname)_$(deformation)_$(workflow)_$(quantity).png"
                 path        = joinpath(paths[:plot],replace(name, " " => "_"))
                 opts = (; file = path, )
                 save_plot(opts)

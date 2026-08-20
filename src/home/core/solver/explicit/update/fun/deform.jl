@@ -1,12 +1,13 @@
-@kernel inbounds = true function deform(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,D},dt::T2) where {T1,T2,D}
+@kernel inbounds = true function deform(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},dt::T2) where {T1,T2,D}
     p = @index(Global)
     if p ≤ mpts.nmp
         # accumulate ∇vᵢⱼ into a local mutable buffer then convert
         TM = eltype(mpts.s.∇vᵢⱼ)
         ∇v = zeros(MMatrix{size(TM,1),size(TM,2),T2})
         for nn ∈ 1:mesh.prprt.nn
-            no, _, ∂N = eval_basis(mpts, mesh, basis, p, nn)
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
+            ∂N = ∂Nrow(basis.∂N, nn, p, Val(D))
             for i ∈ 1:(length(mesh.prprt.nel)-1)
                 for j ∈ 1:(length(mesh.prprt.nel)-1)
                     ∇v[i,j] += ∂N[j]*mesh.s.v[no][i]
@@ -29,15 +30,16 @@
     end
 end
 
-@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,2},dt::T2) where {T1,T2}
+@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},dt::T2) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # compute velocity & displacement gradients
         ∇vxx,∇vxy,∇vyx,∇vyy = T2(0.0),T2(0.0),T2(0.0),T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
-            no, _, ∂N = eval_basis(mpts, mesh, basis, p, nn)
-            if iszero(no) continue end   
+            no = basis.p2n[p][nn]
+            if iszero(no) continue end
+            ∂N = ∂Nrow(basis.∂N, nn, p, Val(2))
             ∇vxx += ∂N[1]*mesh.s.v[no][1]
             ∇vxy += ∂N[1]*mesh.s.v[no][2]
             ∇vyx += ∂N[2]*mesh.s.v[no][1]
@@ -66,7 +68,7 @@ end
     end
 end
 
-@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,3},dt::T2) where {T1,T2}
+@kernel inbounds = true function deform_fast(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3},dt::T2) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # compute velocity & displacement gradients
@@ -75,8 +77,9 @@ end
         ∇vzx,∇vzy,∇vzz = T2(0.0),T2(0.0),T2(0.0)
         for nn ∈ 1:mesh.prprt.nn
             # buffering & compute basis functions on-the-fly
-            no, _, ∂N = eval_basis(mpts, mesh, basis, p, nn)
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
+            ∂N = ∂Nrow(basis.∂N, nn, p, Val(3))
             ∇vxx += ∂N[1]*mesh.s.v[no][1]
             ∇vxy += ∂N[1]*mesh.s.v[no][2]
             ∇vxz += ∂N[1]*mesh.s.v[no][3]

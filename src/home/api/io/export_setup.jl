@@ -29,7 +29,7 @@ function export_setup(mesh::Mesh,mpts::Point,basis::Basis,cmpr,time::Time,solver
     # display summary
     @info ic_log(mesh,mpts,time,solver)
     misc = (;
-        prefix = "$(length(mesh.prprt.nel)-1)d_$(solver.fwrk.trsfr)"
+        prefix = "$(length(mesh.prprt.nel)-1)d_$(solver.transfer.trsfr)"
     )
     # create jld2 file
     sim = joinpath(path,"$(file).jld2")

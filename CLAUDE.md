@@ -20,22 +20,59 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
   (Lagrangian). No longer carries `NN`, `B`, or connectivity (`p2n`/`p2e`/`e2p`/`p2p`
   moved out). `mpts.x :: Vector{SVector{D,T2}}` — NOT a matrix; index fields with
   `getindex.(x, i)` or iterate, never `x[i, :]`.
-- `Basis{T1,D,NN,K<:AbstractBasis}` (`src/boot/needs/types/concrete/basis/basis.jl`) —
+- `Basis{T1,T2,D,NN,K<:AbstractBasis}` (`src/boot/needs/types/concrete/basis/basis.jl`) —
   independent struct owning ALL mesh/point connectivity: `e2n`, `e2e`, `p2n`, `p2e`,
   `e2p`, `p2p`, plus `kind::K` (dispatches shape-function evaluation) and `NN` (nodes
   per element, only known once you fix mesh + basis kind, hence its own type param
-  rather than living on `Mesh`/`Point`).
+  rather than living on `Mesh`/`Point`). Also owns `type` (per-axis node boundary-layer
+  classification, `BSplineBasis`-specific) and the shape-function cache `N`/`∂N` (see
+  below). `T2` was added late — every field is otherwise `T1`-typed, so adding it was a
+  mechanical sweep of every `Basis{T1,...}` call site (~25 files); it exists so `N`/`∂N`
+  can live on `Basis` at all.
 - Construction order is always **mesh → material points → basis** (basis depends on
   both). Function argument order is always **`(mpts, mesh, basis, ...)`** — this
   ordering is deliberate: it signals that the mpts↔mesh relationship is governed by
   basis.
 - Shape-function evaluation is `eval_basis(mpts, mesh, basis, ip, nn)` (renamed from the
   old bare `basis(...)` to avoid colliding with the `Basis` type/struct field name).
-  Concrete kinds live in `basis/{bsmpm,gimpm,smpm}.jl`; each defines
-  `stencil_range(::ConcreteBasisKind, ::Type{T1})` used to build `Neighbs`.
+  Concrete kinds live in `basis/{bsmpm,gimpm,smpm,mlsmpm}.jl`, each defining its own
+  `stencils::NTuple{D,UnitRange{T}}` field directly on the kind struct (no separate
+  `stencil_range`/`Neighbs` indirection).
+- **Shape values/gradients are cached, not recomputed per call site.** `Basis.N` /
+  `Basis.∂N` (plain `Matrix{T2}` / `Array{T2,3}`, sized `(NN,nmp)` / `(NN,D,nmp)` — see
+  below for why not `Vector{SVector}`/`Vector{SMatrix}`) are populated once per particle
+  per timestep by the `shpfun!` ignite kernel (`src/home/core/common/shpfun.jl`), which
+  loops `nn ∈ 1:NN` calling the kind-specific `eval_basis` once each. Every P2G/G2P/
+  update kernel then just reads `basis.N[nn,p]` / `∂Nrow(basis.∂N,nn,p,Val(D))` (the
+  latter a small helper in `basis.jl` — extracts a gradient row via a `Val`-unrolled
+  `ntuple`, since `M[nn,:]` on an `SMatrix` allocates for a runtime `nn`) instead of
+  calling `eval_basis` inline. `dynamic_relaxation`'s ~14 call sites are the one
+  exception — that path has no ignite phase, so they still call `eval_basis` directly
+  per `(ip,nn)`.
+- `MLSBasis` (`basis/mlsmpm.jl`) is a fourth kind implementing structured-grid Moving
+  Least Squares shape functions (Cao et al. 2025, *Comput. Mech.* 75:655–678, §2.3.1 —
+  only the structured-grid case; the paper's unstructured-tessellation machinery does
+  not apply here). Unlike the other three kinds it needs no boundary node-type
+  correction (`basis.type`) — a per-particle moment-matrix projection restores
+  partition-of-unity/consistency everywhere on its own — but it does need a
+  once-per-particle `(D+1)×(D+1)` matrix build+inversion, which is why the `shpfun!`
+  caching above exists: without it, MLS's `eval_basis` would rebuild that matrix from
+  scratch at every one of the ~14 call sites instead of once. `basis.which` and
+  `transfer.trsfr` (P2G/G2P transfer scheme: std/tpic/apic) are fully orthogonal — any
+  basis kind pairs with any transfer scheme, including `mlsmpm`+`std` (MLS is usually
+  *presented* alongside APIC in the literature, but nothing here couples them).
 
 ## Explicit vs dynamic_relaxation solvers
 
+- `src/home/core/common/` — kernels/wrappers shared by **both** solver paths:
+  `tplgy.jl` (`p2e2n`, topology), `shpfun.jl` (`shpfun!`/`Dij_nd`), `ignite.jl`
+  (`init_ignite`/`ignite()`). These used to live under `solver/explicit/ignite/`, which
+  was misleading — both `elastodynamic!`/`elastoplastic!` *and* `elastoquasistatic!`
+  call the same `ignite(mpts,mesh,basis,solver::AbstractSolver)` wrapper, dispatching
+  on the *abstract* solver type since `dynamic_relaxation` doesn't require any
+  particular concrete `solution` value (unlike `elastodynamic!`/`elastoplastic!`,
+  which are typed to `ExplicitSolver` specifically — see `solution` in "Controlling
+  solver behaviour" below).
 - `src/home/core/solver/explicit/` — the primary, actively-used path
   (`elastodynamic!`, `elastoplastic!`). Kernel dispatch table lives on
   `solver.cairn` (a `NamedTuple`, dot-accessed: `solver.cairn.ignite.tplgy!`,
@@ -46,26 +83,272 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
 - `src/home/core/solver/dynamic_relaxation/` — quasi-static path (`elastoquasistatic!`,
   plus the not-fully-wired u-P variant `elastoquasistaticuP!`/`elastouP!`). Converted to
   the same `Basis`-threading convention. Runs end-to-end through the same
-  `ic_slump`/`elastoplasm(jld2; workflows=[...])` pipeline as the explicit solver.
-  **Known gap**: `implicit.jl`'s `pt_solve_uP!` calls
-  `instr.cairn.implicit.fint_p2n!(...)`, a key `init_implicit` never registers — the u-P
-  path throws if actually exercised. Not fixed (out of scope until someone designs what
-  `fint_p2n!` should do); `elastoquasistatic!` itself doesn't reach this code path.
+  `ic_slump`/`elastoplasm(jld2; workflows=[...])` pipeline as the explicit solver — but
+  is much slower to smoke-test (a full `elastoquasistatic!` run took ~5–8 minutes in
+  practice, vs. seconds for `elastodynamic!`/`elastoplastic!`), so budget for that when
+  verifying a change touches this path.
 
-**Known bug**: `basis.which="gimpm"` combined with `fwrk.locking=true` (F-bar volumetric
-locking correction) crashes with `InexactError: trunc(Int64, NaN)`. Root cause:
-`src/home/core/solver/explicit/update/fun/volumetric.jl`'s `ΔJp` divides unconditionally
-by `mesh.s.m[no]` for every node `no` in a particle's basis stencil where the shape
-function `N != 0`. GIMP's wider particle-domain support (`stencil_range` `-1:2`, reaching
-further than bsmpm/smpm's compact 2-node support) means a particle's kernel can be
-nonzero at a boundary/ghost node no particle has ever mapped mass to, so
-`mesh.s.m[no] == 0` there and `mesh.ΔJ[no]/mesh.s.m[no]` evaluates to `0.0/0.0 = NaN`,
-which propagates into `ΔFᵢⱼ` and corrupts particle positions. The analogous velocity
-kernels (`mapsto/fun/solve.jl`, `mapsto/fun/augm.jl`) already guard this same division
-pattern with an `iszero(mesh.s.m[no])` check; `volumetric.jl`'s `ΔJp` does not. Not fixed
-(needs the same guard added, and needs deciding whether `ΔJn`'s corresponding
-accumulation should also skip zero-mass nodes). Workaround: run gimpm with
-`locking=false`, or use bsmpm/smpm when locking correction is needed.
+## Known bugs
+
+Bugs discovered but not yet fixed, kept here so they don't get rediscovered from scratch.
+**When picking one up: create a new branch off the current branch, named so the fix is
+identifiable (e.g. `fix-volumetric-locking-zero-mass-guard`), rather than fixing in place
+on an unrelated branch.**
+
+- **`basis.which` ∈ {`"gimpm"`, `"mlsmpm"`} combined with `stab.locking=true` (F-bar
+  volumetric locking correction) crashes with `InexactError: trunc(Int64, NaN)`.**
+  Probable cause: `src/home/core/solver/explicit/update/fun/volumetric.jl`'s `ΔJp`
+  divides unconditionally by `mesh.s.m[no]` for every node `no` in a particle's basis
+  stencil where the shape function `N != 0`. Both GIMP and MLS use the wider `-1:2`
+  particle-domain support (reaching further than bsmpm/smpm's node-type-corrected
+  compact support) — GIMP because its kernel has no boundary correction at all, MLS
+  because its moment-matrix projection is *designed* to replace node-type correction —
+  so in both cases a particle's kernel can be nonzero at a boundary/ghost node no
+  particle has ever mapped mass to. `mesh.s.m[no] == 0` there, so
+  `mesh.ΔJ[no]/mesh.s.m[no]` evaluates to `0.0/0.0 = NaN`, which propagates into `ΔFᵢⱼ`
+  and corrupts particle positions over subsequent timesteps (the crash itself surfaces
+  later, in topology lookup, once positions go NaN — not at the division site). The
+  analogous velocity kernels (`mapsto/fun/solve.jl`, `mapsto/fun/augm.jl`) already guard
+  this same division pattern with an `iszero(mesh.s.m[no])` check; `volumetric.jl`'s
+  `ΔJp` does not. Needs the same guard added, plus a decision on whether `ΔJn`'s
+  corresponding accumulation should also skip zero-mass nodes. Workaround: run
+  gimpm/mlsmpm with `locking=false`, or use bsmpm/smpm when locking correction is
+  needed.
+- **`dynamic_relaxation`'s u-P path throws if exercised.** Probable cause:
+  `implicit.jl`'s `pt_solve_uP!` calls `instr.cairn.implicit.fint_p2n!(...)`, a key
+  `init_implicit` never registers. Out of scope until someone designs what `fint_p2n!`
+  should do; `elastoquasistatic!` itself doesn't reach this code path, so it isn't
+  blocked by this.
+- **`test/testset/test_collapse.jl` is fully non-functional**, beyond the
+  `fwrk`→`strain`/`transfer`/`stab` kwarg fix already applied to it. Confirmed root
+  cause by actually running it: **`ic_collapse` (`src/home/script/example/collapse.jl`)
+  itself is broken** — it calls an undefined `kwargser` function and predates the
+  current `get_solver`/`setup_geometry`/`setup_basis` pipeline entirely, the same
+  vintage bug `ic_collision` had before this session's fix (see `collision.jl`'s
+  rewrite for the pattern to follow: `get_solver` → `setup_geometry` → `setup_mesh` →
+  `setup_cmpr` → `setup_mpts` → `setup_basis` → `setup_time` → `export_setup`).
+  `ic_collapse` also never calls `setup_basis` at all (no `basis` in its `export_setup`
+  call, which now requires one) and passes `misc` positionally to `export_setup`, which
+  no longer accepts it (`export_setup` builds `misc` internally now). Once `ic_collapse`
+  itself is fixed, three more bugs downstream in `test_collapse.jl` are already known
+  and still need fixing: `load_simulation_setup` reads `file["cfg"]["instr"]`, the
+  stale key name (`cfg["solver"]` is correct, see Persistence below);
+  `compute_collapse_error` calls `elastoplasm!(jld2; workflow=[solver])` — singular
+  `workflow`, not the real `workflows` kwarg; and `z0 = copy(setup.mpts.x[end, :])`
+  matrix-style-indexes `mpts.x`, which is `Vector{SVector}` (see Core types).
+- **`test/testset/test_slump.jl`'s full sweep (48 cases: 2 geom × 1 basis × 24
+  `strain`/`transfer`/`stab` combos) fails 20/48, all under `locking=true`** —
+  `infinitesimal`+`std`+`locking=true` cases in particular take 1+ minute each (vs
+  ~15-20s for `locking=false` cases) before failing. Puzzling: a standalone
+  single-case reproduction with the *identical* config (`bsmpm`, `infinitesimal`,
+  `std`, `locking=true`) outside the test loop succeeded cleanly. Not yet root-caused
+  — could be a real numerical issue specific to running many geometries/configs in
+  sequence within one process (leftover global/mutable state between cases?), or
+  something specific to the test harness's `@suppress`/`try`-`catch` interacting badly
+  with a slow-but-eventually-successful run. Needs investigation with the full,
+  untruncated test output (the run that surfaced this only had its last ~15 lines
+  captured) before assuming it's the same class of issue as the already-diagnosed
+  gimpm/mlsmpm F-bar locking NaN bug above (this was `bsmpm` only, which isn't
+  supposed to hit that one).
+- **`ic_collision`'s initial-velocity plot crashes**: `what_plot_field` errors with
+  `type NamedTuple has no field data`, because `collision.jl`'s `plot.what` entries are
+  hand-built as `(;mpts=(name="u",cblim=(...)))` instead of going through
+  `get_mpts_variable_config()[name]` like `ic_slump`'s equivalent plot section does —
+  the hand-built `NamedTuple` is missing the `data`/`label`/`unit`/`scale`/`cb` fields
+  `what_plot_field` expects. `ic_collision` itself was also just rewritten this session
+  (it previously called an undefined `kwargser` function and predated the current
+  `get_solver`/`setup_geometry`/`setup_basis` pipeline entirely — that part is fixed),
+  but this plot-config bug was pre-existing in the file and wasn't fixed. Workaround:
+  run with `plot.status=false` until fixed.
+
+## Planned improvements (not bugs, just known follow-up work)
+
+- **Decouple mesh/point generation from basis via a `Problem` type.** Today
+  `basis.which` (bsmpm/gimpm/smpm/mlsmpm) can't be swapped without regenerating `Mesh`
+  and `Point` from scratch, even though nothing about mesh/point generation actually
+  depends on basis kind — `Basis` already owns all connectivity independently (see
+  "Core types" above). The forced regen is purely a pipeline-structure artifact:
+  `ic_slump` (and every `setup_*` step, plus `export_setup`/`elastoplasm` persistence)
+  threads `mesh`, `mpts`, `basis`, `cmpr`, `time`, `solver` as loose separate
+  positional arguments end to end, with no object boundary separating "the initial
+  condition" (mesh + points) from "how we discretize/solve it" (basis + solver). The
+  proposed fix is a `Problem` type bundling `Mesh`+`Point` as the expensive,
+  IC-defining part, leaving `Basis` (cheap, swappable, still geometry-derived — built
+  *against* a `Problem`, e.g. `setup_basis(problem.mesh, problem.mpts, geom, solver)`)
+  and `Solver` (config+kernels) as separate objects: a **`Problem{Mesh,Point}` /
+  `Basis` / `Solver`** split, not `Problem` / `Solution{Basis,Solver}` — `Basis` is
+  geometry, the same category as `Problem`, not solver config. No new abstract
+  `Phase`/`ProblemKind` axis is introduced: the existing `MeshPhase`/
+  `MaterialPointPhase` hierarchy (already used for `MeshSolidPhase`/`PointSolidPhase`/
+  `PointFluidPhase`/`PointThermalPhase`) is reused directly, threaded through
+  `Problem` as an explicit shared type parameter rather than only implied by which
+  concrete `Problem` subtype is picked — a second, differently-scoped "Phase" concept
+  at the problem level would collide with the existing one:
+  ```julia
+  abstract type AbstractProblem{T1,T2,D,SP<:MaterialPointPhase} end
+  struct MechanicalProblem{T1,T2,D,SP<:PointSolidPhase,...} <: AbstractProblem{T1,T2,D,SP}
+      mesh ::Mesh{T1,T2,D}
+      mpts ::Point{T1,T2,D,...,SP,...}
+  end
+  ```
+  A later `HydromechanicalProblem` (`mesh.s`+`mesh.f`, `mpts.s`+`mpts.f` — solid and
+  fluid both populated) is `AbstractProblem{T1,T2,D,SP}` too, sharing the same phase
+  type-parameter slot rather than a separate axis, once the staged hydro work below
+  lands (`PointFluidPhase` gaining real fields, plus a `MeshFluidPhase` counterpart to
+  `MeshSolidPhase`, which doesn't exist yet) — this `Problem` design is meant to be the
+  seam that work attaches to, not a redesign competing with it. Open questions for
+  whoever implements this: (1) does `setup_mesh`/`setup_mpts` construct `Mesh`/`Point`
+  directly and then get wrapped in `Problem`, or does a new `setup_problem` become the
+  entry point calling them internally; (2) does JLD2 persistence gain an
+  `ic["problem"]` key replacing today's separate `ic["mesh"]`/`ic["mpts"]`, or do those
+  stay as two keys with `Problem` only a construction-time/runtime convenience
+  wrapper; (3) `elastoplasm`/workflow call signatures
+  (`workflow!(mpts,mesh,basis,cmpr,time,solver)`) currently take `mesh`/`mpts` as
+  separate positional args at every kernel call site — full adoption means touching
+  most of `explicit/`+`dynamic_relaxation/`, a much bigger lift than just defining the
+  struct, so decide whether an initial version keeps kernels on separate `mesh`/`mpts`
+  args (with `Problem` only a thin outer-API/persistence convenience) versus threading
+  `Problem` all the way through kernels immediately.
+- **Kernel granularity**: `elast!` is the model to follow — decomposed into small
+  functions each doing one specific task (e.g. computing log strain), rather than one
+  monolithic kernel body. Other large kernels (e.g. `update.jl`'s `elastoplast`/
+  `elasto` dispatch functions, which branch on `strain.deform`/`basis.how` inline)
+  would benefit from being split the same way.
+- **Typed constitutive-model/tensor abstractions**, prototyped on branch
+  `fancy-implementation` (`git show origin/fancy-implementation:<path>` — not merged,
+  don't rebase onto it wholesale, see caveats below):
+  - `lagrangian.jl`'s `AbstractConstitutiveModel{T,D}` with concrete `PerfectlyElastic`/
+    `DruckerPrager` subtypes bundling *all* material parameters (elastic + plastic:
+    `Gc`, `Kc`, `Del`, `Hp`, `c₀`, `cᵣ`, `ϕ₀`, `state`) into one typed object per
+    particle (`cmp::Vector{CM}` on `PointSolidPhase`) — would replace the current split
+    `E<:AbstractElasticity`/`R<:AbstractRheology` component design plus the loose
+    `cmpr::NamedTuple` bag and `plast.constitutive::String` branch-dispatch in
+    `update.jl`'s `init_update`.
+  - `tensor.jl`'s `AbstractStrain`/`AbstractStress` typed tensors, each storing a
+    **volumetric/deviatoric split** rather than a flat Voigt vector, with small
+    dedicated functions per operation (`_trial_elastic_strain`, `_trial_elastic_stress`,
+    `get_J2`, `get_τII`, `_get_cauchy_stress`, ...) dispatched on tensor *type*
+    (`LogarithmicStrain`/`InfinitesimalStrain`, `CauchyStress`/`KirchhoffStress`)
+    instead of on strings — a concrete instance of the kernel-granularity item above.
+
+  Two caveats before adopting either: (1) that branch's `Point` embeds `basis::B`
+  directly and uses a type-level `D<:AbstractDimension` instead of the current
+  `D::Integer` — both predate/diverge from the current `Mesh`/`Point`/`Basis`
+  separation and integer-dimension convention, so re-implement the constitutive-
+  model/tensor ideas against the *current* architecture rather than merging that
+  branch's `Point`/`Basis` shape backward; (2) the branch itself looks mid-refactor —
+  `PerfectlyElastic` stores `Gc`/`Kc` as `Vector{T}` (one shared model, per-particle
+  vectors) while `DruckerPrager` stores them as scalar `T` (one model instance per
+  particle), an inconsistent convention for the same abstract type — so this isn't a
+  drop-in copy-paste even for the parts worth keeping.
+- **3D conformity check**: verify 3D simulations behave consistently across the
+  explicit solver's configuration space (basis kind, `stab.locking`, `strain.deform`)
+  — most of this session's verification was 2D-only.
+- **`basis.how`/`basis.ghost` are GIMP-specific concepts living in the generic `basis`
+  config section.** `how` (particle-domain update mode) is read unconditionally in
+  `update.jl`'s dispatch regardless of which basis kind is actually active, and
+  `ghost` similarly sits at the top level even though it only meaningfully matters for
+  `GimpBasis`'s wider stencil. Worth exploring moving both to live on `GimpBasis`
+  itself (construction-time fields, defaults, and validation co-located with the kind
+  that actually uses them) rather than as basis-kind-agnostic top-level knobs that
+  `bsmpm`/`smpm`/`mlsmpm` silently ignore.
+- **`Basis.N`/`∂N` storage rework**: currently plain `Matrix{T2}`/`Array{T2,3}`
+  specifically to dodge the StaticArrays allocation-elision limits documented below —
+  correct and fast, but a workaround rather than a considered data-layout design; worth
+  revisiting once/if a cleaner approach is found that doesn't reintroduce the
+  allocation regression.
+- **`smpm`'s isolated gradient-consistency glitch**: `test_basis.jl` found
+  `max|Σᵢ∂Nᵢ|` off by exactly `1.0` at one sweep point for `LinearBasis`, unlike
+  `gimpm`'s broadly-degraded boundary PoU. Never root-caused — an error of exactly
+  `1.0` smells like a real (if narrow, single-point) bug rather than float noise, worth
+  a closer look.
+- **`DynamicRelaxationSolver`'s fate**: now that `solution` picks between
+  `ExplicitSolver`/`ImplicitSolver` only (see "Controlling solver behaviour" below),
+  this third struct is even more clearly orphaned than before. Decide: wire it in as a
+  third `solution` value with real semantics, or state plainly (here, or in
+  `solver.jl`) that it's intentionally dormant scaffolding, so nobody "completes" the
+  selection logic to include it without knowing whether that's actually wanted.
+- **Staged path to a poro-hydro-mechanical solution: mechanical solver (already
+  exists) → standalone fluid-only (hydro) solver → fuse the two.** Intent is to build
+  and validate the hydro solver independently before attempting coupling, rather than
+  designing the coupled solve first. The fluid-only solver needs `PointFluidPhase`
+  (`lagrangian.jl`) to gain real fields — it's currently a literally empty placeholder
+  struct (`# Add concrete fields as needed`), `mpts.f` is always `nothing` in
+  practice — plus its own workflow entry point, e.g. a `hydrodynamic!` in
+  `explicit/worflow.jl` mirroring `elastodynamic!`, with its own P2G/G2P/update kernel
+  path (mirroring `mapsto`/`update`'s structure) before any
+  solid-fluid coupling work is meaningful.
+- **Check correctness and viability of the thermal solution.** `PointThermalPhase`
+  has real fields (`c`, `k`, `q`, `T`) and several kernels reference it
+  (`update/fun/heatflux.jl`, the `MeshThermalPhase` branches of `std_p2n`/`augm_p2n`/
+  `n2p`), but those branches read `mpts.ϕ∂ϕ[nn,p,:]` — a field that does not exist
+  anywhere on `Point` (confirmed by grep; see the caching-design note above for the
+  fields that *do* exist). Any thermal-phase workflow would throw immediately if
+  actually exercised — needs a real audit of whether this path was ever functional
+  after the `Basis`/shape-function refactors, or needs rebuilding against the current
+  `basis.N`/`∂N` cache the way the solid phase already was.
+- **Add a JLD2 time-series export option, as an alternative to plot-only checkpoints.**
+  Every workflow's time loop (`explicit/worflow.jl`) computes `checks =
+  sort(collect(time.t[1]:solver.plot.freq:time.te))` and calls `bake(mpts,mesh,t,solver)`
+  at each checkpoint — but `bake` (`src/home/plot/bake.jl`) only does anything if
+  `solver.plot.status` is true, and in that case it unconditionally renders/saves a PNG
+  via `get_plot_field`. There is currently no way to record a field's evolution as raw
+  data: to get numbers out today you must either turn on plotting and get pixels, not
+  values, or write ad hoc postprocessing against final-state-only JLD2 output. A natural
+  fix reuses the same `checks` cadence and `solver.plot.what`-style field selection to
+  instead (or additionally) append selected `mpts`/`mesh` field values into a JLD2
+  dataset at each checkpoint — effectively a `plot.status`-style toggle (e.g.
+  `export.status`/`export.what`) sitting next to `bake()` in the workflow loop rather
+  than replacing it. Writing the export is only half the feature: nothing today reads
+  a saved time series back out either — `metanalysis.jl`'s `extract_field_data`/
+  `postprocess_fields` is the closest existing precedent (it already loads a field via
+  `get_mpts_variable_config()` and plots it, but only ever from *final-state* JLD2
+  output across many single-timestep simulation runs, never a time axis within one
+  run). A companion loader/plotter that opens one run's exported time-series dataset
+  and plots a field's evolution over `t` (reusing `get_mpts_variable_config()` for
+  field metadata the same way `metanalysis.jl`/`bake.jl` already do) would need to be
+  built alongside the export itself, not as a separate follow-up — an export nobody
+  can read back is not actually useful on its own.
+
+## Precision (32-bit) and StaticArrays performance gotchas
+
+`dtype=(;T0=(Int32,Float32),bits=Int32(32),...)` is a supported but rarely-exercised
+path — the default is always `(Int64,Float64)`, so bugs that only manifest under
+`T1=Int32`/`T2=Float32` silently pass every day-to-day test. Two concrete patterns
+found and fixed by actually running an `Int32`/`Float32` `ic_slump`→`elastoplasm`
+end-to-end (not just skimming the code):
+
+- **`@index(Global)` inside a `@kernel` function is always `Int64`**, regardless of the
+  solver's index type `T1`. Passing it straight into anything dispatching on `::T1`
+  (e.g. `eval_basis(mpts,mesh,basis,ip::T1,nn::T1)`) throws a `MethodError` under
+  `T1=Int32` — silently fine under the default `T1=Int64` only by coincidence. Always
+  wrap it: `T1(p)`.
+- **Bare numeric literals (`2.0`, `0.5`, `1/3`, ...) silently promote to `Float64`**,
+  even inside a function generic over `T2`. Innocuous under the default `T2=Float64`,
+  but under `T2=Float32` it produces a mix of `Float32`/`Float64` values that eventually
+  hits a `MethodError` at whatever call site requires them to match (often several
+  functions downstream of where the literal actually is — the error site is not the bug
+  site). Always write `T2(2.0)` etc., never a bare literal, in any function generic over
+  a float type parameter.
+
+Separately, when caching per-particle results into a `Vector{SVector}`/`Vector{SMatrix}`
+(or building one from scratch) inside a hot loop: **bundling `NN` computed values into
+one whole-object `SVector{NN,...}`/`SMatrix{NN,D,...}` can silently heap-allocate**,
+even when every intermediate step is individually zero-alloc in isolation — Julia's
+escape analysis has a complexity/size cutoff past which it gives up eliding the
+allocation, and this was empirically true regardless of *how* the object was built
+(`MVector` buffer, `ntuple`/`Val`, `hcat`, a flat tuple — all ~allocated the same
+amount for `NN=16`). Two mitigations that measurably worked here (see `Basis.N`/`∂N`
+above): (1) `ntuple(f, n)` needs `n` as `Val(n)`, not a plain `Int`, to compile-time
+unroll — even when `n` is itself a type parameter, if it's used as a runtime value it
+won't unroll; (2) store the *whole cached collection* as a plain `Matrix`/`Array` (like
+`Point`'s pre-existing `Δnp`/`Dᵢⱼ` fields) written via scalar element assignment,
+rather than as a `Vector` of per-particle `SVector`/`SMatrix` objects — reading a row
+back out via `M[nn,:]` still allocates for a runtime `nn`, so read it back via a small
+`Val`-unrolled `ntuple` (see `∂Nrow` in `basis.jl`) instead of array-slicing syntax.
+Always verify with `@allocated`/`@code_typed` in a wrapping *function* (not top-level
+REPL scope, which has its own unrelated allocation noise) rather than assuming a
+StaticArrays-based kernel is allocation-free because it "looks" that way.
 
 ## Persistence (JLD2)
 
@@ -111,8 +394,9 @@ out   = elastoplasm(jld2; workflows = [elastodynamic!, elastoplastic!])
   the same `(mpts, mesh, basis, cmpr, time, solver)` call signature.
 - Plotting is opt-in via `solver.plot.status` (set through `ic_slump`'s `plot=(...)`
   kwarg or `cli()`); when on, `elastoplasm` auto-saves a PNG per workflow named
-  `"$(dim)d_$(solvertype)_$(deform)_$(workflow)_$(quantity).png"` under the run's
-  `dump/.../plot` path.
+  `"$(dim)_$(basis.which)_$(solvertype)_$(deform)_$(workflow)_$(quantity).png"` under
+  the run's `dump/.../plot` path (`basis.which` was added so runs that only differ by
+  basis kind don't silently overwrite each other's output).
 
 ### Running tests / benchmarks
 
@@ -135,24 +419,61 @@ global ROOT, DATASET = joinpath(pwd(),"test"), joinpath(pwd(),"test","dataset")
 include("test/testset/test_performance.jl")
 ```
 
-`test_performance.jl` benchmarks core kernels directly via `solver.cairn.*` and compares
-against `test/dataset/performance_baseline.jld2` (keyed by CPU name); delete/update that
-file deliberately if a change is a genuine, intended perf shift rather than a regression.
+`test_performance.jl` benchmarks core kernels directly via `solver.cairn.*` (including
+`ignite.shpfun!`) and compares against `test/dataset/performance_baseline.jld2` (keyed
+by CPU name); delete/update that file deliberately if a change is a genuine, intended
+perf shift rather than a regression.
+
+`test_basis.jl` builds a small `n×m` mesh and, for every basis kind, sweeps a particle
+along the mid-height node row, plotting each tracked node's `Nᵢ(x)`/`∂Nᵢ/∂x(x)` and the
+partition-of-unity `Σᵢ Nᵢ(x)` — useful both as a quick correctness check on a new/changed
+basis kind and as a way to visually confirm findings like the `GimpBasis` boundary PoU
+issue (see Known bugs). Both this file and `test_performance.jl` report their numeric
+checks informationally (`println`, not hard `@test` gates) — deliberately, since not
+every basis kind is expected to hold e.g. exact PoU everywhere, so a strict `@test`
+would be a false failure rather than a real regression signal. When adding LaTeX to a
+generated figure (`LaTeXStrings.jl`, already a project dependency): use it for genuine
+math expressions (axis labels, legend entries like `L"N_i(x)"`) but keep plain
+identifiers — basis kind names, etc. — as plain strings; wrapping a multi-letter plain
+word in math mode (e.g. `\mathrm{bsmpm}`) does not render reliably under the default GR
+backend's mathtext support and was an actual bug hit while building `test_basis.jl`.
 
 ### Controlling solver behaviour via `defaults.jl`
 
-`get_default()` (`src/home/api/solver/defaults.jl`) returns `(solver_type, default)`
-where `default` is the base `NamedTuple` config merged by `get_solver` — this is the
-single place that defines every tunable knob and its out-of-the-box value:
+`get_default()` (`src/home/api/solver/defaults.jl`) returns just `default`, the base
+`NamedTuple` config merged by `get_solver` — this is the single place that defines
+every tunable knob and its out-of-the-box value. (It used to also return a hardcoded
+`solver_type` — `ExplicitSolver` always, even for `dynamic_relaxation` runs — that's
+gone now; see `solution` below for how the concrete type is chosen instead.)
 
+- `solution` — `"explicit"`/`"implicit"`, plain user-facing string picking the concrete
+  solver struct at construction time in `get_solver.jl` (`ExplicitSolver`/
+  `ImplicitSolver` — both share the same field layout, `DynamicRelaxationSolver` is
+  unused scaffolding, not wired into this selection). This is also what
+  `elastoplasm.jl`'s generated filenames and `logs.jl`'s startup banner print
+  (`solver.solution`) — previously they used `nameof(typeof(solver))`, which printed
+  the literal type name `"ExplicitSolver"` even for `dynamic_relaxation` runs, since
+  every run constructed that one type regardless of what it was actually doing.
+  Picking `solution="explicit"` and then calling an implicit-only workflow (or vice
+  versa) now fails with a `MethodError` at the workflow call, not silently — those
+  workflow entry points (`elastodynamic!`/`elastoplastic!` in `worflow.jl`) are typed
+  to their specific concrete solver struct on purpose. The shared `ignite()`
+  (`core/common/ignite.jl`) is the one place dispatching on the abstract
+  `AbstractSolver` instead, since both `elastodynamic!`/`elastoplastic!` *and*
+  `elastoquasistatic!` (`dynamic_relaxation`) call it regardless of `solution`.
 - `dtype` — arithmetic precision (`bits`, element types `T0`)
-- `basis` — `which` (`"bsmpm"`/`"gimpm"`/`"smpm"`, see `get_basis`), `how` (GIMP domain
-  update mode: `"detFij"`/`"Fii"`/`"Uii"` finite, `"detΔFij"`/`"ΔFii"`/`"ΔUii"`
-  infinitesimal), `ghost` (ghost-node count)
-- `fwrk` — `deform` (`"finite"`/`"infinitesimal"`), `trsfr` (transfer scheme:
-  `"std"`/`"tpic"`/`"apic"`), `C_pf` (PIC/FLIP blend), `musl` (MUSL velocity
-  reprojection on/off), `locking` (F-bar volumetric locking correction on/off),
-  `damping`
+- `basis` — `which` (`"bsmpm"`/`"gimpm"`/`"smpm"`/`"mlsmpm"`, see `get_basis`), `how`
+  (GIMP domain update mode: `"detFij"`/`"Fii"`/`"Uii"` finite, `"detΔFij"`/`"ΔFii"`/
+  `"ΔUii"` infinitesimal), `ghost` (ghost-node count)
+- `strain` — `deform` (`"finite"`/`"infinitesimal"`)
+- `transfer` — `trsfr` (transfer scheme: `"std"`/`"tpic"`/`"apic"`), `C_pf` (PIC/FLIP
+  blend), `musl` (MUSL velocity reprojection on/off)
+- `stab` — `locking` (F-bar volumetric locking correction on/off), `damping`
+
+  (`strain`/`transfer`/`stab` used to be one flat `fwrk` block — split by concern since
+  `deform`, the transfer-scheme knobs, and the stabilization knobs are three genuinely
+  separate things that happened to share a vague name. `ExplicitSolver`/`ImplicitSolver`
+  now carry three corresponding fields instead of one `fwrk` field.)
 - `bcs` — `dirichlet` boundary condition matrix, one `[lower upper]` row per dimension
 - `grf` — Gaussian random field generator for heterogeneous cohesion/friction fields
   (`status` toggles it on; see `GRF.jl`)
@@ -172,11 +493,11 @@ Two ways to change solver behaviour:
    whose keys already exist in `default` (unrecognized kwargs just get a `@warn`, not
    an error), then deep-merges them over `default` via `merge(ref, user)`. Note this is
    a shallow-per-key merge — to override one field of a nested `NamedTuple` block
-   (e.g. just `fwrk.trsfr`) you must pass the *whole* `fwrk = (; deform=..., trsfr=...,
-   ...)` NamedTuple, not just the one field, since `merge` replaces the whole `:fwrk`
-   entry rather than recursing into it. Example:
+   (e.g. just `transfer.trsfr`) you must pass the *whole* `transfer = (; trsfr=...,
+   C_pf=..., musl=...)` NamedTuple, not just the one field, since `merge` replaces the
+   whole `:transfer` entry rather than recursing into it. Example:
    ```julia
-   ic_slump(L, nel; basis=(;which="gimpm",how="Uii",ghost=0), fwrk=(;deform="finite",trsfr="apic",C_pf=1.0,musl=true,locking=true,damping=0.1))
+   ic_slump(L, nel; basis=(;which="gimpm",how="Uii",ghost=0), strain=(;deform="finite"), transfer=(;trsfr="apic",C_pf=1.0,musl=true), stab=(;locking=true,damping=0.1))
    ```
 2. **Change the package-wide default** — edit the literal value in `get_default()`
    directly. Do this only for a genuine change of the shipped default behaviour, not
@@ -188,7 +509,12 @@ top-level block) in `get_default()`'s `default` NamedTuple, then threaded throug
 wherever `init_ignite`/`init_mapsto`/`init_update`/`init_implicit` (in `get_solver.jl`
 and the `explicit`/`dynamic_relaxation` solver files) branch on `instr[:section][:key]`
 to select kernels — grep those `init_*` functions for the existing pattern
-(`instr[:fwrk][:trsfr] == "apic"`-style branches) before adding a new one.
+(`instr[:transfer][:trsfr] == "apic"`-style branches) before adding a new one. If the
+new field belongs on the solver struct itself (like `solution` did), it also needs
+threading through `ExplicitSolver`'s/`ImplicitSolver`'s field list
+(`src/boot/needs/types/concrete/solver.jl`) and the corresponding positional arg in
+`get_solver.jl`'s final constructor call — both structs are kept in lockstep by hand,
+there's no shared base struct to edit once.
 
 ### Using `cli()`
 
@@ -201,8 +527,9 @@ tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `ic_slump`/
   automated runs (`ic_slump(L, nel; cli()...)`) — it's the plain-defaults path, not a
   prompt.
 - `cli(ui=true)` — **interactive**: first shows a `MultiSelectMenu` letting you pick
-  which top-level sections to configure (`dtype`, `basis`, `fwrk`, `grf`, `plast`,
-  `nonloc`, `plot`, `perf`, `backend`); for each selected section it walks
+  which top-level sections to configure (`solution`, `dtype`, `basis`, `strain`,
+  `transfer`, `stab`, `grf`, `plast`, `nonloc`, `plot`, `perf`, `backend`); for each
+  selected section it walks
   `get_option()` (the parallel tree of `("prompt", [choices])` tuples) and shows a
   `RadioMenu`/`MultiSelectMenu` per leaf option (nested sections like `grf.param.Iₓ`
   are handled recursively; sections with a `status` field skip their sub-prompts when
@@ -218,7 +545,7 @@ tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `ic_slump`/
   pass the full nested `NamedTuple` for a section, not just the one field you want to
   change.
 - `get_option()` is also useful standalone as a reference for what values are actually
-  valid per key (e.g. `get_option().fwrk.trsfr` → `["std", "tpic", "apic"]`) — treat it
+  valid per key (e.g. `get_option().transfer.trsfr` → `["std", "tpic", "apic"]`) — treat it
   as the source of truth for valid choices, since some of `get_default()`'s tunables
   (e.g. `plast.constitutive`) accept values `get_option()` doesn't fully enumerate
   (check `init_update`'s dispatch in `update/update.jl` if in doubt whether a value is
@@ -241,6 +568,13 @@ tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `ic_slump`/
 - `test/testset/test_performance.jl` benchmarks core kernels directly via
   `solver.cairn.*`; keep it in sync with the `Cairn` dispatch-table shape whenever that
   shape changes.
+- `using ElastoPlasm` flushes (deletes) everything under `dump/` on load
+  (`rootflush`, `src/boot/needs/utils.jl`) if that directory already has contents.
+  Never run more than one `julia --project=. -e '...'` invocation against this repo
+  concurrently while any of them is still writing to `dump/` — a second session's
+  `using ElastoPlasm` will delete the first session's still-in-progress output out from
+  under it (this produced a very confusing "No such file or directory" `savefig` error
+  mid-session before the actual cause — concurrent sessions, not a real bug — was found).
 
 ## Commit message conventions
 

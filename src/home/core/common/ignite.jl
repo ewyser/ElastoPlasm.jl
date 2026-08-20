@@ -13,8 +13,10 @@ Initialize shape function and topology kernels for the MPM algorithm.
 """
 function init_ignite(instr::NamedTuple; ignite::Dict{Symbol,Cairn} = Dict{Symbol,Cairn}(),)
     # topology function
-    ignite[:tplgy!] = p2e2n(CPU())
-    if instr[:fwrk][:trsfr] == "apic"
+    ignite[:tplgy!]  = p2e2n(CPU())
+    # cache shape values/gradients for all basis kinds, once per particle per timestep
+    ignite[:shpfun!] = shpfun!(CPU())
+    if instr[:transfer][:trsfr] == "apic"
         ignite[:Dᵢⱼ!] = Dij_nd(CPU()) 
     end    
     return (;ignite...)
@@ -32,11 +34,13 @@ Initialize and compute shape functions and topological relations for material po
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function ignite(mpts::Point,mesh::Mesh,basis::Basis,solver::ExplicitSolver)
+function ignite(mpts::Point,mesh::Mesh,basis::Basis,solver::AbstractSolver)
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
     solver.cairn.ignite.tplgy!(mpts,mesh,basis; ndrange=(mpts.nmp));sync(CPU())
+    # cache shape values/gradients for all NN neighbors of every particle
+    solver.cairn.ignite.shpfun!(mpts,mesh,basis; ndrange=(mpts.nmp));sync(CPU())
     # calculate identity shape functions
-    if solver.fwrk.trsfr == "apic"
+    if solver.transfer.trsfr == "apic"
         solver.cairn.ignite.Dᵢⱼ!(mpts,mesh,basis; ndrange=(mpts.nmp));sync(CPU())
     end
     return nothing

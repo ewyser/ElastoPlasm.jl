@@ -80,7 +80,10 @@ function run_collapse_convergence_tests(solver, fwrk)
     errors[1], hs[1] = Inf, Inf
     for (k, nel) ∈ enumerate(nels)
         @testset "- nel = $nel" verbose = true begin
-            sim = ic_collapse(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse",fwrk=fwrk,)
+            strain   = (; deform = fwrk.deform)
+            transfer = (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf, musl = fwrk.musl)
+            stab     = (; locking = fwrk.locking, damping = fwrk.damping)
+            sim = ic_collapse(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse", strain=strain, transfer=transfer, stab=stab)
             
             setup = load_simulation_setup(sim)
             err = compute_collapse_error(sim, l0, solver)

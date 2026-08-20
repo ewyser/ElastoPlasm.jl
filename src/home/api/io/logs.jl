@@ -102,13 +102,13 @@ function elastoplasm_log(solver::S; msg::String="elastodynamic") where {T1<:Inte
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "└ $(nthreads()) active thread(s)",
-        "- solver: $(string(nameof(typeof(solver))))",
-        "- $(solver.fwrk.deform) strain formulation",
-        "- $(solver.fwrk.trsfr) mapping scheme",
+        "- solver: $(solver.solution)",
+        "- $(solver.strain.deform) strain formulation",
+        "- $(solver.transfer.trsfr) mapping scheme",
         "- $(solver.basis.which) calculation cycle",
     ]
     # add optional lines only if the corresponding flags are true
-    if solver.fwrk.locking
+    if solver.stab.locking
         push!(logs, "- F-bar locking mitigation")
     end
     if solver.nonloc.status && occursin("plastic",msg)

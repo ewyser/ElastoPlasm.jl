@@ -46,9 +46,9 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedT
     # initial velocity (if provided)
     vp = haskey(geom, :vp) ? geom.vp : zeros(size(xp))
     # constructor - create components
-    if solver.fwrk.deform == "finite"
+    if solver.strain.deform == "finite"
         elast = FiniteElasticity(T1, T2, nmp, D)
-    elseif solver.fwrk.deform == "infinitesimal"
+    elseif solver.strain.deform == "infinitesimal"
         elast = LinearElasticity(T1, T2, nmp, D)
     end
 

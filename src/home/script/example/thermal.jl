@@ -59,7 +59,7 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
     # display summary
     @info ic_log(mesh,mpts,time,instr)
     misc = (;
-        prefix = "$((length(mesh.prprt.nel)-1))d_$(instr[:fwrk][:trsfr])"
+        prefix = "$((length(mesh.prprt.nel)-1))d_$(instr[:transfer][:trsfr])"
     )
     # export to jld2 file and return path
     return export_setup(mesh,mpts,cmpr,time,instr,paths,misc; path = paths[:dat], file = "thermal_simulation")
