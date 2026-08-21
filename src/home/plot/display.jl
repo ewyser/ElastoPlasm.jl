@@ -24,6 +24,9 @@ display(p)
 - Throws an error if the requested field is not defined.
 """
 function what_plot_field(mpts::Point{T1,T2,D,E,R},opts) where {T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology}
+    if get(opts, :key, nothing) == "domain"
+        return plot_domain_boxes(mpts, opts)
+    end
     # Extract data using the data function from opts, scaled to the display unit
     data = opts.data(mpts) .* opts.scale
     if isnothing(opts.cblim)
@@ -56,6 +59,36 @@ function what_plot_field(mpts::Point{T1,T2,D,E,R},opts) where {T1,T2,D,E<:Abstra
         label       = opts.label * " in " * opts.unit,
         color       = opts.cb,
         clim        = clim,
+        xlim        = opts.xlim,
+        ylim        = opts.ylim,
+        title       = opts.tit,
+        aspect_ratio= 1,
+        size        = opts.dims,
+    )
+end
+
+"""
+    plot_domain_boxes(mpts, opts) -> Plot
+
+Render each material point's GIMP domain as a box (2×`mpts.ℓ[ip]` wide, centered at
+`mpts.x[ip]`).
+"""
+function plot_domain_boxes(mpts::Point{T1,T2,D}, opts) where {T1,T2,D}
+    ax1, ax2 = D == 2 ? (1,2) : (1,3)
+    boxes = Vector{Shape}(undef, length(mpts.x))
+    for ip in eachindex(mpts.x)
+        x1, x2 = mpts.x[ip][ax1], mpts.x[ip][ax2]
+        l1, l2 = mpts.ℓ[ip][ax1], mpts.ℓ[ip][ax2]
+        boxes[ip] = Shape([x1-l1,x1+l1,x1+l1,x1-l1],[x2-l2,x2-l2,x2+l2,x2+l2])
+    end
+    return plot(boxes;
+        fillalpha   = 0.35,
+        fillcolor   = :steelblue,
+        linecolor   = :steelblue,
+        linewidth   = 0.5,
+        xlabel      = L"$x-$direction"*" [m]",
+        ylabel      = L"$z-$direction"*" [m]",
+        label       = false,
         xlim        = opts.xlim,
         ylim        = opts.ylim,
         title       = opts.tit,
