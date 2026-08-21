@@ -62,7 +62,7 @@ end
             for (l, basis) in enumerate(cfg_basis)
                 @testset "$(basis.which) basis" verbose = true begin
                     for (m, fwrk) in enumerate(cfg_fwrk)
-                        @testset "$(fwrk.deform), $(fwrk.trsfr), locking=$(fwrk.locking)" verbose = true begin
+                        @testset "$(fwrk.deform), $(fwrk.trsfr), locking=$(fwrk.locking), musl=$(fwrk.musl)" verbose = true begin
                             name = "slump_$(geom.dim)d_$(basis.which)_$(fwrk.deform)_$(fwrk.trsfr)_lock$(fwrk.locking)_musl$(fwrk.musl)"
                             status = false
                             try
