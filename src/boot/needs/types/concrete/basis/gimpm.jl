@@ -14,19 +14,28 @@ struct GimpBasis{T,D,NN} <: AbstractBasis
     end
 end
 
-@inline function S∂S(δx::T2,h::T2,lp::T2) where {T2}                                                       
-    S,∂S = T2(0.0),T2(0.0)
-    if abs(δx) < lp                       
-        S  = T2(1.0)-((T2(4.0)*δx^2+(T2(2.0)*lp)^2)/(T2(8.0)*h*lp))                                   
-        ∂S = -((T2(8.0)*δx)/(T2(8.0)*h*lp))                                     
-    elseif (abs(δx)>=lp ) && (abs(δx)<=(h-lp))
-        S  = T2(1.0)-(abs(δx)/h)                                                       
-        ∂S = sign(δx)*(-T2(1.0)/h)                                                   
-    elseif (abs(δx)>=(h-lp)) && (abs(δx)< (h+lp))
-        S  = ((h+lp-abs(δx))^2)/(T2(4.0)*h*lp)                                       
-        ∂S = -sign(δx)*(h+lp-abs(δx))/(T2(2.0)*h*lp)
+@inline function S∂S(δx::T2,h::T2,lp::T2) where {T2}
+    # Follows AMPLE-m's SvpGIMP.m (Bardenhagen & Kober 2004); region labels A-E as in the AMPLE paper.
+    # δx is the signed (particle - node) offset, matching AMPLE's `xp-xv`.
+    if (-h-lp) < δx <= (-h+lp)                    # A: partial overlap of domain and element
+        S  = (h+lp+δx)^2/(T2(4.0)*h*lp)
+        ∂S = (h+lp+δx)/(T2(2.0)*h*lp)
+    elseif (-h+lp) < δx <= -lp                    # B: full overlap of domain and element (left)
+        S  = T2(1.0)+δx/h
+        ∂S = T2(1.0)/h
+    elseif -lp < δx <= lp                         # C: partial overlap of domain and two elements
+        S  = T2(1.0)-(δx^2+lp^2)/(T2(2.0)*h*lp)
+        ∂S = -δx/(h*lp)
+    elseif lp < δx <= (h-lp)                      # D: full overlap of domain and element (right)
+        S  = T2(1.0)-δx/h
+        ∂S = -T2(1.0)/h
+    elseif (h-lp) < δx <= (h+lp)                  # E: partial overlap of domain and element
+        S  = (h+lp-δx)^2/(T2(4.0)*h*lp)
+        ∂S = -(h+lp-δx)/(T2(2.0)*h*lp)
+    else                                            # zero overlap
+        S,∂S = T2(0.0),T2(0.0)
     end
-    return S,∂S    
+    return S,∂S
 end
 @inline function eval_basis(mpts::Point{T1,T2,1,E,R}, mesh::Mesh{T1,T2,1}, basis::Basis{T1,T2,1,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:GimpBasis,E,R}
     no = basis.p2n[ip][nn]
