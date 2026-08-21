@@ -18,10 +18,12 @@ println(cfg.basis.which)  # prints the default basis type
 ```
 
 # Configuration Keys
-- `:dtype`   — Arithmetic precision (e.g., 64 for Float64)
-- `:basis`   — Shape function type and options
-- `:fwrk`    — Deformation framework and transfer scheme
-- `:bcs`     — Boundary condition settings
+- `:dtype`    — Arithmetic precision (e.g., 64 for Float64)
+- `:basis`    — Shape function type and options
+- `:strain`   — Strain formulation (finite/infinitesimal)
+- `:transfer` — P2G/G2P transfer scheme and its blend/MUSL knobs
+- `:stab`     — Numerical stabilization (F-bar locking correction, damping)
+- `:bcs`      — Boundary condition settings
 - `:grf`     — Gaussian Random Field generator options
 - `:plast`   — Plasticity onset and flow law
 - `:nonloc`  — Non-local regularization options
@@ -29,8 +31,8 @@ println(cfg.basis.which)  # prints the default basis type
 - `:perf`    — Performance mode options
 """
 function get_default()
-    solver  = ExplicitSolver
     default = (;
+        solution = "explicit",
         dtype = (;
             T0 = (Int64,Float64),
             bits = Int64(64),
@@ -41,11 +43,15 @@ function get_default()
             how = nothing,
             ghost = 0,
         ),
-        fwrk  = (;
+        strain   = (;
             deform = "finite",
+        ),
+        transfer = (;
             trsfr = "std",
-            C_pf = 1.0, 
+            C_pf = 1.0,
             musl = true,
+        ),
+        stab     = (;
             locking = true,
             damping = 0.1
         ),
@@ -76,7 +82,7 @@ function get_default()
             status = true,
             freq   = 1.0,
             dpi    = 500,
-            what   = [(;mpts=get_mpts_variable_config()["P"]),],
+            what   = [(;mpts=get_mpts_variable_config()["epII"]),],
         ),
         perf  = (;
             status=false,
@@ -86,5 +92,5 @@ function get_default()
             distributed=false
         ),
     )
-    return solver, default
+    return default
 end

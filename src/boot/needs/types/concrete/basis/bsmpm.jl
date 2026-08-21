@@ -92,37 +92,37 @@ end
     return ϕ,∂ϕ*Δx⁻¹ 
 end
 
-@inline function eval_basis(mpts::Point{T1,T2,1,E,R}, mesh::Mesh{T1,T2,1}, basis::Basis{T1,1,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E,R}
+@inline function eval_basis(mpts::Point{T1,T2,1,E,R}, mesh::Mesh{T1,T2,1}, basis::Basis{T1,T2,1,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E,R}
     no = basis.p2n[ip][nn]
     if iszero(no)
         N, ∂N  = T2(0.0), SVector{1,T2}(0.0)
     else
-        ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[ip][1]-mesh.x[no][1]),mesh.type[1,no],mesh.prprt.h[1])
+        ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[ip][1]-mesh.x[no][1]),basis.type[1,no],mesh.prprt.h[1])
         # return convolution of basis function
         N, ∂N  = T2(ϕξ), SVector{1,T2}(∂ϕξ)
     end
     return no, N, ∂N
 end
-@inline function eval_basis(mpts::Point{T1,T2,2,E,R}, mesh::Mesh{T1,T2,2}, basis::Basis{T1,2,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E,R}
+@inline function eval_basis(mpts::Point{T1,T2,2,E,R}, mesh::Mesh{T1,T2,2}, basis::Basis{T1,T2,2,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E,R}
     no = basis.p2n[ip][nn]
     if iszero(no)
         N, ∂N  = T2(0.0), SVector{2,T2}(0.0, 0.0)
     else
-        ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[ip][1]-mesh.x[no][1]),mesh.type[1,no],mesh.prprt.h[1])
-        ϕη,∂ϕη = ϕ∂ϕ((mpts.x[ip][2]-mesh.x[no][2]),mesh.type[2,no],mesh.prprt.h[2])
+        ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[ip][1]-mesh.x[no][1]),basis.type[1,no],mesh.prprt.h[1])
+        ϕη,∂ϕη = ϕ∂ϕ((mpts.x[ip][2]-mesh.x[no][2]),basis.type[2,no],mesh.prprt.h[2])
         # Construct the convolution of basis function and derivatives
         N, ∂N  = T2(ϕξ*ϕη), SVector{2,T2}(∂ϕξ*ϕη, ϕξ*∂ϕη)
     end
     return no, N, ∂N
 end
-@inline function eval_basis(mpts::Point{T1,T2,3,E,R}, mesh::Mesh{T1,T2,3}, basis::Basis{T1,3,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E,R}
+@inline function eval_basis(mpts::Point{T1,T2,3,E,R}, mesh::Mesh{T1,T2,3}, basis::Basis{T1,T2,3,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E,R}
     no = basis.p2n[ip][nn]
     if iszero(no)
         N, ∂N  = T2(0.0), SVector{3,T2}(0.0, 0.0, 0.0)
     else
-        ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[ip][1]-mesh.x[no][1]),mesh.type[1,no],mesh.prprt.h[1])
-        ϕη,∂ϕη = ϕ∂ϕ((mpts.x[ip][2]-mesh.x[no][2]),mesh.type[2,no],mesh.prprt.h[2])
-        ϕζ,∂ϕζ = ϕ∂ϕ((mpts.x[ip][3]-mesh.x[no][3]),mesh.type[3,no],mesh.prprt.h[3])
+        ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[ip][1]-mesh.x[no][1]),basis.type[1,no],mesh.prprt.h[1])
+        ϕη,∂ϕη = ϕ∂ϕ((mpts.x[ip][2]-mesh.x[no][2]),basis.type[2,no],mesh.prprt.h[2])
+        ϕζ,∂ϕζ = ϕ∂ϕ((mpts.x[ip][3]-mesh.x[no][3]),basis.type[3,no],mesh.prprt.h[3])
         # Construct the convolution of basis function and derivatives
         N, ∂N  = T2(ϕξ*ϕη*ϕζ), SVector{3,T2}(∂ϕξ*ϕη*ϕζ, ϕξ*∂ϕη*ϕζ, ϕξ*ϕη*∂ϕζ)
     end

@@ -21,7 +21,7 @@ function runtests()
         nothing
     else
         try
-            options = options[collect(request("Select device(s):",MultiSelectMenu(options; charset=:ascii)))]
+            options = options[collect(request("Select test case(s):",MultiSelectMenu(options; charset=:ascii)))]
         catch
             nothing
         end

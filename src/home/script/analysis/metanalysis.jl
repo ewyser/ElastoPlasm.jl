@@ -11,34 +11,47 @@ Prepare mesh and material points for all simulation configurations.
 - `nsim`: Total number of simulations prepared
 """
 function prepare_simulations!(L, nel, fid, paths)
-    deforms, trfrs = ["finite", "infinitesimal"], ["std", "tpic", "apic"]
-    sim, nsim = 1, length(deforms) * length(trfrs)
+    basis, deforms, trfrs = ["mlsmpm","bsmpm","gimpm","smpm"], ["finite", "infinitesimal"], ["std", "tpic", "apic"]
+    sim, nsim = 1, length(basis) * length(deforms) * length(trfrs)
     
     @info "Running metanalysis for $(length(L))d slump problem"
     prog = make_progress(nsim; desc="Preparing simulation(s)")
-    for (i, deform) ∈ enumerate(deforms)
-        for (j, trsfr) ∈ enumerate(trfrs)
-            fwrk = (;
-                deform = deform,
-                trsfr = trsfr,
-                C_pf = 1.0,
-                musl = true,
-                locking = true,
-                damping = 0.1
-            )
-            plot = (;
-                status = false,
-                freq = 1.0,
-                dpi = 500,
-                what = [(; mpts=(name="epII", cblim=(0.0, 1.5)),),],
-            )
-            @suppress begin
-                _ = ic_slump(L, nel; fid="$fid/sim_$sim", fwrk=fwrk, plot=plot)
+    
+    for (h, shp) ∈ enumerate(basis)
+        for (i, deform) ∈ enumerate(deforms)
+            for (j, trsfr) ∈ enumerate(trfrs)
+                basis = (;
+                    which = shp,
+                    how = nothing,
+                    ghost = 0,
+                )
+                strain = (;
+                    deform = deform,
+                )
+                transfer = (;
+                    trsfr = trsfr,
+                    C_pf = 1.0,
+                    musl = true,
+                )
+                stab = (;
+                    locking = false,
+                    damping = 0.1
+                )
+                plot = (;
+                    status = false,
+                    freq = 1.0,
+                    dpi = 500,
+                    what = [(; mpts=(name="epII", cblim=(0.0, 1.5)),),],
+                )
+                @suppress begin
+                    _ = ic_slump(L, nel; fid="$fid/sim_$sim", strain=strain, transfer=transfer, stab=stab, plot=plot)
+                end
+                next!(prog; desc="Preparing simulation(s) $sim/$nsim...")
+                sim += 1
             end
-            next!(prog; desc="Preparing simulation(s) $sim/$nsim...")
-            sim += 1
         end
     end
+
     return nsim
 end
 

@@ -14,15 +14,16 @@ Update material point velocities and positions from solid-type mesh nodes using 
 # Single generic kernel replaces the former 1D/2D/3D variants.
 # SVector arithmetic lets us accumulate whole nodal vectors in one pass,
 # eliminating the redundant δvFLIP variables and the duplicate loop.
-@kernel inbounds = true function picflip_n2p(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,D},dt::T2,C_pf::T2) where {T1,T2,D}
+@kernel inbounds = true function picflip_n2p(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},dt::T2,C_pf::T2) where {T1,T2,D}
     p = @index(Global)
     if p ≤ mpts.nmp
         TV    = eltype(mesh.s.v)
         vPIC  = zero(TV)
         aFLIP = zero(TV)
         for nn ∈ 1:mesh.prprt.nn
-            no, N, _ = eval_basis(mpts, mesh, basis, p, nn)
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
+            N      = basis.N[nn,p]
             vPIC  += N * mesh.s.v[no]
             aFLIP += N * mesh.s.a[no]
         end
@@ -49,7 +50,7 @@ Update material point velocities and positions from thermal-type mesh nodes usin
 - Updates material point fields in-place.
 """
 # Single loop: T and dT share nodes so PIC+FLIP can be merged.
-@kernel inbounds = true function picflip_n2p(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1},dt::T2,C_pf::T2) where {T1,T2}
+@kernel inbounds = true function picflip_n2p(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},dt::T2,C_pf::T2) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp
         δTPIC  = T2(0.0)

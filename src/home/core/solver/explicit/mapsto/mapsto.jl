@@ -11,22 +11,22 @@ Initialize mapping, solving and transfering kernels for MPM cycle based on dimen
 - `Dict`: Dictionary of mapping and augmentation kernels.
 """
 function init_mapsto(instr::NamedTuple; mapsto::Dict = Dict(:map => Dict{Symbol,Cairn}(),:augm => Dict{Symbol,Cairn}()))
-    if instr.fwrk.deform == "finite"
+    if instr.strain.deform == "finite"
         mapsto[:map][:σᵢ!] = transform(CPU())
     end
-    if instr.fwrk.trsfr == "std"
+    if instr.transfer.trsfr == "std"
         mapsto[:map][:p2n!] = std_p2n(CPU())
-    elseif instr.fwrk.trsfr == "tpic"
+    elseif instr.transfer.trsfr == "tpic"
         mapsto[:map][:p2n!] = tpic_p2n(CPU())
-    elseif instr.fwrk.trsfr == "apic"
+    elseif instr.transfer.trsfr == "apic"
         mapsto[:map][:p2n!] = apic_p2n(CPU())
         mapsto[:map][:Bᵢⱼ!] = Bij(CPU())
     else
-        return throw(ArgumentError("$(instr.fwrk.trsfr) is an unsupported transfer scheme"))
+        return throw(ArgumentError("$(instr.transfer.trsfr) is an unsupported transfer scheme"))
     end
     mapsto[:map][:solve!] = euler(CPU())
     mapsto[:map][:n2p!]   = picflip_n2p(CPU())
-    if instr.fwrk.musl 
+    if instr.transfer.musl 
         mapsto[:augm][:p2n!]   = augm_p2n(CPU())
         mapsto[:augm][:solve!] = augm_solve(CPU())
         return (; map = (; mapsto[:map]...), augm = (; mapsto[:augm]...))
@@ -49,9 +49,9 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},g::Vector{T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Vector{T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     # get cauchy stress
-    if solver.fwrk.deform == "finite"
+    if solver.strain.deform == "finite"
         solver.cairn.mapsto.map.σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
     end
     # reset nodal quantities
@@ -63,11 +63,11 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},g::Vector{
     # mapping to mesh
     solver.cairn.mapsto.map.p2n!(mpts,mesh,basis,g; ndrange=mpts.nmp);sync(CPU())
     # solve Eulerian momentum equation
-    solver.cairn.mapsto.map.solve!(mesh,dt,T2(solver.fwrk.damping); ndrange=mesh.prprt.nno[end]);sync(CPU())
+    solver.cairn.mapsto.map.solve!(mesh,dt,T2(solver.stab.damping); ndrange=mesh.prprt.nno[end]);sync(CPU())
     # maps back solution to material point
-    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.fwrk.C_pf); ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.transfer.C_pf); ndrange=mpts.nmp);sync(CPU())
     # (if musl) reproject nodal velocities
-    if solver.fwrk.musl
+    if solver.transfer.musl
         # reset nodal quantities
         fill!(mesh.s.mv, T2(0.0))
         fill!(mesh.s.v , zero(eltype(mesh.s.v)))
@@ -77,7 +77,7 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1},g::Vector{
         solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
     end
     # (for APIC) compute Bᵢⱼ for material points
-    if solver.fwrk.trsfr == "apic"
+    if solver.transfer.trsfr == "apic"
         solver.cairn.mapsto.map.Bᵢⱼ!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
     end
     return nothing

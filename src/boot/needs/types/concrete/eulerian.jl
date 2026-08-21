@@ -50,7 +50,6 @@ struct Mesh{T1,T2,D} <: UniformMesh{T1, T2}
     # nodal quantities
     x₀    ::SVector{D,T2}
     x     ::Vector{SVector{D,T2}} # node coordinates : SVector{ndim,T2}
-    type  ::Matrix{T1}
     ΔJ    ::Vector{T2}
     # solid phase
     s     ::MeshSolidPhase{T1,T2,D}

@@ -1,13 +1,13 @@
 @inline function σTr(σ0::SVector{3,T}) where {T}
-    P   = (σ0[1]+σ0[2])/2.0
+    P   = (σ0[1]+σ0[2])/T(2.0)
     τ0  = σ0 .- SVector{3,T}(P,P,zero(T))
-    τII = sqrt(0.5 * (τ0[1]^2 + τ0[2]^2) + τ0[3]^2)
+    τII = sqrt(T(0.5) * (τ0[1]^2 + τ0[2]^2) + τ0[3]^2)
     return P,τ0,τII
 end
 @inline function σTr(σ0::SVector{6,T}) where {T}
-    P   = (σ0[1]+σ0[2]+σ0[3])/3.0
+    P   = (σ0[1]+σ0[2]+σ0[3])/T(3.0)
     τ0  = σ0 .- SVector{6,T}(P,P,P,zero(T),zero(T),zero(T))
-    τII = sqrt(0.5*(τ0[1]^2+τ0[2]^2+τ0[3]^2)+τ0[4]^2+τ0[5]^2+τ0[6]^2)
+    τII = sqrt(T(0.5)*(τ0[1]^2+τ0[2]^2+τ0[3]^2)+τ0[4]^2+τ0[5]^2+τ0[6]^2)
     return P,τ0,τII
 end
 @inline function materialParam(ϕ::T2,ψ::T2,c::T2,nstr::T1) where {T1,T2}
