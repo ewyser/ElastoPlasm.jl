@@ -24,28 +24,27 @@ function set_dirichlet(bc,xn,lower_upper_lim,dim; node::Symbol=:roller)
 end
 
 """
-    get_bc(xn::Matrix{T2}, solver::S; ghosts::Vector{T2}=[T2(0.0)]) where {S<:AbstractSolver}
+    get_bc(xn::Matrix{T2}, solver::S) where {S<:AbstractSolver}
 
 Compute the boundary condition matrix and boundary coordinates for a mesh, using boundary condition types specified in `solver.bcs.dirichlet`.
 
 # Arguments
 - `xn::Matrix{T2}`: Matrix of nodal coordinates (size: ndim × nno).
 - `solver::S`: Solver instance (e.g. `ExplicitSolver`), must have `bcs.dirichlet` as a matrix of Symbols (e.g., `:roller`, `:fixed`).
-- `ghosts::Vector{T2}`: Optional, size of ghost cells to add at boundaries (default: `[T2(0.0)]`).
 
 # Returns
 - `bc::Matrix{Bool}`: Boolean matrix (ndim × nno) indicating where boundary conditions are applied.
-- `xB::Matrix{T2}`: Matrix (ndim × 2) of minimum and maximum boundary coordinates (with ghosts applied).
+- `xB::Matrix{T2}`: Matrix (ndim × 2) of minimum and maximum boundary coordinates.
 
 # Example
 ```julia
-bc, xB = get_bc(xn, solver; ghosts=[0.0])
+bc, xB = get_bc(xn, solver)
 ```
 """
-function get_bc(xn::Matrix{T2},solver::S; ghosts::Vector{T2}=[T2(0.0)]) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function get_bc(xn::Matrix{T2},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     xB = hcat(
-        minimum(xn,dims=2).+ghosts,
-        maximum(xn,dims=2).-ghosts
+        minimum(xn,dims=2),
+        maximum(xn,dims=2)
     )
     ndim = size(xn,1)
     nno  = size(xn,2)

@@ -23,7 +23,6 @@ function prepare_simulations!(L, nel, fid, paths)
                 basis = (;
                     which = shp,
                     how = nothing,
-                    ghost = 0,
                 )
                 strain = (;
                     deform = deform,

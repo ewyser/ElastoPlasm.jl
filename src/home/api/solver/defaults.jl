@@ -41,7 +41,6 @@ function get_default()
         basis = (;
             which = "bsmpm",
             how = nothing,
-            ghost = 0,
         ),
         strain   = (;
             deform = "finite",

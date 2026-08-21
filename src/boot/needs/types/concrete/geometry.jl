@@ -9,7 +9,6 @@ export Geometry
 
 struct Geometry{T1<:Integer,T2<:Real,D} <: AbstractGeometry
     dim::T1
-    ghost::T1
     h::Vector{T2}
     nel::Vector{T1}
     nno::Vector{T1}
