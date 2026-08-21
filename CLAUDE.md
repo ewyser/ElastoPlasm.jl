@@ -95,25 +95,11 @@ Bugs discovered but not yet fixed, kept here so they don't get rediscovered from
 identifiable (e.g. `fix-volumetric-locking-zero-mass-guard`), rather than fixing in place
 on an unrelated branch.**
 
-- **`basis.which` ∈ {`"gimpm"`, `"mlsmpm"`} combined with `stab.locking=true` (F-bar
-  volumetric locking correction) crashes with `InexactError: trunc(Int64, NaN)`.**
-  Probable cause: `src/home/core/solver/explicit/update/fun/volumetric.jl`'s `ΔJp`
-  divides unconditionally by `mesh.s.m[no]` for every node `no` in a particle's basis
-  stencil where the shape function `N != 0`. Both GIMP and MLS use the wider `-1:2`
-  particle-domain support (reaching further than bsmpm/smpm's node-type-corrected
-  compact support) — GIMP because its kernel has no boundary correction at all, MLS
-  because its moment-matrix projection is *designed* to replace node-type correction —
-  so in both cases a particle's kernel can be nonzero at a boundary/ghost node no
-  particle has ever mapped mass to. `mesh.s.m[no] == 0` there, so
-  `mesh.ΔJ[no]/mesh.s.m[no]` evaluates to `0.0/0.0 = NaN`, which propagates into `ΔFᵢⱼ`
-  and corrupts particle positions over subsequent timesteps (the crash itself surfaces
-  later, in topology lookup, once positions go NaN — not at the division site). The
-  analogous velocity kernels (`mapsto/fun/solve.jl`, `mapsto/fun/augm.jl`) already guard
-  this same division pattern with an `iszero(mesh.s.m[no])` check; `volumetric.jl`'s
-  `ΔJp` does not. Needs the same guard added, plus a decision on whether `ΔJn`'s
-  corresponding accumulation should also skip zero-mass nodes. Workaround: run
-  gimpm/mlsmpm with `locking=false`, or use bsmpm/smpm when locking correction is
-  needed.
+- ~~`basis.which` ∈ {`"gimpm"`, `"mlsmpm"`} combined with `stab.locking=true` crashes
+  with `InexactError: trunc(Int64, NaN)`~~ — **fixed** (commit `455fc35`, "fix: Add
+  `if...end` check for zero nodal mass"): `volumetric.jl`'s `ΔJp` now has the same
+  `iszero(mesh.s.m[no])` guard the velocity kernels already had. Kept here only so the
+  fix isn't rediscovered as a new bug.
 - **`dynamic_relaxation`'s u-P path throws if exercised.** Probable cause:
   `implicit.jl`'s `pt_solve_uP!` calls `instr.cairn.implicit.fint_p2n!(...)`, a key
   `init_implicit` never registers. Out of scope until someone designs what `fint_p2n!`
@@ -136,25 +122,77 @@ on an unrelated branch.**
   `compute_collapse_error` calls `elastoplasm!(jld2; workflow=[solver])` — singular
   `workflow`, not the real `workflows` kwarg; and `z0 = copy(setup.mpts.x[end, :])`
   matrix-style-indexes `mpts.x`, which is `Vector{SVector}` (see Core types).
-- **`test/testset/test_workflow.jl`'s full sweep (renamed from the old
-  `test_slump.jl`; 1 geom × 4 basis × 24 `strain`/`transfer`/`stab` combos) has
-  cases that fail under `locking=true`, but silently — via `elastoplasm!(...).success
-  == false`, not a thrown exception**, so the `catch`/`@warn` branch never even fires
-  for these. Confirmed again on the `smpm`+`infinitesimal`+`std`+`locking=true` case
-  (case 16/96 in the sweep): it fails inside `runtests()`, but a standalone
-  reproduction with the *identical* config (same `L`/`nel`, same `basis`/`strain`/
-  `transfer`/`stab`/`grf`/`nonloc` kwargs) run in its own fresh `julia` process
-  completes end-to-end with `success=true`. Not yet root-caused — still points at
-  leftover global/mutable state carried between cases within one process (each prior
-  case in the sweep leaves `dump/` and possibly other shared state populated before
-  the next case runs), since the isolated repro is clean every time. Needs
-  investigation with the full, untruncated in-sweep failure output before assuming
-  it's the same class of issue as the already-diagnosed gimpm/mlsmpm F-bar locking NaN
-  bug above (this repro was `smpm`, which isn't supposed to hit that one). Separately,
-  `test_workflow.jl`'s `catch` block referenced an undefined `test_case` variable in
-  its `@warn` call (should have been `name`) — fixed, since it meant any case that
-  *did* throw would itself crash with `UndefVarError` and mask the real exception;
-  worth remembering if debugging this file again turns up another opaque failure.
+- **`test/testset/test_workflow.jl`'s full sweep (1 geom × 4 basis × 24
+  `strain`/`transfer`/`stab`/`musl` combos = 96 cases) has genuine, reproducible
+  numerical-instability failures confined to `smpm` (11/24) and `gimpm` (3/24) —
+  `bsmpm`/`mlsmpm` pass 24/24 cleanly.** Earlier notes here claimed these fail
+  *silently* via `elastoplasm!(...).success == false` — that's now confirmed **wrong**:
+  `elastoplasm`/`elastoplasm!` (`src/home/core/elastoplasm.jl`) have no code path that
+  ever sets `success=false`, they return `success=true` unconditionally unless an
+  exception propagates out first. Every one of these 14 failures is a real thrown
+  exception, caught and logged by the sweep's own `try/@warn` (confirmed by running
+  `include("test/testset/test_workflow.jl")` directly instead of through `runtests()`,
+  per the guidance below, which surfaces the actual exceptions instead of `runtests()`'s
+  swallowed-exception summary). Two distinct exception shapes, and the split lines up
+  almost exactly with `transfer.musl`: **12 of 14 failures have `musl=false`** and throw
+  `DomainError` (on `locking=true` cases) or `BoundsError: attempt to access N-element
+  Vector{SVector{NN,Int64}} at index [...]` (on `locking=false` cases, with the index
+  sometimes *negative*) — the `BoundsError` is a particle's topology lookup
+  (`p2e`/`p2n`, see `tplgy.jl`) indexing past the mesh entirely, i.e. the particle
+  physically left the domain, consistent with an unstable run rather than a data-layout
+  bug. The other 2 (both `gimpm`, `locking=true`, `musl=true`) throw the same
+  `BoundsError` shape despite MUSL being on, so MUSL reprojection isn't a complete
+  explanation — `smpm`+`gimpm` are more failure-prone than `bsmpm`/`mlsmpm` regardless.
+  No evidence found of the previously-suspected cross-case state leakage — these look
+  like real per-case instabilities, not artifacts of running the sweep in one process.
+  **Narrowed (not yet fully root-caused) to the classic MPM cell/grid-crossing
+  instability, after an initial wrong theory in this entry was corrected**: the first
+  pass here claimed `smpm`'s missing `basis.type` boundary-correction dispatch (which
+  `bsmpm` has, see `basis/bsmpm.jl`'s `ϕ∂ϕ`/`t1`-`t4` pieces) was the cause — that's
+  wrong. `basis.type` only exists to fix *wide*-stencil kernels (`bsmpm`'s cubic
+  B-spline reaches `-1:2`, beyond a particle's own element, so near a domain edge some
+  of those nodes don't exist without correction). `smpm`'s stencil is `0:1` — the
+  standard bilinear/trilinear hat function using only the particle's own element
+  corners — which is compactly supported *within* the mesh by construction and sums to
+  1 everywhere, boundary or not, with no correction needed; this matches the existing
+  "smpm isolated gradient-consistency glitch" entry below, which found only one
+  single-point PoU deviation, not a systemic boundary defect. **The more likely actual
+  cause**: `smpm/basis/smpm.jl`'s `N∂N` is a piecewise-linear tent function whose `∂N`
+  is discontinuous at `δx=0` (jumps from `1/h` to `-1/h` exactly at a mesh node) — the
+  textbook MPM "cell-crossing"/"grid-crossing" instability, where a particle crossing
+  an element boundary sees a discontinuous jump in shape-function gradient and thus in
+  computed strain-rate/stress at that instant. `bsmpm`'s cubic B-spline is `C¹`-
+  continuous by construction (the standard reason B-spline MPM variants exist at all),
+  and `mlsmpm`'s per-particle moment-matrix reconstruction likewise avoids the jump —
+  both pass 24/24. `gimpm`'s particle-domain averaging (`basis/gimpm.jl`'s `S∂S`)
+  smooths the discontinuity partially but not fully, consistent with its much rarer
+  3/24 failures vs. `smpm`'s 11/24 with no smoothing at all. This explanation doesn't
+  depend on proximity to a domain edge (unlike the boundary-PoU theory), which better
+  fits failures spread across the whole `(deform,trsfr)` sweep rather than only
+  edge-heavy configurations. Downstream: once a particle's kinematics get jolted by a
+  crossing event, `F`/`detF` can drift enough that `volumetric.jl`'s `ΔJp` — which
+  raises the F-bar-averaged Jacobian ratio to a fractional power `ΔJ^(1/D)` with no
+  sign guard, unlike the zero-mass guard commit `455fc35` added nearby (a real,
+  separate un-guarded issue) — receives a negative `ΔJ` and throws `DomainError` under
+  `locking=true`; under `locking=false` the drift can instead accumulate until the
+  particle's position update pushes it out of the mesh, throwing `BoundsError` in
+  `p2e`/`p2n`. `mapsto.jl`'s MUSL branch is basis-kind-agnostic (a generic nodal-
+  velocity reprojection/re-solve, unrelated to shape-function continuity), consistent
+  with it acting as a general damping/stabilizer that happens to rescue otherwise-
+  marginal `smpm` runs rather than interacting with `smpm`'s kernel specifically.
+  Most promising next diagnostic step: log `mpts.s.ΔFᵢⱼ`/`detF` (or `basis.∂N`) for a
+  single particle across the timestep where it crosses from one element's stencil to
+  the next in a failing `smpm` case, and confirm a step-change coincides with the
+  crossing. Real fix is likely a higher-order/damped shape function choice for
+  affected particles near crossing events (out of scope to design here), or at minimum
+  a defensive sign/clamp guard on `ΔJ^dim` in `volumetric.jl` (non-root-cause, but
+  closes the crash).
+  Separately, the sweep's `@testset` label at the loop over `generate_fwrk_cases()`
+  only interpolates `deform`/`trsfr`/`locking`, not `musl` — every combo prints twice
+  with an identical `@testset` name (once per `musl` value) even though the full case
+  `name` string used in the `@warn`/`ic_slump` call does include `musl`; worth fixing
+  the `@testset` label to match if this file's output is used for debugging again, so
+  the two rows aren't mistaken for a literal duplicate test.
 - **`ic_collision`'s initial-velocity plot crashes**: `what_plot_field` errors with
   `type NamedTuple has no field data`, because `collision.jl`'s `plot.what` entries are
   hand-built as `(;mpts=(name="u",cblim=(...)))` instead of going through
