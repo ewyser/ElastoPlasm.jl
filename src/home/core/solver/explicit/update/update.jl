@@ -7,8 +7,8 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     
     update[:heat!] = heatflux(CPU())
     if instr[:basis][:which] == "gimpm"
-        update[:domain!] = undeformed(CPU())
-        #update[:domain!] = Uᵢᵢ(CPU())
+        #update[:domain!] = undeformed(CPU())
+        update[:domain!] = Uᵢᵢ(CPU())
         #=
         update[:domain!] = undeformed(CPU())
         if instr[:strain][:deform] == "finite"

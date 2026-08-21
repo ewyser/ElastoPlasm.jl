@@ -10,6 +10,7 @@ get_v(mpts)    = [sqrt(v[1]^2 + v[2]^2) for v in mpts.s.v]
 get_Δu(mpts)   = [sqrt(u[1]^2 + u[2]^2) for u in mpts.s.u]
 get_coh0(mpts) = @views vec(mpts.s.c₀)
 get_phi0(mpts) = @views vec(mpts.s.ϕ₀)
+get_domain(mpts) = mpts.ℓ
 
 """
     get_mpts_variable_config() -> Dict{String, NamedTuple}
@@ -84,6 +85,15 @@ function get_mpts_variable_config()
             name="Initial friction angle",
             cb = :viridis,
             cblim=(20.0, 40.0)
+        ),
+        "domain" => (
+            data  = get_domain,   # unused by the geometry render path (see what_plot_field)
+            label = L"\ell",
+            unit  = "[-]",
+            scale = 1.0,
+            name  = "Domain",
+            cb    = nothing,
+            cblim = nothing,
         )
     )
 end

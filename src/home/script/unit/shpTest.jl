@@ -90,17 +90,17 @@ function shpfunCheck(shp,instr,paths)
     savefig(joinpath(paths[:plot],"summary_$(shp)"))
     return PoU
 end
-function shpTest(;ξ::Real=0.90,ghost::Bool=false)
+function shpTest(;ξ::Real=0.90)
     fid   = splitext(basename(@__FILE__))
     instr = get_default(Instruction)
     paths  = set_paths(first(fid), sys.out;interactive=false)
     for (k,ξ) ∈ enumerate([0.9])
-        @testset "partition of unity (PoU) testset ξ = $(round(ξ,digits=2))" verbose = true begin 
+        @testset "partition of unity (PoU) testset ξ = $(round(ξ,digits=2))" verbose = true begin
             for shp ∈ ["bsmpm","smpm","gimpm"]
                 if shp == "gimpm"
-                    instr[:basis] = (;which=shp,how="undeformed",ghost=ghost)
+                    instr[:basis] = (;which=shp,how="undeformed")
                 else
-                    instr[:basis] = (;which=shp,how=nothing,ghost=ghost)
+                    instr[:basis] = (;which=shp,how=nothing)
                 end
                 @testset "$(shp): $(round(ξ,digits=2)) < PoU < $(round(1.0+(1.0-ξ),digits=2))" verbose = true begin
                     PoU = shpfunCheck(shp,instr,paths)

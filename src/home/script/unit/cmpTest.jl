@@ -99,7 +99,7 @@ end
             for (it,nel) in enumerate(nel) 
                 #action
                 DAT,h,err = compactTest(dim,nel,"P",ν,E,ρ0,l0;
-                                                            basis=(;which=basistype,how="Uii",ghost=true,),
+                                                            basis=(;which=basistype,how="Uii",),
                                                             plot=(;cond=false,freq=1.0,what=["epII"],dims=(500.0,250.0),),
                                                             fwrk=framework,
                                                             trsfr=mapping,

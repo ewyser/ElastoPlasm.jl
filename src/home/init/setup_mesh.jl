@@ -21,13 +21,12 @@ println(mesh.prprt.nel)
 # Notes
 - Sets up mesh geometry, nodal coordinates, and boundary conditions.
 - Initializes nodal quantities (mass, force, acceleration, etc.).
-- Handles ghost nodes if required by the basis.
 """
 function setup_mesh(geom::Geometry{T1,T2,D},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     # Mesh & boundary condition setup
     L,nel,h = geom.L,geom.nel,geom.h
     xn,nel,nno = get_coords(geom)
-    status,xB  = get_bc(xn,solver; ghosts=geom.ghost*h)
+    status,xB  = get_bc(xn,solver)
     # static array type for node coords, velocity, acceleration
     NN  = prod(length.(get_basis(solver.basis.which, T1, D).stencils))
     DIM = D

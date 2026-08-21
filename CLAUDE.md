@@ -193,6 +193,26 @@ on an unrelated branch.**
   `name` string used in the `@warn`/`ic_slump` call does include `musl`; worth fixing
   the `@testset` label to match if this file's output is used for debugging again, so
   the two rows aren't mistaken for a literal duplicate test.
+  **Update after `basis.ghost`/`geom.ghost` removal** (mesh padding removed in favour
+  of the `iszero(no)` sentinel every kernel already relies on, see the git log for
+  that commit): re-ran the `gimpm` 24-case subset in isolation. The composition of
+  failures changed but the count didn't meaningfully drop — **5/24 now fail**, all
+  `locking=true, musl=false` (`gimpm_finite_tpic`, `gimpm_finite_apic`,
+  `gimpm_infinitesimal_std`, `gimpm_infinitesimal_tpic` → `BoundsError`;
+  `gimpm_infinitesimal_apic` → `DomainError`). The previously-documented 2
+  `locking=true, musl=true` `gimpm` failures **are gone** — consistent with those
+  having been driven by the zero-mass ghost nodes the padding introduced (ghost nodes
+  never receive particle contributions, so they were a plausible source of the
+  `ΔJp`/mass-related instability independent of the grid-crossing theory below). But
+  since `musl=false` was already `smpm`'s (and most of `gimpm`'s) dominant failure
+  mode before this change, and the grid-crossing/`S∂S`-discontinuity root-cause theory
+  above doesn't depend on ghost nodes at all, this confirms ghost-node removal fixed
+  one *contributing* failure mode, not the underlying instability — don't read a
+  single passing default-parameter `gimpm`+`locking` run (`musl=true` is the default)
+  as evidence the bug is fixed; re-run this sweep, not a single case, before revising
+  this entry further. `smpm`/`bsmpm`/`mlsmpm` were not re-swept here since their sweep
+  config already had `ghost=0` (only `gimpm` used `ghost=1`), so this refactor
+  provably can't have changed their behaviour.
 - **`ic_collision`'s initial-velocity plot crashes**: `what_plot_field` errors with
   `type NamedTuple has no field data`, because `collision.jl`'s `plot.what` entries are
   hand-built as `(;mpts=(name="u",cblim=(...)))` instead of going through

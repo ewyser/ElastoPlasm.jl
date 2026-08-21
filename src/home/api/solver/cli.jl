@@ -35,7 +35,6 @@ function get_option()
             basis = (
                 which = ("Select basis type",["bsmpm", "gimpm", "smpm", "mlsmpm"]),
                 how = ("Select material point domain update",[nothing]),
-                ghost = ("Add ghost element(s) ?",[0, 1, 2]),
             ),
             strain   = (
                 deform = ("Select the deformation framework",["finite", "infinitesimal"]),

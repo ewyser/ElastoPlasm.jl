@@ -11,7 +11,6 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
             basis = (;
                 which = "bsmpm",
                 how = nothing,
-                ghost = false,
             ),
         )
     )

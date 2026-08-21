@@ -12,10 +12,10 @@ Constructor for the `Geometry` type. Computes mesh geometry parameters and retur
 - `Geometry` struct with fields:
     - `dim`: Number of spatial dimensions
     - `h`: Element size in each direction
-    - `nel`: Number of elements (possibly with ghost elements)
-    - `nno`: Number of nodes (possibly with ghost nodes)
+    - `nel`: Number of elements
+    - `nno`: Number of nodes
     - `L`: Domain size in each direction
-    - `xB`: Domain bounds (with ghost region)
+    - `xB`: Domain bounds
 
 # Example
 ```julia
@@ -28,17 +28,14 @@ function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0,]) where 
     # Calculate problem dimensionality & node spacing
     dim,h = length(L),L ./ nel
 
-    # Add ghost element(s) (?) and modify nel vector accordingly
-    ghost = solver.basis.ghost
-    nel   = [nel[1]+ghost, (nel[1]+ghost),]
-    xB    = [x₀[1]-ghost*h[1] L[1]+ghost*h[1]]
+    nel = [nel[1], nel[1],]
+    xB  = [x₀[1] L[1]]
 
     # Create nno vector
     nno = [nel[1]+1, nel[1]+1,]
 
     return Geometry{T1,T2,1}(
         T1(dim),
-        T1(ghost),
         T2.(h),
         T1.(nel),
         T1.(nno),
@@ -51,17 +48,14 @@ function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0, 0.0,]) w
     # Calculate problem dimensionality & node spacing
     dim,h = length(L),L ./ nel
 
-    # Add ghost element(s) and modify nel vector accordingly
-    ghost = solver.basis.ghost
-    nel   = [nel[1]+ghost, nel[2]+ghost, (nel[1]+ghost) * (nel[2]+ghost),]
-    xB    = vcat([x₀[1]-ghost*h[1] L[1]+ghost*h[1]], [x₀[2]-ghost*h[2] L[2]+ghost*h[2]])
+    nel = [nel[1], nel[2], nel[1]*nel[2],]
+    xB  = vcat([x₀[1] L[1]], [x₀[2] L[2]])
 
     # Create nno vector
     nno = [nel[1]+1, nel[2]+1, (nel[1]+1) * (nel[2]+1),]
 
     return Geometry{T1,T2,2}(
         T1(dim),
-        T1(ghost),
         T2.(h),
         T1.(nel),
         T1.(nno),
@@ -74,17 +68,14 @@ function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0, 0.0, 0.0
     # Calculate problem dimensionality & node spacing
     dim,h = length(L),L ./ nel
 
-    # Add ghost element(s) (?) and modify nel vector accordingly
-    ghost = solver.basis.ghost
-    nel   = [nel[1]+ghost, nel[2]+ghost, nel[3]+ghost, (nel[1]+ghost) * (nel[2]+ghost) * (nel[3]+ghost),]
-    xB    = vcat([x₀[1]-ghost*h[1] L[1]+ghost*h[1]], [x₀[2]-ghost*h[2] L[2]+ghost*h[2]], [x₀[3]-ghost*h[3] L[3]+ghost*h[3]])
+    nel = [nel[1], nel[2], nel[3], nel[1]*nel[2]*nel[3],]
+    xB  = vcat([x₀[1] L[1]], [x₀[2] L[2]], [x₀[3] L[3]])
 
     # Create nno vector
     nno = [nel[1]+1, nel[2]+1, nel[3]+1, (nel[1]+1) * (nel[2]+1) * (nel[3]+1),]
 
     return Geometry{T1,T2,3}(
         T1(dim),
-        T1(ghost),
         T2.(h),
         T1.(nel),
         T1.(nno),
