@@ -45,19 +45,19 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     # mesh & mpts initial conditions
     ni    = T1(2)
     geom  = setup_geometry(L,nel,instr)
-    # mesh, mpts, cmpr & time initial conditions
+    # mesh, mpts, mat & time initial conditions
     mesh  = setup_mesh(geom, instr)
-    cmpr  = setup_cmpr(mesh      ; E=T2(E), ν=T2(ν), ρ0=T2(ρ0))
-    mpts  = setup_mpts(mesh, instr, cmpr; geom = get_collapse(mesh, cmpr, ni; ℓ₀=l0))
+    mat   = setup_matconst(mesh  ; E=T2(E), ν=T2(ν), ρ0=T2(ρ0))
+    mpts  = setup_mpts(mesh, instr, mat; geom = get_collapse(mesh, mat, ni; ℓ₀=l0))
     # time parameters
-    tg    = ceil((1.0/cmpr.c)*(2.0*l0)*40.0)
+    tg    = ceil((1.0/mat.c)*(2.0*l0)*40.0)
     te    = tg
-    time  = setup_time(instr; te=te,tg=tg) 
+    time  = setup_time(instr; te=te,tg=tg)
     # display summary
     @info ic_log(mesh,mpts,time,instr)
     misc = (;
         prefix = "$((length(mesh.prprt.nel)-1))d_$(instr.transfer.trsfr)"
     )
     # export to jld2 file and return path
-    return export_setup(mesh,mpts,cmpr,time,instr,paths,misc; path = paths[:dat], file = "collapse_simulation")
+    return export_setup(mesh,mpts,time,instr,paths,misc; path = paths[:dat], file = "collapse_simulation")
 end

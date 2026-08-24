@@ -3,8 +3,8 @@ function define_benchs(ic,cfg)
     suite["ignite"]      = BenchmarkGroup(["string", "unicode"])
     suite["mapsto"]      = BenchmarkGroup(["string", "unicode"])
     suite["elastoplast"] = BenchmarkGroup(["string", "unicode"])
-    # unpack mesh, mpts, basis, cmpr, instr, paths as aliases
-    mesh,mpts,basis,cmpr = ic["mesh"], ic["mpts"], ic["basis"], ic["cmpr"]
+    # unpack mesh, mpts, basis, instr, paths as aliases
+    mesh,mpts,basis = ic["mesh"], ic["mpts"], ic["basis"]
     instr          = cfg["solver"]
     time           = ic["time"]
     g, dt, η, C_pf = [0.0, -9.81], 1e-3, 0.1, 0.99
@@ -49,9 +49,9 @@ function define_benchs(ic,cfg)
         # compute determinant Jbar
         $instr.cairn.update.ΔJp!($mpts,$mesh,$basis,1.0/(length($mesh.prprt.nel)-1); ndrange=$mpts.nmp);sync(CPU())
     end
-    # elastic predictor
+    # elastic predictor (Kc/Gc/Del now live per-particle on mpts.s.cmp[p], read inside the kernel)
     suite["elastoplast"]["elast"] = @benchmarkable begin
-        $instr.cairn.update.elast!($mpts,$cmpr.Kc,$cmpr.Gc; ndrange=$mpts.nmp);sync(CPU())
+        $instr.cairn.update.elast!($mpts; ndrange=$mpts.nmp);sync(CPU())
     end
     return suite
 end

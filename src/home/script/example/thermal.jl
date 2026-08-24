@@ -37,8 +37,8 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
     paths = set_paths(fid,self.sys.out;interactive=false)  
     # mesh & mpts initial conditions
     mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)       )
-    cmpr  = setup_cmpr(mesh                                           )                       
-    mpts  = setup_mpts(mesh,instr,cmpr ; geom = get_thermal(mesh,cmpr,instr))
+    mat   = setup_matconst(mesh                                       )
+    mpts  = setup_mpts(mesh,instr,mat ; geom = get_thermal(mesh,mat,instr))
     # time parameters
     time  = setup_time(instr     ; te=5.0,tg=5.0,tep=0.0) 
     # plot initial cohesion field
@@ -61,5 +61,5 @@ function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs..
         prefix = "$((length(mesh.prprt.nel)-1))d_$(instr[:transfer][:trsfr])"
     )
     # export to jld2 file and return path
-    return export_setup(mesh,mpts,cmpr,time,instr,paths,misc; path = paths[:dat], file = "thermal_simulation")
+    return export_setup(mesh,mpts,time,instr,paths,misc; path = paths[:dat], file = "thermal_simulation")
 end
