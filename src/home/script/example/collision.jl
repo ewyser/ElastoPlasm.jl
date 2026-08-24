@@ -26,11 +26,11 @@ function ic_collision(L,nel; fid::String=first(splitext(basename(@__FILE__))), k
     # get solver and paths
     solver = get_solver(; dim=length(L), kwargs...)
     paths  = set_paths(fid,self.sys.out;interactive=false)
-    # mesh, mpts, cmpr & time initial conditions
+    # mesh, mpts, mat & time initial conditions
     geom   = setup_geometry(L,nel,solver)
     mesh   = setup_mesh(geom,solver)
-    cmpr   = setup_cmpr(mesh                                         )
-    mpts   = setup_mpts(mesh,solver,cmpr ; geom = get_collision(mesh,cmpr,solver))
+    mat    = setup_matconst(mesh                                      )
+    mpts   = setup_mpts(mesh,solver,mat ; geom = get_collision(mesh,mat,solver))
     basis  = setup_basis(mesh,mpts,geom,solver)
     time   = setup_time(solver     ; te = 10.0, tg = 10.0, tep = 5.0  )
     # plot initial velocity components
@@ -53,5 +53,5 @@ function ic_collision(L,nel; fid::String=first(splitext(basename(@__FILE__))), k
         get_plot_field(mpts,mesh,opts); save_plot(opts)
     end
     # export to jld2 file and return path
-    return export_setup(mesh,mpts,basis,cmpr,time,solver,paths; path = paths[:dat], file = "collision_simulation")
+    return export_setup(mesh,mpts,basis,time,solver,paths; path = paths[:dat], file = "collision_simulation")
 end

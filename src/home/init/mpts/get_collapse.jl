@@ -1,11 +1,11 @@
 """
-    get_collapse(mesh::Mesh{T1,T2,D}, cmpr, ni; ℓ₀=0.0) where {D}
+    get_collapse(mesh::Mesh{T1,T2,D}, mat, ni; ℓ₀=0.0) where {D}
 
 Initialize geometry and material point fields for a column collapse problem.
 
 # Arguments
 - `mesh::Mesh{T1,T2,D}`: Mesh object with geometry and boundary self.
-- `cmpr`: Material parameters (Dict or NamedTuple).
+- `mat`: Material parameters (Dict or NamedTuple).
 - `ni`: Number of intervals per element.
 - `ℓ₀`: Optional, column height (default: 0.0).
 
@@ -14,9 +14,9 @@ Initialize geometry and material point fields for a column collapse problem.
 - `nmp`: Number of material points.
 - `fields`: NamedTuple with coordinates and material properties.
 """
-function get_collapse(mesh::Mesh{T1,T2,D},cmpr,ni;ℓ₀=0.0) where {T1,T2,D}
+function get_collapse(mesh::Mesh{T1,T2,D},mat,ni;ℓ₀=0.0) where {T1,T2,D}
     @info "Init elastic collumn geometry"
-    coh0,cohr,phi0= cmpr[:c0],cmpr[:cr],cmpr[:ϕ0]
+    coh0,cohr,phi0= mat[:c0],mat[:cr],mat[:ϕ0]
     if D == 2
         x          = collect(mesh.prprt.xB[1,1]+(0.5*mesh.prprt.h[1]/ni):mesh.prprt.h[1]/ni:mesh.prprt.xB[1,2])
         z          = collect(mesh.prprt.xB[2,1]+(0.5*mesh.prprt.h[2]/ni):mesh.prprt.h[2]/ni:ℓ₀        )
@@ -46,9 +46,9 @@ function get_collapse(mesh::Mesh{T1,T2,D},cmpr,ni;ℓ₀=0.0) where {T1,T2,D}
     cohr = ones(nmp).*cohr
     phi  = ones(nmp).*phi0
 
-    c    = ones(nmp).*cmpr[:specific_heat_capacity]
-    k    = ones(nmp).*cmpr[:thermal_conductivity]
-    T    = ones(nmp).*cmpr[:initial_temperature]
+    c    = ones(nmp).*mat[:specific_heat_capacity]
+    k    = ones(nmp).*mat[:thermal_conductivity]
+    T    = ones(nmp).*mat[:initial_temperature]
 
     return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,T=T,c=c,k=k,ni=ni,nmp=nmp)
 end

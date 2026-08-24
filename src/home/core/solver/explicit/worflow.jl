@@ -1,14 +1,13 @@
 export elastoplastic!,elastodynamic!,thermodynamic!              
 
 """
-    elastodynamic!(mpts::Point{T1,T2,E,R}, mesh, cmpr::NamedTuple, time::NamedTuple, instr::NamedTuple)
+    elastodynamic!(mpts::Point{T1,T2,E,R}, mesh, time::NamedTuple, instr::NamedTuple)
 
 Run the explicit elastodynamic workflow for the given mesh, material points, constitutive model, and simulation configuration.
 
 # Arguments
 - `mpts::Point{T1,T2,E,R}`: Material point data structure.
 - `mesh`: Mesh data structure.
-- `cmpr::NamedTuple`: Constitutive model parameters.
 - `time::NamedTuple`: Time stepping configuration.
 - `instr::NamedTuple`: Simulation instructions and options.
 
@@ -20,7 +19,7 @@ Run the explicit elastodynamic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},cmpr::NamedTuple,time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:solver.plot.freq:time.te)))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving elastodynamic...",barlen=10)
@@ -29,11 +28,11 @@ function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2}
             # set clock on/off
             tic = time_ns()
             # adaptative dt & linear increase of gravity
-            g,dt = get_spacetime(mpts,mesh,cmpr,time,T)
+            g,dt = get_spacetime(mpts,mesh,time,T)
             # mpm cycle
             ignite(mpts,mesh,basis,solver)
             mapsto(mpts,mesh,basis,g,dt,solver)
-            elasto(mpts,mesh,basis,cmpr,dt,solver)
+            elasto(mpts,mesh,basis,dt,solver)
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
@@ -46,14 +45,13 @@ function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2}
     return nothing
 end  
 """
-    elastoplastic!(mpts::Point{T1,T2,E,R}, mesh, cmpr::NamedTuple, time::NamedTuple, instr::NamedTuple)
+    elastoplastic!(mpts::Point{T1,T2,E,R}, mesh, time::NamedTuple, instr::NamedTuple)
 
 Run the explicit elastoplastic workflow for the given mesh, material points, constitutive model, and simulation configuration.
 
 # Arguments
 - `mpts::Point{T1,T2,E,R}`: Material point data structure.
 - `mesh`: Mesh data structure.
-- `cmpr::NamedTuple`: Constitutive model parameters.
 - `time::NamedTuple`: Time stepping configuration.
 - `instr::NamedTuple`: Simulation instructions and options.
 
@@ -65,7 +63,7 @@ Run the explicit elastoplastic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},cmpr::NamedTuple,time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:solver.plot.freq:time.t[2])))
     g         = get_g(mesh.prprt; G = T2(9.81))
     # action
@@ -75,11 +73,11 @@ function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2}
             # set clock on/off
             tic = time_ns()
             # adaptative dt & linear increase of gravity
-            dt  = get_dt(mpts,mesh.prprt,cmpr,time,T)
+            dt  = get_dt(mpts,mesh.prprt,time,T)
             # mpm cycle
             ignite(mpts,mesh,basis,solver)
             mapsto(mpts,mesh,basis,g,dt,solver)
-            elastoplast(mpts,mesh,basis,cmpr,dt,solver)
+            elastoplast(mpts,mesh,basis,dt,solver)
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
@@ -92,14 +90,13 @@ function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2}
     return nothing
 end  
 """
-    thermodynamic!(mpts::Point{T1,T2,E,R},mesh::MeshThermalPhase{T1,T2,D},cmpr::NamedTuple,time::NamedTuple,instr::NamedTuple) where {D}
+    thermodynamic!(mpts::Point{T1,T2,E,R},mesh::MeshThermalPhase{T1,T2,D},time::NamedTuple,instr::NamedTuple) where {D}
 
 Run the explicit thermodynamic workflow for the given mesh, material points, constitutive model, and simulation configuration.
 
 # Arguments
 - `mpts::Point{T1,T2,E,R}`: Material point data structure.
 - `mesh::MeshThermalPhase{T1,T2,D}`: Mesh data structure.
-- `cmpr::NamedTuple`: Constitutive model parameters.
 - `time::NamedTuple`: Time stepping configuration.
 - `instr::NamedTuple`: Simulation instructions and options.
 
@@ -111,7 +108,7 @@ Run the explicit thermodynamic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function thermodynamic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
+function thermodynamic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.t[2])))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving thermodynamic!...",barlen=10)
@@ -120,7 +117,7 @@ function thermodynamic!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basi
             # set clock on/off
             tic = time_ns()
             # adaptative dt & linear increase of gravity
-            dt  = get_dt(mpts,mesh.prprt,cmpr,time,T)
+            dt  = get_dt(mpts,mesh.prprt,time,T)
             # mpm cycle
             ignite(mpts,mesh,basis,instr)
             mapsto(mpts,mesh.t,basis,dt,instr)

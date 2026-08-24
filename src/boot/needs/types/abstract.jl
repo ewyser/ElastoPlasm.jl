@@ -21,3 +21,5 @@ abstract type MaterialPoint{T1, T2} <: AbstractLagrangian end
 abstract type MaterialPointPhase{T1, T2} <: MaterialPoint{T1,T2} end
 abstract type AbstractElasticity{T1, T2} end
 abstract type AbstractRheology{T1, T2} end
+
+abstract type AbstractConstitutiveModel{T2, D} end

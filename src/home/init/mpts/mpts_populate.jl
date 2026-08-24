@@ -1,11 +1,11 @@
 """
-    mpts_populate(props, cmpr, solver::S; ni=2) where {S<:AbstractSolver}
+    mpts_populate(props, mat, solver::S; ni=2) where {S<:AbstractSolver}
 
 Initialize candidate material point fields and coordinates on a regular per-element grid, for use in MPM/ElastoPlasm simulations.
 
 # Arguments
 - `props`: `MeshProperties` object containing geometry and boundary information.
-- `cmpr`: Material parameters (Dict or NamedTuple), must include at least `:c0` and `:cr`.
+- `mat`: Material parameters (Dict or NamedTuple), must include at least `:c0` and `:cr`.
 - `solver::S`: Solver instance (e.g. `ExplicitSolver`), may enable Gaussian Random Field (GRF) cohesion via `solver.grf`.
 - `ni`: Number of intervals per element (default: 2).
 
@@ -18,12 +18,12 @@ Initialize candidate material point fields and coordinates on a regular per-elem
 
 # Example
 ```julia
-fields = mpts_populate(props, cmpr, solver; ni=4)
+fields = mpts_populate(props, mat, solver; ni=4)
 @show fields.x
 @show fields.c0
 ```
 """
-function mpts_populate(props,cmpr,solver::S; ni = 2,) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function mpts_populate(props,mat,solver::S; ni = 2,) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     out  = Dict{Symbol, Any}(:ni => ni)
     if D == 2
         x       = collect(props.xB[1,1]+(0.5*props.h[1]/ni):props.h[1]/ni:props.xB[1,2]-(0.5*props.h[1]/ni))
@@ -44,13 +44,13 @@ function mpts_populate(props,cmpr,solver::S; ni = 2,) where {T1,T2,D,S<:Abstract
     end
     if solver.grf.status
         if solver.grf.covariance == "gaussian"
-            out[:c0] = vec(GRFS_gauss(xp,cmpr[:c0],cmpr[:cr],ni,props.h[1]))
+            out[:c0] = vec(GRFS_gauss(xp,mat[:c0],mat[:cr],ni,props.h[1]))
         end
         if solver.grf.covariance == "exponential"
 
         end
     else 
-        out[:c0] = ones(size(xp)).*cmpr[:c0]
+        out[:c0] = ones(size(xp)).*mat[:c0]
     end
     return (; (k => v for (k, v) ∈ out)...)
 end
