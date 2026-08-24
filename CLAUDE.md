@@ -117,30 +117,28 @@ on an unrelated branch.**
   `init_implicit` never registers. Out of scope until someone designs what `fint_p2n!`
   should do; `elastoquasistatic!` itself doesn't reach this code path, so it isn't
   blocked by this.
-- **`test/testset/test_collapse.jl` is fully non-functional**, beyond the
-  `fwrk`→`strain`/`transfer`/`stab` kwarg fix already applied to it. Confirmed root
-  cause by actually running it: **`ic_collapse` (`src/home/script/example/collapse.jl`)
-  itself is broken** — it calls an undefined `kwargser` function and predates the
-  current `get_solver`/`setup_geometry`/`setup_basis` pipeline entirely, the same
-  vintage bug `ic_collision` had before this session's fix (see `collision.jl`'s
-  rewrite for the pattern to follow: `get_solver` → `setup_geometry` → `setup_mesh` →
-  `setup_mpts` → `setup_basis` → `setup_time` → `export_problem` — `setup_cmpr` no
-  longer exists, `setup_mpts` calls `setup_cmp` internally now).
-  `ic_collapse` also never calls `setup_basis` at all (no `basis` in its `export_problem`
-  call, which now requires one) and passes `misc` positionally to `export_problem`, which
-  no longer accepts it (`export_problem` builds `misc` internally now). Once `ic_collapse`
-  itself is fixed, three more bugs downstream in `test_collapse.jl` are already known
-  and still need fixing: `load_simulation_setup` reads `file["cfg"]["instr"]`, the
-  stale key name (`cfg["solver"]` is correct, see Persistence below);
-  `compute_collapse_error` calls `elastoplasm!(jld2; workflow=[solver])` — singular
-  `workflow`, not the real `workflows` kwarg; and `z0 = copy(setup.mpts.x[end, :])`
-  matrix-style-indexes `mpts.x`, which is `Vector{SVector}` (see Core types).
-  A fifth, newer issue to fix in the same pass: `load_simulation_setup` also reads
-  `file["ic"]["mesh"]`/`file["ic"]["mpts"]` and `file["ic"]["cmpr"]` — the first two
-  are the old pre-`Problem` persistence layout (`export_problem` now writes a single
-  `ic["problem"]` bundling `mesh`/`mpts`/`time`, see Persistence below) and the third
-  (`ic["cmpr"]`) hasn't existed since the per-particle `cmp` constitutive-model
-  refactor landed, independent of and older than the `Problem` rename.
+- ~~`test/testset/test_collapse.jl` is fully non-functional~~ — **fixed** (branch
+  `fix-collapse-problem-pipeline`). `ic_collapse` (renamed `collapse_problem`, matching
+  `slump_problem`/`thermal_problem`'s convention) was rewritten to the current
+  `get_solver` → `setup_geometry` → `setup_mesh` → `setup_material_constants` →
+  `setup_mpts` → `setup_time` → `MechanicalProblem` → `setup_basis` → `export_problem`
+  pipeline, the same pattern already used for `collision.jl`/`thermal.jl`. In
+  `test_collapse.jl`: `load_simulation_setup` now reads `file["ic"]["problem"]` (a
+  `MechanicalProblem`, unpacked into `mesh`/`mpts`/`time`) and `file["cfg"]["solver"]`
+  instead of the old `ic["mesh"]`/`ic["mpts"]`/`ic["cmpr"]`/`cfg["instr"]` layout;
+  `compute_collapse_error` fixed to call `elastoplasm!(jld2; workflows=[solver])`
+  (plural) and replaced the removed `cmpr.ρ0` with `mpts.s.ρ₀[1]` (density is
+  per-particle now but uniform across the column); `z0 = copy(setup.mpts.x[end, :])`
+  (matrix-style-indexing a `Vector{SVector}`, and reading a `mesh.prprt.dim` field that
+  never actually existed on `MeshProperties`) replaced with
+  `getindex.(setup.mpts.x, idx)` where `idx = length(setup.mesh.prprt.nel)-1` — the
+  same `D`-from-`nel`-length idiom used elsewhere in this codebase (e.g. `slump.jl`'s
+  file naming). All 4 `nel` convergence cases (`[5,5]`–`[5,40]`) now pass, including the
+  `@test errors[k+1] < errors[k]` monotonic-convergence assertions — a real physics
+  correctness signal, not just "doesn't crash." This was also the first real exercise
+  of `dynamic_relaxation`/`elastoquasistatic!` this session (the test runs it, not the
+  explicit solver) — its previously-**unverified** `cmp`-rerouted reads (see "Typed
+  constitutive-model abstraction" below) are now confirmed working.
 - **`test/testset/test_workflow.jl`'s full sweep (1 geom × 4 basis × 24
   `strain`/`transfer`/`stab`/`musl` combos = 96 cases) has genuine, reproducible
   numerical-instability failures confined to `smpm` (11/24) and `gimpm` (3/24) —
@@ -356,13 +354,18 @@ on an unrelated branch.**
     dispatched on tensor type) was NOT ported** — only the constitutive-model half of
     that branch's prototype landed. Still open follow-up work if wanted, same caveats
     about not merging that branch's `Point`/`Basis` shape backward apply.
-  - **`dynamic_relaxation`'s rerouted reads are unverified.** `implicit.jl`
-    (`pt_solve!`, `pt_solve_uP!`, `relax`, `mapsto_uP`, `elastoquasistaticuP!`,
-    `elastouP!`) was mechanically converted from `cmpr.Kc/Gc/c` to
-    `mpts.s.cmp[p]` the same way the `explicit` path was, but `elastoquasistatic!` was
-    deliberately **not run** to verify it — validation was scoped to the `explicit`
-    path first, by design (this file's own `dynamic_relaxation` section already notes
-    it's much slower to smoke-test). Run it before trusting this path with `cmp`.
+  - **`dynamic_relaxation`'s rerouted reads — verified for the plain path, still
+    unverified for u-P.** `implicit.jl` (`pt_solve!`, `pt_solve_uP!`, `relax`,
+    `mapsto_uP`, `elastoquasistaticuP!`, `elastouP!`) was mechanically converted from
+    `cmpr.Kc/Gc/c` to `mpts.s.cmp[p]` the same way the `explicit` path was.
+    `elastoquasistatic!`/`relax`/`pt_solve!` (the plain, non-u-P path) are now confirmed
+    working — exercised for real by `test_collapse.jl`'s convergence sweep (branch
+    `fix-collapse-problem-pipeline`), including passing its `@test errors[k+1] <
+    errors[k]` correctness assertions. The u-P variant (`pt_solve_uP!`/`mapsto_uP`/
+    `elastoquasistaticuP!`/`elastouP!`) remains unverified — and per the separate
+    known-bug entry above, throws immediately if exercised regardless (`fint_p2n!`
+    dispatch never registered), so its `cmp` rerouting specifically hasn't been proven
+    correct either way.
 - `PointSolidPhase.elast::E` (component field typed `AbstractElasticity`) remains an
   intentionally unused dead field — not to be confused with the `cmp` mechanism above,
   which is the one actually wired into the retmap kernels. Its sibling `rheo::R` field

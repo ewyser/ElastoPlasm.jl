@@ -23,14 +23,14 @@ Load mesh, material points, and configuration from JLD2 simulation file.
 """
 function load_simulation_setup(sim_file::String)
     jldopen(sim_file, "r") do file
+        problem = file["ic"]["problem"]
         return (
-            mesh  = file["ic"]["mesh"],
-            mpts  = file["ic"]["mpts"],
-            cmpr  = file["ic"]["cmpr"],
-            time  = file["ic"]["time"],
-            instr = file["cfg"]["instr"],
-            paths = file["cfg"]["paths"],
-            misc  = file["cfg"]["misc"],
+            mesh   = problem.mesh,
+            mpts   = problem.mpts,
+            time   = problem.time,
+            solver = file["cfg"]["solver"],
+            paths  = file["cfg"]["paths"],
+            misc   = file["cfg"]["misc"],
         )
     end
 end
@@ -43,25 +43,26 @@ Compute error between numeric and analytic solution for elastic collapse.
 function compute_collapse_error(jld2, l0, solver)
     # Load setup to get initial material point positions
     setup = load_simulation_setup(jld2)
-    z0 = copy(setup.mpts.x[end, :])
-    
+    idx   = length(setup.mesh.prprt.nel)-1
+    z0    = getindex.(setup.mpts.x, idx)
+
     # Run simulation
-    out = elastoplasm!(jld2; workflow=[solver])
-    
+    out = elastoplasm!(jld2; workflows=[solver])
+
     # Reload to get final state
     jldopen(jld2, "r") do file
-        mesh = file["ic/mesh"]
-        mpts = file["ic/mpts"]
-        cmpr = file["ic/cmpr"]
-        
+        problem = file["ic/problem"]
+        mesh = problem.mesh
+        mpts = problem.mpts
+        ρ0   = mpts.s.ρ₀[1]
+
         # Numeric and analytic solution
-        idx  = mesh.prprt.dim == 2 ? 2 : 3
-        xnum = abs.(mpts.s.σᵢ[idx, :])
+        xnum = abs.(getindex.(mpts.s.σᵢ, idx))
         ynum = z0
-        x    = abs.(cmpr.ρ0 * 9.81 * (l0 .- z0))
+        x    = abs.(ρ0 * 9.81 * (l0 .- z0))
         y    = z0
-        err  = sum(sqrt.((xnum .- x).^2) .* mpts.Ω₀) / (9.81 * cmpr.ρ0 * l0 * sum(mpts.Ω₀))
-        
+        err  = sum(sqrt.((xnum .- x).^2) .* mpts.Ω₀) / (9.81 * ρ0 * l0 * sum(mpts.Ω₀))
+
         return err
     end
 end
@@ -78,21 +79,23 @@ function run_collapse_convergence_tests(solver, fwrk)
     errors = zeros(nk)
     hs     = zeros(nk)
     errors[1], hs[1] = Inf, Inf
+    plot_path = ""
     for (k, nel) ∈ enumerate(nels)
         @testset "- nel = $nel" verbose = true begin
             strain   = (; deform = fwrk.deform)
             transfer = (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf, musl = fwrk.musl)
             stab     = (; locking = fwrk.locking, damping = fwrk.damping)
-            sim = ic_collapse(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse", strain=strain, transfer=transfer, stab=stab)
-            
+            sim = collapse_problem(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse", strain=strain, transfer=transfer, stab=stab)
+
             setup = load_simulation_setup(sim)
             err = compute_collapse_error(sim, l0, solver)
             errors[k+1] = err
             hs[k+1] = setup.mesh.prprt.h[end]
+            plot_path = setup.paths[:plot]
             @test errors[k+1] < errors[k]
         end
     end
-    return errors, hs
+    return errors, hs, plot_path
 end
 
 # Main Test Execution
@@ -131,7 +134,8 @@ solver = elastoquasistatic!
 for fwrk in fwrks
     @info "Running convergence tests for workflow: $solver"
     @testset "- 2d elastic collapse" verbose = true begin
-        errors, hs = run_collapse_convergence_tests(solver, fwrk)
+        errors, hs, sim_plot_path = run_collapse_convergence_tests(solver, fwrk)
+        plot_path = sim_plot_path
         push!(all_errors, errors)
         push!(all_hs, hs)
         push!(all_labels, "$(string(solver)), $(fwrk.deform))")
