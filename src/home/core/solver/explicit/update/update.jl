@@ -133,7 +133,7 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt
     return nothing
 end
 
-function thermo(mpts::Point{T1,T2,E},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2,E}
+function thermo(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
     # update temperature
     solver.cairn.update.heat!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
     return nothing

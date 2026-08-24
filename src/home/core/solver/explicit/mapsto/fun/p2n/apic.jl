@@ -61,7 +61,7 @@ end
         end
     end
 end
-@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,3},mesh::MeshSolidPhase{T1,T2,3},basis::Basis{T1,T2,3},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -70,20 +70,21 @@ end
         σyx ,σzy ,σzx = mpts.s.σᵢ[p][6]       ,mpts.s.σᵢ[p][4] ,mpts.s.σᵢ[p][5]
         for nn ∈ 1:mesh.prprt.nn
             # buffering
-            no            = basis.p2n[p][nn]
-            N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3],mpts.ϕ∂ϕ[nn,p,4]
-            # accumulation
+            no    = basis.p2n[p][nn]
             if iszero(no) continue end
-            @atom mesh.m[no]    += N * ms
+            N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(3))
+            ∂Nx,∂Ny,∂Nz = ∂N[1], ∂N[2], ∂N[3]
+            # accumulation
+            @atom mesh.s.m[no]    += N * ms
             if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
                 D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p])
             else
                 D⁻¹ = SMatrix{3,3,T2}(I)
             end
-            mesh.mv[:,no] .+= N .* ms .* (mpts.s.v[p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
-            @atom mesh.oobf[1,no]-= Ω * ( ∂Nx * σxx + ∂Ny * σyx + ∂Nz * σzx)
-            @atom mesh.oobf[2,no]-= Ω * ( ∂Nx * σyx + ∂Ny * σyy + ∂Nz * σzy)
-            @atom mesh.oobf[3,no]-= Ω * ( ∂Nx * σzx + ∂Ny * σzy + ∂Nz * σzz) - N * (ms * g[3])
+            mesh.s.mv[:,no] .+= N .* ms .* (mpts.s.v[p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
+            @atom mesh.s.oobf[1,no]-= Ω * ( ∂Nx * σxx + ∂Ny * σyx + ∂Nz * σzx)
+            @atom mesh.s.oobf[2,no]-= Ω * ( ∂Nx * σyx + ∂Ny * σyy + ∂Nz * σzy)
+            @atom mesh.s.oobf[3,no]-= Ω * ( ∂Nx * σzx + ∂Ny * σzy + ∂Nz * σzz) - N * (ms * g[3])
         end
     end
 end

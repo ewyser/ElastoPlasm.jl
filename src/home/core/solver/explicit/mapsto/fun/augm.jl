@@ -94,7 +94,7 @@ Accumulate material point heat capacity to mesh nodes for DM augmentation.
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
-            @atom mesh.mcT[no]+= mpts.ϕ∂ϕ[nn,p,1] * mpts.s.ρ[p]*mpts.Ω[p] * mpts.t.c[p] * mpts.t.T[p]
+            @atom mesh.mcT[no]+= basis.N[nn,p] * mpts.s.ρ[p]*mpts.Ω[p] * mpts.t.c[p] * mpts.t.T[p]
         end
     end
 end

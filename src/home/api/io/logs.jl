@@ -23,9 +23,9 @@ function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_ve
         printstyled("│", color=:green, bold=true); println("   jld2   = slump_problem(L,nel;cli()...);")
         printstyled("└", color=:green, bold=true); println("   out    = elastoplasm(jld2; workflows = [elastodynamic!,elastoplastic!]);")
     elseif showcase == "heating"
-        printstyled("│", color=:green, bold=true); println("   ic, cfg = ic_thermal();")
-        printstyled("└", color=:green, bold=true); println("   out     = thermal(ic, cfg);")
-    
+        printstyled("│", color=:green, bold=true); println("   L,nel  = [16.0,16.0],[80,80];")
+        printstyled("│", color=:green, bold=true); println("   jld2   = thermal_problem(L,nel);")
+        printstyled("└", color=:green, bold=true); println("   out    = elastoplasm(jld2; workflows = [thermodynamic!]);")
     else
         printstyled("└", color=:green, bold=true); println("   ...$(showcase) ?!? \e[5m¯\\_(ツ)_/¯\e[0m")
     end

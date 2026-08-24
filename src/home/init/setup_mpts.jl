@@ -1,68 +1,17 @@
 
 """
-    setup_mpts(mesh::Mesh{T1,T2,D}, solver::S, mat::NamedTuple; geom::NamedTuple=()) -> Point
+    build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS) -> (s, elast, cmp, CM)
 
-Construct the material point system (mpts) for a simulation, initializing all relevant fields.
-Connectivity (`p2n`, `p2e`, `e2p`, `p2p`) is built separately by `setup_basis`, after both `Mesh`
-and `Point` exist.
-
-# Arguments
-- `mesh::Mesh{T1,T2,D}`: Mesh object containing geometry.
-- `solver::S`: Solver instance (e.g. `ExplicitSolver`) with matching `T1,T2,D`.
-- `mat::NamedTuple`: Raw material constants (`setup_material_constants`) — transient, used only to
-  build the per-particle `cmp::Vector{<:AbstractConstitutiveModel}` here (via `setup_cmp`),
-  not persisted or stored on `Point` itself.
-- `geom::NamedTuple=()`: (Optional) Geometry definition (e.g., number of intervals, number of material points, geometry struct).
-
-# Returns
-- `Point`: Material point data structure with all fields initialized for simulation.
-
-# Example
-```julia
-mpts = setup_mpts(mesh, solver, mat; geom=get_slump(mesh, mat, solver))
-println(mpts.nmp)  # Number of material points
-```
-
-# Notes
-- Initializes material point positions, volumes, densities, and all state variables.
-- Sets up phase properties (solid and liquid).
-- Handles both 2D and 3D cases.
+Build the per-particle solid-phase state (`PointSolidPhase`) — elasticity component,
+per-particle constitutive-model bundle (`cmp`, via `setup_cmp`), and all mechanical
+state fields, zero-initialized except `v`/`ρ`. `elast`/`CM` are also returned since the
+caller needs them to build `Point`'s type parameters.
 """
-function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
-    props = mesh.prprt
-    # non-dimensional constant
-    if D == 2
-        nstr = 3
-    elseif D == 3
-        nstr = 6
-    else
-        error("Unsupported dimension: $D")
-    end
-    # unpack material geometry
-    ni,nmp,xp = geom.ni,geom.nmp,geom.xp
-    # scalars & vectors
-    n0 = 0.1.*ones(nmp)
-    l0 = ones(size(xp)).*0.5.*(props.h./ni)
-    v0 = prod(2 .* l0; dims=1)
-    ρ0 = fill(mat[:ρ0],nmp)
-    # initial velocity (if provided)
-    vp = haskey(geom, :vp) ? geom.vp : zeros(size(xp))
-    # constructor - create components
+function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
     if solver.strain.deform == "finite"
         elast = FiniteElasticity(T1, T2, nmp, D)
     elseif solver.strain.deform == "infinitesimal"
         elast = LinearElasticity(T1, T2, nmp, D)
-    end
-
-    # static array types for the new AoS memory layout
-    if D == 2
-        TM = SMatrix{2,2,T2,4}
-        TV = SVector{2,T2}
-        TS = SVector{3,T2}
-    else
-        TM = SMatrix{3,3,T2,9}
-        TV = SVector{3,T2}
-        TS = SVector{6,T2}
     end
 
     cmp = setup_cmp(nmp,T2.(vec(copy(geom.coh0))),T2.(vec(copy(geom.cohr))),T2.(vec(copy(geom.phi))); E=T2(mat[:E]),ν=T2(mat[:ν]),Hp=T2(mat[:Hp]),D=Int(D))
@@ -95,14 +44,91 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
         elast                                               , # elast::E
         cmp                                                  , # cmp::Vector{CM}
     )
-    #=
-    t = PointThermalPhase{T1,T2,D}(
+    return s, elast, cmp, CM
+end
+
+"""
+    build_thermal_phase(T1,T2,D,geom,nmp; thermal::Bool=false) -> Union{Nothing,PointThermalPhase}
+
+Build the per-particle thermal-phase state (`PointThermalPhase`) from
+`geom.c`/`geom.k`/`geom.T` when `thermal=true` (see `get_thermal`), otherwise `nothing`.
+"""
+function build_thermal_phase(T1,T2,D,geom,nmp; thermal::Bool=false)
+    return thermal ? PointThermalPhase{T1,T2,D}(
         T2.(vec(copy(geom.c)))                            , # c::Vector{T2} specific heat capacity vector
         T2.(vec(copy(geom.k)))                             , # k::Vector{T2} thermal conductivity vector
         T2.(zeros(D,nmp))                                  , # q::Matrix{T2} heat flux array
         T2.(vec(copy(geom.T)))                            , # T::Vector{T2} temperature vector
-    )
-    =#
+    ) : nothing
+end
+
+"""
+    setup_mpts(mesh::Mesh{T1,T2,D}, solver::S, mat::NamedTuple; geom::NamedTuple=(), thermal::Bool=false) -> Point
+
+Construct the material point system (mpts) for a simulation, initializing all relevant fields.
+Connectivity (`p2n`, `p2e`, `e2p`, `p2p`) is built separately by `setup_basis`, after both `Mesh`
+and `Point` exist.
+
+# Arguments
+- `mesh::Mesh{T1,T2,D}`: Mesh object containing geometry.
+- `solver::S`: Solver instance (e.g. `ExplicitSolver`) with matching `T1,T2,D`.
+- `mat::NamedTuple`: Raw material constants (`setup_material_constants`) — transient, used only to
+  build the per-particle `cmp::Vector{<:AbstractConstitutiveModel}` here (via `setup_cmp`),
+  not persisted or stored on `Point` itself.
+- `geom::NamedTuple=()`: (Optional) Geometry definition (e.g., number of intervals, number of material points, geometry struct).
+  When `thermal=true`, must additionally carry `c`/`k`/`T` (per-particle specific heat capacity,
+  thermal conductivity, initial temperature — see `get_thermal`).
+- `thermal::Bool=false`: (Optional) Build a real `PointThermalPhase` from `geom.c`/`geom.k`/`geom.T`
+  instead of leaving `mpts.t` as `nothing`. Only `thermal_problem` sets this.
+
+# Returns
+- `Point`: Material point data structure with all fields initialized for simulation.
+
+# Example
+```julia
+mpts = setup_mpts(mesh, solver, mat; geom=get_slump(mesh, mat, solver))
+println(mpts.nmp)  # Number of material points
+```
+
+# Notes
+- Initializes material point positions, volumes, densities, and all state variables. Phase
+  construction itself is delegated to `build_solid_phase`/`build_thermal_phase` above.
+- Handles both 2D and 3D cases.
+"""
+function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTuple=(;), thermal::Bool=false) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+    props = mesh.prprt
+    # non-dimensional constant
+    if D == 2
+        nstr = 3
+    elseif D == 3
+        nstr = 6
+    else
+        error("Unsupported dimension: $D")
+    end
+    # unpack material geometry
+    ni,nmp,xp = geom.ni,geom.nmp,geom.xp
+    # scalars & vectors
+    n0 = 0.1.*ones(nmp)
+    l0 = ones(size(xp)).*0.5.*(props.h./ni)
+    v0 = prod(2 .* l0; dims=1)
+    ρ0 = fill(mat[:ρ0],nmp)
+    # initial velocity (if provided)
+    vp = haskey(geom, :vp) ? geom.vp : zeros(size(xp))
+
+    # static array types for the new AoS memory layout
+    if D == 2
+        TM = SMatrix{2,2,T2,4}
+        TV = SVector{2,T2}
+        TS = SVector{3,T2}
+    else
+        TM = SMatrix{3,3,T2,9}
+        TV = SVector{3,T2}
+        TS = SVector{6,T2}
+    end
+
+    # constructor - create components
+    s, elast, cmp, CM = build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
+    t = build_thermal_phase(T1,T2,D,geom,nmp; thermal=thermal)
 
     mpts = Point{T1,T2,D,typeof(elast),CM,TM,TV,TS}(
         # general information
@@ -131,7 +157,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
         # fluid phase
         nothing                              , #
         # thermal phase
-        nothing                              , #
+        t                                    , #
     )
     return mpts
 end

@@ -100,7 +100,8 @@ end
         for nn ∈ 1:mesh.prprt.nn
             # buffering
             no     = basis.p2n[p][nn]
-            N, ∂Nx = mpts.ϕ∂ϕ[nn,p,1], mpts.ϕ∂ϕ[nn,p,2]
+            N, ∂N  = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(1))
+            ∂Nx    = ∂N[1]
             # accumulation
             if iszero(no) continue end
             @atom mesh.cᵢ[no]  += N * ms * c
@@ -121,8 +122,9 @@ end
         γ       = T2(0.0) # heat source
         for nn ∈ 1:mesh.prprt.nn
             # buffering
-            no        = basis.p2n[p][nn]
-            N,∂Nx,∂Ny = mpts.ϕ∂ϕ[nn,p,1],mpts.ϕ∂ϕ[nn,p,2],mpts.ϕ∂ϕ[nn,p,3]
+            no          = basis.p2n[p][nn]
+            N, ∂N       = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(2))
+            ∂Nx,∂Ny     = ∂N[1], ∂N[2]
             # accumulation
             if iszero(no) continue end
             @atom mesh.cᵢ[no]  += N * ms * c
@@ -132,7 +134,7 @@ end
         end
     end
 end
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3}) where {T1,T2}
+@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,3},mesh::MeshThermalPhase{T1,T2,3},basis::Basis{T1,T2,3}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -142,8 +144,9 @@ end
         γ           = T2(0.0) # heat source
         for nn ∈ 1:mesh.prprt.nn
             # buffering
-            no            = basis.p2n[p][nn]
-            N,∂Nx,∂Ny,∂Nz = mpts.ϕ∂ϕ[nn,p,1], mpts.ϕ∂ϕ[nn,p,2], mpts.ϕ∂ϕ[nn,p,3], mpts.ϕ∂ϕ[nn,p,4]
+            no              = basis.p2n[p][nn]
+            N, ∂N           = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(3))
+            ∂Nx,∂Ny,∂Nz     = ∂N[1], ∂N[2], ∂N[3]
             # accumulation
             if iszero(no) continue end
             @atom mesh.cᵢ[no]  += N * ms * c
