@@ -8,7 +8,7 @@ function superstore(mpi::NamedTuple,startup::String; deflate::Int=3)
     nx,ny = length(ix),length(iy)
 
     # set path to h5file
-    path = joinpath(self.sys.out,"$(join(instr[:save][:name][1:end-1])).h5")
+    path = joinpath(self.sys.dump,"$(join(instr[:save][:name][1:end-1])).h5")
     # set args for h5open
     if mpi.status
         h5args = ("cw",mpi.comm,mpi.info)
@@ -42,7 +42,7 @@ function superstore(ic,instr,checks; deflate::Int=3)
     nx,ny = ic.dim
     Δx,Δy = ic.res
     # set path to h5file
-    path = joinpath(self.sys.out,"$(join(instr[:save][:name][1:end-1])).h5")
+    path = joinpath(self.sys.dump,"$(join(instr[:save][:name][1:end-1])).h5")
     # open & write to h5
     h5open(path,"cw") do file
         # create B-tree set structure
@@ -174,7 +174,7 @@ function dumping!(h5src::String,instr)
     return out
 end
 
-function solidstatesync(ic::NamedTuple,globloc::Val{:global}; deflate::Int=3, path::String = joinpath(self.sys.out,"ic.h5"))
+function solidstatesync(ic::NamedTuple,globloc::Val{:global}; deflate::Int=3, path::String = joinpath(self.sys.dump,"ic.h5"))
     # log message
     @info """solidstatesync from root proc: 
     - storing $(typeof(globloc).parameters[1]) initial conditions into $(basename(path))

@@ -32,7 +32,7 @@ function collapse_problem(nel, ν, E, ρ0, l0; fid::String=first(splitext(basena
     L   = [lx, ly]
     # get solver and paths
     solver = get_solver(; dim=dim, kwargs...)
-    paths  = set_paths(fid, self.sys.out; interactive=false)
+    paths  = mkpaths(fid, self.sys.dump; interactive=false)
     # mesh, mpts, mat & time initial conditions
     ni      = 2
     geom    = setup_geometry(L,nel,solver)
@@ -45,5 +45,5 @@ function collapse_problem(nel, ν, E, ρ0, l0; fid::String=first(splitext(basena
     problem = MechanicalProblem(mesh,mpts,time)
     basis   = setup_basis(problem,solver)
     # export to jld2 file and return path
-    return export_problem(problem,basis,solver,paths; path = paths[:dat], file = "collapse_simulation")
+    return export_problem(problem,basis,solver,paths; file = "collapse_simulation")
 end

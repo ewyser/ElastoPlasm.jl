@@ -120,8 +120,8 @@ function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","
     fig_shape = plot(shape_panels..., legend_panel; layout=l, size=(560*ncols+140,380*nrows))
     fig_pou   = plot(pou_panels...;   layout=(nrows,ncols), size=(480*ncols,360*nrows))
     if save
-        dir_shape = joinpath(ElastoPlasm.self.sys.out, "test", "basis_shape")
-        dir_pou   = joinpath(ElastoPlasm.self.sys.out, "test", "basis_pou")
+        dir_shape = joinpath(ElastoPlasm.self.sys.dump, "test", "basis_shape")
+        dir_pou   = joinpath(ElastoPlasm.self.sys.dump, "test", "basis_pou")
         mkpath(dir_shape); mkpath(dir_pou)
         savefig(fig_shape, joinpath(dir_shape, "basis_shape.png"))
         savefig(fig_pou,   joinpath(dir_pou,   "basis_pou.png"))

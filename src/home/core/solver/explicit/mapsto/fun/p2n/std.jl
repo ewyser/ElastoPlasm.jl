@@ -20,7 +20,7 @@ Project 1D material point data to mesh nodes (FLIP scheme).
         # buffering
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         px    = ms*mpts.s.v[p][1]
-        σxx   = mpts.s.σᵢ[1,p]
+        σxx   = mpts.s.σᵢ[p][1]
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -37,18 +37,18 @@ end
     if p ≤ mpts.nmp
         # buffering
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        mvx, mvy      = ms*mpts.s.v[p][1]     , ms*mpts.s.v[p][2]
-        σxx, σyy, σxy = mpts.s.σᵢ[p][1]       , mpts.s.σᵢ[p][2] , mpts.s.σᵢ[p][3]
+        mv            = ms*mpts.s.v[p]
+        σ             = mpts.s.σᵢ[p]
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(2))
             # accumulation
             @atom mesh.s.m[no]     += N * ms
-            @atom mesh.s.mv[1,no]  += N * mvx
-            @atom mesh.s.mv[2,no]  += N * mvy
-            @atom mesh.s.oobf[1,no]-= Ω * (∂N[1] * σxx + ∂N[2] * σxy)
-            @atom mesh.s.oobf[2,no]-= Ω * (∂N[1] * σxy + ∂N[2] * σyy) - N * (ms * g[2])
+            @atom mesh.s.mv[1,no]  += N * mv[1]
+            @atom mesh.s.mv[2,no]  += N * mv[2]
+            @atom mesh.s.oobf[1,no]-= Ω * (∂N[1] * σ[1] + ∂N[2] * σ[3])
+            @atom mesh.s.oobf[2,no]-= Ω * (∂N[1] * σ[3] + ∂N[2] * σ[2]) - N * (ms * g[2])
         end
     end
 end
@@ -57,21 +57,20 @@ end
     if p ≤ mpts.nmp
         # buffering
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        px , py , pz  = ms*mpts.s.v[p][1]     , ms*mpts.s.v[p][2], ms*mpts.s.v[p][3]
-        σxx, σyy, σzz = mpts.s.σᵢ[p][1]       , mpts.s.σᵢ[p][2]  , mpts.s.σᵢ[p][3]
-        σyx, σzy, σzx = mpts.s.σᵢ[p][6]       , mpts.s.σᵢ[p][4]  , mpts.s.σᵢ[p][5]
+        mv            = ms*mpts.s.v[p]
+        σ             = mpts.s.σᵢ[p]
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(3))
             # accumulation
             @atom mesh.s.m[no]     += N * ms
-            @atom mesh.s.mv[1,no]  += N * px
-            @atom mesh.s.mv[2,no]  += N * py
-            @atom mesh.s.mv[3,no]  += N * pz
-            @atom mesh.s.oobf[1,no]-= Ω * ( ∂N[1] * σxx + ∂N[2] * σyx + ∂N[3] * σzx)
-            @atom mesh.s.oobf[2,no]-= Ω * ( ∂N[1] * σyx + ∂N[2] * σyy + ∂N[3] * σzy)
-            @atom mesh.s.oobf[3,no]-= Ω * ( ∂N[1] * σzx + ∂N[2] * σzy + ∂N[3] * σzz) - N * (ms * g[3])
+            @atom mesh.s.mv[1,no]  += N * mv[1]
+            @atom mesh.s.mv[2,no]  += N * mv[2]
+            @atom mesh.s.mv[3,no]  += N * mv[3]
+            @atom mesh.s.oobf[1,no]-= Ω * ( ∂N[1] * σ[1] + ∂N[2] * σ[6] + ∂N[3] * σ[5])
+            @atom mesh.s.oobf[2,no]-= Ω * ( ∂N[1] * σ[6] + ∂N[2] * σ[2] + ∂N[3] * σ[4])
+            @atom mesh.s.oobf[3,no]-= Ω * ( ∂N[1] * σ[5] + ∂N[2] * σ[4] + ∂N[3] * σ[3]) - N * (ms * g[3])
         end
     end
 end

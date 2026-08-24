@@ -32,7 +32,7 @@ end
     elseif (h-lp) < δx <= (h+lp)                  # E: partial overlap of domain and element
         S  = (h+lp-δx)^2/(T2(4.0)*h*lp)
         ∂S = -(h+lp-δx)/(T2(2.0)*h*lp)
-    else                                            # zero overlap
+    else                                          # zero overlap
         S,∂S = T2(0.0),T2(0.0)
     end
     return S,∂S

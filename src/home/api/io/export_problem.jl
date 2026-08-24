@@ -1,7 +1,7 @@
 export export_problem
 
 """
-    export_problem(problem, basis, solver, paths; path, file) -> String
+    export_problem(problem, basis, solver, paths; file) -> String
 
 Export simulation setup to JLD2 file.
 
@@ -14,8 +14,8 @@ stays its own top-level `ic["basis"]` key, since it's deliberately independent o
 - `problem::MechanicalProblem`: Bundles `mesh`, `mpts`, `time` (see `setup_problem`).
 - `basis::Basis`: Topology container linking `problem.mesh` and `problem.mpts`.
 - `solver`: Solver instance (e.g. `ExplicitSolver`)
-- `paths`: Path configuration
-- `path::String`: Directory path for output (default: " ")
+- `paths`: Path configuration (e.g. from `mkpaths`) — the `.jld2` is written into
+  `paths[:dat]`.
 - `file::String`: Filename without extension (default: "simulation_setup")
 
 # Returns
@@ -23,11 +23,10 @@ stays its own top-level `ic["basis"]` key, since it's deliberately independent o
 
 # Example
 ```julia
-sim_file = export_problem(problem, basis, solver, paths;
-                        path=pwd(), file="my_simulation")
+sim_file = export_problem(problem, basis, solver, paths; file="my_simulation")
 ```
 """
-function export_problem(problem::MechanicalProblem,basis::Basis,solver::S,paths; path::String = " ", file::String = "simulation_setup") where {T1<:Integer,T2<:Real,D, S<:AbstractSolver{T1,T2,D}}
+function export_problem(problem::MechanicalProblem,basis::Basis,solver::S,paths; file::String = "simulation_setup") where {T1<:Integer,T2<:Real,D, S<:AbstractSolver{T1,T2,D}}
     mesh,mpts,time = problem.mesh,problem.mpts,problem.time
     # display summary
     @info ic_log(mesh,mpts,time,solver)
@@ -35,7 +34,7 @@ function export_problem(problem::MechanicalProblem,basis::Basis,solver::S,paths;
         prefix = "$(length(mesh.prprt.nel)-1)d_$(solver.transfer.trsfr)"
     )
     # create jld2 file
-    sim = joinpath(path,"$(file).jld2")
+    sim = joinpath(paths[:dat],"$(file).jld2")
     jldopen(sim, "w") do fid
         # create initial condition (ic) jld2 group
         ic = JLD2.Group(fid,"ic")

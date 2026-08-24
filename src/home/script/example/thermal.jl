@@ -33,11 +33,11 @@ function thermal_problem(L,nel; fid::String=first(splitext(basename(@__FILE__)))
             plot  = (; status = true, freq = 1.0, dpi = 300, what = [(;mpts=get_mpts_variable_config()["T"])]),
         )...,
         kwargs...)
-    paths   = set_paths(fid,self.sys.out;interactive=false)
+    paths   = mkpaths(fid,self.sys.dump;interactive=false)
     # mesh, mpts, mat & time initial conditions
     geom    = setup_geometry(L,nel,solver)
     problem = setup_problem(geom,solver,get_thermal; te = 5.0, tg = 5.0, tep = 0.0, thermal = true)
     basis   = setup_basis(problem,solver)
     # export to jld2 file and return path
-    return export_problem(problem,basis,solver,paths; path = paths[:dat], file = "thermal_simulation")
+    return export_problem(problem,basis,solver,paths; file = "thermal_simulation")
 end

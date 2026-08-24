@@ -1,7 +1,7 @@
-export set_paths
+export mkpaths
 
 """
-    set_paths(new_dir::String, path::String; interactive::Bool=true) -> Dict{Symbol, String}
+    mkpaths(new_dir::String, path::String; interactive::Bool=true) -> Dict{Symbol, String}
 
 Create and manage subdirectories within a specified base path for simulation output, with optional interactive selection of which folders to generate.
 
@@ -15,7 +15,7 @@ Create and manage subdirectories within a specified base path for simulation out
 
 # Example
 ```julia
-paths = set_paths("results", pwd(); interactive=false)
+paths = mkpaths("results", pwd(); interactive=false)
 println(paths[:plot])  # Absolute path to the plot subdirectory
 ```
 
@@ -25,7 +25,7 @@ println(paths[:plot])  # Absolute path to the plot subdirectory
 - Cleans up specific file types in newly created subdirectories if they already existed.
 - Logs information about generated and cleaned paths.
 """
-function set_paths(new_dir::String, path::String; interactive::Bool=true)
+function mkpaths(new_dir::String, path::String; interactive::Bool=true)
     paths    = Dict{Symbol,Any}()
     msg,msg! = ["Generating additional paths:"], ["Deleting at:"]
     options  = ["plot", "dat"]
@@ -39,7 +39,7 @@ function set_paths(new_dir::String, path::String; interactive::Bool=true)
                 mkpath(subdir)
                 push!(msg, "\n\e[32m+ $(trunc_path(paths[Symbol(options[name])]))\e[0m")
             end
-        end 
+        end
     else
         # point all options to the root (but don't create subfolders)
         for name ∈ options

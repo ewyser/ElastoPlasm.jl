@@ -18,7 +18,7 @@ sucess = superInc(["boot/needs/types"]; root=SRC)
 self = Self(
     sys = Path(
         root = SRC,
-	    out  = joinpath(dirname(SRC),"dump"),
+	    dump  = joinpath(dirname(SRC),"dump"),
 	    test = joinpath(dirname(SRC),"test"),
     ), 
     ui = UI(), 
@@ -32,7 +32,7 @@ include(joinpath(SRC,"boot/needs/backend.jl"))
 include(joinpath(SRC,"boot/needs/distributed.jl"))
 
 # flushing
-rootflush(self.sys.out)
+rootflush(self.sys.dump)
 
 # find & printout active backend(s)
 add_backend!(self.bckd, Val(:x86_64))

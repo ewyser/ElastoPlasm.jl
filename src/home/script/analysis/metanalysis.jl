@@ -276,13 +276,13 @@ metanalysis([64.0, 16.0], [40, 10]; fid="slump_meta")
 """
 function metanalysis(L, nel; fid::String=first(splitext(basename(@__FILE__))))
     @assert length(L) == length(nel) "L and nel must have same length"
-    root = mkpath(joinpath(self.sys.out, fid))
+    root = mkpath(joinpath(self.sys.dump, fid))
     # Prepare and execute simulations if not already done
     if isempty(readdir(root))
         # 1. Preparation
         nsim = prepare_simulations!(L, nel, fid, root)
         # 2a. Calculation
-        meta_path = joinpath(self.sys.out, fid)
+        meta_path = joinpath(self.sys.dump, fid)
         outputs = execute_simulations(meta_path, nsim)
     else
         # 2b. Load existing outputs

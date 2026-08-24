@@ -23,7 +23,7 @@ function slump_problem(L,nel; fid::String=first(splitext(basename(@__FILE__))), 
     @info "Setting up mesh & material point system for $(length(L))d slump problem"
     # get solver and paths
     solver = get_solver(; dim=length(L), kwargs...)
-    paths  = set_paths(fid,self.sys.out;interactive=false)  
+    paths  = mkpaths(fid,self.sys.dump;interactive=false)
     # mesh, mpts, mat & time initial conditions
     geom    = setup_geometry(L,nel,solver)
     problem = setup_problem(geom,solver,get_slump; te = 10.0, tg = 10.0, tep = 5.0)
@@ -47,5 +47,5 @@ function slump_problem(L,nel; fid::String=first(splitext(basename(@__FILE__))), 
         get_plot_field(problem.mpts,problem.mesh,opts);save_plot(opts)
     end
     # export to jld2 file and return path
-    return export_problem(problem,basis,solver,paths; path = paths[:dat], file = "slump_simulation")
+    return export_problem(problem,basis,solver,paths; file = "slump_simulation")
 end

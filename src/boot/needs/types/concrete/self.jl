@@ -2,7 +2,7 @@ export Self
 
 Base.@kwdef mutable struct Path
 	root::String = " "
-	out ::String = " "
+	dump::String = " "
 	test::String = " "
 	lib ::Dict   = Dict()
     ncell::Int   = 0

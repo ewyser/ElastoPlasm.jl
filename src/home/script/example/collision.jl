@@ -25,7 +25,7 @@ function ic_collision(L,nel; fid::String=first(splitext(basename(@__FILE__))), k
     @info "Setting up mesh & material point system for $(length(L))d disk collision problem"
     # get solver and paths
     solver = get_solver(; dim=length(L), kwargs...)
-    paths  = set_paths(fid,self.sys.out;interactive=false)
+    paths  = mkpaths(fid,self.sys.dump;interactive=false)
     # mesh, mpts, mat & time initial conditions
     geom   = setup_geometry(L,nel,solver)
     mesh   = setup_mesh(geom,solver)
@@ -54,5 +54,5 @@ function ic_collision(L,nel; fid::String=first(splitext(basename(@__FILE__))), k
         get_plot_field(mpts,mesh,opts); save_plot(opts)
     end
     # export to jld2 file and return path
-    return export_problem(problem,basis,solver,paths; path = paths[:dat], file = "collision_simulation")
+    return export_problem(problem,basis,solver,paths; file = "collision_simulation")
 end
