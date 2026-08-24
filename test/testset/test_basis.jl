@@ -50,9 +50,10 @@ function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","
     @testset "+ test_basis($n,$m)" verbose = true begin
     for w ∈ which
       @testset "- basis/$(w)" begin
-        jld2  = ic_slump(L, nel; basis=(;which=w,how="Uii"), plot=(;status=false,freq=1.0,dpi=300,what=[]), fid="test/basis_$(w)")
-        mesh  = load(jld2, "ic/mesh")
-        mpts  = load(jld2, "ic/mpts")
+        jld2  = slump_problem(L, nel; basis=(;which=w,how="Uii"), plot=(;status=false,freq=1.0,dpi=300,what=[]), fid="test/basis_$(w)")
+        problem = load(jld2, "ic/problem")
+        mesh  = problem.mesh
+        mpts  = problem.mpts
         basis = load(jld2, "ic/basis")
         solver= load(jld2, "cfg/solver")
 

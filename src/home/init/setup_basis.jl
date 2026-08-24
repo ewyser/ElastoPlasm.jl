@@ -1,19 +1,24 @@
 
 """
-    setup_basis(mesh::Mesh{T1,T2,D}, mpts::Point{T1,T2,D}, geom::Geometry{T1,T2,D}, solver::S) -> Basis
+    setup_basis(problem::MechanicalProblem{T1,T2,D}, solver::S) -> Basis
 
-Construct the topology container linking `mesh` and `mpts`: element-to-node (`e2n`) and
-element-to-element (`e2e`) connectivity from the mesh geometry and neighbor stencil, plus
-zero-initialized point-to-node (`p2n`), point-to-element (`p2e`), element-to-points (`e2p`), and
-point-to-point (`p2p`) connectivity — populated at runtime by the `p2e2n`/`nonlocal` kernels — and
-`type`, the per-axis node boundary-layer classification used by `BSplineBasis`'s `eval_basis`.
+Construct the topology container linking `problem.mesh` and `problem.mpts`: element-to-node
+(`e2n`) and element-to-element (`e2e`) connectivity from the mesh geometry and neighbor stencil,
+plus zero-initialized point-to-node (`p2n`), point-to-element (`p2e`), element-to-points (`e2p`),
+and point-to-point (`p2p`) connectivity — populated at runtime by the `p2e2n`/`nonlocal` kernels —
+and `type`, the per-axis node boundary-layer classification used by `BSplineBasis`'s `eval_basis`.
 `N`/`∂N` (per-particle cached shape values/gradients) are zero-initialized here and populated each
 timestep by the `shpfun!` ignite kernel.
 
+Takes `problem` rather than loose `mesh`/`mpts`/`geom`: all the geometric information
+`setup_basis` needs (element size, counts) is already on `problem.mesh.prprt` — a
+separate `geom::Geometry` argument was redundant (`geom.h` and `mesh.prprt.h` are the
+same element-size data), and `mesh`+`mpts` were always the pair a `Problem` already
+bundles.
+
 # Arguments
-- `mesh::Mesh{T1,T2,D}`: Mesh object (see `setup_mesh`).
-- `mpts::Point{T1,T2,D}`: Material point object (see `setup_mpts`).
-- `geom::Geometry{T1,T2,D}`: Geometry struct, provides element size (`geom.h`); node count (`NN`) comes from the concrete basis kind's stencils.
+- `problem::MechanicalProblem{T1,T2,D}`: Bundles `mesh`/`mpts` (see `setup_problem`); node
+  count (`NN`) comes from the concrete basis kind's stencils.
 - `solver::S`: Solver instance (e.g. `ExplicitSolver`), selects the basis kind and nonlocal support length scale.
 
 # Returns
@@ -21,15 +26,16 @@ timestep by the `shpfun!` ignite kernel.
 
 # Example
 ```julia
-basis = setup_basis(mesh, mpts, geom, solver)
+basis = setup_basis(problem, solver)
 ```
 """
-function setup_basis(mesh::Mesh{T1,T2,D}, mpts::Point{T1,T2,D}, geom::Geometry{T1,T2,D}, solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function setup_basis(problem::MechanicalProblem{T1,T2,D}, solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+    mesh, mpts = problem.mesh, problem.mpts
     nel, nno = mesh.prprt.nel, mesh.prprt.nno
     kind     = get_basis(solver.basis.which, T1, D)
     NN       = prod(length.(kind.stencils))
     e2n_data = get_element_to_nodes(nel, nno, kind.stencils)
-    e2e_data = T1.(e2e(T1(D), nel, geom.h, solver))
+    e2e_data = T1.(e2e(T1(D), nel, collect(mesh.prprt.h), solver))
     nmp      = mpts.nmp
     return Basis{T1,T2,D,NN,typeof(kind)}(
         kind,

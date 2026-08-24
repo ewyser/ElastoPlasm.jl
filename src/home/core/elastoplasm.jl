@@ -21,8 +21,9 @@ Run the main simulation workflow for the given initial conditions and configurat
 function elastoplasm(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <:String, F <: Function}
     jldopen(sim) do file
         # unpack mesh, mpts, basis, instr, paths as aliases
-        mesh,mpts,basis      = file["ic/mesh"]   , file["ic/mpts"]  , file["ic/basis"]
-        time                 = file["ic/time"]
+        problem              = file["ic/problem"]
+        mesh,mpts,time       = problem.mesh, problem.mpts, problem.time
+        basis                = file["ic/basis"]
         solver,paths,misc    = file["cfg/solver"], file["cfg/paths"], file["cfg/misc"]
         # action
         for (k,workflow!) ∈ enumerate(workflows)
@@ -51,8 +52,9 @@ end
 function elastoplasm!(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <:String, F <: Function}
     jldopen(sim,"r+") do file
         # unpack mesh, mpts, basis, instr, paths as aliases
-        mesh,mpts,basis      = file["ic/mesh"]   , file["ic/mpts"]  , file["ic/basis"]
-        time                 = file["ic/time"]
+        problem              = file["ic/problem"]
+        mesh,mpts,time       = problem.mesh, problem.mpts, problem.time
+        basis                = file["ic/basis"]
         solver,paths,misc    = file["cfg/solver"], file["cfg/paths"], file["cfg/misc"]
         # action
         for (k,workflow!) ∈ enumerate(workflows)
@@ -73,10 +75,8 @@ function elastoplasm!(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S 
             end
             # update initial conditions in jld2 file
             delete!(file, "ic")
-            file["ic/mesh"]  = mesh
-            file["ic/mpts"]  = mpts
-            file["ic/basis"] = basis
-            file["ic/time"]  = time
+            file["ic/problem"] = MechanicalProblem(mesh,mpts,time)
+            file["ic/basis"]   = basis
         end
         sleep(1.0)
     end

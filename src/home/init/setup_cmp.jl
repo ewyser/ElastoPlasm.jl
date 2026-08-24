@@ -47,10 +47,10 @@ function get_elastic_stiffness(E::T2,ν::T2,ndim::T1) where {T1,T2}
 end
 
 """
-    setup_matconst(mesh::Mesh{T1,T2,D}; E::T2=1.0e6, ν::T2=0.3, ρ0::T2=2700.0) -> NamedTuple
+    setup_material_constants(solver::AbstractSolver{T1,T2,D}; E::T2=1.0e6, ν::T2=0.3, ρ0::T2=2700.0) -> NamedTuple
 
 Compute the raw scalar material constants (elastic + plastic + thermal) for a
-simulation, based on mesh dimensionality. This is a **transient, setup-time-only**
+simulation, based on dimensionality. This is a **transient, setup-time-only**
 NamedTuple (formerly `setup_cmpr`/`cmpr`) — it is consumed by `get_slump`/`get_thermal`/
 `get_collision`/`get_collapse`/`mpts_populate` (to build possibly-heterogeneous
 per-particle geometry fields, e.g. under GRF) and by `setup_cmp` (to build the
@@ -58,8 +58,12 @@ per-particle `cmp::Vector{<:AbstractConstitutiveModel}` that actually lands on
 `Point`), but it is never itself persisted to JLD2 and never threaded into any
 solver/update/get kernel — those all read `mpts.s.cmp[p]` instead.
 
+Takes `solver` rather than `mesh` deliberately: `AbstractSolver{T1,T2,D}` already
+carries `T1`/`T2`/`D`, the only things this function needs, so callers don't have to
+build a (possibly throwaway) `Mesh` just to hand this function a dimension.
+
 # Arguments
-- `mesh::Mesh{T1,T2,D}`: Mesh object containing dimension information.
+- `solver::AbstractSolver{T1,T2,D}`: Solver instance, used only for its `T1,T2,D` type parameters.
 - `E::T2=1.0e6`: (Optional) Young's modulus (Pa).
 - `ν::T2=0.3`: (Optional) Poisson's ratio.
 - `ρ0::T2=2700.0`: (Optional) Initial density (kg/m³).
@@ -69,11 +73,11 @@ solver/update/get kernel — those all read `mpts.s.cmp[p]` instead.
 
 # Example
 ```julia
-mat = setup_matconst(mesh; E=2.0e6, ν=0.25, ρ0=2500.0)
+mat = setup_material_constants(solver; E=2.0e6, ν=0.25, ρ0=2500.0)
 println(mat.Kc)  # Bulk modulus
 ```
 """
-function setup_matconst(mesh::Mesh{T1,T2,D};
+function setup_material_constants(solver::AbstractSolver{T1,T2,D};
     E::T2=T2(1.0e6),
     ν::T2=T2(0.3),
     ρ0::T2= T2(2700.0),

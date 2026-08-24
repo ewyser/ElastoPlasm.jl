@@ -9,7 +9,7 @@ and `Point` exist.
 # Arguments
 - `mesh::Mesh{T1,T2,D}`: Mesh object containing geometry.
 - `solver::S`: Solver instance (e.g. `ExplicitSolver`) with matching `T1,T2,D`.
-- `mat::NamedTuple`: Raw material constants (`setup_matconst`) — transient, used only to
+- `mat::NamedTuple`: Raw material constants (`setup_material_constants`) — transient, used only to
   build the per-particle `cmp::Vector{<:AbstractConstitutiveModel}` here (via `setup_cmp`),
   not persisted or stored on `Point` itself.
 - `geom::NamedTuple=()`: (Optional) Geometry definition (e.g., number of intervals, number of material points, geometry struct).
@@ -54,15 +54,6 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
         elast = LinearElasticity(T1, T2, nmp, D)
     end
 
-    rheo = DruckerPragerRheology{T1,T2,D}(
-        T2.(vec(copy(geom.coh0))),  # c₀
-        T2.(vec(copy(geom.cohr))),  # cᵣ
-        T2.(vec(copy(geom.phi))),   # ϕ
-        T2.(zeros(nmp)),            # Δλ
-        T2.(zeros(2,nmp)),          # ϵpII
-        T2.(zeros(nmp))             # ϵpV
-    )
-
     # static array types for the new AoS memory layout
     if D == 2
         TM = SMatrix{2,2,T2,4}
@@ -77,15 +68,12 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
     cmp = setup_cmp(nmp,T2.(vec(copy(geom.coh0))),T2.(vec(copy(geom.cohr))),T2.(vec(copy(geom.phi))); E=T2(mat[:E]),ν=T2(mat[:ν]),Hp=T2(mat[:Hp]),D=Int(D))
     CM  = eltype(cmp)
 
-    s = PointSolidPhase{T1,T2,D,typeof(elast),typeof(rheo),CM,TM,TV,TS}(
+    s = PointSolidPhase{T1,T2,D,typeof(elast),CM,TM,TV,TS}(
         [zero(TV)  for _ in 1:nmp]                         , # u
         [TV(T2.(vp[:,p])) for p in 1:nmp]                  , # v
         # mechanical properties
         T2.(vec(copy(ρ0)))                                  , # ρ₀
         T2.(vec(copy(ρ0)))                                  , # ρ
-        T2.(vec(copy(geom.coh0)))                           , # c₀
-        T2.(vec(copy(geom.cohr)))                           , # cᵣ
-        T2.(vec(copy(geom.phi)))                            , # ϕ₀
         T2.(zeros(nmp))                                     , # Δλ
         T2.(zeros(2,nmp))                                   , # ϵpII
         T2.(zeros(nmp))                                     , # ϵpV
@@ -105,7 +93,6 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
         [zero(TM) for _ in 1:nmp]                          , # ωᵢⱼ
         # component-based fields
         elast                                               , # elast::E
-        rheo                                               , # rheo::R
         cmp                                                  , # cmp::Vector{CM}
     )
     #=
@@ -117,7 +104,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
     )
     =#
 
-    mpts = Point{T1,T2,D,typeof(elast),typeof(rheo),CM,TM,TV,TS}(
+    mpts = Point{T1,T2,D,typeof(elast),CM,TM,TV,TS}(
         # general information
         T1(D)                              , # ndim
         T1(nmp)                              , # nmp

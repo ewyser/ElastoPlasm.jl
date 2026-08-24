@@ -16,13 +16,22 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
 
 - `Mesh{T1,T2,D}` — Eulerian background grid. No longer carries `NN` or connectivity
   fields (`e2n`/`e2e` moved out, see `Basis` below).
-- `Point{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology,CM<:AbstractConstitutiveModel,TM,TV,TS}`
+- `Point{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveModel,TM,TV,TS}`
   — material points (Lagrangian). No longer carries `NN`, `B`, or connectivity
   (`p2n`/`p2e`/`e2p`/`p2p` moved out). `mpts.x :: Vector{SVector{D,T2}}` — NOT a
   matrix; index fields with `getindex.(x, i)` or iterate, never `x[i, :]`.
   `mpts.s.cmp::Vector{CM}` is the per-particle constitutive-model bundle (see "Typed
-  constitutive-model abstraction" under Planned improvements) — `E`/`R` remain
-  unused dead type params, do not confuse them with `CM`.
+  constitutive-model abstraction" under Planned improvements) — `E` remains an unused
+  dead type param, do not confuse it with `CM`. The parallel `R<:AbstractRheology`
+  type param/`rheo` field (a deprecated earlier attempt at the same per-particle
+  constitutive-data problem `cmp` now solves) was retired entirely — see "Typed
+  constitutive-model abstraction" below.
+- `MechanicalProblem{T1,T2,D,E,CM,TM,TV,TS} <: AbstractProblem{T1,T2,D,SP}`
+  (`src/boot/needs/types/concrete/problem/problem.jl`) — bundles `mesh::Mesh`+
+  `mpts::Point`+`time::Time` as the IC-defining part of a simulation, built via
+  `setup_problem` (see "`Problem` type decoupling..." under Planned improvements for
+  the full design and what's still a thin-wrapper simplification). Deliberately
+  excludes `Basis`/`Solver` — those stay independent types, not part of `Problem`.
 - `Basis{T1,T2,D,NN,K<:AbstractBasis}` (`src/boot/needs/types/concrete/basis/basis.jl`) —
   independent struct owning ALL mesh/point connectivity: `e2n`, `e2e`, `p2n`, `p2e`,
   `e2p`, `p2p`, plus `kind::K` (dispatches shape-function evaluation) and `NN` (nodes
@@ -86,7 +95,7 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
 - `src/home/core/solver/dynamic_relaxation/` — quasi-static path (`elastoquasistatic!`,
   plus the not-fully-wired u-P variant `elastoquasistaticuP!`/`elastouP!`). Converted to
   the same `Basis`-threading convention. Runs end-to-end through the same
-  `ic_slump`/`elastoplasm(jld2; workflows=[...])` pipeline as the explicit solver — but
+  `slump_problem`/`elastoplasm(jld2; workflows=[...])` pipeline as the explicit solver — but
   is much slower to smoke-test (a full `elastoquasistatic!` run took ~5–8 minutes in
   practice, vs. seconds for `elastodynamic!`/`elastoplastic!`), so budget for that when
   verifying a change touches this path.
@@ -115,17 +124,23 @@ on an unrelated branch.**
   current `get_solver`/`setup_geometry`/`setup_basis` pipeline entirely, the same
   vintage bug `ic_collision` had before this session's fix (see `collision.jl`'s
   rewrite for the pattern to follow: `get_solver` → `setup_geometry` → `setup_mesh` →
-  `setup_mpts` → `setup_basis` → `setup_time` → `export_setup` — `setup_cmpr` no
+  `setup_mpts` → `setup_basis` → `setup_time` → `export_problem` — `setup_cmpr` no
   longer exists, `setup_mpts` calls `setup_cmp` internally now).
-  `ic_collapse` also never calls `setup_basis` at all (no `basis` in its `export_setup`
-  call, which now requires one) and passes `misc` positionally to `export_setup`, which
-  no longer accepts it (`export_setup` builds `misc` internally now). Once `ic_collapse`
+  `ic_collapse` also never calls `setup_basis` at all (no `basis` in its `export_problem`
+  call, which now requires one) and passes `misc` positionally to `export_problem`, which
+  no longer accepts it (`export_problem` builds `misc` internally now). Once `ic_collapse`
   itself is fixed, three more bugs downstream in `test_collapse.jl` are already known
   and still need fixing: `load_simulation_setup` reads `file["cfg"]["instr"]`, the
   stale key name (`cfg["solver"]` is correct, see Persistence below);
   `compute_collapse_error` calls `elastoplasm!(jld2; workflow=[solver])` — singular
   `workflow`, not the real `workflows` kwarg; and `z0 = copy(setup.mpts.x[end, :])`
   matrix-style-indexes `mpts.x`, which is `Vector{SVector}` (see Core types).
+  A fifth, newer issue to fix in the same pass: `load_simulation_setup` also reads
+  `file["ic"]["mesh"]`/`file["ic"]["mpts"]` and `file["ic"]["cmpr"]` — the first two
+  are the old pre-`Problem` persistence layout (`export_problem` now writes a single
+  `ic["problem"]` bundling `mesh`/`mpts`/`time`, see Persistence below) and the third
+  (`ic["cmpr"]`) hasn't existed since the per-particle `cmp` constitutive-model
+  refactor landed, independent of and older than the `Problem` rename.
 - **`test/testset/test_workflow.jl`'s full sweep (1 geom × 4 basis × 24
   `strain`/`transfer`/`stab`/`musl` combos = 96 cases) has genuine, reproducible
   numerical-instability failures confined to `smpm` (11/24) and `gimpm` (3/24) —
@@ -191,12 +206,6 @@ on an unrelated branch.**
   affected particles near crossing events (out of scope to design here), or at minimum
   a defensive sign/clamp guard on `ΔJ^dim` in `volumetric.jl` (non-root-cause, but
   closes the crash).
-  Separately, the sweep's `@testset` label at the loop over `generate_fwrk_cases()`
-  only interpolates `deform`/`trsfr`/`locking`, not `musl` — every combo prints twice
-  with an identical `@testset` name (once per `musl` value) even though the full case
-  `name` string used in the `@warn`/`ic_slump` call does include `musl`; worth fixing
-  the `@testset` label to match if this file's output is used for debugging again, so
-  the two rows aren't mistaken for a literal duplicate test.
   **Update after `basis.ghost`/`geom.ghost` removal** (mesh padding removed in favour
   of the `iszero(no)` sentinel every kernel already relies on, see the git log for
   that commit): re-ran the `gimpm` 24-case subset in isolation. The composition of
@@ -220,7 +229,7 @@ on an unrelated branch.**
 - **`ic_collision`'s initial-velocity plot crashes**: `what_plot_field` errors with
   `type NamedTuple has no field data`, because `collision.jl`'s `plot.what` entries are
   hand-built as `(;mpts=(name="u",cblim=(...)))` instead of going through
-  `get_mpts_variable_config()[name]` like `ic_slump`'s equivalent plot section does —
+  `get_mpts_variable_config()[name]` like `slump_problem`'s equivalent plot section does —
   the hand-built `NamedTuple` is missing the `data`/`label`/`unit`/`scale`/`cb` fields
   `what_plot_field` expects. `ic_collision` itself was also just rewritten this session
   (it previously called an undefined `kwargser` function and predated the current
@@ -230,52 +239,73 @@ on an unrelated branch.**
 
 ## Planned improvements (not bugs, just known follow-up work)
 
-- **Decouple mesh/point generation from basis via a `Problem` type.** Today
-  `basis.which` (bsmpm/gimpm/smpm/mlsmpm) can't be swapped without regenerating `Mesh`
-  and `Point` from scratch, even though nothing about mesh/point generation actually
-  depends on basis kind — `Basis` already owns all connectivity independently (see
-  "Core types" above). The forced regen is purely a pipeline-structure artifact:
-  `ic_slump` (and every `setup_*` step, plus `export_setup`/`elastoplasm` persistence)
-  threads `mesh`, `mpts`, `basis`, `time`, `solver` as loose separate
-  positional arguments end to end, with no object boundary separating "the initial
-  condition" (mesh + points) from "how we discretize/solve it" (basis + solver). The
-  proposed fix is a `Problem` type bundling `Mesh`+`Point` as the expensive,
-  IC-defining part, leaving `Basis` (cheap, swappable, still geometry-derived — built
-  *against* a `Problem`, e.g. `setup_basis(problem.mesh, problem.mpts, geom, solver)`)
-  and `Solver` (config+kernels) as separate objects: a **`Problem{Mesh,Point}` /
-  `Basis` / `Solver`** split, not `Problem` / `Solution{Basis,Solver}` — `Basis` is
-  geometry, the same category as `Problem`, not solver config. No new abstract
-  `Phase`/`ProblemKind` axis is introduced: the existing `MeshPhase`/
-  `MaterialPointPhase` hierarchy (already used for `MeshSolidPhase`/`PointSolidPhase`/
-  `PointFluidPhase`/`PointThermalPhase`) is reused directly, threaded through
-  `Problem` as an explicit shared type parameter rather than only implied by which
-  concrete `Problem` subtype is picked — a second, differently-scoped "Phase" concept
-  at the problem level would collide with the existing one:
-  ```julia
-  abstract type AbstractProblem{T1,T2,D,SP<:MaterialPointPhase} end
-  struct MechanicalProblem{T1,T2,D,SP<:PointSolidPhase,...} <: AbstractProblem{T1,T2,D,SP}
-      mesh ::Mesh{T1,T2,D}
-      mpts ::Point{T1,T2,D,...,SP,...}
-  end
-  ```
-  A later `HydromechanicalProblem` (`mesh.s`+`mesh.f`, `mpts.s`+`mpts.f` — solid and
-  fluid both populated) is `AbstractProblem{T1,T2,D,SP}` too, sharing the same phase
-  type-parameter slot rather than a separate axis, once the staged hydro work below
-  lands (`PointFluidPhase` gaining real fields, plus a `MeshFluidPhase` counterpart to
-  `MeshSolidPhase`, which doesn't exist yet) — this `Problem` design is meant to be the
-  seam that work attaches to, not a redesign competing with it. Open questions for
-  whoever implements this: (1) does `setup_mesh`/`setup_mpts` construct `Mesh`/`Point`
-  directly and then get wrapped in `Problem`, or does a new `setup_problem` become the
-  entry point calling them internally; (2) does JLD2 persistence gain an
-  `ic["problem"]` key replacing today's separate `ic["mesh"]`/`ic["mpts"]`, or do those
-  stay as two keys with `Problem` only a construction-time/runtime convenience
-  wrapper; (3) `elastoplasm`/workflow call signatures
-  (`workflow!(mpts,mesh,basis,time,solver)`) currently take `mesh`/`mpts` as
-  separate positional args at every kernel call site — full adoption means touching
-  most of `explicit/`+`dynamic_relaxation/`, a much bigger lift than just defining the
-  struct, so decide whether an initial version keeps kernels on separate `mesh`/`mpts`
-  args (with `Problem` only a thin outer-API/persistence convenience) versus threading
-  `Problem` all the way through kernels immediately.
+- **`Problem` type decoupling mesh/point generation from basis — done, as a thin
+  wrapper.** `MechanicalProblem{T1,T2,D,E,R,CM,TM,TV,TS} <: AbstractProblem{T1,T2,D,SP}`
+  (`src/boot/needs/types/concrete/problem/problem.jl`) bundles `Mesh`+`Point`+`Time` —
+  the expensive, IC-defining part of a simulation — as one object, with `SP` tied to
+  `PointSolidPhase{T1,T2,D,E,R,CM,TM,TV,TS}` (the type of `mpts.s`), reusing the
+  existing `MaterialPointPhase` hierarchy rather than a second, disconnected "phase"
+  concept at the problem level, exactly as originally sketched here. `Basis`/`Solver`
+  remain separate, un-bundled types (no `Solution{Basis,Solver}`), since `basis.which`
+  and `transfer.trsfr` vary independently. The file lives in its own
+  `concrete/problem/` subdirectory (not a flat file) specifically so it loads *after*
+  `eulerian.jl`/`lagrangian.jl`/`solver.jl` (which define `Mesh`/`Point`/`Time`)
+  regardless of alphabetical file order — subdirectories load after all files in their
+  parent per the includer's design (see "Project shape"), the same reason
+  `concrete/basis/` is a subdirectory rather than a flat file.
+
+  Of the three open questions this entry originally posed: **(1)** `setup_problem`
+  (`src/home/init/setup_problem.jl`) is the new entry point — it calls
+  `setup_mesh`/`setup_material_constants`/`setup_mpts`/`setup_time` internally and
+  returns a `Problem`, replacing that sequence in `slump_problem` (renamed from
+  `ic_slump`, since the old name no longer reflected what it returns). `setup_problem`
+  no longer takes `mat` as an argument at all — it builds it internally via
+  `setup_material_constants(solver)` (renamed from the more cryptic `setup_matconst`; it
+  builds the raw scalar elastic/plastic/thermal constants a simulation needs, see its
+  docstring in `setup_cmp.jl`), since that function only ever needed `solver` for its
+  `T1,T2,D` type parameters, never mesh data — so no caller needs to build a throwaway
+  `Mesh`, or build/pass `mat` at all, just to get `setup_problem` going.
+  `collapse.jl`/`collision.jl` call `setup_material_constants(solver)` directly the same
+  way (they don't use `setup_problem`); `thermal.jl` was left as-is since it's already
+  broken independent of this change (calls an undefined `kwargser`, same vintage bug as
+  `ic_collapse`/`ic_collision` before their fixes — see Known bugs).
+  **(2)** Persistence **was** eventually changed, after initially landing as
+  three separate keys: `export_problem` (renamed from `export_setup`, file renamed too,
+  matching the `setup_*.jl`/`setup_*` naming convention) now takes
+  `(problem::MechanicalProblem, basis, solver, paths; ...)` and writes a single
+  `ic["problem"]` entry instead of `ic["mesh"]`/`ic["mpts"]`/`ic["time"]` — see
+  "Persistence (JLD2)" below for the full key layout and every reader that had to
+  follow (`elastoplasm.jl`, `metanalysis.jl`, `test_performance.jl`, `test_basis.jl`).
+  `Basis` stays its own top-level `ic["basis"]` key, unchanged — it's deliberately
+  independent of `Problem` (see `MechanicalProblem`'s docstring), so bundling it in
+  would misrepresent that relationship. **(3)** Kernel/workflow signatures
+  (`workflow!(mpts,mesh,basis,time,solver)`) are **untouched** — `Problem` is, for now,
+  only an outer-API/persistence convenience the way option (3)'s first alternative
+  described, not threaded through kernels; that remains a larger, currently
+  out-of-scope lift if ever wanted. `setup_basis` now takes `(problem::MechanicalProblem,
+  solver)` instead of loose `(mesh, mpts, geom, solver)` — the `geom::Geometry` argument
+  was dropped entirely (`geom.h` and `mesh.prprt.h` were the same element-size data
+  under two names; `setup_basis` now reads `mesh.prprt.h` directly), and `mesh`/`mpts`
+  come from `problem` since a `Basis` is always built against a `Problem`'s pair anyway.
+  Callers that don't go through `setup_problem` (`collision.jl`) build a
+  `MechanicalProblem(mesh, mpts, time)` by hand first — this reordered `time` ahead of
+  `basis` there, harmless since `setup_time` doesn't depend on `basis`. The actual
+  ergonomic payoff (swap `basis.which` without regenerating `mesh`/`mpts`) works today
+  via `setup_basis(problem, solver)`.
+
+  Landing `Problem` also required finishing an abandoned, previously-stashed rename:
+  `CartesianMesh`→`AbstractCartesianMesh`, `MeshPhase`→`AbstractMeshPhase`,
+  `MaterialPoint`→`AbstractMaterialPoint`, `MaterialPointPhase`→
+  `AbstractMaterialPointPhase` (matching the existing `AbstractElasticity`/
+  `AbstractRheology`/`AbstractConstitutiveModel` naming convention), and dropping the
+  unused `UniformMesh`/`NonUniformMesh` middle layer (`Mesh` now subtypes
+  `AbstractCartesianMesh` directly — `NonUniformMesh` had no subtypes anywhere). The
+  stash had only renamed `abstract.jl` itself, leaving `eulerian.jl`/`lagrangian.jl`
+  inconsistent (still subtyping the old names) — that half was finished as part of this
+  work. The stash had also dropped `AbstractSolver`'s `{T1,T2,D}` type parameters,
+  which would have broken ~20 call sites dispatching on `AbstractSolver{T1,T2,D}` —
+  that part of the stash was **not** kept; `AbstractSolver{T1<:Integer,T2<:Real,D}`
+  stays parameterized.
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task (e.g. computing log strain), rather than one
   monolithic kernel body. Other large kernels (e.g. `update.jl`'s `elastoplast`/
@@ -302,11 +332,25 @@ on an unrelated branch.**
   - `PerfectlyElastic` is defined but has **no construction path** — `setup_cmp`
     (`src/home/init/setup_cmp.jl`) always builds `DruckerPrager`, since both live
     retmap kernels (`DP.jl`, `J2.jl`) need its full field set. It's currently dead
-    scaffolding, the same category as `PointSolidPhase.elast::E`/`.rheo::R` below.
-  - The old duplicate flat `PointSolidPhase.c₀`/`cᵣ`/`ϕ₀` vectors were **not** retired
-    — `DP.jl`/`J2.jl` no longer read them (they read `cmp[p].c₀` etc. instead), but the
-    vectors themselves are still present on the struct and in its constructor,
-    unread. Retiring them was judged out of scope for that pass; still worth doing.
+    scaffolding, the same category as `PointSolidPhase.elast::E` below.
+  - The old duplicate flat `PointSolidPhase.c₀`/`cᵣ`/`ϕ₀` vectors have been retired —
+    `DP.jl`/`J2.jl` already read `cmp[p].c₀`/`.cᵣ`/`.ϕ₀` instead, and the plotting path
+    (`get_coh0`/`get_phi0` in `src/home/plot/variables.jl`) was the last reader,
+    rerouted to `[cmp.c₀ for cmp in mpts.s.cmp]`/`[cmp.ϕ₀ for cmp in mpts.s.cmp]`. The
+    fields are gone from the struct and its constructor in `setup_mpts.jl`.
+  - `PointSolidPhase.rheo::R`/`DruckerPragerRheology`/`AbstractRheology` — the
+    parallel, never-read component-field attempt at per-particle constitutive data
+    (built every `setup_mpts` call, alongside `elast`, but consumed nowhere) — have
+    been retired entirely, since `cmp` already fully supersedes what `rheo` was
+    reaching for. Removed: the `AbstractRheology{T1,T2}` abstract type
+    (`abstract.jl`), the `DruckerPragerRheology` struct (`lagrangian.jl`), the `R`
+    type parameter from `PointSolidPhase`/`Point`/`MechanicalProblem`, and the `rheo`
+    field/its construction in `setup_mpts.jl` — plus the now-stale `R`/
+    `R<:AbstractRheology` from every kernel signature that pattern-matched on
+    `Point{T1,T2,...,E,R,...}` (~20 files across `basis/`, `core/common/`,
+    `core/solver/explicit/`, `core/solver/dynamic_relaxation/`, `plot/`). `elast::E`
+    was deliberately left alone — it's separately-flagged dead scaffolding (see next
+    bullet), not the same "duplicate of `cmp`" problem `rheo` was.
   - **`tensor.jl`'s typed `AbstractStrain`/`AbstractStress` abstraction (volumetric/
     deviatoric split, `_trial_elastic_strain`/`_trial_elastic_stress`/`get_J2`/etc.
     dispatched on tensor type) was NOT ported** — only the constitutive-model half of
@@ -319,12 +363,16 @@ on an unrelated branch.**
     deliberately **not run** to verify it — validation was scoped to the `explicit`
     path first, by design (this file's own `dynamic_relaxation` section already notes
     it's much slower to smoke-test). Run it before trusting this path with `cmp`.
-- `PointSolidPhase.elast::E`/`.rheo::R` (component fields typed
-  `AbstractElasticity`/`AbstractRheology`) remain intentionally unused dead fields —
-  not to be confused with the new `cmp` mechanism above, which is the one actually
-  wired into the retmap kernels. Nobody should "complete" `elast`/`rheo` assuming
-  they're the intended constitutive-data path; if they're ever wired in or removed,
-  decide deliberately rather than assuming either was the intended direction.
+- `PointSolidPhase.elast::E` (component field typed `AbstractElasticity`) remains an
+  intentionally unused dead field — not to be confused with the `cmp` mechanism above,
+  which is the one actually wired into the retmap kernels. Its sibling `rheo::R` field
+  was removed (see "Typed constitutive-model abstraction" above) since it was a
+  confirmed duplicate of `cmp`, not an open question; `elast` was left alone since
+  there's no equivalent evidence it's a duplicate of anything — `FiniteElasticity`/
+  `LinearElasticity` hold per-particle strain/stress arrays with no `cmp` equivalent.
+  Nobody should "complete" `elast` assuming it's the intended constitutive-data path;
+  if it's ever wired in or removed, decide deliberately rather than assuming either
+  was the intended direction.
 - **3D conformity check**: verify 3D simulations behave consistently across the
   explicit solver's configuration space (basis kind, `stab.locking`, `strain.deform`)
   — most of this session's verification was 2D-only.
@@ -399,7 +447,7 @@ on an unrelated branch.**
 `dtype=(;T0=(Int32,Float32),bits=Int32(32),...)` is a supported but rarely-exercised
 path — the default is always `(Int64,Float64)`, so bugs that only manifest under
 `T1=Int32`/`T2=Float32` silently pass every day-to-day test. Two concrete patterns
-found and fixed by actually running an `Int32`/`Float32` `ic_slump`→`elastoplasm`
+found and fixed by actually running an `Int32`/`Float32` `slump_problem`→`elastoplasm`
 end-to-end (not just skimming the code):
 
 - **`@index(Global)` inside a `@kernel` function is always `Int64`**, regardless of the
@@ -436,14 +484,29 @@ StaticArrays-based kernel is allocation-free because it "looks" that way.
 
 ## Persistence (JLD2)
 
-Simulation setup is saved/loaded as `ic["mesh"]`, `ic["mpts"]`, `ic["basis"]`,
-`ic["time"]`; solver config as `cfg["solver"]` (NOT `cfg["instr"]` — that
-key name is stale/wrong despite appearing in some scripts). `elastoplasm`/`elastoplasm!`
-unpack `mesh,mpts,basis,time = file["ic/mesh"], file["ic/mpts"], file["ic/basis"],
-file["ic/time"]`. Both take a `workflows::Vector{Function}` kwarg (plural — not
-`workflow`). **`ic["cmpr"]` no longer exists** — constitutive material constants now
-live per-particle on `mpts.s.cmp` (persisted as part of `ic["mpts"]`), see "Typed
-constitutive-model abstraction" under Planned improvements.
+Simulation setup is saved/loaded as `ic["problem"]` (a `MechanicalProblem`, bundling
+`mesh`/`mpts`/`time`) and `ic["basis"]` (kept as its own top-level key — deliberately
+independent of `Problem`, see `MechanicalProblem`'s docstring); solver config as
+`cfg["solver"]` (NOT `cfg["instr"]` — that key name is stale/wrong despite appearing
+in some scripts). `ic["mesh"]`/`ic["mpts"]`/`ic["time"]` as three separate keys is an
+**old layout, no longer written** — `export_problem` writes `ic["problem"]` only now.
+`elastoplasm`/`elastoplasm!` unpack `problem = file["ic/problem"];
+mesh,mpts,time = problem.mesh, problem.mpts, problem.time; basis = file["ic/basis"]`;
+`elastoplasm!`'s write-back after each workflow rebuilds
+`file["ic/problem"] = MechanicalProblem(mesh,mpts,time)` (mesh/mpts are mutated
+in-place by the workflow, so this just rewraps the same objects) alongside
+`file["ic/basis"] = basis`. Both `elastoplasm`/`elastoplasm!` take a
+`workflows::Vector{Function}` kwarg (plural — not `workflow`). **`ic["cmpr"]` no
+longer exists** — constitutive material constants now live per-particle on
+`mpts.s.cmp` (persisted as part of `ic["problem"].mpts`), see "Typed constitutive-model
+abstraction" under Planned improvements. Other readers of the old three-key layout were
+updated to match: `metanalysis.jl` (`reference["ic/problem"].mesh`/`.mpts`),
+`test/testset/test_performance.jl` (`ic["problem"].mesh`/`.mpts`/`.time`), and
+`test/testset/test_basis.jl` (`load(jld2, "ic/problem")`). `test_collapse.jl` was
+**not** updated — it was already fully non-functional before this change (see Known
+bugs: undefined `kwargser`, stale `cfg["instr"]`, matrix-style `mpts.x` indexing, a
+nonexistent `ic["cmpr"]` key already predating this rename) and remains so; fixing it
+is one more thing to account for whenever someone actually picks that file up.
 
 ## Operating the package
 
@@ -452,20 +515,23 @@ Typical end-to-end run (this is also the standard smoke test after any refactor)
 ```julia
 using ElastoPlasm
 L,nel = [64.1584, 64.1584/4.0], [40,10]      # domain size, element counts (2D here; 3 entries = 3D)
-jld2  = ic_slump(L, nel; cli()...)           # builds mesh/mpts/basis/time, saves setup, returns the .jld2 path
+jld2  = slump_problem(L, nel; cli()...)           # builds mesh/mpts/basis/time, saves setup, returns the .jld2 path
 out   = elastoplasm(jld2; workflows = [elastodynamic!, elastoplastic!])
 @assert out.success
 ```
 
-- `ic_slump(L, nel; fid="...", kwargs...)` (`src/home/script/example/slump.jl`) is the
+- `slump_problem(L, nel; fid="...", kwargs...)` (`src/home/script/example/slump.jl`) is the
   reference example problem. It calls, in order: `get_solver` → `setup_geometry` →
-  `setup_mesh` → `setup_mpts` (which internally calls `setup_cmp` to build the
-  per-particle `mpts.s.cmp` — no more standalone `setup_cmpr` step) → `setup_basis` →
-  `setup_time`, then `export_setup(...)` to persist everything to a `.jld2` file and
-  returns that path. Use it as the template for defining a new example problem.
+  `setup_problem` (internally: `setup_mesh` → `setup_material_constants` (takes
+  `solver` directly, not a `Mesh` — see `setup_problem`'s docstring and the `Problem`
+  planned-improvement entry) → `setup_mpts`, which itself calls `setup_cmp` to build the
+  per-particle `mpts.s.cmp` → `setup_time`; returns a `MechanicalProblem`) →
+  `setup_basis`, then `export_problem(...)` to persist everything to a `.jld2` file and
+  returns that path.
+  Use it as the template for defining a new example problem.
 - `cli()` (`src/home/api/solver/cli.jl`) parses interactive/CLI overrides for solver
   config; `cli(; ui=true)` prompts interactively, `cli()` with no args picks defaults
-  non-interactively — pass its result as `kwargs...` into `ic_slump`/`get_solver`.
+  non-interactively — pass its result as `kwargs...` into `slump_problem`/`get_solver`.
 - `get_solver(; dim=2, kwargs...)` (`src/home/api/solver/get_solver.jl`) merges
   user kwargs over `get_default()`, resolves the execution backend, and builds the
   `Cairn` dispatch table (`cairn.ignite`/`.mapsto`/`.update`/`.implicit`) — this is
@@ -479,7 +545,7 @@ out   = elastoplasm(jld2; workflows = [elastodynamic!, elastoplastic!])
   `elastoquasistatic!` (dynamic_relaxation solver, `dynamic_relaxation/worflow.jl`);
   they can be freely composed/chained in the `workflows` vector since they all share
   the same `(mpts, mesh, basis, time, solver)` call signature.
-- Plotting is opt-in via `solver.plot.status` (set through `ic_slump`'s `plot=(...)`
+- Plotting is opt-in via `solver.plot.status` (set through `slump_problem`'s `plot=(...)`
   kwarg or `cli()`); when on, `elastoplasm` auto-saves a PNG per workflow named
   `"$(dim)_$(basis.which)_$(solvertype)_$(deform)_$(workflow)_$(quantity).png"` under
   the run's `dump/.../plot` path (`basis.which` was added so runs that only differ by
@@ -576,7 +642,7 @@ gone now; see `solution` below for how the concrete type is chosen instead.)
 Two ways to change solver behaviour:
 
 1. **Per-run override (preferred, no code change)** — pass any of these keys as
-   keyword arguments through `ic_slump`/`get_solver`; `get_solver` only keeps kwargs
+   keyword arguments through `slump_problem`/`get_solver`; `get_solver` only keeps kwargs
    whose keys already exist in `default` (unrecognized kwargs just get a `@warn`, not
    an error), then deep-merges them over `default` via `merge(ref, user)`. Note this is
    a shallow-per-key merge — to override one field of a nested `NamedTuple` block
@@ -584,7 +650,7 @@ Two ways to change solver behaviour:
    C_pf=..., musl=...)` NamedTuple, not just the one field, since `merge` replaces the
    whole `:transfer` entry rather than recursing into it. Example:
    ```julia
-   ic_slump(L, nel; basis=(;which="gimpm",how="Uii",ghost=0), strain=(;deform="finite"), transfer=(;trsfr="apic",C_pf=1.0,musl=true), stab=(;locking=true,damping=0.1))
+   slump_problem(L, nel; basis=(;which="gimpm",how="Uii",ghost=0), strain=(;deform="finite"), transfer=(;trsfr="apic",C_pf=1.0,musl=true), stab=(;locking=true,damping=0.1))
    ```
 2. **Change the package-wide default** — edit the literal value in `get_default()`
    directly. Do this only for a genuine change of the shipped default behaviour, not
@@ -606,12 +672,12 @@ there's no shared base struct to edit once.
 ### Using `cli()`
 
 `cli(; ui::Bool=false)` (`src/home/api/solver/cli.jl`) turns `get_default()`'s config
-tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `ic_slump`/
+tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `slump_problem`/
 `get_solver` as `cli()...`. Two modes:
 
 - `cli()` (default, `ui=false`) — **non-interactive**, just returns `get_default()`'s
   values reshaped into the kwargs `Dict`. This is what you want for scripts and
-  automated runs (`ic_slump(L, nel; cli()...)`) — it's the plain-defaults path, not a
+  automated runs (`slump_problem(L, nel; cli()...)`) — it's the plain-defaults path, not a
   prompt.
 - `cli(ui=true)` — **interactive**: first shows a `MultiSelectMenu` letting you pick
   which top-level sections to configure (`solution`, `dtype`, `basis`, `strain`,
@@ -627,7 +693,7 @@ tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `ic_slump`/
   non-interactive script or from within an agent session.
 - To override specific options while still using `cli()` for everything else, splat
   `cli()` first then override afterward — later kwargs win in Julia's `merge`-by-
-  keyword-splat semantics: `ic_slump(L, nel; cli()..., basis=(;which="gimpm",
+  keyword-splat semantics: `slump_problem(L, nel; cli()..., basis=(;which="gimpm",
   how="Uii", ghost=0))`. Same shallow-merge caveat as `get_default()` applies: you must
   pass the full nested `NamedTuple` for a section, not just the one field you want to
   change.
@@ -648,7 +714,7 @@ tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `ic_slump`/
   pattern already validated on the sibling path (explicit ↔ dynamic_relaxation) rather
   than reinventing it — these two solver directories are meant to stay structurally
   parallel.
-- Verify refactors by actually running the `ic_slump` → `elastoplasm(...; workflows=[...])`
+- Verify refactors by actually running the `slump_problem` → `elastoplasm(...; workflows=[...])`
   pipeline end-to-end, not just a clean-load check — a file can `include` cleanly and
   still be functionally broken (wrong kwarg name, stale dict key, matrix-style indexing
   into what's now a `Vector{SVector}`, etc.).

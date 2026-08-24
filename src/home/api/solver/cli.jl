@@ -1,19 +1,16 @@
 export get_option, process_cli_option, cli
 
 """
-    get_option(::Type{Instruction}) -> NamedTuple
+    get_option() -> NamedTuple
 
 Return all possible values for each configuration field as vectors.
 
-# Arguments
-- `::Type{Instruction}`: The type to get options for
-
 # Returns
-- `NamedTuple`: Structure matching `get_default(Instruction)` but with vectors of possible values instead of single values.
+- `NamedTuple`: Structure matching `get_default()` but with vectors of possible values instead of single values.
 
 # Example
 ```julia
-opts = get_option(Instruction)
+opts = get_option()
 println(opts.basis.which)  # ["bsmpm", "gimpm", "smpm", "mlsmpm"]
 println(opts.strain.deform)  # ["finite", "infinitesimal"]
 ```
@@ -167,12 +164,11 @@ The function automatically:
 - Skips sub-options when `status = false` is selected
 
 # Returns
-- `Dict`: Configuration dictionary ready to be passed to `kwargser()`
+- `Dict`: Configuration dictionary ready to be splatted as kwargs into `slump_problem`/`get_solver`.
 
 # Example
 ```julia
-kwargs = cli(ui=true)
-instr = kwargser(kwargs; dim=2)
+jld2 = slump_problem(L, nel; cli(ui=true)...)
 # Presents interactive menus for:
 # - dtype (Float32/Float64)
 # - basis functions

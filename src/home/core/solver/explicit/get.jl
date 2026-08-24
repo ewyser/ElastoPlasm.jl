@@ -18,7 +18,7 @@ Compute the adaptive time step for the simulation based on mesh spacing and mate
 dt = get_dt(mpts, mesh, time, ΔT)
 ```
 """
-function get_dt(mpts::Point{T1,T2,D,E,R},props::MeshProperties{T1,T2,D},time::Time{T1,T2},ΔT::T2) where {T1,T2,D,E,R}
+function get_dt(mpts::Point{T1,T2,D,E},props::MeshProperties{T1,T2,D},time::Time{T1,T2},ΔT::T2) where {T1,T2,D,E}
     # per-particle elastic wave speed, max over particles (real correctness improvement
     # over the old single global `cmpr.c` scalar if `cmp`/`ρ` ever become heterogeneous)
     cwave = T2(0.0)
@@ -83,7 +83,7 @@ g, dt = get_spacetime(mpts, mesh, time, ΔT)
 - Computes the adaptive time step using `get_dt`.
 - Ramps up gravity linearly until the end of the gravity phase, then applies full gravity.
 """
-function get_spacetime(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},time::Time{T1,T2},ΔT::T2) where {T1,T2,D,E,R}
+function get_spacetime(mpts::Point{T1,T2,D,E},mesh::Mesh{T1,T2,D},time::Time{T1,T2},ΔT::T2) where {T1,T2,D,E}
     # calculte dt
     dt = get_dt(mpts,mesh.prprt,time,ΔT)
     # ramp-up gravity

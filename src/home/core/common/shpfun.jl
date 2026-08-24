@@ -1,4 +1,4 @@
-@kernel inbounds = true function shpfun!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D,NN}) where {T1,T2,D,NN,E,R}
+@kernel inbounds = true function shpfun!(mpts::Point{T1,T2,D,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D,NN}) where {T1,T2,D,NN,E}
     p = @index(Global)
     # cache shape values/gradients for all NN neighbors of particle p, once per timestep
     if p ≤ mpts.nmp
@@ -12,7 +12,7 @@
     end
 end
 
-@views @kernel inbounds = true function Dij_nd(mpts::Point{T1,T2,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D}) where {T1,T2,E,R,D}
+@views @kernel inbounds = true function Dij_nd(mpts::Point{T1,T2,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D}) where {T1,T2,E,D}
     p = @index(Global)
     # calculate delta functions for tpic
     if p ≤ mpts.nmp

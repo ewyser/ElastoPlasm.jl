@@ -20,7 +20,7 @@ end
     end
 end
 
-@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,E,R},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},g::Vector{T2},dt::T2,Del) where {T1,T2,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,E},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},g::Vector{T2},dt::T2,Del) where {T1,T2,E<:LinearElasticity}
     p = @index(Global)
     if p ≤ mpts.nmp
         # compute velocity & displacement gradients
@@ -69,7 +69,7 @@ end
     end
 end
 
-@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,E,R},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},g::Vector{T2},dt::T2,Kc::T2,Gc::T2) where {T1,T2,E<:FiniteElasticity,R<:AbstractRheology}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,E},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},g::Vector{T2},dt::T2,Kc::T2,Gc::T2) where {T1,T2,E<:FiniteElasticity}
     mp = @index(Global)
     if mp ≤ mpts.nmp
         # Compute velocity & displacement gradients

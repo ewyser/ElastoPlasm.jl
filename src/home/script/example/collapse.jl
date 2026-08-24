@@ -1,4 +1,4 @@
-export collapse,collapse!,ic_collapse
+export ic_collapse
 
 """
     ic_collapse(nel::Vector{Int64}, ν, E, ρ0, l0; fid::String=..., kwargs...) -> NamedTuple, NamedTuple
@@ -42,12 +42,11 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
     T1,T2 = first(T0),last(T0) 
     L,nel = T2.(L),T1.(nel) 
     # mesh & mpts initial conditions
-    # mesh & mpts initial conditions
     ni    = T1(2)
     geom  = setup_geometry(L,nel,instr)
     # mesh, mpts, mat & time initial conditions
     mesh  = setup_mesh(geom, instr)
-    mat   = setup_matconst(mesh  ; E=T2(E), ν=T2(ν), ρ0=T2(ρ0))
+    mat   = setup_material_constants(instr ; E=T2(E), ν=T2(ν), ρ0=T2(ρ0))
     mpts  = setup_mpts(mesh, instr, mat; geom = get_collapse(mesh, mat, ni; ℓ₀=l0))
     # time parameters
     tg    = ceil((1.0/mat.c)*(2.0*l0)*40.0)
@@ -59,5 +58,5 @@ function ic_collapse(nel, ν, E, ρ0, l0; fid::String=first(splitext(basename(@_
         prefix = "$((length(mesh.prprt.nel)-1))d_$(instr.transfer.trsfr)"
     )
     # export to jld2 file and return path
-    return export_setup(mesh,mpts,time,instr,paths,misc; path = paths[:dat], file = "collapse_simulation")
+    return export_problem(mesh,mpts,time,instr,paths,misc; path = paths[:dat], file = "collapse_simulation")
 end

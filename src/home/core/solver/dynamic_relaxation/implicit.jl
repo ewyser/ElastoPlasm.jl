@@ -1,4 +1,4 @@
-export elastoimplicit!,elastoquasistatic!,elastouP!,elastoquasistaticuP!
+export elastouP!,elastoquasistaticuP!
 
 # Pseudo-transient (DYREL/Chebyshev) implicit MPM solver
 # Adapted from the FEMTools.jl PT framework (thermal & Stokes DYREL)
@@ -122,7 +122,7 @@ function init_implicit(instr::NamedTuple; implicit::Dict{Symbol,Cairn} = Dict{Sy
     return (; implicit...)
 end
 
-function relax(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::Vector{T2},dt::T2,instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
+function relax(mpts::Point{T1,T2,D,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::Vector{T2},dt::T2,instr::S) where {T1,T2,D,E,S<:AbstractSolver{T1,T2,D}}
     fill!(mesh.s.m   ,T2(0))
     fill!(mesh.s.oobf,T2(0))
     fill!(mesh.s.v   , zero(eltype(mesh.s.v)))
@@ -322,7 +322,7 @@ function pt_solve_uP!(mpts, mesh, basis, g, dt, instr;
     return nothing
 end
 
-function mapsto_uP(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::Vector{T2},dt::T2,instr::S; quasi_static::Bool=false) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
+function mapsto_uP(mpts::Point{T1,T2,D,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::Vector{T2},dt::T2,instr::S; quasi_static::Bool=false) where {T1,T2,D,E,S<:AbstractSolver{T1,T2,D}}
     fill!(mesh.s.m   ,T2(0))
     fill!(mesh.s.mv  ,T2(0))
     fill!(mesh.s.oobf,T2(0))
@@ -359,7 +359,7 @@ function mapsto_uP(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,
     return nothing
 end
 
-function elastoquasistaticuP!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
+function elastoquasistaticuP!(mpts::Point{T1,T2,D,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,E,S<:AbstractSolver{T1,T2,D}}
     it   = T1(0)
     prog = Progress(40; dt=0.5, desc="Solving elasto quasi-static u-P...", barlen=10)
     lstps = collect(range(0, 9.8; length=40))
@@ -380,7 +380,7 @@ function elastoquasistaticuP!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis
     return nothing
 end
 
-function elastouP!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
+function elastouP!(mpts::Point{T1,T2,D,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,E,S<:AbstractSolver{T1,T2,D}}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.te)))
     prog = Progress(length(checks);dt=0.5,desc="Solving elasto u-P...",barlen=10)
     for ck ∈ checks
