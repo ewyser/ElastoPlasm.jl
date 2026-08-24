@@ -30,13 +30,14 @@ end
     return τ0 .* (τn / τII) .+ SVector{6,T}(Pn,Pn,Pn,zero(T),zero(T),zero(T))
 end
 
-@inline function drucker_prager(τᵢ::SVector{D,T},ϵᵢⱼ::SMatrix{S,S,T,L},ϵpII::MVector{2,T},ϕ₀::T,c₀::T,cᵣ::T,cmp::NamedTuple) where {D,S,T,L}
+@inline function drucker_prager(τᵢ::SVector{D,T},ϵᵢⱼ::SMatrix{S,S,T,L},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel) where {D,S,T,L}
         Δλ     = T(0.0)
         ψ,nstr = T(0.0*π/180.0),length(τᵢ)
+        ϕ₀,c₀,cᵣ = cmp.ϕ₀,cmp.c₀,cmp.cᵣ
 
         # closed-form solution return-mapping for D-P
         c = c₀+cmp.Hp*ϵpII[2]
-        if c<cᵣ 
+        if c<cᵣ
             c = cᵣ
         end
         P,τ0,τII = σTr(τᵢ)
@@ -70,10 +71,10 @@ end
         return ϵᵢⱼ,τᵢ,Δλ,ϵpII
 end
 
-@views @kernel inbounds = true function finite_DP(mpts::Point{T1,T2},cmp::NamedTuple) where {T1,T2}
+@views @kernel inbounds = true function finite_DP(mpts::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp 
-        ϵᵢⱼ,τᵢ,Δλ,ϵpII = drucker_prager(mpts.s.τᵢ[p],mpts.s.ϵᵢⱼ[p],MVector{2,T2}(mpts.s.ϵpII[1,p],mpts.s.ϵpII[2,p]),mpts.s.ϕ₀[p],mpts.s.c₀[p],mpts.s.cᵣ[p],cmp)
+    if p≤mpts.nmp
+        ϵᵢⱼ,τᵢ,Δλ,ϵpII = drucker_prager(mpts.s.τᵢ[p],mpts.s.ϵᵢⱼ[p],MVector{2,T2}(mpts.s.ϵpII[1,p],mpts.s.ϵpII[2,p]),mpts.s.cmp[p])
         if Δλ > T2(0.0)
             mpts.s.ϵᵢⱼ[p]     = ϵᵢⱼ
             mpts.s.τᵢ[p]      = τᵢ
@@ -114,19 +115,20 @@ end
         =#
     end
 end
-@views @kernel inbounds = true function infinitesimal_DP(mpts::Point{T1,T2},cmp::NamedTuple) where {T1,T2}
+@views @kernel inbounds = true function infinitesimal_DP(mpts::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
-    if p≤mpts.nmp 
+    if p≤mpts.nmp
+        cmp = mpts.s.cmp[p]
         mpts.s.Δλ[p] = T2(0.0)
         ψ,nstr   = T2(0.0*π/180.0),length(mpts.s.σᵢ[1])
 
         # closed-form solution return-mapping for D-P
-        c   = mpts.s.c₀[p]+cmp.Hp*mpts.s.ϵpII[2,p]
-        if c<mpts.s.cᵣ[p] 
-            c = mpts.s.cᵣ[p] 
+        c   = cmp.c₀+cmp.Hp*mpts.s.ϵpII[2,p]
+        if c<cmp.cᵣ
+            c = cmp.cᵣ
         end
         P,τ0,τII = σTr(mpts.s.σᵢ[p])
-        η,ηB,ξ   = materialParam(mpts.s.ϕ₀[p],ψ,c,nstr)
+        η,ηB,ξ   = materialParam(cmp.ϕ₀,ψ,c,nstr)
         σm,τP    = ξ/η,ξ-η*(ξ/η)
         fs,ft    = τII+η*P-ξ,P-σm         
         αP,h     = sqrt(T2(1.0)+η^2)-η,τII-τP-(sqrt(T2(1.0)+η^2))*(P-σm)  

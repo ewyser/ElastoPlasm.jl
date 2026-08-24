@@ -1,12 +1,12 @@
 """
-    get_dt(mpts, mesh, cmpr, time, ΔT) -> Float64
+    get_dt(mpts, mesh, time, ΔT) -> Float64
 
 Compute the adaptive time step for the simulation based on mesh spacing and material point velocities.
 
 # Arguments
-- `mpts`: Material point data structure, must contain `vmax`.
+- `mpts`: Material point data structure, must contain `vmax` and `s.cmp`/`s.ρ` (per-particle
+  constitutive constants + density, used to compute the per-particle elastic wave speed).
 - `mesh`: Mesh data structure, must contain `h`.
-- `cmpr`: Constitutive model parameters (must include wave speed `c`).
 - `time`: Named tuple with current and phase times.
 - `ΔT`: End time for the current phase or time window.
 
@@ -15,12 +15,19 @@ Compute the adaptive time step for the simulation based on mesh spacing and mate
 
 # Example
 ```julia
-dt = get_dt(mpts, mesh, cmpr, time, ΔT)
+dt = get_dt(mpts, mesh, time, ΔT)
 ```
 """
-function get_dt(mpts::Point{T1,T2,D,E,R},props::MeshProperties{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},ΔT::T2) where {T1,T2,D,E,R}
+function get_dt(mpts::Point{T1,T2,D,E,R},props::MeshProperties{T1,T2,D},time::Time{T1,T2},ΔT::T2) where {T1,T2,D,E,R}
+    # per-particle elastic wave speed, max over particles (real correctness improvement
+    # over the old single global `cmpr.c` scalar if `cmp`/`ρ` ever become heterogeneous)
+    cwave = T2(0.0)
+    @inbounds for p ∈ 1:mpts.nmp
+        cmp   = mpts.s.cmp[p]
+        cwave = max(cwave, sqrt((cmp.Kc+T2(4.0/3.0)*cmp.Gc)/mpts.s.ρ[p]))
+    end
     # calculte dt
-    cmax = props.h./(mpts.vmax.+cmpr[:c]); mpts.vmax.=T2(0.0) 
+    cmax = props.h./(mpts.vmax.+cwave); mpts.vmax.=T2(0.0)
     dt   = min(T2(0.5)*maximum(cmax),ΔT-time.t[1])
     return dt::T2
 end
@@ -54,14 +61,13 @@ function get_g(props::MeshProperties{T1,T2,D}; G::T2=9.81) where {T1,T2,D}
 end
 
 """
-    get_spacetime(mpts, mesh, cmpr, time, ΔT) -> Tuple{Vector, Float64}
+    get_spacetime(mpts, mesh, time, ΔT) -> Tuple{Vector, Float64}
 
 Update simulation state, including plasticity status, adaptive time step, and gravity vector, for the current time step.
 
 # Arguments
 - `mpts`: Material point data structure.
 - `mesh`: Mesh data structure.
-- `cmpr`: Constitutive model parameters.
 - `time`: Named tuple with current and phase times.
 - `ΔT`: End time for the current phase or time window.
 
@@ -70,16 +76,16 @@ Update simulation state, including plasticity status, adaptive time step, and gr
 
 # Example
 ```julia
-g, dt = get_spacetime(mpts, mesh, cmpr, time, ΔT)
+g, dt = get_spacetime(mpts, mesh, time, ΔT)
 ```
 
 # Notes
 - Computes the adaptive time step using `get_dt`.
 - Ramps up gravity linearly until the end of the gravity phase, then applies full gravity.
 """
-function get_spacetime(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},ΔT::T2) where {T1,T2,D,E,R}
+function get_spacetime(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},time::Time{T1,T2},ΔT::T2) where {T1,T2,D,E,R}
     # calculte dt
-    dt = get_dt(mpts,mesh.prprt,cmpr,time,ΔT)
+    dt = get_dt(mpts,mesh.prprt,time,ΔT)
     # ramp-up gravity
     if time.t[1] <= time.tg 
         g = get_g(mesh.prprt; G = T2(9.81*time.t[1]/time.tg))

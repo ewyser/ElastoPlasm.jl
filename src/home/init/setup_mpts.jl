@@ -1,6 +1,6 @@
 
 """
-    setup_mpts(mesh::Mesh{T1,T2,D}, solver::S, cmpr::NamedTuple; geom::NamedTuple=()) -> Point
+    setup_mpts(mesh::Mesh{T1,T2,D}, solver::S, mat::NamedTuple; geom::NamedTuple=()) -> Point
 
 Construct the material point system (mpts) for a simulation, initializing all relevant fields.
 Connectivity (`p2n`, `p2e`, `e2p`, `p2p`) is built separately by `setup_basis`, after both `Mesh`
@@ -9,7 +9,9 @@ and `Point` exist.
 # Arguments
 - `mesh::Mesh{T1,T2,D}`: Mesh object containing geometry.
 - `solver::S`: Solver instance (e.g. `ExplicitSolver`) with matching `T1,T2,D`.
-- `cmpr::NamedTuple`: Constitutive model parameters.
+- `mat::NamedTuple`: Raw material constants (`setup_matconst`) — transient, used only to
+  build the per-particle `cmp::Vector{<:AbstractConstitutiveModel}` here (via `setup_cmp`),
+  not persisted or stored on `Point` itself.
 - `geom::NamedTuple=()`: (Optional) Geometry definition (e.g., number of intervals, number of material points, geometry struct).
 
 # Returns
@@ -17,7 +19,7 @@ and `Point` exist.
 
 # Example
 ```julia
-mpts = setup_mpts(mesh, solver, cmpr; geom=get_slump(mesh, cmpr, solver))
+mpts = setup_mpts(mesh, solver, mat; geom=get_slump(mesh, mat, solver))
 println(mpts.nmp)  # Number of material points
 ```
 
@@ -26,7 +28,7 @@ println(mpts.nmp)  # Number of material points
 - Sets up phase properties (solid and liquid).
 - Handles both 2D and 3D cases.
 """
-function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTuple=(;)) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     props = mesh.prprt
     # non-dimensional constant
     if D == 2
@@ -42,7 +44,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedT
     n0 = 0.1.*ones(nmp)
     l0 = ones(size(xp)).*0.5.*(props.h./ni)
     v0 = prod(2 .* l0; dims=1)
-    ρ0 = fill(cmpr[:ρ0],nmp)
+    ρ0 = fill(mat[:ρ0],nmp)
     # initial velocity (if provided)
     vp = haskey(geom, :vp) ? geom.vp : zeros(size(xp))
     # constructor - create components
@@ -72,7 +74,10 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedT
         TS = SVector{6,T2}
     end
 
-    s = PointSolidPhase{T1,T2,D,typeof(elast),typeof(rheo),TM,TV,TS}(
+    cmp = setup_cmp(nmp,T2.(vec(copy(geom.coh0))),T2.(vec(copy(geom.cohr))),T2.(vec(copy(geom.phi))); E=T2(mat[:E]),ν=T2(mat[:ν]),Hp=T2(mat[:Hp]),D=Int(D))
+    CM  = eltype(cmp)
+
+    s = PointSolidPhase{T1,T2,D,typeof(elast),typeof(rheo),CM,TM,TV,TS}(
         [zero(TV)  for _ in 1:nmp]                         , # u
         [TV(T2.(vp[:,p])) for p in 1:nmp]                  , # v
         # mechanical properties
@@ -101,6 +106,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedT
         # component-based fields
         elast                                               , # elast::E
         rheo                                               , # rheo::R
+        cmp                                                  , # cmp::Vector{CM}
     )
     #=
     t = PointThermalPhase{T1,T2,D}(
@@ -111,7 +117,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,cmpr::NamedTuple; geom::NamedT
     )
     =#
 
-    mpts = Point{T1,T2,D,typeof(elast),typeof(rheo),TM,TV,TS}(
+    mpts = Point{T1,T2,D,typeof(elast),typeof(rheo),CM,TM,TV,TS}(
         # general information
         T1(D)                              , # ndim
         T1(nmp)                              , # nmp

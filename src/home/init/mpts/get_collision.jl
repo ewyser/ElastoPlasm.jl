@@ -1,5 +1,5 @@
 """
-    get_collision(mesh::Mesh{T1,T2,D}, cmpr, solver::S; ni=2, r=0.1, v=20.5) where {D,S<:AbstractSolver}
+    get_collision(mesh::Mesh{T1,T2,D}, mat, solver::S; ni=2, r=0.1, v=20.5) where {D,S<:AbstractSolver}
 
 Initialize geometry and material point fields for a disk collision test problem.
 
@@ -9,7 +9,7 @@ evolution, and momentum conservation.
 
 # Arguments
 - `mesh::Mesh{T1,T2,D}`: Mesh object with geometry and boundary self.
-- `cmpr`: Material parameters (Dict or NamedTuple).
+- `mat`: Material parameters (Dict or NamedTuple).
 - `solver::S`: Solver instance (e.g. `ExplicitSolver`).
 - `ni`: Number of intervals per element (default: 2).
 - `r`: Relative disk radius as fraction of domain height (default: 0.1).
@@ -30,16 +30,16 @@ evolution, and momentum conservation.
 
 # Example
 ```julia
-geom = get_collision(mesh, cmpr, solver; ni=3, r=0.1, v=20.5)
-mpts = setup_mpts(mesh, solver, cmpr; geom=geom)
+geom = get_collision(mesh, mat, solver; ni=3, r=0.1, v=20.5)
+mpts = setup_mpts(mesh, solver, mat; geom=geom)
 ```
 """
-function get_collision(mesh::Mesh{T1,T2,D}, cmpr, solver::S; ni=2, r=0.1, v=10.5) where {T1,T2,D,S<:AbstractSolver}
+function get_collision(mesh::Mesh{T1,T2,D}, mat, solver::S; ni=2, r=0.1, v=10.5) where {T1,T2,D,S<:AbstractSolver}
     props = mesh.prprt
     lz = props.L[end]  # Domain height
 
     # Populate candidate material point positions
-    out = mpts_populate(props, cmpr, solver; ni=ni)
+    out = mpts_populate(props, mat, solver; ni=ni)
 
     # Get candidate positions
     id = findall(x -> x ≤ lz - (0.5*props.h[end]/ni), out.x[end,:])
@@ -182,13 +182,13 @@ function get_collision(mesh::Mesh{T1,T2,D}, cmpr, solver::S; ni=2, r=0.1, v=10.5
 
     # Material properties
     coh0 = clt
-    cohr = ones(nmp) .* cmpr[:cr]
-    phi = ones(nmp) .* cmpr[:ϕ0]
+    cohr = ones(nmp) .* mat[:cr]
+    phi = ones(nmp) .* mat[:ϕ0]
 
     # Thermal properties
-    c = ones(nmp) .* cmpr[:specific_heat_capacity]
-    k = ones(nmp) .* cmpr[:thermal_conductivity]
-    T = ones(nmp) .* cmpr[:initial_temperature]
+    c = ones(nmp) .* mat[:specific_heat_capacity]
+    k = ones(nmp) .* mat[:thermal_conductivity]
+    T = ones(nmp) .* mat[:initial_temperature]
 
     return (;xp=xp, vp=vp, coh0=coh0, cohr=cohr, phi=phi, T=T, c=c, k=k, ni=ni, nmp=nmp)
 end

@@ -58,7 +58,7 @@ struct DruckerPragerRheology{T1,T2,D} <: AbstractRheology{T1,T2}
 end
 @adapt_struct DruckerPragerRheology
 
-struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology,TM,TV,TS} <: MaterialPointPhase{T1,T2}
+struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology,CM<:AbstractConstitutiveModel,TM,TV,TS} <: MaterialPointPhase{T1,T2}
     u    ::Vector{TV}   # displacement per MP : SVector{ndim,T2}
     v    ::Vector{TV}   # velocity per MP     : SVector{ndim,T2}
     # mechanical properties
@@ -87,6 +87,8 @@ struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology,TM,TV,T
     # new component-based fields
     elast::E
     rheo ::R
+    # per-particle static constitutive-model constants (Gc,Kc,Del,Hp,c₀,cᵣ,ϕ₀, ...)
+    cmp  ::Vector{CM}
 end
 @adapt_struct PointSolidPhase
 
@@ -104,7 +106,7 @@ struct PointThermalPhase{T1,T2,D} <: MaterialPointPhase{T1,T2}
 end
 @adapt_struct PointThermalPhase
 
-struct Point{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology,TM,TV,TS} <: MaterialPoint{T1,T2}
+struct Point{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology,CM<:AbstractConstitutiveModel,TM,TV,TS} <: MaterialPoint{T1,T2}
     # general information
     ndim ::T1
     nmp  ::T1
@@ -128,7 +130,7 @@ struct Point{T1,T2,D,E<:AbstractElasticity,R<:AbstractRheology,TM,TV,TS} <: Mate
     ΔJ   ::Vector{T2}
     J    ::Vector{T2}
     # solid phase
-    s    ::PointSolidPhase{T1,T2,D,E,R,TM,TV,TS}
+    s    ::PointSolidPhase{T1,T2,D,E,R,CM,TM,TV,TS}
     # fluid phase
     f    ::Union{Nothing, PointFluidPhase{T1,T2,D}}
     # thermal phase
