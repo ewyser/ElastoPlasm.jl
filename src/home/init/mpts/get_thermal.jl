@@ -28,7 +28,7 @@ function get_thermal(mesh,mat,solver; ni = 2)
 
     c    = ones(nmp).*mat[:specific_heat_capacity]
     k    = ones(nmp).*mat[:thermal_conductivity]
-    T    = zeros(nmp).*mat[:initial_temperature]
+    T    = ones(nmp).*mat[:initial_temperature]
 
     return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,T=T,c=c,k=k,ni=ni,nmp=nmp)
 end

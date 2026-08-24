@@ -82,3 +82,43 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Vect
     end
     return nothing
 end
+
+"""
+    mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+
+Resolution of the thermal (heat-conduction) problem: project material-point heat
+capacity/temperature to nodes, solve the nodal heat-balance equation, and map the
+updated temperature back to material points. Mirrors the solid-phase `mapsto` above,
+minus the gravity/finite-strain/APIC concerns that don't apply to the thermal phase
+(only the `std` transfer scheme has a thermal `p2n!` kernel — see `p2n/std.jl`).
+
+# Arguments
+- `mpts::Point{T1,T2}`: Material point data structure.
+- `mesh::MeshThermalPhase{T1,T2}`: Mesh data structure for the thermal phase.
+- `basis::Basis{T1,T2}`: Topology container linking `mesh`/`mpts`.
+- `dt::T2`: Time step.
+- `solver::ExplicitSolver{T1,T2}`: Solver instance.
+
+# Returns
+- `nothing`. Updates fields in-place.
+"""
+function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+    # reset nodal quantities
+    fill!(mesh.cᵢ  ,T2(0.0))
+    fill!(mesh.mcT ,T2(0.0))
+    fill!(mesh.oobq,T2(0.0))
+    fill!(mesh.dT  ,T2(0.0))
+    # mapping to mesh
+    solver.cairn.mapsto.map.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+    # solve nodal heat-balance equation
+    solver.cairn.mapsto.map.solve!(mesh,dt; ndrange=mesh.prprt.nno[end]);sync(CPU())
+    # maps back solution to material point
+    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.transfer.C_pf); ndrange=mpts.nmp);sync(CPU())
+    # (if musl) reproject nodal temperature
+    if solver.transfer.musl
+        fill!(mesh.mcT,T2(0.0))
+        solver.cairn.mapsto.augm.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+        solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
+    end
+    return nothing
+end

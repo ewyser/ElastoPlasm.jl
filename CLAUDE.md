@@ -410,15 +410,65 @@ on an unrelated branch.**
   `explicit/worflow.jl` mirroring `elastodynamic!`, with its own P2G/G2P/update kernel
   path (mirroring `mapsto`/`update`'s structure) before any
   solid-fluid coupling work is meaningful.
-- **Check correctness and viability of the thermal solution.** `PointThermalPhase`
-  has real fields (`c`, `k`, `q`, `T`) and several kernels reference it
-  (`update/fun/heatflux.jl`, the `MeshThermalPhase` branches of `std_p2n`/`augm_p2n`/
-  `n2p`), but those branches read `mpts.ϕ∂ϕ[nn,p,:]` — a field that does not exist
-  anywhere on `Point` (confirmed by grep; see the caching-design note above for the
-  fields that *do* exist). Any thermal-phase workflow would throw immediately if
-  actually exercised — needs a real audit of whether this path was ever functional
-  after the `Basis`/shape-function refactors, or needs rebuilding against the current
-  `basis.N`/`∂N` cache the way the solid phase already was.
+- **Thermal solution — fixed and now viable, on branch `fix-thermal-phase-shape-function-cache`.**
+  `thermal_problem` (renamed from `ic_thermal`, `src/home/script/example/thermal.jl`,
+  rewritten to mirror `slump_problem`'s `get_solver → setup_geometry → setup_problem →
+  setup_basis → export_problem` pipeline) → `elastoplasm(jld2;
+  workflows=[thermodynamic!])` now runs end-to-end and produces physically sane output
+  (verified: temperature stayed bounded within `[boundary, initial]` and cooled
+  monotonically from the boundary inward, both with `musl=true` and `musl=false`).
+  What was actually broken, beyond the previously-known `mpts.ϕ∂ϕ` reads:
+  - `mpts.ϕ∂ϕ[nn,p,:]` reads in `std_p2n`'s `MeshThermalPhase` overloads
+    (`mapsto/fun/p2n/std.jl`), `augm_p2n` (`mapsto/fun/augm.jl`), `picflip_n2p`
+    (`mapsto/fun/n2p.jl`), and `heatflux` (`update/fun/heatflux.jl`) all replaced with
+    `basis.N[nn,p]`/`∂Nrow(basis.∂N,nn,p,Val(D))`, the same pattern the solid phase
+    already used.
+  - `std_p2n`'s 3D thermal overload was mistyped as `mesh::Mesh{T1,T2,3}` instead of
+    `mesh::MeshThermalPhase{T1,T2,3}` — never actually dispatched as the thermal
+    kernel it clearly was (body reads `mpts.t`/`mesh.cᵢ`/`mesh.mcT`/`mesh.oobq`).
+  - `heatflux`'s signature never bound `D` (needed for `Val(D)`); `thermo`'s
+    (`update/update.jl`) signature bound a stale `E` positionally into `Point`'s
+    now-`D` slot post-`rheo`-removal. Both fixed.
+  - **The real missing piece**: `thermodynamic!` (`explicit/worflow.jl`) calls
+    `mapsto(mpts, mesh.t, basis, dt, instr)`, but only a solid-phase `mapsto` existed
+    (different arg count/order, `mesh::Mesh` not `MeshThermalPhase`, requires a
+    gravity vector). A new `mapsto(mpts::Point,mesh::MeshThermalPhase,basis,dt,solver)`
+    overload was added in `mapsto.jl`, mirroring the solid one's p2n→solve→n2p(→musl
+    augm reprojection) structure but without gravity/APIC/finite-strain concerns —
+    every individual kernel it calls (thermal `std_p2n`/`euler`/`picflip_n2p`/
+    `augm_p2n`/`augm_solve`) already existed and needed no new design, just this one
+    orchestrating wrapper.
+  - `mesh.t`/`mpts.t` were unconditionally `nothing` — `setup_mesh`/`setup_mpts`/
+    `setup_problem` all gained a `thermal::Bool=false` kwarg (default `false`, so
+    every other caller is unaffected) that builds a real zero-initialized
+    `MeshThermalPhase`/`PointThermalPhase` instead. Only `thermal_problem` sets
+    `thermal=true`.
+  - `get_thermal.jl`'s initial temperature was `zeros(nmp).*mat[:initial_temperature]`
+    (always zero regardless of config) — fixed to `ones(nmp).*...`.
+  - **Not fixed, left as a known gap**: `thermal_problem` defaults to
+    `plot.status=false`. `ic_thermal`'s old plotting config used a stale
+    string-tuple format (`what=[("mpts","T"),("mesh","T")]`) incompatible with the
+    current `get_plot_field`/`get_mpts_variable_config()`-based API, and even the
+    modern API has no `"T"` entry in `get_mpts_variable_config()`/
+    `get_mesh_variable_config()` yet, plus `display.jl` carries two *different*,
+    incompatible `what_plot_field(mesh::Mesh,...)` dispatch styles (an old
+    string-`opts.what`-based one that reads `mesh.t.T` directly, and the new
+    NamedTuple-config style `get_plot_field` actually calls) — unifying these is a
+    separate, real piece of follow-up work, out of scope for getting the solve loop
+    itself working.
+  - **Separately discovered, fixed in the same branch**: 3D APIC transfer for the
+    *solid* phase (`mapsto/fun/p2n/apic.jl`) had the identical dead-`ϕ∂ϕ` bug, plus a
+    mismatched `mesh::MeshSolidPhase` type (every other `p2n!` kernel is called with
+    the top-level `mesh::Mesh`) and inconsistent `mesh.m`/`mesh.mv` vs `mesh.s.m`/
+    `mesh.s.mv` field access. Fixed to match the working 2D APIC kernel's pattern.
+    Verified the fix itself is correct (700+ iterations of real physics before
+    failure), but 3D+APIC then hits a separate, pre-existing `DomainError` (sqrt of a
+    negative value) — the same general explicit-MPM numerical-instability class
+    already documented elsewhere in this file for other undertested basis/config
+    combinations — persisting even with `stab.locking=false`. Root cause not chased
+    further; 3D+APIC was already flagged as untested territory under "3D conformity
+    check" below, and 1D APIC has the same `mesh.m`/`mesh.s.m` inconsistency,
+    unfixed (out of scope — 1D is essentially never exercised in this codebase).
 - **Add a JLD2 time-series export option, as an alternative to plot-only checkpoints.**
   Every workflow's time loop (`explicit/worflow.jl`) computes `checks =
   sort(collect(time.t[1]:solver.plot.freq:time.te))` and calls `bake(mpts,mesh,t,solver)`
