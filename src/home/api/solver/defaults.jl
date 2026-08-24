@@ -1,19 +1,16 @@
 export get_default
 
 """
-    get_default(::Type{Instruction}) -> NamedTuple
+    get_default() -> NamedTuple
 
-Return default configuration values for the specified type.
-
-# Arguments
-- `::Type{Instruction}`: The type to get defaults for
+Return default configuration values for the solver.
 
 # Returns
 - `NamedTuple`: Default configuration values for simulation, including precision, basis, deformation framework, mapping scheme, locking mitigation, random field generator, plasticity, non-local regularization, plotting options, and performance mode.
 
 # Example
 ```julia
-cfg = get_default(Instruction)
+cfg = get_default()
 println(cfg.basis.which)  # prints the default basis type
 ```
 

@@ -43,7 +43,7 @@ function prepare_simulations!(L, nel, fid, paths)
                     what = [(; mpts=(name="epII", cblim=(0.0, 1.5)),),],
                 )
                 @suppress begin
-                    _ = ic_slump(L, nel; fid="$fid/sim_$sim", strain=strain, transfer=transfer, stab=stab, plot=plot)
+                    _ = slump_problem(L, nel; fid="$fid/sim_$sim", strain=strain, transfer=transfer, stab=stab, plot=plot)
                 end
                 next!(prog; desc="Preparing simulation(s) $sim/$nsim...")
                 sim += 1
@@ -101,7 +101,7 @@ function postprocess_fields(outputs, path)
 
     # Load reference data
     reference = load(outputs[1])
-    npts      = length(reference["ic/mpts"].x)
+    npts      = length(reference["ic/problem"].mpts.x)
     
     # Process each selected field
     for field in selection
@@ -132,10 +132,11 @@ function extract_field_data(outputs, get, npts, nsim)
     
     prog = make_progress(nsim; desc="Extracting $(get.name)")
     for (k, output) ∈ enumerate(outputs)
-        jldopen(output,"r+") do file
-            X[:, k] = getindex.(file["ic/mpts"].x, 1)
-            Y[:, k] = getindex.(file["ic/mpts"].x, 2)
-            D[:, k] = get.data(file["ic/mpts"]) .* get.scale
+        jldopen(output,"r") do file
+            mpts    = file["ic/problem"].mpts
+            X[:, k] = getindex.(mpts.x, 1)
+            Y[:, k] = getindex.(mpts.x, 2)
+            D[:, k] = get.data(mpts) .* get.scale
         end
         next!(prog; desc="Extracting $(get.name) $k/$nsim...")
     end
@@ -167,8 +168,8 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
     @info "Plotting averaged $(field_info.name) with standard deviation..."
     
     solver = reference["cfg/solver"]
-    mesh = reference["ic/mesh"]
-    mpts = reference["ic/mpts"]
+    mesh = reference["ic/problem"].mesh
+    mpts = reference["ic/problem"].mpts
 
     # Common plot settings
     common = (;
@@ -220,7 +221,39 @@ function plot_field_statistics(stats, field_info, reference, path, field_name, n
 end
 
 """
-    metanalysis(L::Vector{Float64}, nel::Vector{Int64}; fid::String=..., field::String="epII") -> Nothing
+    collect_sim_outputs(root::String) -> Vector{String}
+
+Collect the `.jld2` output paths for every simulation directory already present
+under `root`.
+"""
+function collect_sim_outputs(root::String)
+    outputs = String[]
+    for sim ∈ filter(d -> isdir(joinpath(root, d)), readdir(root))
+        sim_path = joinpath(root, sim)
+        for file in filter(f -> endswith(f, ".jld2"), readdir(sim_path))
+            push!(outputs, joinpath(sim_path, file))
+        end
+    end
+    return outputs
+end
+
+"""
+    run_postprocess_loop(outputs, root) -> Nothing
+
+Repeatedly prompt "Do/Redo metanalysis ?" and call `postprocess_fields` until the
+user declines.
+"""
+function run_postprocess_loop(outputs, root)
+    menu, msg = RadioMenu(["Yes", "No"], pagesize=2), "Do metanalysis ?"
+    while [true, false][request(msg, menu)]
+        postprocess_fields(outputs, root)
+        msg  = "Redo metanalysis ?"
+    end
+    return nothing
+end
+
+"""
+    metanalysis(L::Vector{Float64}, nel::Vector{Int64}; fid::String=...) -> Nothing
 
 Perform metanalysis across multiple slump simulations with varying deformation frameworks and transfer schemes.
 
@@ -228,7 +261,6 @@ Perform metanalysis across multiple slump simulations with varying deformation f
 - `L::Vector{Float64}`: Domain dimensions.
 - `nel::Vector{Int64}`: Number of elements in each dimension.
 - `fid::String`: (Optional) File or run identifier (default: script filename).
-- `field::String`: (Optional) Field to average and plot (default: "epII").
 
 # Returns
 - `Nothing`: Saves averaged field plot to disk.
@@ -240,9 +272,9 @@ metanalysis([64.0, 16.0], [40, 10]; fid="slump_meta")
 
 # Notes
 - Tests all combinations of deformation frameworks (finite/infinitesimal) and transfer schemes (std/tpic/apic)
-- Computes and plots ensemble average of the specified field across all simulations
+- Computes and plots ensemble average of the field(s) selected interactively in `postprocess_fields`
 """
-function metanalysis(L, nel; fid::String=first(splitext(basename(@__FILE__))), field::String="epII")
+function metanalysis(L, nel; fid::String=first(splitext(basename(@__FILE__))))
     @assert length(L) == length(nel) "L and nel must have same length"
     root = mkpath(joinpath(self.sys.out, fid))
     # Prepare and execute simulations if not already done
@@ -254,37 +286,17 @@ function metanalysis(L, nel; fid::String=first(splitext(basename(@__FILE__))), f
         outputs = execute_simulations(meta_path, nsim)
     else
         # 2b. Load existing outputs
-        outputs = String[]
-        for sim ∈ filter(d -> isdir(joinpath(root, d)), readdir(root))
-            sim_path = joinpath(root, sim)
-            for file in filter(f -> endswith(f, ".jld2"), readdir(sim_path))
-                push!(outputs, joinpath(sim_path, file))
-            end
-        end
+        outputs = collect_sim_outputs(root)
     end
 
     # 3. Postprocess results
-    menu, msg = RadioMenu(["Yes", "No"], pagesize=2), "Do metanalysis ?"
-    while [true, false][request(msg, menu)]
-        postprocess_fields(outputs, root)
-        msg  = "Redo metanalysis ?"
-    end
+    run_postprocess_loop(outputs, root)
 
     return nothing
 end
-function metanalysis(root::String, field::String="epII")
-    outputs = String[]
-    for sim ∈ filter(d -> isdir(joinpath(root, d)), readdir(root))
-        sim_path = joinpath(root, sim)
-        for file in filter(f -> endswith(f, ".jld2"), readdir(sim_path))
-            push!(outputs, joinpath(sim_path, file))
-        end
-    end
-    menu, msg = RadioMenu(["Yes", "No"], pagesize=2), "Do metanalysis ?"
-    while [true, false][request(msg, menu)]
-        postprocess_fields(outputs, root)
-        msg  = "Redo metanalysis ?"
-    end
+function metanalysis(root::String)
+    outputs = collect_sim_outputs(root)
+    run_postprocess_loop(outputs, root)
 
     return nothing
 end

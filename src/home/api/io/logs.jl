@@ -20,17 +20,12 @@ function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_ve
     printstyled("│", color=:green, bold=true); println(" New comer ? Try $(showcase) out")
     if showcase == "slumping"
         printstyled("│", color=:green, bold=true); println("   L,nel  = [64.1584,64.1584/4.0],[40,10];")
-        printstyled("│", color=:green, bold=true); println("   jld2   = ic_slump(L,nel;cli()...);")
+        printstyled("│", color=:green, bold=true); println("   jld2   = slump_problem(L,nel;cli()...);")
         printstyled("└", color=:green, bold=true); println("   out    = elastoplasm(jld2; workflows = [elastodynamic!,elastoplastic!]);")
-    elseif showcase == "collapsing"
-        printstyled("│", color=:green, bold=true); println("   plot    = (; status=true, freq=1.0, what=[\"sigxx\"], dims=(500.0,250.0) );")
-        printstyled("│", color=:green, bold=true); println("   nel     = [5,10];")
-        printstyled("│", color=:green, bold=true); println("   ic, cfg = ic_collapse(nel,0.0,1.0e4,80.0,50.0; plot);")
-        printstyled("└", color=:green, bold=true); println("   out     = collapse(ic, cfg);")
     elseif showcase == "heating"
-        printstyled("│", color=:green, bold=true); println("   ic, cfg = ic_thermal();")
-        printstyled("└", color=:green, bold=true); println("   out     = thermal(ic, cfg);")
-    
+        printstyled("│", color=:green, bold=true); println("   L,nel  = [16.0,16.0],[80,80];")
+        printstyled("│", color=:green, bold=true); println("   jld2   = thermal_problem(L,nel);")
+        printstyled("└", color=:green, bold=true); println("   out    = elastoplasm(jld2; workflows = [thermodynamic!]);")
     else
         printstyled("└", color=:green, bold=true); println("   ...$(showcase) ?!? \e[5m¯\\_(ツ)_/¯\e[0m")
     end

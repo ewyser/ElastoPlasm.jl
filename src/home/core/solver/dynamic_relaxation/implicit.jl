@@ -1,4 +1,4 @@
-export elastoimplicit!,elastoquasistatic!,elastouP!,elastoquasistaticuP!
+export elastouP!,elastoquasistaticuP!
 
 # Pseudo-transient (DYREL/Chebyshev) implicit MPM solver
 # Adapted from the FEMTools.jl PT framework (thermal & Stokes DYREL)
@@ -16,7 +16,7 @@ export elastoimplicit!,elastoquasistatic!,elastouP!,elastoquasistaticuP!
 
 
 
-function pt_solve!(mpts, mesh, basis, cmpr, g, dt, instr;
+function pt_solve!(mpts, mesh, basis, g, dt, instr;
     nit::Int         = 5000,
     ncheck::Int      = 50,
     CFL              = 0.9,
@@ -28,9 +28,13 @@ function pt_solve!(mpts, mesh, basis, cmpr, g, dt, instr;
     nno  = mesh.prprt.nno[end]
     ndim = (length(mesh.prprt.nel)-1)
 
+    # representative constitutive constants (cmp is currently uniform across particles
+    # — see setup_cmp — so mpts.s.cmp[1] is exact, not an approximation)
+    Kc,Gc = mpts.s.cmp[1].Kc, mpts.s.cmp[1].Gc
+
     # stiffness-based preconditioner scale for quasi-static mode
     h_min = minimum(mesh.prprt.h)
-    c_el² = (cmpr.Kc + T(4)/T(3)*cmpr.Gc) / minimum(mpts.s.ρ)
+    c_el² = (Kc + T(4)/T(3)*Gc) / minimum(mpts.s.ρ)
 
     # PT workspace
     ∂v∂τ = zeros(T, ndim, nno)
@@ -52,7 +56,7 @@ function pt_solve!(mpts, mesh, basis, cmpr, g, dt, instr;
 
         # Compute oobf
         fill!(mesh.s.oobf, T(0.0))
-        instr.cairn.implicit.oobf_assembly!(mpts,mesh,basis,g,dt,cmpr.Kc,cmpr.Gc; ndrange=mpts.nmp);sync(CPU())
+        instr.cairn.implicit.oobf_assembly!(mpts,mesh,basis,g,dt,Kc,Gc; ndrange=mpts.nmp);sync(CPU())
 
         # Residual
         @inbounds for no in 1:nno
@@ -118,12 +122,12 @@ function init_implicit(instr::NamedTuple; implicit::Dict{Symbol,Cairn} = Dict{Sy
     return (; implicit...)
 end
 
-function relax(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
+function relax(mpts::Point{T1,T2,D,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::Vector{T2},dt::T2,instr::S) where {T1,T2,D,E,S<:AbstractSolver{T1,T2,D}}
     fill!(mesh.s.m   ,T2(0))
     fill!(mesh.s.oobf,T2(0))
     fill!(mesh.s.v   , zero(eltype(mesh.s.v)))
     instr.cairn.implicit.mass_assembly!(mpts,mesh,basis,g; ndrange=mpts.nmp);sync(CPU())
-    return pt_solve!(mpts,mesh,basis,cmpr,g,dt,instr; quasi_static=true)
+    return pt_solve!(mpts,mesh,basis,g,dt,instr; quasi_static=true)
 end
 
 
@@ -169,7 +173,7 @@ elastoplasm(sim; workflow=[elastoquasistatic!])
 #   R_p = ∫N(div v + p/K) dΩ                 (continuity, pressure DOF)
 # Two independent PT loops: velocity (Δτ_u) and pressure (Δτ_p).
 # ---------------------------------------------------------------------------
-function pt_solve_uP!(mpts, mesh, basis, cmpr, g, dt, instr;
+function pt_solve_uP!(mpts, mesh, basis, g, dt, instr;
     iterMax    ::Int  = 500,
     ncheck     ::Int  = 50,
     CFL              = 0.9,
@@ -180,8 +184,10 @@ function pt_solve_uP!(mpts, mesh, basis, cmpr, g, dt, instr;
     T    = eltype(mesh.s.m)
     nno  = mesh.prprt.nno[end]
     ndim = (length(mesh.prprt.nel)-1)
-    Kc   = cmpr.Kc
-    Gc   = cmpr.Gc
+    # representative constitutive constants (cmp is currently uniform across particles)
+    Kc   = mpts.s.cmp[1].Kc
+    Gc   = mpts.s.cmp[1].Gc
+    cwave = sqrt((Kc+T(4.0/3.0)*Gc)/minimum(mpts.s.ρ))
     h_min = minimum(mesh.prprt.h)
 
     mv_n = copy(mesh.s.mv)
@@ -189,7 +195,7 @@ function pt_solve_uP!(mpts, mesh, basis, cmpr, g, dt, instr;
     p_n  = copy(mpts.s.p)
 
     # PT time steps — dimensionless, O(1)
-    cfl_u     = quasi_static ? T(0) : cmpr.c * dt / h_min
+    cfl_u     = quasi_static ? T(0) : cwave * dt / h_min
     λmax_u    = quasi_static ? T(2) : T(1) + T(cfl_u)^2
     # quasi-static: factor 1 (not 2) keeps α·λmax < 2 for β=0 (Jury stability)
     Δτ_u      = (quasi_static ? T(1) : T(2)) / sqrt(λmax_u) * T(CFL)
@@ -263,7 +269,7 @@ function pt_solve_uP!(mpts, mesh, basis, cmpr, g, dt, instr;
         # --- trial deformation + deviatoric stress reset + elast_dev ---
         instr.cairn.implicit.trial_deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
         mpts.s.σᵢ .= σ_n
-        instr.cairn.implicit.elast_dev!(mpts,cmpr.Gc,p_n; ndrange=mpts.nmp);sync(CPU())
+        instr.cairn.implicit.elast_dev!(mpts,Gc,p_n; ndrange=mpts.nmp);sync(CPU())
 
         # --- recompute f_int and continuity residual ---
         fill!(mesh.s.oobf, T(0))
@@ -316,7 +322,7 @@ function pt_solve_uP!(mpts, mesh, basis, cmpr, g, dt, instr;
     return nothing
 end
 
-function mapsto_uP(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},cmpr::NamedTuple,g::Vector{T2},dt::T2,instr::S; quasi_static::Bool=false) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
+function mapsto_uP(mpts::Point{T1,T2,D,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::Vector{T2},dt::T2,instr::S; quasi_static::Bool=false) where {T1,T2,D,E,S<:AbstractSolver{T1,T2,D}}
     fill!(mesh.s.m   ,T2(0))
     fill!(mesh.s.mv  ,T2(0))
     fill!(mesh.s.oobf,T2(0))
@@ -348,12 +354,12 @@ function mapsto_uP(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,
             iszero(vol[no]) || (mesh.s.p[no] /= vol[no])
         end
     end
-    pt_solve_uP!(mpts,mesh,basis,cmpr,g,dt,instr; quasi_static=quasi_static)
+    pt_solve_uP!(mpts,mesh,basis,g,dt,instr; quasi_static=quasi_static)
     instr.cairn.implicit.n2p!(mpts,mesh,basis,dt,T2(instr.transfer.C_pf); ndrange=mpts.nmp);sync(CPU())
     return nothing
 end
 
-function elastoquasistaticuP!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
+function elastoquasistaticuP!(mpts::Point{T1,T2,D,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,E,S<:AbstractSolver{T1,T2,D}}
     it   = T1(0)
     prog = Progress(40; dt=0.5, desc="Solving elasto quasi-static u-P...", barlen=10)
     lstps = collect(range(0, 9.8; length=40))
@@ -363,8 +369,8 @@ function elastoquasistaticuP!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis
         g   = T2[T2(0), -lstp]
 
         ignite(mpts, mesh, basis, instr)
-        mapsto_uP(mpts, mesh, basis, cmpr, g, dt, instr; quasi_static=true)
-        elasto(mpts, mesh, basis, cmpr, dt, instr)
+        mapsto_uP(mpts, mesh, basis, g, dt, instr; quasi_static=true)
+        elasto(mpts, mesh, basis, dt, instr)
         time.t[1], it, toc = time.t[1]+dt, it+T1(1), (time_ns()-tic)
 
         bake(mpts, mesh, time.t[1], instr)
@@ -374,17 +380,17 @@ function elastoquasistaticuP!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis
     return nothing
 end
 
-function elastouP!(mpts::Point{T1,T2,D,E,R},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},cmpr::NamedTuple,time::Time{T1,T2},instr::S) where {T1,T2,D,E,R,S<:AbstractSolver{T1,T2,D}}
+function elastouP!(mpts::Point{T1,T2,D,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,E,S<:AbstractSolver{T1,T2,D}}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.te)))
     prog = Progress(length(checks);dt=0.5,desc="Solving elasto u-P...",barlen=10)
     for ck ∈ checks
         while time.t[1] < ck
             tic    = time_ns()
-            g, dt  = get_spacetime(mpts,mesh,cmpr,time,ck)
+            g, dt  = get_spacetime(mpts,mesh,time,ck)
 
             ignite(mpts,mesh,basis,instr)
-            mapsto_uP(mpts,mesh,basis,cmpr,g,dt,instr)
-            elasto(mpts,mesh,basis,cmpr,dt,instr)
+            mapsto_uP(mpts,mesh,basis,g,dt,instr)
+            elasto(mpts,mesh,basis,dt,instr)
             time.t[1], it, toc = time.t[1]+dt, it+T1(1), (time_ns()-tic)
         end
         bake(mpts,mesh,time.t[1],instr)

@@ -1,10 +1,10 @@
 """
-    bake(mpts::Point{T1,T2,E,R}, mesh::Mesh{T1,T2,D}, t::T2, instr::NamedTuple) where {D}
+    bake(mpts::Point{T1,T2,E}, mesh::Mesh{T1,T2,D}, t::T2, instr::NamedTuple) where {D}
 
 Plot and display simulation fields at the current time step, if plotting is enabled in the instruction dictionary.
 
 # Arguments
-- `mpts::Point{T1,T2,E,R}`: Material point data structure.
+- `mpts::Point{T1,T2,E}`: Material point data structure.
 - `mesh::Mesh{T1,T2,D}`: Mesh data structure.
 - `t::T2`: Current simulation time.
 - `instr::NamedTuple`: Simulation instruction dictionary, must contain plotting options in `:plot`.

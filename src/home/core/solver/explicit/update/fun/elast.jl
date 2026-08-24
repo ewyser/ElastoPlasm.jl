@@ -112,11 +112,12 @@ end
 end
 
 
-@kernel inbounds = true function elast(mpts::Point{T1,T2,D,E,R},Kc,Gc) where {T1,T2,D,E<:FiniteElasticity,R<:AbstractRheology}
+@kernel inbounds = true function elast(mpts::Point{T1,T2,D,E}) where {T1,T2,D,E<:FiniteElasticity}
     p = @index(Global)
     if p ≤ mpts.nmp
+        cmp           = mpts.s.cmp[p]
         ϵᵢⱼ           = _logarithmic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.ϵᵢⱼ[p])
-        τᵢ            = _kirchoff_stress(ϵᵢⱼ, Kc, Gc)
+        τᵢ            = _kirchoff_stress(ϵᵢⱼ, cmp.Kc, cmp.Gc)
         mpts.s.ϵᵢⱼ[p] = ϵᵢⱼ
         mpts.s.τᵢ[p]  = τᵢ
     end
@@ -134,9 +135,10 @@ Kernel for infinitesimal (small strain) elasticity update at material points.
 # Returns
 - Updates stress and strain fields in-place.
 """
-@kernel inbounds = true function elast(mpts::Point{T1,T2,D,E,R},Del) where {T1,T2,D,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function elast(mpts::Point{T1,T2,D,E}) where {T1,T2,D,E<:LinearElasticity}
     p = @index(Global)
     if p ≤ mpts.nmp
+        Del = mpts.s.cmp[p].Del
         ΔF = mpts.s.ΔFᵢⱼ[p]
         ∇v = mpts.s.∇vᵢⱼ[p]
         ϵ = T2(0.5) .* (ΔF + ΔF') .- eltype(mpts.s.ΔFᵢⱼ)(I)
@@ -149,9 +151,10 @@ Kernel for infinitesimal (small strain) elasticity update at material points.
     end
 end
 
-@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,2,E,R},Del) where {T1,T2,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,2,E}) where {T1,T2,E<:LinearElasticity}
     p = @index(Global)
     if p ≤ mpts.nmp
+        Del = mpts.s.cmp[p].Del
         ΔF = mpts.s.ΔFᵢⱼ[p]
         ω = mpts.s.ωᵢⱼ[p]
         ϵxx = ΔF[1,1] - T2(1.0)
@@ -166,9 +169,10 @@ end
         )
     end
 end
-@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,3,E,R},Del) where {T1,T2,E<:LinearElasticity,R<:AbstractRheology}
+@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,3,E}) where {T1,T2,E<:LinearElasticity}
     p = @index(Global)
     if p ≤ mpts.nmp
+        Del = mpts.s.cmp[p].Del
         ΔF = mpts.s.ΔFᵢⱼ[p]
         ω = mpts.s.ωᵢⱼ[p]
         ϵxx = ΔF[1,1] - T2(1.0)

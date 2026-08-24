@@ -51,7 +51,7 @@ end
 
 """Raw kernel weights, polynomial basis [1;δx], and inverted moment matrix for particle ip —
 the once-per-particle work shared by every neighbor's shape value/gradient."""
-@inline function mls_moments(mpts::Point{T1,T2,D,E,R}, mesh::Mesh{T1,T2,D}, basis::Basis{T1,T2,D,NN,K}, ip::T1) where {T1,T2,D,NN,K<:MLSBasis,E,R}
+@inline function mls_moments(mpts::Point{T1,T2,D,E}, mesh::Mesh{T1,T2,D}, basis::Basis{T1,T2,D,NN,K}, ip::T1) where {T1,T2,D,NN,K<:MLSBasis,E}
     p2n = basis.p2n[ip]
     h   = mesh.prprt.h
     xp  = mpts.x[ip]
@@ -82,7 +82,7 @@ the once-per-particle work shared by every neighbor's shape value/gradient."""
     return SVector{NN,T2}(w), P, inv(SMatrix(M))
 end
 
-@inline function eval_basis(mpts::Point{T1,T2,D,E,R}, mesh::Mesh{T1,T2,D}, basis::Basis{T1,T2,D,NN,K}, ip::T1, nn::T1) where {T1,T2,D,NN,K<:MLSBasis,E,R}
+@inline function eval_basis(mpts::Point{T1,T2,D,E}, mesh::Mesh{T1,T2,D}, basis::Basis{T1,T2,D,NN,K}, ip::T1, nn::T1) where {T1,T2,D,NN,K<:MLSBasis,E}
     no = basis.p2n[ip][nn]
     if iszero(no)
         return no, T2(0.0), zero(SVector{D,T2})
@@ -99,7 +99,7 @@ end
 """Shape values/gradients for ALL NN neighbors of particle ip in one pass — builds the
 (D+1)x(D+1) moment matrix once instead of once per neighbor (used by the MLS-specialized
 `shpfun!` kernel, an O(NN) alternative to calling `eval_basis` NN times, O(NN²))."""
-@inline function eval_basis_all(mpts::Point{T1,T2,D,E,R}, mesh::Mesh{T1,T2,D}, basis::Basis{T1,T2,D,NN,K}, ip::T1) where {T1,T2,D,NN,K<:MLSBasis,E,R}
+@inline function eval_basis_all(mpts::Point{T1,T2,D,E}, mesh::Mesh{T1,T2,D}, basis::Basis{T1,T2,D,NN,K}, ip::T1) where {T1,T2,D,NN,K<:MLSBasis,E}
     D1 = D + 1
     w, P, Minv = mls_moments(mpts, mesh, basis, ip)
     Ns  = zero(MVector{NN,T2})
@@ -118,7 +118,7 @@ end
 # Overrides the generic per-nn shpfun! (core/common/shpfun.jl) with the O(NN) batched path above —
 # same role (cache basis.N/basis.∂N once per particle per timestep), cheaper for MLS since
 # the naive per-nn eval_basis loop would rebuild the moment matrix NN times (O(NN²)).
-@kernel inbounds = true function shpfun!(mpts::Point{T1,T2,D,E,R}, mesh::Mesh{T1,T2,D}, basis::Basis{T1,T2,D,NN,K}) where {T1,T2,D,NN,K<:MLSBasis,E,R}
+@kernel inbounds = true function shpfun!(mpts::Point{T1,T2,D,E}, mesh::Mesh{T1,T2,D}, basis::Basis{T1,T2,D,NN,K}) where {T1,T2,D,NN,K<:MLSBasis,E}
     p = @index(Global)
     if p ≤ mpts.nmp
         N, ∂N = eval_basis_all(mpts, mesh, basis, T1(p))

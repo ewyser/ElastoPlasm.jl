@@ -20,7 +20,7 @@ struct MeshBoundary
 end
 @adapt_struct MeshBoundary
 
-struct MeshSolidPhase{T1,T2,D} <: MeshPhase{T1,T2}
+struct MeshSolidPhase{T1,T2,D} <: AbstractMeshPhase{T1,T2}
     prprt ::MeshProperties{T1,T2,D}
     bcs   ::MeshBoundary
     m     ::Vector{T2} # consistent lumped mass matrix
@@ -34,7 +34,7 @@ struct MeshSolidPhase{T1,T2,D} <: MeshPhase{T1,T2}
 end
 @adapt_struct MeshSolidPhase
 
-struct MeshThermalPhase{T1,T2,D} <: MeshPhase{T1,T2}
+struct MeshThermalPhase{T1,T2,D} <: AbstractMeshPhase{T1,T2}
     prprt ::MeshProperties{T1,T2,D}
     bcs   ::MeshBoundary
     cᵢ    ::Vector{T2} # consistent lumped heat capacity matrix
@@ -45,7 +45,7 @@ struct MeshThermalPhase{T1,T2,D} <: MeshPhase{T1,T2}
 end
 @adapt_struct MeshThermalPhase
 
-struct Mesh{T1,T2,D} <: UniformMesh{T1, T2}
+struct Mesh{T1,T2,D} <: AbstractCartesianMesh{T1, T2}
     prprt ::MeshProperties{T1,T2,D}
     # nodal quantities
     x₀    ::SVector{D,T2}

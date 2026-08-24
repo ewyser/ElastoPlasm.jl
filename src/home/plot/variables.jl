@@ -8,9 +8,10 @@ get_P(mpts)    = [-sum(σ)/length(σ) for σ in mpts.s.σᵢ]
 get_J(mpts)    = @views vec(mpts.J)
 get_v(mpts)    = [sqrt(v[1]^2 + v[2]^2) for v in mpts.s.v]
 get_Δu(mpts)   = [sqrt(u[1]^2 + u[2]^2) for u in mpts.s.u]
-get_coh0(mpts) = @views vec(mpts.s.c₀)
-get_phi0(mpts) = @views vec(mpts.s.ϕ₀)
+get_coh0(mpts) = [cmp.c₀ for cmp in mpts.s.cmp]
+get_phi0(mpts) = [cmp.ϕ₀ for cmp in mpts.s.cmp]
 get_domain(mpts) = mpts.ℓ
+get_T(mpts)    = mpts.t.T
 
 """
     get_mpts_variable_config() -> Dict{String, NamedTuple}
@@ -94,7 +95,16 @@ function get_mpts_variable_config()
             name  = "Domain",
             cb    = nothing,
             cblim = nothing,
-        )
+        ),
+        "T" => (
+            data=get_T,
+            label=L"T",
+            unit = "[K]",
+            scale = 1.0,
+            name="Temperature",
+            cb=:thermal,
+            cblim=(20.0, 293.15)
+        ),
     )
 end
 

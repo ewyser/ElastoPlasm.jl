@@ -4,7 +4,7 @@ export ic_collision
     ic_collision(L::Vector{Float64}, nel::Vector{Int64}; fid::String=..., kwargs...) -> String
 
 Initializes the mesh, material points, and simulation configuration for a two-disk
-elastic collision test, and exports it to a `.jld2` file (same pipeline as `ic_slump`).
+elastic collision test, and exports it to a `.jld2` file (same pipeline as `slump_problem`).
 
 # Arguments
 - `L::Vector{Float64}`: Domain dimensions.
@@ -26,13 +26,14 @@ function ic_collision(L,nel; fid::String=first(splitext(basename(@__FILE__))), k
     # get solver and paths
     solver = get_solver(; dim=length(L), kwargs...)
     paths  = set_paths(fid,self.sys.out;interactive=false)
-    # mesh, mpts, cmpr & time initial conditions
+    # mesh, mpts, mat & time initial conditions
     geom   = setup_geometry(L,nel,solver)
     mesh   = setup_mesh(geom,solver)
-    cmpr   = setup_cmpr(mesh                                         )
-    mpts   = setup_mpts(mesh,solver,cmpr ; geom = get_collision(mesh,cmpr,solver))
-    basis  = setup_basis(mesh,mpts,geom,solver)
+    mat    = setup_material_constants(solver                                    )
+    mpts   = setup_mpts(mesh,solver,mat ; geom = get_collision(mesh,mat,solver))
     time   = setup_time(solver     ; te = 10.0, tg = 10.0, tep = 5.0  )
+    problem= MechanicalProblem(mesh,mpts,time)
+    basis  = setup_basis(problem,solver)
     # plot initial velocity components
     if solver.plot.status
         @info "Plotting initial velocity components..."
@@ -53,5 +54,5 @@ function ic_collision(L,nel; fid::String=first(splitext(basename(@__FILE__))), k
         get_plot_field(mpts,mesh,opts); save_plot(opts)
     end
     # export to jld2 file and return path
-    return export_setup(mesh,mpts,basis,cmpr,time,solver,paths; path = paths[:dat], file = "collision_simulation")
+    return export_problem(problem,basis,solver,paths; path = paths[:dat], file = "collision_simulation")
 end
