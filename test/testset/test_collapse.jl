@@ -59,7 +59,7 @@ function compute_collapse_error(jld2, l0, solver)
         # Numeric and analytic solution
         # mpts.s.σᵢ holds typed CauchyStress objects (see concrete/tensor.jl), so pull the
         # Voigt view first rather than indexing the stored (p,dev) split directly
-        xnum = abs.(getindex.(get_vector.(mpts.s.σᵢ), idx))
+        xnum = abs.(getindex.(get_voigt.(mpts.s.σᵢ), idx))
         ynum = z0
         x    = abs.(ρ0 * 9.81 * (l0 .- z0))
         y    = z0

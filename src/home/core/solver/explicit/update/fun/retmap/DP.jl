@@ -35,15 +35,18 @@ end
 
 Closed-form Drucker-Prager return mapping. Consumes/produces the typed
 `KirchhoffStress`/`LogarithmicStrain` stored on `PointSolidPhase`, but does the algebra
-itself in Voigt space (`get_vector`) using the pre-existing `σTr`/`σn` helpers — the
+itself in Voigt space (`get_voigt`) using the pre-existing `σTr`/`σn` helpers — the
 stored `(p,dev)` split is representational rather than canonically trace-free (see the
 `AbstractTensor` docstring), so the invariants are re-derived from the Voigt view.
 `σn` naturally returns a pressure `Pn` and a scaled deviator, so the returned stress is
-rebuilt from those directly rather than re-split from a Voigt vector.
+rebuilt from those directly rather than re-split from a Voigt vector. The returned
+strain, when yielding, is built directly by `LogarithmicStrain(cmp.Del\\τᵢ)` — the
+compliance solve `Del\\τᵢ` is already an engineering-Voigt strain vector, and that
+constructor (`tensor.jl`) does the engineering→tensor conversion and vol/dev split in
+one step.
 """
 @inline function drucker_prager(τ::AbstractStress{S,T,L},ϵ::AbstractStrain{S,T,L},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel) where {S,T,L}
-        τᵢ     = get_vector(τ)
-        ϵᵢⱼ    = get_tensor(ϵ)
+        τᵢ     = get_voigt(τ)
         Δλ     = T(0.0)
         ψ,nstr = T(0.0*π/180.0),length(τᵢ)
         ϕ₀,c₀,cᵣ = cmp.ϕ₀,cmp.c₀,cmp.cᵣ
@@ -76,8 +79,7 @@ rebuilt from those directly rather than re-split from a Voigt vector.
         # update logarithmic strain tensor
         ϵout = ϵ
         if Δλ > T(0.0)
-            ϵᵢⱼ  = mutate(cmp.Del\τᵢ,T(0.5),:tensor)
-            ϵout = LogarithmicStrain(SMatrix{S,S,T,L}(ϵᵢⱼ))
+            ϵout = LogarithmicStrain(cmp.Del\τᵢ)
         end
         return ϵout,τout,Δλ,ϵpII
 end
@@ -105,7 +107,7 @@ end
     if p≤mpts.nmp
         cmp = mpts.s.cmp[p]
         mpts.s.Δλ[p] = T2(0.0)
-        σᵢ       = get_vector(mpts.s.σᵢ[p])
+        σᵢ       = get_voigt(mpts.s.σᵢ[p])
         ψ,nstr   = T2(0.0*π/180.0),length(σᵢ)
 
         # closed-form solution return-mapping for D-P

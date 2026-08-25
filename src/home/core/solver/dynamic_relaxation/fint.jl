@@ -11,7 +11,7 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         ms, Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        σxx   = get_vector(mpts.s.σᵢ[p])[1]
+        σxx   = get_voigt(mpts.s.σᵢ[p])[1]
         for nn ∈ 1:mesh.prprt.nn
             no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
@@ -46,10 +46,10 @@ end
         ωᵢⱼ = T2(0.5) .* (∇vᵢⱼ - ∇vᵢⱼ')
         
         # update cauchy stress tensor
-        σᵢ   = get_vector(mpts.s.σn[p])
-        σJᵢⱼ = mutate(σᵢ, T2(1.0), :tensor)
+        σᵢ   = get_voigt(mpts.s.σn[p])
+        σJᵢⱼ = get_tensor(mpts.s.σn[p])
         σJᵢⱼ = σJᵢⱼ*ωᵢⱼ'+σJᵢⱼ'*ωᵢⱼ
-        σᵢ   = σᵢ + typeof(σᵢ)(Del * mutate(ϵᵢⱼ, T2(2.0), :voigt) .+ mutate(σJᵢⱼ, T2(1.0), :voigt))
+        σᵢ   = σᵢ + typeof(σᵢ)(Del * get_voigt(InfinitesimalStrain(ϵᵢⱼ)) .+ voigt_of(σJᵢⱼ))
         
         # buffered values
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
@@ -131,7 +131,7 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        σ             = get_vector(mpts.s.σᵢ[p])
+        σ             = get_voigt(mpts.s.σᵢ[p])
         σxx, σyy, σzz = σ[1], σ[2], σ[3]
         # (was `mpts.s.σᵢ[6,p]`/`[4,p]`/`[5,p]` — matrix-style indexing into what has been
         #  a Vector of per-particle statics for a while now, i.e. dead on arrival; the

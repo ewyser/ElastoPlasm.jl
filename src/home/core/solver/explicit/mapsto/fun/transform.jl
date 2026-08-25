@@ -15,7 +15,7 @@ Transform Kirchhoff to Cauchy stress at material points.
     if p ≤ mpts.nmp 
         J⁻¹ = T2(1.0)/mpts.J[p]
         # σ = τ/J : scale the stored (p,dev) split of the Kirchhoff stress, giving a
-        # CauchyStress whose `get_vector` equals the old `mpts.s.τᵢ[p] .* J⁻¹` Voigt product.
+        # CauchyStress whose `get_voigt` equals the old `mpts.s.τᵢ[p] .* J⁻¹` Voigt product.
         mpts.s.σᵢ[p] = CauchyStress(mpts.s.τᵢ[p], J⁻¹)
     end   
 end

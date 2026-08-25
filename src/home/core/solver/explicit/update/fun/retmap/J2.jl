@@ -42,10 +42,10 @@ end
         cmp = mpts.s.cmp[p]
         # calculate yield function
         κ   = max(cmp.cᵣ,cmp.c₀+cmp.Hp*mpts.s.ϵpII[2,p])
-        f,n = yield_J2(get_vector(mpts.s.τᵢ[p]),κ)
+        f,n = yield_J2(get_voigt(mpts.s.τᵢ[p]),κ)
         # return mapping using CPA (non-quadratic convergence)
         if f>T2(0.0)
-            γ0,σ0,ηit = mpts.s.ϵpII[2,p],get_vector(mpts.s.τᵢ[p]),1
+            γ0,σ0,ηit = mpts.s.ϵpII[2,p],get_voigt(mpts.s.τᵢ[p]),1
             Δλacc     = T2(0.0)
             while abs(f)>ftol && ηit<ηmax
                 ∂f∂σ = n
@@ -65,8 +65,10 @@ end
             # (`mpts.s.Δλ[p] != 0`). Accumulate it over the CPA iterations and store it.
             mpts.s.Δλ[p]     = Δλacc
             mpts.s.τᵢ[p]     = KirchhoffStress(σ0)
-            # update strain tensor
-            mpts.s.ϵᵢⱼ[p]    = LogarithmicStrain(eltype(mpts.s.ΔFᵢⱼ)(mutate(cmp.Del\σ0,T2(0.5),:tensor)))
+            # update strain tensor: Del\σ0 is already an engineering-Voigt strain
+            # vector, so LogarithmicStrain(::SVector) (tensor.jl) does the
+            # engineering→tensor conversion and vol/dev split in one step
+            mpts.s.ϵᵢⱼ[p]    = LogarithmicStrain(cmp.Del\σ0)
         else
             mpts.s.Δλ[p]     = T2(0.0)
         end
@@ -78,10 +80,10 @@ end
         cmp = mpts.s.cmp[p]
         # calculate yield function
         κ   = max(cmp.cᵣ,cmp.c₀+cmp.Hp*mpts.s.ϵpII[2,p])
-        f,n = yield_J2(get_vector(mpts.s.σᵢ[p]),κ)
+        f,n = yield_J2(get_voigt(mpts.s.σᵢ[p]),κ)
         # return mapping using CPA (non-quadratic convergence)
         if f>T2(0.0)
-            γ0,σ0,ηit = mpts.s.ϵpII[2,p],get_vector(mpts.s.σᵢ[p]),1
+            γ0,σ0,ηit = mpts.s.ϵpII[2,p],get_voigt(mpts.s.σᵢ[p]),1
             Δλacc     = T2(0.0)
             while abs(f)>ftol && ηit<ηmax
                 ∂f∂σ = n

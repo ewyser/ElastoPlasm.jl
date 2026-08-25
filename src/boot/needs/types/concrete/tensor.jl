@@ -4,7 +4,7 @@
 
 export AbstractTensor, AbstractStrain, AbstractStress
 export InfinitesimalStrain, LogarithmicStrain, CauchyStress, KirchhoffStress
-export get_tensor, get_vector, get_J2, get_τII
+export get_tensor, get_voigt, get_J2, get_τII
 
 """
     AbstractTensor{T}
@@ -24,7 +24,7 @@ and retained connectivity are deliberately *not* carried over — see CLAUDE.md)
 
 The pair `(vol,dev)` / `(p,dev)` is only required to satisfy the reconstruction identity
 
-    get_vector(x)[i] == x.dev[i,i] ± x.p    (diagonal entries)
+    get_voigt(x)[i] == x.dev[i,i] ± x.p    (diagonal entries)
 
 It is **not** required that `dev` be exactly trace-free in `S` dimensions. This is
 deliberate and mirrors a convention split that already existed in this codebase before
@@ -39,9 +39,14 @@ the port:
   2D and by 3 in 3D.
 
 Consequently `get_J2`/`get_τII` — which genuinely need a trace-free deviator — are
-defined to re-derive it from `get_vector` rather than to trust the stored `dev`, so
-they give the same number whichever writer produced the object. Use `get_vector` /
+defined to re-derive it from `get_voigt` rather than to trust the stored `dev`, so
+they give the same number whichever writer produced the object. Use `get_voigt` /
 `get_tensor` as the source of truth when consuming a stored tensor.
+
+`get_voigt` (named for *the* Voigt-notation representation, not a generic "vector"
+view) is **one function, dispatched by multiple dispatch onto two conceptually
+different conventions** — see the `AbstractStrain`/`AbstractStress` sections below for
+why strain and stress do not share a shear convention.
 
 The three abstract types themselves (`AbstractTensor`/`AbstractStrain`/`AbstractStress`)
 are declared in `types/abstract.jl`, alongside `AbstractConstitutiveModel`, because
@@ -76,26 +81,33 @@ Reassemble the full strain tensor `dev + vol·I`.
 end
 
 """
-    get_vector(strain::AbstractStrain) -> SVector{3,T} (2D) / SVector{6,T} (3D)
+    get_voigt(strain::AbstractStrain) -> SVector{3,T} (2D) / SVector{6,T} (3D)
 
-Voigt-notation strain vector `(ϵxx,ϵyy,ϵxy)` / `(ϵxx,ϵyy,ϵzz,ϵyz,ϵxz,ϵxy)`.
-Off-diagonal entries are the *tensor* shear components (no factor 2).
+Voigt-notation strain vector `(ϵxx,ϵyy,γxy)` / `(ϵxx,ϵyy,ϵzz,γyz,γxz,γxy)`, in the
+**classical engineering-shear** convention (`γxy = 2ϵxy`) — *not* the tensor-shear
+convention `get_tensor` uses for its internal `dev` storage. This is the standard
+Voigt convention for strain (as opposed to stress, which has no such doubling): it's
+why the elastic stiffness matrix `Del` is built the way it is (`σ = Del·ε_voigt` uses
+the ordinary isotropic stiffness matrix only when `ε_voigt` carries this factor of 2),
+and it's what makes the Voigt dot product `σ_voigt·ε_voigt` equal the tensor double
+contraction `σ:ε`. Round-trips exactly with `LogarithmicStrain(ϵ::SVector)`/
+`InfinitesimalStrain(ϵ::SVector)` (below): `get_voigt(LogarithmicStrain(ϵ)) == ϵ`.
 """
-@inline function get_vector(strain::AbstractStrain{2,T,L}) where {T,L}
+@inline function get_voigt(strain::AbstractStrain{2,T,L}) where {T,L}
     return SVector{3,T}(
         strain.dev[1,1] + strain.vol,
         strain.dev[2,2] + strain.vol,
-        strain.dev[1,2],
+        T(2.0) * strain.dev[1,2],
     )
 end
-@inline function get_vector(strain::AbstractStrain{3,T,L}) where {T,L}
+@inline function get_voigt(strain::AbstractStrain{3,T,L}) where {T,L}
     return SVector{6,T}(
         strain.dev[1,1] + strain.vol,
         strain.dev[2,2] + strain.vol,
         strain.dev[3,3] + strain.vol,
-        strain.dev[2,3],
-        strain.dev[1,3],
-        strain.dev[1,2],
+        T(2.0) * strain.dev[2,3],
+        T(2.0) * strain.dev[1,3],
+        T(2.0) * strain.dev[1,2],
     )
 end
 
@@ -149,6 +161,32 @@ plane-strain 3D convention as `_trial_elastic_strain`).
     return LogarithmicStrain(vol, SMatrix{S,S,T,L}(ϵᵢⱼ - vol * SMatrix{S,S,T,L}(I)))
 end
 
+"""
+    LogarithmicStrain(ϵ::SVector{3,T}) / LogarithmicStrain(ϵ::SVector{6,T})
+
+Build a `LogarithmicStrain` directly from a full **engineering-Voigt** strain vector
+(`γxy = 2ϵxy`, the `get_voigt` convention) — the strain-side analogue of
+`CauchyStress(σ::SVector)`/`KirchhoffStress(τ::SVector)`, letting Voigt-space return-
+mapping algebra (e.g. a compliance-solved `Del\\τ`) wrap into a typed strain in one
+step, with no intermediate matrix reshape. `vol = (ϵ[1]+ϵ[2])/3` (2D) /
+`(ϵ[1]+ϵ[2]+ϵ[3])/3` (3D) — the same plane-strain-3D convention as the `SMatrix`
+constructor above (**not** stress's `tr/S` convention — these are deliberately
+different, see the `AbstractTensor` docstring). Exact inverse of `get_voigt`:
+`get_voigt(LogarithmicStrain(ϵ)) == ϵ`.
+"""
+@inline function LogarithmicStrain(ϵ::SVector{3,T}) where {T}
+    vol = (ϵ[1] + ϵ[2]) / T(3.0)
+    return LogarithmicStrain(vol, SMatrix{2,2,T,4}(ϵ[1] - vol, ϵ[3]/T(2.0), ϵ[3]/T(2.0), ϵ[2] - vol))
+end
+@inline function LogarithmicStrain(ϵ::SVector{6,T}) where {T}
+    vol = (ϵ[1] + ϵ[2] + ϵ[3]) / T(3.0)
+    return LogarithmicStrain(vol, SMatrix{3,3,T,9}(
+        ϵ[1] - vol, ϵ[6]/T(2.0), ϵ[5]/T(2.0),
+        ϵ[6]/T(2.0), ϵ[2] - vol, ϵ[4]/T(2.0),
+        ϵ[5]/T(2.0), ϵ[4]/T(2.0), ϵ[3] - vol,
+    ))
+end
+
 # zero-initialization used by setup_mpts
 Base.zero(::Type{InfinitesimalStrain{S,T,L}}) where {S,T,L} = InfinitesimalStrain(zero(T), zero(SMatrix{S,S,T,L}))
 Base.zero(::Type{LogarithmicStrain{S,T,L}})   where {S,T,L} = LogarithmicStrain(  zero(T), zero(SMatrix{S,S,T,L}))
@@ -189,7 +227,7 @@ end
 
 Small-strain tensor `ϵ = ½(ΔF + ΔFᵀ) - I`, split into `vol = tr(ϵ)/3` and
 `dev = ϵ - vol·I` (same plane-strain 3D convention as `_trial_elastic_strain`, so the
-two strain types decompose consistently). `get_tensor`/`get_vector` reproduce `ϵ`
+two strain types decompose consistently). `get_tensor`/`get_voigt` reproduce `ϵ`
 exactly.
 """
 @inline function InfinitesimalStrain(ϵᵢⱼ::SMatrix{S,S,T,L}) where {S,T,L}
@@ -198,6 +236,27 @@ exactly.
 end
 @inline _infinitesimal_strain(ΔFᵢⱼ::SMatrix{S,S,T,L}) where {S,T,L} =
     InfinitesimalStrain(T(0.5) .* (ΔFᵢⱼ + ΔFᵢⱼ') .- SMatrix{S,S,T,L}(I))
+
+"""
+    InfinitesimalStrain(ϵ::SVector{3,T}) / InfinitesimalStrain(ϵ::SVector{6,T})
+
+Build an `InfinitesimalStrain` directly from a full **engineering-Voigt** strain vector
+(`γxy = 2ϵxy`, the `get_voigt` convention) — same role and convention as
+`LogarithmicStrain(ϵ::SVector)` above, for the infinitesimal-strain path. Exact inverse
+of `get_voigt`: `get_voigt(InfinitesimalStrain(ϵ)) == ϵ`.
+"""
+@inline function InfinitesimalStrain(ϵ::SVector{3,T}) where {T}
+    vol = (ϵ[1] + ϵ[2]) / T(3.0)
+    return InfinitesimalStrain(vol, SMatrix{2,2,T,4}(ϵ[1] - vol, ϵ[3]/T(2.0), ϵ[3]/T(2.0), ϵ[2] - vol))
+end
+@inline function InfinitesimalStrain(ϵ::SVector{6,T}) where {T}
+    vol = (ϵ[1] + ϵ[2] + ϵ[3]) / T(3.0)
+    return InfinitesimalStrain(vol, SMatrix{3,3,T,9}(
+        ϵ[1] - vol, ϵ[6]/T(2.0), ϵ[5]/T(2.0),
+        ϵ[6]/T(2.0), ϵ[2] - vol, ϵ[4]/T(2.0),
+        ϵ[5]/T(2.0), ϵ[4]/T(2.0), ϵ[3] - vol,
+    ))
+end
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Stress tensor supertype, concrete types and methods
@@ -222,19 +281,22 @@ Reassemble the full stress tensor `dev - p·I` (`p` positive in compression).
 end
 
 """
-    get_vector(stress::AbstractStress) -> SVector{3,T} (2D) / SVector{6,T} (3D)
+    get_voigt(stress::AbstractStress) -> SVector{3,T} (2D) / SVector{6,T} (3D)
 
 Voigt-notation stress vector `(σxx,σyy,σxy)` / `(σxx,σyy,σzz,σyz,σxz,σxy)` — the exact
 component ordering every P2G/return-mapping kernel in this repo already indexes.
+Unlike the `AbstractStrain` overload above, stress has only one Voigt convention (no
+engineering-vs-tensor shear distinction), so this is a plain reshape with no factor of
+2 anywhere.
 """
-@inline function get_vector(stress::AbstractStress{2,T,L}) where {T,L}
+@inline function get_voigt(stress::AbstractStress{2,T,L}) where {T,L}
     return SVector{3,T}(
         stress.dev[1,1] - stress.p,
         stress.dev[2,2] - stress.p,
         stress.dev[1,2],
     )
 end
-@inline function get_vector(stress::AbstractStress{3,T,L}) where {T,L}
+@inline function get_voigt(stress::AbstractStress{3,T,L}) where {T,L}
     return SVector{6,T}(
         stress.dev[1,1] - stress.p,
         stress.dev[2,2] - stress.p,
@@ -315,7 +377,7 @@ end
 Isotropic linear-elastic trial Kirchhoff stress from a logarithmic strain:
 `p = -3·Kc·ϵvol` (positive in compression), `dev = 2·Gc·ϵdev`.
 
-`get_vector` of the result reproduces, expression for expression, the Voigt vector the
+`get_voigt` of the result reproduces, expression for expression, the Voigt vector the
 former `_kirchoff_stress` free function returned (`τii = 2·Gc·ϵdev_ii - P`), so the
 finite-strain elastic predictor is bit-identical across the port.
 
@@ -340,18 +402,18 @@ KirchhoffStress(σ::CauchyStress{S,T,L}) where {S,T,L} = KirchhoffStress(σ.p, �
     get_J2(stress::AbstractStress) -> T
 
 Second deviatoric stress invariant `J₂ = ½ sᵢⱼsᵢⱼ`, with `s` the *trace-free* deviator
-re-derived from `get_vector` (see the `AbstractTensor` docstring on why the stored
+re-derived from `get_voigt` (see the `AbstractTensor` docstring on why the stored
 `dev` is not trusted here). Reproduces exactly the `τII²` computed by `σTr`
 (`retmap/DP.jl`) and the `J2` computed by `yield_J2` (`retmap/J2.jl`), including their
 `tr/2` (2D) vs `tr/3` (3D) pressure convention.
 """
 @inline function get_J2(stress::AbstractStress{2,T,L}) where {T,L}
-    σ = get_vector(stress)
+    σ = get_voigt(stress)
     P = (σ[1] + σ[2]) / T(2.0)
     return T(0.5) * ((σ[1] - P)^2 + (σ[2] - P)^2) + σ[3]^2
 end
 @inline function get_J2(stress::AbstractStress{3,T,L}) where {T,L}
-    σ = get_vector(stress)
+    σ = get_voigt(stress)
     P = (σ[1] + σ[2] + σ[3]) / T(3.0)
     return T(0.5) * ((σ[1] - P)^2 + (σ[2] - P)^2 + (σ[3] - P)^2) + σ[4]^2 + σ[5]^2 + σ[6]^2
 end

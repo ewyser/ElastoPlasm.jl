@@ -20,7 +20,7 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
   — material points (Lagrangian). The trailing `ST`/`SC`/`SK` are the typed
   strain/stress storage on `mpts.s` (see "Typed strain/stress tensor storage" under
   Planned improvements); `mpts.s.σᵢ[p]` returns a `CauchyStress`, **not** an
-  `SVector` — read it with `get_vector(...)`. No longer carries `NN`, `B`, or connectivity
+  `SVector` — read it with `get_voigt(...)`. No longer carries `NN`, `B`, or connectivity
   (`p2n`/`p2e`/`e2p`/`p2p` moved out). `mpts.x :: Vector{SVector{D,T2}}` — NOT a
   matrix; index fields with `getindex.(x, i)` or iterate, never `x[i, :]`.
   `mpts.s.cmp::Vector{CM}` is the per-particle constitutive-model bundle (see "Typed
@@ -145,7 +145,7 @@ on an unrelated branch.**
   `_kirchoff_stress(::SMatrix{3,3},...)` returned `(τxx,τyy,τzz,τxy,τxz,τyz)`, i.e.
   slots 4/5/6 = xy/xz/yz — but `std_p2n`/`tpic_p2n`/`apic_p2n`'s 3D kernels, and
   `mutate(...,:voigt)`, all use 4/5/6 = yz/xz/xy. So 3D finite-strain runs assembled
-  internal forces from transposed shear components. `get_vector` uses the consumer
+  internal forces from transposed shear components. `get_voigt` uses the consumer
   convention, so this is now consistent; note it means **3D finite-strain results change**
   (2D is unaffected — it has only one shear slot). 3D was already flagged as untested
   territory (see "3D conformity check"), and this was not verified against a reference
@@ -461,7 +461,7 @@ on an unrelated branch.**
 
   Ported from `fancy-implementation`, but merged into the current architecture rather
   than merging that branch's `Point`/`Basis` shape backward. What is a straight port:
-  `LogarithmicStrain`/`KirchhoffStress`, `get_tensor`/`get_vector`, `Base.getindex` on
+  `LogarithmicStrain`/`KirchhoffStress`, `get_tensor`/`get_voigt`, `Base.getindex` on
   strains, the `LinearAlgebra.eigen` overload, `_trial_elastic_strain`,
   `_trial_elastic_stress`. What is **new code** (that branch left
   `InfinitesimalStrain`/`CauchyStress` as bare structs with no methods): both types'
@@ -470,15 +470,15 @@ on an unrelated branch.**
 
   Four things worth knowing before touching this:
   - **The stored split is representational, not canonical.** The only invariant the
-    types guarantee is that `get_vector`/`get_tensor` reconstruct the tensor. `dev` is
+    types guarantee is that `get_voigt`/`get_tensor` reconstruct the tensor. `dev` is
     *not* required to be trace-free in `S` dimensions, because two different pressure
     conventions genuinely coexist in this codebase and both predate the port:
     `_trial_elastic_stress` uses `tr(ϵ)/3` even in 2D (plane strain — the out-of-plane
     component is real physics, just never stored), while the Voigt constructors use
     `-tr(σ)/S`, matching `σTr` (`retmap/DP.jl`) and `yield_J2` (`retmap/J2.jl`), which
     divide by 2 in 2D. `get_J2`/`get_τII` therefore re-derive a trace-free deviator from
-    `get_vector` rather than trusting the stored `dev`, so they agree whichever writer
-    produced the object. **Always consume a stored tensor via `get_vector`/`get_tensor`,
+    `get_voigt` rather than trusting the stored `dev`, so they agree whichever writer
+    produced the object. **Always consume a stored tensor via `get_voigt`/`get_tensor`,
     never by reading `.dev`/`.p` and assuming they mean what you'd expect.**
   - **`get_J2` was NOT unified with `retmap/J2.jl`'s same-named helper** (which the
     original plan called for). They compute different things: the retmap one returns
@@ -487,7 +487,7 @@ on an unrelated branch.**
     receives or force the return mapping onto the non-canonical stored split. The retmap
     helper was **renamed `_yield_normal`** instead, so the collision is gone.
   - **Return-mapping kernels stay in Voigt space internally.** `DP.jl`/`J2.jl` read
-    `get_vector(...)` once, run the unchanged closed-form/CPA algebra on `SVector`s, and
+    `get_voigt(...)` once, run the unchanged closed-form/CPA algebra on `SVector`s, and
     wrap the result once at the store. Same for the Jaumann-rate `elast`/`elast_fast`
     kernels. This is deliberate: it keeps the numerics bit-identical (see below) and
     preserves `elast_fast`'s hand-inlined performance, while the *stored* value is still
@@ -505,7 +505,7 @@ on an unrelated branch.**
     96-case sweep produced a **byte-identical failure set** before and after (25
     failures, same 25 case names — see Known bugs), and `test_performance.jl` reports
     **-12.1% memory / -5.4% allocs / 0.0% time** overall vs the stored baseline. Every
-    new type's construction, `get_vector`, `get_tensor`, `get_J2`, `get_τII`,
+    new type's construction, `get_voigt`, `get_tensor`, `get_J2`, `get_τII`,
     `_trial_elastic_stress`, `_infinitesimal_strain` and `zero(...)` measure **0 bytes**
     allocated in a 10 000-iteration loop inside a concrete function. (Beware: measuring
     these one-shot through a generic `probe(name, f, args...)` helper reports a spurious
@@ -548,8 +548,65 @@ on an unrelated branch.**
 - ~~`PointSolidPhase.P::Vector{T2}` field~~ — **removed**, same pass as `elast::E`
   above. Confirmed zero reads anywhere in `src/`/`test/` before removal; pressure lives
   on the stress objects themselves now (`mpts.s.σᵢ[p].p`/`mpts.s.τᵢ[p].p`, or
-  `get_vector`'d), making the separate scalar field redundant rather than merely
+  `get_voigt`'d), making the separate scalar field redundant rather than merely
   unused.
+- **`get_vector` renamed `get_voigt`, and its strain-side shear convention was wrong —
+  fixed, and `mutate`/`_mutate` retired as a result.** The user asked whether the old
+  free functions `mutate(ϵ,Χ,type)`/`_mutate(ϵ)` (`elast.jl`, predating the tensor port)
+  duplicated what `tensor.jl` already provided. They didn't — `get_vector(strain::
+  AbstractStrain)` used the **tensor**-shear convention (`γxy=εxy`, no doubling), but
+  every place strain interacts with the elastic stiffness matrix `Del` needs the
+  classical **engineering**-shear Voigt convention (`γxy=2εxy`), which is *why* `Del` is
+  built the way it is (`σ=Del·ε_voigt` only works with the ordinary isotropic stiffness
+  matrix when `ε_voigt` carries that factor of 2) — `mutate`'s `Χ=2.0`/`Χ=0.5` branches
+  existed purely to patch that mismatch at every `Del`-facing call site. The user's key
+  insight: the *engineering*-shear vector is the actual "conventional" Voigt strain
+  vector — `get_vector`'s "no factor 2" convention was the anomaly, not `mutate`'s
+  patch. Confirmed **zero blast radius** before fixing it: `get_vector` was never once
+  called on a strain object anywhere in `src/` (grep-confirmed), so correcting the
+  convention changed no live numerics, only fixed an as-yet-unexercised part of the API
+  before anything came to depend on the wrong version. Renamed `get_vector`→`get_voigt`
+  throughout (one name, dispatched by multiple dispatch onto `AbstractStrain`/
+  `AbstractStress` methods — not two names; only the `AbstractStrain` methods' behavior
+  changed, `AbstractStress` has no engineering/tensor ambiguity and was renamed only).
+  Added `LogarithmicStrain(ϵ::SVector{3/6,T})`/`InfinitesimalStrain(ϵ::SVector{3/6,T})`
+  full-engineering-Voigt-vector constructors (`tensor.jl`), mirroring the pattern
+  `CauchyStress(σ::SVector)`/`KirchhoffStress(τ::SVector)` already used on the stress
+  side — `vol=(ϵ[1]+ϵ[2])/3` (2D, matching the existing plane-strain-3D convention, NOT
+  stress's `tr/S`), `dev` built by halving shear into tensor form. Exact inverse of
+  `get_voigt`: `get_voigt(LogarithmicStrain(ϵ)) == ϵ` (verified to machine epsilon,
+  ~7e-18, over 20000 random 2D/3D cases).
+
+  With that gap closed, 8 of `mutate`'s 10 call sites collapse into existing or new
+  `tensor.jl` calls: the two `Χ=1.0,:tensor` stress-reshape sites (`elast.jl`,
+  `dynamic_relaxation/fint.jl`) become `get_tensor(mpts.s.σᵢ[p])` directly; the two
+  `Χ=2.0,:voigt` strain→`Del` sites become `get_voigt(InfinitesimalStrain(ϵ))`; the two
+  `Χ=0.5,:tensor` `Del\\...`→strain sites (`DP.jl`, `J2.jl`) become
+  `LogarithmicStrain(cmp.Del\\τᵢ)` directly, dropping the intermediate `SMatrix` wrap
+  entirely. The two remaining sites (`elast.jl`/`fint.jl`'s Jaumann-rate correction term
+  `σJ*ω'+σJ'*ω` — genuinely not "the" particle's stress, so no typed object exists for
+  it) got a small dedicated replacement, `voigt_of(M)` (`elast.jl`, stress-convention
+  only, no `Χ` parameter needed since only one case remains). `_mutate` (already
+  zero-caller dead code) and `mutate` were both deleted outright.
+  `retmap/MCRetMap.jl`'s own `mutate(...,0.5,:tensor)` call (line 44) was **left
+  untouched** — that file is dead/unwired (only referenced in a commented-out line,
+  `update.jl:47`, a known separately-documented gap), so it now calls an undefined
+  function if ever exercised; not in scope to fix alongside this.
+
+  Verified: clean load; round-trip identity machine-epsilon exact; every replaced call
+  site numerically equivalent to the old `mutate`-based code to machine epsilon or
+  bit-exact (0.0 for the stress-side and Jaumann-scratch sites); zero allocations on
+  every new/changed function; full `DP`/`J2` × `finite`/`infinitesimal` smoke matrix
+  plus `nonloc`/`perf_fast` all `success=true`; the `fint.jl` infinitesimal kernel
+  (unreachable through `elastoquasistatic!` per the known bug below) verified directly
+  by calling `oobf_assembly!` on a hand-built `Point`/`Mesh`/`Basis` — ran to completion
+  with finite, non-NaN output; `dynamic_relaxation` with `strain.deform="finite"` still
+  passes; `test_workflow.jl`'s 96-case sweep unchanged (71 passed/25 failed, same total
+  as both prior baselines — this refactor touches only basis-kind-agnostic per-particle
+  bookkeeping, so a total match here is conclusive); `test_collapse.jl` 4/4,
+  `test_basis.jl` passing; `test_performance.jl` unchanged (-17.2% memory/-5.4%
+  allocs/0.0% time vs baseline — this refactor's touched code isn't on the benchmarked
+  finite-strain default path, so no shift was expected).
 - **3D conformity check**: verify 3D simulations behave consistently across the
   explicit solver's configuration space (basis kind, `stab.locking`, `strain.deform`)
   — most of this session's verification was 2D-only.

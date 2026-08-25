@@ -1,45 +1,18 @@
 """
-    mutate(ϵ, Χ, type)
+    voigt_of(M::SMatrix{2,2,T}) -> SVector{3,T}
+    voigt_of(M::SMatrix{3,3,T}) -> SVector{6,T}
 
-Convert between tensor and Voigt notation for strain or stress, or mutate tensor forms.
-
-# Arguments
-- `ϵ`: Strain or stress tensor or vector.
-- `Χ`: Scaling factor (e.g., 1.0 or 2.0).
-- `type`: Either `:tensor` or `:voigt` for conversion type.
-
-# Returns
-- `ϵmut`: Mutated tensor or vector in the requested form.
+Stress-convention Voigt view of an arbitrary symmetric matrix with no typed-tensor
+home — e.g. a Jaumann-rate correction term, not itself "the" particle's stress (so
+`get_tensor`/`get_voigt` on a stored `CauchyStress`/`KirchhoffStress` don't apply).
+Replaces the old free functions `mutate`/`_mutate`, which used to also handle the
+strain-side engineering↔tensor shear conversion — that conversion now lives on
+`LogarithmicStrain`/`InfinitesimalStrain`'s `SVector` constructors and `get_voigt`
+directly (`tensor.jl`), since `Del`-facing strain values have a real typed home this
+one genuinely doesn't.
 """
-@views function mutate(ϵ,Χ,type)
-    if type == :tensor
-        if size(ϵ) == (3,)
-            return SMatrix{2,2}(ϵ[1], Χ*ϵ[3], Χ*ϵ[3], ϵ[2])
-        elseif size(ϵ) == (6,)
-            return SMatrix{3,3}(ϵ[1],Χ*ϵ[6],Χ*ϵ[5], Χ*ϵ[6],ϵ[2],Χ*ϵ[4], Χ*ϵ[5],Χ*ϵ[4],ϵ[3])
-        end
-    elseif type == :voigt
-        if size(ϵ) == (2,2)
-            return SVector{3}(ϵ[1,1], ϵ[2,2], Χ*ϵ[1,2])
-        elseif size(ϵ) == (3,3)
-            return SVector{6}(ϵ[1,1], ϵ[2,2], ϵ[3,3], Χ*ϵ[2,3], Χ*ϵ[1,3], Χ*ϵ[1,2])
-        end
-    end
-end
-
-@inline function _mutate(ϵ::SMatrix{2,2,T}) where {T}
-    return SVector{3,T}(ϵ[1,1], ϵ[2,2], T(2.0)*ϵ[1,2])
-end
-@inline function _mutate(ϵ::SMatrix{3,3,T}) where {T}
-    return SVector{6,T}(ϵ[1,1], ϵ[2,2], ϵ[3,3], T(2.0)*ϵ[2,3], T(2.0)*ϵ[1,3], T(2.0)*ϵ[1,2])
-end
-
-@inline function _mutate(ϵ::SVector{3,T}) where {T}
-    return SMatrix{2,2,T}(ϵ[1], T(0.5)*ϵ[3], T(0.5)*ϵ[3], ϵ[2])
-end
-@inline function _mutate(ϵ::SVector{6,T}) where {T}
-    return SMatrix{3,3,T}(ϵ[1],T(0.5)*ϵ[6],T(0.5)*ϵ[5], T(0.5)*ϵ[6],ϵ[2],T(0.5)*ϵ[4], T(0.5)*ϵ[5],T(0.5)*ϵ[4],ϵ[3])
-end
+@inline voigt_of(M::SMatrix{2,2,T}) where {T} = SVector{3,T}(M[1,1], M[2,2], M[1,2])
+@inline voigt_of(M::SMatrix{3,3,T}) where {T} = SVector{6,T}(M[1,1], M[2,2], M[3,3], M[2,3], M[1,3], M[1,2])
 
 # The former free functions `_logarithmic_strain`/`_kirchoff_stress` are gone: their
 # math now lives on the typed tensors as `_trial_elastic_strain`/`_trial_elastic_stress`
@@ -70,8 +43,11 @@ end
 Infinitesimal (small-strain) elastic update at material points: Jaumann-rate Cauchy
 stress increment `σ ← σ + Del·ϵ + (σω' + σ'ω)`. Writes an `InfinitesimalStrain` into
 `mpts.s.ϵᵢⱼ[p]` and a `CauchyStress` into `mpts.s.σᵢ[p]`; the incremental arithmetic
-itself still happens in Voigt `SVector` form (via `get_vector`) so the numbers are
-unchanged, with the result wrapped once at the point of the store.
+itself still happens in Voigt `SVector` form (via `get_voigt`) so the numbers are
+unchanged, with the result wrapped once at the point of the store. `Del` expects the
+engineering-Voigt strain vector, which `get_voigt(InfinitesimalStrain(ϵ))` now
+produces directly (see `tensor.jl`) — `ϵ` itself stays a raw tensor-shear `SMatrix`
+until wrapped, same as before.
 """
 @kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM,TM,TV,TS,ST<:InfinitesimalStrain}
     p = @index(Global)
@@ -81,12 +57,12 @@ unchanged, with the result wrapped once at the point of the store.
         ∇v  = mpts.s.∇vᵢⱼ[p]
         ϵ   = T2(0.5) .* (ΔF + ΔF') .- eltype(mpts.s.ΔFᵢⱼ)(I)
         ω   = T2(0.5) .* (∇v - ∇v')
-        σ   = get_vector(mpts.s.σᵢ[p])
-        σJ  = mutate(σ, T2(1.0), :tensor)
+        σ   = get_voigt(mpts.s.σᵢ[p])
+        σJ  = get_tensor(mpts.s.σᵢ[p])
         jaumann       = σJ * ω' + σJ' * ω
         mpts.s.ϵᵢⱼ[p] = InfinitesimalStrain(eltype(mpts.s.ΔFᵢⱼ)(ϵ))
         mpts.s.ωᵢⱼ[p] = eltype(mpts.s.ωᵢⱼ)(ω)
-        mpts.s.σᵢ[p]  = CauchyStress(σ + typeof(σ)(Del * mutate(ϵ, T2(2.0), :voigt) .+ mutate(jaumann, T2(1.0), :voigt)))
+        mpts.s.σᵢ[p]  = CauchyStress(σ + typeof(σ)(Del * get_voigt(InfinitesimalStrain(ϵ)) .+ voigt_of(jaumann)))
     end
 end
 
@@ -100,7 +76,7 @@ end
         ϵyy = ΔF[2,2] - T2(1.0)
         ϵxy = ΔF[1,2] + ΔF[2,1]
         ωxy = T2(0.5) * (ω[1,2] - ω[2,1])
-        σ = get_vector(mpts.s.σᵢ[p])
+        σ = get_voigt(mpts.s.σᵢ[p])
         mpts.s.σᵢ[p] = CauchyStress(SVector{3,T2}(
             σ[1] + (Del[1,1]*ϵxx+Del[1,2]*ϵyy+Del[1,3]*ϵxy) + ωxy*T2(2.0)*σ[3],
             σ[2] + (Del[2,1]*ϵxx+Del[2,2]*ϵyy+Del[2,3]*ϵxy) - ωxy*T2(2.0)*σ[3],
@@ -123,7 +99,7 @@ end
         ωyz = T2(0.5) * (ω[2,3] - ω[3,2])
         ωxz = T2(0.5) * (ω[1,3] - ω[3,1])
         ωxy = T2(0.5) * (ω[1,2] - ω[2,1])
-        σ = get_vector(mpts.s.σᵢ[p])
+        σ = get_voigt(mpts.s.σᵢ[p])
         mpts.s.σᵢ[p] = CauchyStress(SVector{6,T2}(
             σ[1] + (Del[1,1]*ϵxx+Del[1,2]*ϵyy+Del[1,3]*ϵzz+Del[1,4]*ϵyz+Del[1,5]*ϵxz+Del[1,6]*ϵxy) + T2(2.0)*(ωxy*σ[6]+ωxz*σ[5]),
             σ[2] + (Del[2,1]*ϵxx+Del[2,2]*ϵyy+Del[2,3]*ϵzz+Del[2,4]*ϵyz+Del[2,5]*ϵxz+Del[2,6]*ϵxy) - T2(2.0)*(ωxy*σ[6]-ωyz*σ[4]),

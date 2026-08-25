@@ -31,7 +31,7 @@ struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:Abstra
     Δλ   ::Vector{T2}
     ϵpII ::Matrix{T2}
     ϵpV  ::Vector{T2}
-    # typed stress tensors (see concrete/tensor.jl); Voigt view via `get_vector`
+    # typed stress tensors (see concrete/tensor.jl); Voigt view via `get_voigt`
     σᵢ   ::Vector{SC}
     σn   ::Vector{SC}
     τᵢ   ::Vector{SK}

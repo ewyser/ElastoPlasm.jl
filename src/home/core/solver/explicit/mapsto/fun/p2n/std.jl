@@ -20,7 +20,7 @@ Project 1D material point data to mesh nodes (FLIP scheme).
         # buffering
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         px    = ms*mpts.s.v[p][1]
-        σxx   = get_vector(mpts.s.σᵢ[p])[1]
+        σxx   = get_voigt(mpts.s.σᵢ[p])[1]
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -38,7 +38,7 @@ end
         # buffering
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         mv            = ms*mpts.s.v[p]
-        σ             = get_vector(mpts.s.σᵢ[p])
+        σ             = get_voigt(mpts.s.σᵢ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -58,7 +58,7 @@ end
         # buffering
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         mv            = ms*mpts.s.v[p]
-        σ             = get_vector(mpts.s.σᵢ[p])
+        σ             = get_voigt(mpts.s.σᵢ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
