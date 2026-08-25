@@ -35,12 +35,12 @@ function init_mapsto(instr::NamedTuple; mapsto::Dict = Dict(:map => Dict{Symbol,
     end
 end
 """
-    mapsto(mpts::Point{T1,T2,D,E},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2,D,E}
+    mapsto(mpts::Point{T1,T2,D,CM},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2,D,CM}
 
 Resolution of mechanical problem: project material points to nodes, solve, and map back.
 
 # Arguments
-- `mpts::Point{T1,T2,D,E}`: Material point data structure.
+- `mpts::Point{T1,T2,D,CM}`: Material point data structure.
 - `mesh::MeshSolidPhase{T1,T2,D}`: Mesh data structure for solid phase.
 - `g::Vector{T2}`: Gravity vector.
 - `dt::T2`: Time step.

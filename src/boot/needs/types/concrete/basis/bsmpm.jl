@@ -92,7 +92,7 @@ end
     return ϕ,∂ϕ*Δx⁻¹ 
 end
 
-@inline function eval_basis(mpts::Point{T1,T2,1,E}, mesh::Mesh{T1,T2,1}, basis::Basis{T1,T2,1,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E}
+@inline function eval_basis(mpts::Point{T1,T2,1,CM}, mesh::Mesh{T1,T2,1}, basis::Basis{T1,T2,1,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,CM}
     no = basis.p2n[ip][nn]
     if iszero(no)
         N, ∂N  = T2(0.0), SVector{1,T2}(0.0)
@@ -103,7 +103,7 @@ end
     end
     return no, N, ∂N
 end
-@inline function eval_basis(mpts::Point{T1,T2,2,E}, mesh::Mesh{T1,T2,2}, basis::Basis{T1,T2,2,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E}
+@inline function eval_basis(mpts::Point{T1,T2,2,CM}, mesh::Mesh{T1,T2,2}, basis::Basis{T1,T2,2,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,CM}
     no = basis.p2n[ip][nn]
     if iszero(no)
         N, ∂N  = T2(0.0), SVector{2,T2}(0.0, 0.0)
@@ -115,7 +115,7 @@ end
     end
     return no, N, ∂N
 end
-@inline function eval_basis(mpts::Point{T1,T2,3,E}, mesh::Mesh{T1,T2,3}, basis::Basis{T1,T2,3,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E}
+@inline function eval_basis(mpts::Point{T1,T2,3,CM}, mesh::Mesh{T1,T2,3}, basis::Basis{T1,T2,3,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,CM}
     no = basis.p2n[ip][nn]
     if iszero(no)
         N, ∂N  = T2(0.0), SVector{3,T2}(0.0, 0.0, 0.0)
