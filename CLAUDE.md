@@ -296,6 +296,12 @@ on an unrelated branch.**
   `gimpm_{finite,infinitesimal}_{std,tpic,apic}_locktrue_musl{true,false}` minus
   `gimpm_finite_tpic_locktrue_musltrue`, plus
   `gimpm_{finite,infinitesimal}_tpic_lockfalse_muslfalse` (13).
+  **Still holds after the typed-strain/stress-tensor work merged to `dev`
+  (`78838bf`)**: re-verified at each of that work's five commits (the tensor port
+  itself, the `Δλ` fixes, the `AbstractElasticity` removal, the `get_voigt` convention
+  fix, and the final constructor/comment cleanup) — same 71 passed/25 failed count
+  every time, none of that work touches basis-kind dispatch so a total-count match is
+  conclusive.
 - **`ic_collision`'s initial-velocity plot crashes**: `what_plot_field` errors with
   `type NamedTuple has no field data`, because `collision.jl`'s `plot.what` entries are
   hand-built as `(;mpts=(name="u",cblim=(...)))` instead of going through
