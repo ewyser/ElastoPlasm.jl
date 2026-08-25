@@ -48,7 +48,25 @@ function FiniteElasticity(::Type{T1}, ::Type{T2}, nmp::Integer, ndim::Integer) w
 end
 @adapt_struct FiniteElasticity
 
-struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveModel,TM,TV,TS} <: AbstractMaterialPointPhase{T1,T2}
+"""
+    PointSolidPhase{T1,T2,D,E,CM,TM,TV,TS,ST,SC,SK}
+
+Per-particle solid-phase state. Beyond the historical `TM`/`TV`/`TS` static-array
+shape parameters, three trailing parameters carry the *typed tensor* storage
+introduced by the `tensor.jl` port (see `AbstractTensor`):
+
+- `ST<:AbstractStrain` — `ϵᵢⱼ`/`ϵn`. One parameter for both, since the field pair is
+  dual-purpose: `InfinitesimalStrain` under `E<:LinearElasticity`,
+  `LogarithmicStrain` under `E<:FiniteElasticity`. Resolved in
+  `build_solid_phase` by the same `solver.strain.deform` branch that picks `E`.
+- `SC<:AbstractStress` — `σᵢ`/`σn`, always `CauchyStress`.
+- `SK<:AbstractStress` — `τᵢ`, always `KirchhoffStress`.
+
+They are deliberately *trailing*: nearly every kernel signature in this repo
+pattern-matches only `Point{T1,T2,D}` or `Point{T1,T2,D,E}`, so adding them at the end
+left those signatures untouched.
+"""
+struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,SC<:AbstractStress,SK<:AbstractStress} <: AbstractMaterialPointPhase{T1,T2}
     u    ::Vector{TV}   # displacement per MP : SVector{ndim,T2}
     v    ::Vector{TV}   # velocity per MP     : SVector{ndim,T2}
     # mechanical properties
@@ -57,10 +75,10 @@ struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveMod
     Δλ   ::Vector{T2}
     ϵpII ::Matrix{T2}
     ϵpV  ::Vector{T2}
-    # tensor in voigt notation (SVector{nstr,T2} per MP)
-    σᵢ   ::Vector{TS}
-    σn   ::Vector{TS}
-    τᵢ   ::Vector{TS}
+    # typed stress tensors (see concrete/tensor.jl); Voigt view via `get_vector`
+    σᵢ   ::Vector{SC}
+    σn   ::Vector{SC}
+    τᵢ   ::Vector{SK}
     P    ::Vector{T2}
     # tensor in matrix notation (SMatrix{ndim,ndim,T2} per MP)
     ∇vᵢⱼ ::Vector{TM}
@@ -68,8 +86,8 @@ struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveMod
     ΔFᵢⱼ ::Vector{TM}
     Fᵢⱼ  ::Vector{TM}
     Fn   ::Vector{TM}
-    ϵᵢⱼ  ::Vector{TM}
-    ϵn   ::Vector{TM}
+    ϵᵢⱼ  ::Vector{ST}
+    ϵn   ::Vector{ST}
     ωᵢⱼ  ::Vector{TM}
     # new component-based fields
     elast::E
@@ -92,7 +110,7 @@ struct PointThermalPhase{T1,T2,D} <: AbstractMaterialPointPhase{T1,T2}
 end
 @adapt_struct PointThermalPhase
 
-struct Point{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveModel,TM,TV,TS} <: AbstractMaterialPoint{T1,T2}
+struct Point{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,SC<:AbstractStress,SK<:AbstractStress} <: AbstractMaterialPoint{T1,T2}
     # general information
     ndim ::T1
     nmp  ::T1
@@ -116,7 +134,7 @@ struct Point{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveModel,TM,TV,T
     ΔJ   ::Vector{T2}
     J    ::Vector{T2}
     # solid phase
-    s    ::PointSolidPhase{T1,T2,D,E,CM,TM,TV,TS}
+    s    ::PointSolidPhase{T1,T2,D,E,CM,TM,TV,TS,ST,SC,SK}
     # fluid phase
     f    ::Union{Nothing, PointFluidPhase{T1,T2,D}}
     # thermal phase

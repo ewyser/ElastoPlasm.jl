@@ -1,23 +1,35 @@
 
 """
-    build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS) -> (s, elast, cmp, CM)
+    build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS) -> (s, elast, cmp, CM, ST, SC, SK)
 
 Build the per-particle solid-phase state (`PointSolidPhase`) — elasticity component,
 per-particle constitutive-model bundle (`cmp`, via `setup_cmp`), and all mechanical
-state fields, zero-initialized except `v`/`ρ`. `elast`/`CM` are also returned since the
-caller needs them to build `Point`'s type parameters.
+state fields, zero-initialized except `v`/`ρ`. `elast`/`CM`/`ST`/`SC`/`SK` are also
+returned since the caller needs them to build `Point`'s type parameters.
+
+`ST` (the typed strain storage of `ϵᵢⱼ`/`ϵn`, see `concrete/tensor.jl`) is picked by the
+same `solver.strain.deform` branch that picks `E`: `LogarithmicStrain` for `"finite"`
+(`FiniteElasticity`), `InfinitesimalStrain` for `"infinitesimal"`
+(`LinearElasticity`). `SC`/`SK` (`σᵢ`/`σn` and `τᵢ`) are always `CauchyStress`/
+`KirchhoffStress` regardless of `deform`, exactly as both field families existed
+unconditionally before the port.
 """
 function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
+    L = D*D
     if solver.strain.deform == "finite"
         elast = FiniteElasticity(T1, T2, nmp, D)
+        ST    = LogarithmicStrain{D,T2,L}
     elseif solver.strain.deform == "infinitesimal"
         elast = LinearElasticity(T1, T2, nmp, D)
+        ST    = InfinitesimalStrain{D,T2,L}
     end
+    SC = CauchyStress{D,T2,L}
+    SK = KirchhoffStress{D,T2,L}
 
     cmp = setup_cmp(nmp,T2.(vec(copy(geom.coh0))),T2.(vec(copy(geom.cohr))),T2.(vec(copy(geom.phi))); E=T2(mat[:E]),ν=T2(mat[:ν]),Hp=T2(mat[:Hp]),D=Int(D))
     CM  = eltype(cmp)
 
-    s = PointSolidPhase{T1,T2,D,typeof(elast),CM,TM,TV,TS}(
+    s = PointSolidPhase{T1,T2,D,typeof(elast),CM,TM,TV,TS,ST,SC,SK}(
         [zero(TV)  for _ in 1:nmp]                         , # u
         [TV(T2.(vp[:,p])) for p in 1:nmp]                  , # v
         # mechanical properties
@@ -26,10 +38,10 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
         T2.(zeros(nmp))                                     , # Δλ
         T2.(zeros(2,nmp))                                   , # ϵpII
         T2.(zeros(nmp))                                     , # ϵpV
-        # tensor in voigt notation
-        [zero(TS) for _ in 1:nmp]                          , # σᵢ
-        [zero(TS) for _ in 1:nmp]                          , # σn
-        [zero(TS) for _ in 1:nmp]                          , # τᵢ
+        # typed stress tensors (concrete/tensor.jl)
+        [zero(SC) for _ in 1:nmp]                          , # σᵢ
+        [zero(SC) for _ in 1:nmp]                          , # σn
+        [zero(SK) for _ in 1:nmp]                          , # τᵢ
         T2.(zeros(nmp))                                     , # P
         # tensor in matrix notation
         [zero(TM) for _ in 1:nmp]                          , # ∇vᵢⱼ
@@ -37,14 +49,14 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
         [zero(TM) for _ in 1:nmp]                          , # ΔFᵢⱼ
         [TM(I)    for _ in 1:nmp]                          , # Fᵢⱼ
         [TM(I)    for _ in 1:nmp]                          , # Fn
-        [zero(TM) for _ in 1:nmp]                          , # ϵᵢⱼ
-        [zero(TM) for _ in 1:nmp]                          , # ϵn
+        [zero(ST) for _ in 1:nmp]                          , # ϵᵢⱼ
+        [zero(ST) for _ in 1:nmp]                          , # ϵn
         [zero(TM) for _ in 1:nmp]                          , # ωᵢⱼ
         # component-based fields
         elast                                               , # elast::E
         cmp                                                  , # cmp::Vector{CM}
     )
-    return s, elast, cmp, CM
+    return s, elast, cmp, CM, ST, SC, SK
 end
 
 """
@@ -127,10 +139,10 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
     end
 
     # constructor - create components
-    s, elast, cmp, CM = build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
+    s, elast, cmp, CM, ST, SC, SK = build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
     t = build_thermal_phase(T1,T2,D,geom,nmp; thermal=thermal)
 
-    mpts = Point{T1,T2,D,typeof(elast),CM,TM,TV,TS}(
+    mpts = Point{T1,T2,D,typeof(elast),CM,TM,TV,TS,ST,SC,SK}(
         # general information
         T1(D)                              , # ndim
         T1(nmp)                              , # nmp

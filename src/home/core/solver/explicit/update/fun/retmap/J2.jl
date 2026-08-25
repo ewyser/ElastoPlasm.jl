@@ -1,4 +1,13 @@
-@inline function get_J2(σ0::SVector{3,T}) where {T}
+# NOTE ON NAMING: these two `_yield_normal` methods used to be called `get_J2`, which
+# collided semantically with `get_J2(::AbstractStress)` in `concrete/tensor.jl` — same
+# name, different return value (this one returns `(‖ξ‖, n̂)`, the yield-surface normal
+# and the norm of the deviator; that one returns the scalar invariant J₂). They were
+# deliberately NOT merged during the tensor port: unifying them would have meant either
+# silently changing what one call site gets back, or reformulating the return mapping in
+# terms of the stored (p,dev) split, which is not canonically trace-free (see the
+# `AbstractTensor` docstring). Renamed instead, so the collision is gone and each name
+# means one thing.
+@inline function _yield_normal(σ0::SVector{3,T}) where {T}
     P  = (σ0[1]+σ0[2])/T(2.0)
     ξ  = σ0 .- SVector{3,T}(P,P,zero(T))
     J2 = T(0.5)*(ξ[1]^2+ξ[2]^2+T(2.0)*ξ[3]^2) # Borja (2013), p.33
@@ -6,7 +15,7 @@
     n  = ξ./ξn
     return ξn,n
 end
-@inline function get_J2(σ0::SVector{6,T}) where {T}
+@inline function _yield_normal(σ0::SVector{6,T}) where {T}
     P  = (σ0[1]+σ0[2]+σ0[3])/T(3.0)
     ξ  = σ0 .- SVector{6,T}(P,P,P,zero(T),zero(T),zero(T))
     J2 = T(0.5)*(ξ[1]^2+ξ[2]^2+ξ[3]^2+T(2.0)*ξ[4]^2+T(2.0)*ξ[5]^2+T(2.0)*ξ[6]^2) # Borja (2013), p.33
@@ -15,7 +24,7 @@ end
     return ξn,n
 end
 @inline function yield_J2(σ,κ::T) where {T}
-    ξn,n = get_J2(σ)
+    ξn,n = _yield_normal(σ)
     f    = ξn-κ
     return f,n
 end
@@ -33,10 +42,10 @@ end
         cmp = mpts.s.cmp[p]
         # calculate yield function
         κ   = max(cmp.cᵣ,cmp.c₀+cmp.Hp*mpts.s.ϵpII[2,p])
-        f,n = yield_J2(mpts.s.τᵢ[p],κ)
+        f,n = yield_J2(get_vector(mpts.s.τᵢ[p]),κ)
         # return mapping using CPA (non-quadratic convergence)
         if f>T2(0.0)
-            γ0,σ0,ηit = mpts.s.ϵpII[2,p],mpts.s.τᵢ[p],1
+            γ0,σ0,ηit = mpts.s.ϵpII[2,p],get_vector(mpts.s.τᵢ[p]),1
             while abs(f)>ftol && ηit<ηmax
                 ∂f∂σ = n
                 Δλ   = f/(∂f∂σ'*cmp.Del*∂f∂σ)
@@ -48,9 +57,9 @@ end
                 ηit += 1
             end
             mpts.s.ϵpII[1,p] = γ0
-            mpts.s.τᵢ[p]     = σ0
+            mpts.s.τᵢ[p]     = KirchhoffStress(σ0)
             # update strain tensor
-            mpts.s.ϵᵢⱼ[p]    = mutate(cmp.Del\σ0,T2(0.5),:tensor)
+            mpts.s.ϵᵢⱼ[p]    = LogarithmicStrain(eltype(mpts.s.ΔFᵢⱼ)(mutate(cmp.Del\σ0,T2(0.5),:tensor)))
         end
     end
 end
@@ -60,10 +69,10 @@ end
         cmp = mpts.s.cmp[p]
         # calculate yield function
         κ   = max(cmp.cᵣ,cmp.c₀+cmp.Hp*mpts.s.ϵpII[2,p])
-        f,n = yield_J2(mpts.s.σᵢ[p],κ)
+        f,n = yield_J2(get_vector(mpts.s.σᵢ[p]),κ)
         # return mapping using CPA (non-quadratic convergence)
         if f>T2(0.0)
-            γ0,σ0,ηit = mpts.s.ϵpII[2,p],mpts.s.σᵢ[p],1
+            γ0,σ0,ηit = mpts.s.ϵpII[2,p],get_vector(mpts.s.σᵢ[p]),1
             while abs(f)>ftol && ηit<ηmax
                 ∂f∂σ = n
                 Δλ   = f/(∂f∂σ'*cmp.Del*∂f∂σ)
@@ -75,7 +84,7 @@ end
                 ηit += 1
             end
             mpts.s.ϵpII[1,p] = γ0
-            mpts.s.σᵢ[p]     = σ0
+            mpts.s.σᵢ[p]     = CauchyStress(σ0)
         end
     end
 end

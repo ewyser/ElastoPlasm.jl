@@ -11,7 +11,7 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         ms, Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        σxx   = mpts.s.σᵢ[p][1]
+        σxx   = get_vector(mpts.s.σᵢ[p])[1]
         for nn ∈ 1:mesh.prprt.nn
             no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
@@ -46,10 +46,10 @@ end
         ωᵢⱼ = T2(0.5) .* (∇vᵢⱼ - ∇vᵢⱼ')
         
         # update cauchy stress tensor
-        σᵢ   = mpts.s.σn[p]
+        σᵢ   = get_vector(mpts.s.σn[p])
         σJᵢⱼ = mutate(σᵢ, T2(1.0), :tensor)
         σJᵢⱼ = σJᵢⱼ*ωᵢⱼ'+σJᵢⱼ'*ωᵢⱼ
-        σᵢ   = σᵢ + eltype(mpts.s.σᵢ)(Del * mutate(ϵᵢⱼ, T2(2.0), :voigt) .+ mutate(σJᵢⱼ, T2(1.0), :voigt))
+        σᵢ   = σᵢ + typeof(σᵢ)(Del * mutate(ϵᵢⱼ, T2(2.0), :voigt) .+ mutate(σJᵢⱼ, T2(1.0), :voigt))
         
         # buffered values
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
@@ -65,7 +65,7 @@ end
 
         # save deformation gradient and cauchy stress
         mpts.s.Fᵢⱼ[p] = ΔFᵢⱼ * mpts.s.Fn[p]
-        mpts.s.σᵢ[p]    = σᵢ
+        mpts.s.σᵢ[p]    = CauchyStress(σᵢ)
     end
 end
 
@@ -122,8 +122,8 @@ end
 
         # Store deformation gradient, logarithmic strain and Kirchhoff stress
         mpts.s.Fᵢⱼ[mp] = Fᵢⱼ
-        mpts.s.ϵᵢⱼ[mp] = eltype(mpts.s.ϵᵢⱼ)(ϵᵢⱼ)
-        mpts.s.τᵢ[mp]  = SVector{3,T2}(τxx, τyy, τxy)
+        mpts.s.ϵᵢⱼ[mp] = LogarithmicStrain(SMatrix{2,2,T2,4}(ϵᵢⱼ))
+        mpts.s.τᵢ[mp]  = KirchhoffStress(SVector{3,T2}(τxx, τyy, τxy))
     end
 end
 
@@ -131,8 +131,12 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        σxx, σyy, σzz = mpts.s.σᵢ[p][1], mpts.s.σᵢ[p][2], mpts.s.σᵢ[p][3]
-        σyx, σzy, σzx = mpts.s.σᵢ[6,p], mpts.s.σᵢ[4,p], mpts.s.σᵢ[5,p]
+        σ             = get_vector(mpts.s.σᵢ[p])
+        σxx, σyy, σzz = σ[1], σ[2], σ[3]
+        # (was `mpts.s.σᵢ[6,p]`/`[4,p]`/`[5,p]` — matrix-style indexing into what has been
+        #  a Vector of per-particle statics for a while now, i.e. dead on arrival; the
+        #  typed-tensor port forces it to be written correctly)
+        σyx, σzy, σzx = σ[6], σ[4], σ[5]
         for nn ∈ 1:mesh.prprt.nn
             no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end

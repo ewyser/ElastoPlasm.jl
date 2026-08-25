@@ -16,8 +16,11 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
 
 - `Mesh{T1,T2,D}` — Eulerian background grid. No longer carries `NN` or connectivity
   fields (`e2n`/`e2e` moved out, see `Basis` below).
-- `Point{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveModel,TM,TV,TS}`
-  — material points (Lagrangian). No longer carries `NN`, `B`, or connectivity
+- `Point{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,SC<:AbstractStress,SK<:AbstractStress}`
+  — material points (Lagrangian). The trailing `ST`/`SC`/`SK` are the typed
+  strain/stress storage on `mpts.s` (see "Typed strain/stress tensor storage" under
+  Planned improvements); `mpts.s.σᵢ[p]` returns a `CauchyStress`, **not** an
+  `SVector` — read it with `get_vector(...)`. No longer carries `NN`, `B`, or connectivity
   (`p2n`/`p2e`/`e2p`/`p2p` moved out). `mpts.x :: Vector{SVector{D,T2}}` — NOT a
   matrix; index fields with `getindex.(x, i)` or iterate, never `x[i, :]`.
   `mpts.s.cmp::Vector{CM}` is the per-particle constitutive-model bundle (see "Typed
@@ -112,6 +115,16 @@ on an unrelated branch.**
   `if...end` check for zero nodal mass"): `volumetric.jl`'s `ΔJp` now has the same
   `iszero(mesh.s.m[no])` guard the velocity kernels already had. Kept here only so the
   fix isn't rediscovered as a new bug.
+- ~~`_kirchoff_stress`'s 3D Voigt shear ordering disagreed with every consumer~~ —
+  **fixed** as a side effect of the tensor port (same branch). The old
+  `_kirchoff_stress(::SMatrix{3,3},...)` returned `(τxx,τyy,τzz,τxy,τxz,τyz)`, i.e.
+  slots 4/5/6 = xy/xz/yz — but `std_p2n`/`tpic_p2n`/`apic_p2n`'s 3D kernels, and
+  `mutate(...,:voigt)`, all use 4/5/6 = yz/xz/xy. So 3D finite-strain runs assembled
+  internal forces from transposed shear components. `get_vector` uses the consumer
+  convention, so this is now consistent; note it means **3D finite-strain results change**
+  (2D is unaffected — it has only one shear slot). 3D was already flagged as untested
+  territory (see "3D conformity check"), and this was not verified against a reference
+  solution, only made self-consistent.
 - **`dynamic_relaxation`'s u-P path throws if exercised.** Probable cause:
   `implicit.jl`'s `pt_solve_uP!` calls `instr.cairn.implicit.fint_p2n!(...)`, a key
   `init_implicit` never registers. Out of scope until someone designs what `fint_p2n!`
@@ -224,6 +237,21 @@ on an unrelated branch.**
   this entry further. `smpm`/`bsmpm`/`mlsmpm` were not re-swept here since their sweep
   config already had `ghost=0` (only `gimpm` used `ghost=1`), so this refactor
   provably can't have changed their behaviour.
+  **Re-measured on the `mimic-implementation-logic-of-ample` tip (`61bafbd`), full
+  96-case sweep, 2026-08**: the counts quoted throughout this entry are stale. The
+  actual current baseline is **smpm 12/24 fail, gimpm 13/24 fail, bsmpm 0/24,
+  mlsmpm 0/24 — 25 failures total** (21 `DomainError`, 4 `BoundsError`). The failing
+  set is exactly the `musl=false` cases for `smpm` (all 12 of them) plus, for `gimpm`,
+  all 8 `locking=true` cases and 2 of the `tpic, lockfalse, muslfalse` ones — the
+  gimpm "2 `locktrue, musltrue` failures are gone" claim above is **wrong** at this
+  tip; they are back. The typed-strain/stress-tensor port was verified against this
+  baseline by running the same sweep on the stashed and unstashed tree in the same
+  session: **identical 25-name failure set, identical exception kinds** — i.e. no new
+  failures and none accidentally fixed. Full failing case list, for future diffs:
+  `smpm_{finite,infinitesimal}_{std,tpic,apic}_lock{true,false}_muslfalse` (12) and
+  `gimpm_{finite,infinitesimal}_{std,tpic,apic}_locktrue_musl{true,false}` minus
+  `gimpm_finite_tpic_locktrue_musltrue`, plus
+  `gimpm_{finite,infinitesimal}_tpic_lockfalse_muslfalse` (13).
 - **`ic_collision`'s initial-velocity plot crashes**: `what_plot_field` errors with
   `type NamedTuple has no field data`, because `collision.jl`'s `plot.what` entries are
   hand-built as `(;mpts=(name="u",cblim=(...)))` instead of going through
@@ -349,11 +377,8 @@ on an unrelated branch.**
     `core/solver/explicit/`, `core/solver/dynamic_relaxation/`, `plot/`). `elast::E`
     was deliberately left alone — it's separately-flagged dead scaffolding (see next
     bullet), not the same "duplicate of `cmp`" problem `rheo` was.
-  - **`tensor.jl`'s typed `AbstractStrain`/`AbstractStress` abstraction (volumetric/
-    deviatoric split, `_trial_elastic_strain`/`_trial_elastic_stress`/`get_J2`/etc.
-    dispatched on tensor type) was NOT ported** — only the constitutive-model half of
-    that branch's prototype landed. Still open follow-up work if wanted, same caveats
-    about not merging that branch's `Point`/`Basis` shape backward apply.
+  - **`tensor.jl`'s typed `AbstractStrain`/`AbstractStress` abstraction — done**, see
+    "Typed strain/stress tensor storage" immediately below.
   - **`dynamic_relaxation`'s rerouted reads — verified for the plain path, still
     unverified for u-P.** `implicit.jl` (`pt_solve!`, `pt_solve_uP!`, `relax`,
     `mapsto_uP`, `elastoquasistaticuP!`, `elastouP!`) was mechanically converted from
@@ -366,6 +391,82 @@ on an unrelated branch.**
     known-bug entry above, throws immediately if exercised regardless (`fint_p2n!`
     dispatch never registered), so its `cmp` rerouting specifically hasn't been proven
     correct either way.
+- **Typed strain/stress tensor storage — done.** `mpts.s.ϵᵢⱼ`/`.ϵn`/`.σᵢ`/`.σn`/`.τᵢ` no
+  longer hold bare `SMatrix{D,D}`/`SVector{nstr}` values. They hold typed tensor objects
+  from `src/boot/needs/types/concrete/tensor.jl`, each storing a volumetric+deviatoric
+  additive split:
+  - `LogarithmicStrain{S,T,L}` / `InfinitesimalStrain{S,T,L}` (`vol::T`,
+    `dev::SMatrix{S,S,T,L}`) — `ϵᵢⱼ`/`ϵn`, picked by `solver.strain.deform`
+    (`"finite"`→log, `"infinitesimal"`→small strain) in `build_solid_phase`.
+  - `CauchyStress{S,T,L}` / `KirchhoffStress{S,T,L}` (`p::T` positive in compression,
+    `dev::SMatrix{S,S,T,L}`) — `σᵢ`/`σn` are always Cauchy, `τᵢ` always Kirchhoff.
+
+  The abstract supertypes `AbstractTensor{T}`/`AbstractStrain{S,T,L}`/
+  `AbstractStress{S,T,L}` live in `types/abstract.jl`, **not** in `concrete/tensor.jl` —
+  `lagrangian.jl` constrains `PointSolidPhase`'s type parameters against them and loads
+  first under the alphabetical includer, so declaring them in `tensor.jl` would fail to
+  load. `PointSolidPhase`/`Point`/`MechanicalProblem` gained three **trailing** type
+  parameters `ST<:AbstractStrain, SC<:AbstractStress, SK<:AbstractStress` after `TS`;
+  trailing specifically so the ~40 kernel signatures matching only `Point{T1,T2,D}` /
+  `Point{T1,T2,D,E}` needed no edit. Only `setup_mpts.jl` and `problem.jl` list the full
+  parameter set. `TS` (the Voigt `SVector` type) is now unused by
+  `PointSolidPhase`'s fields but was kept as a parameter to avoid churn.
+
+  Ported from `fancy-implementation`, but merged into the current architecture rather
+  than merging that branch's `Point`/`Basis` shape backward. What is a straight port:
+  `LogarithmicStrain`/`KirchhoffStress`, `get_tensor`/`get_vector`, `Base.getindex` on
+  strains, the `LinearAlgebra.eigen` overload, `_trial_elastic_strain`,
+  `_trial_elastic_stress`. What is **new code** (that branch left
+  `InfinitesimalStrain`/`CauchyStress` as bare structs with no methods): both types'
+  constructors, `_infinitesimal_strain`, the full-Voigt-vector constructors on both
+  stress types, `Base.zero` for all four, and the `get_J2`/`get_τII` invariants.
+
+  Four things worth knowing before touching this:
+  - **The stored split is representational, not canonical.** The only invariant the
+    types guarantee is that `get_vector`/`get_tensor` reconstruct the tensor. `dev` is
+    *not* required to be trace-free in `S` dimensions, because two different pressure
+    conventions genuinely coexist in this codebase and both predate the port:
+    `_trial_elastic_stress` uses `tr(ϵ)/3` even in 2D (plane strain — the out-of-plane
+    component is real physics, just never stored), while the Voigt constructors use
+    `-tr(σ)/S`, matching `σTr` (`retmap/DP.jl`) and `yield_J2` (`retmap/J2.jl`), which
+    divide by 2 in 2D. `get_J2`/`get_τII` therefore re-derive a trace-free deviator from
+    `get_vector` rather than trusting the stored `dev`, so they agree whichever writer
+    produced the object. **Always consume a stored tensor via `get_vector`/`get_tensor`,
+    never by reading `.dev`/`.p` and assuming they mean what you'd expect.**
+  - **`get_J2` was NOT unified with `retmap/J2.jl`'s same-named helper** (which the
+    original plan called for). They compute different things: the retmap one returns
+    `(‖ξ‖, n̂)` — the deviator norm and yield-surface normal — while the tensor one
+    returns the scalar invariant `J₂`. Merging them would either change what a call site
+    receives or force the return mapping onto the non-canonical stored split. The retmap
+    helper was **renamed `_yield_normal`** instead, so the collision is gone.
+  - **Return-mapping kernels stay in Voigt space internally.** `DP.jl`/`J2.jl` read
+    `get_vector(...)` once, run the unchanged closed-form/CPA algebra on `SVector`s, and
+    wrap the result once at the store. Same for the Jaumann-rate `elast`/`elast_fast`
+    kernels. This is deliberate: it keeps the numerics bit-identical (see below) and
+    preserves `elast_fast`'s hand-inlined performance, while the *stored* value is still
+    genuinely typed. `drucker_prager` goes one better — `σn` already produces a pressure
+    and a scaled deviator separately, so the returned `KirchhoffStress` is built from
+    those directly instead of being re-split from a Voigt vector.
+  - **Numerical impact, measured, not assumed.** The Kirchhoff-stress predictor and the
+    Voigt algebra are bit-identical (20000/20000 random cases, max rel diff exactly
+    0.0). What is *not* bit-identical is the storage round-trip itself: splitting a
+    tensor into `(p,dev)` and reassembling costs ≤1 ulp of the largest component
+    (measured: exactly 1.0 ulp worst case over 20000 random 2D and 3D stresses;
+    ~54%/51% of cases are still bit-exact). Through an `eigen`-based log-strain update
+    that ≤1-ulp input perturbation grows to ≤6.8e-13 (2D) / 5.0e-14 (3D) relative, and
+    through the DP return map to ≤1.8e-13 relative on `Δλ`/`ϵpII`. `test_workflow.jl`'s
+    96-case sweep produced a **byte-identical failure set** before and after (25
+    failures, same 25 case names — see Known bugs), and `test_performance.jl` reports
+    **-12.1% memory / -5.4% allocs / 0.0% time** overall vs the stored baseline. Every
+    new type's construction, `get_vector`, `get_tensor`, `get_J2`, `get_τII`,
+    `_trial_elastic_stress`, `_infinitesimal_strain` and `zero(...)` measure **0 bytes**
+    allocated in a 10 000-iteration loop inside a concrete function. (Beware: measuring
+    these one-shot through a generic `probe(name, f, args...)` helper reports a spurious
+    16–112 B floor from the harness's own dynamic dispatch — the pre-port `SVector`
+    baselines show the identical floor. Use loop-accumulating probes.)
+  - JLD2 needs **no** special handling: the structs are plain immutables over `T` and
+    `SMatrix`. Verified by an explicit save/load round-trip of a full `Point` in both
+    `deform` modes — types and values identical, `eltype`s preserved.
 - `PointSolidPhase.elast::E` (component field typed `AbstractElasticity`) remains an
   intentionally unused dead field — not to be confused with the `cmp` mechanism above,
   which is the one actually wired into the retmap kernels. Its sibling `rheo::R` field

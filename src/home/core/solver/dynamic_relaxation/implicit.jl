@@ -314,7 +314,7 @@ function pt_solve_uP!(mpts, mesh, basis, g, dt, instr;
     end
 
     # τᵢ holds the converged u-P total stress so the workflow can restore it after elasto!
-    mpts.s.τᵢ .= mpts.s.σᵢ
+    mpts.s.τᵢ .= KirchhoffStress.(mpts.s.σᵢ)
     # restore σ^n so elasto! can do the permanent kinematic + stress update
     # keep mpts.s.p at converged value so pressure persists between load steps
     mpts.s.σᵢ .= σ_n

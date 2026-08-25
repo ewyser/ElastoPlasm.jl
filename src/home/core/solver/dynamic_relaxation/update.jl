@@ -36,7 +36,7 @@ end
         mpts.s.u[p] = SVector{2,T2}(dt * δvx, dt * δvy)
         mpts.x[p] += mpts.s.u[p]
         mpts.J[p] = det(mpts.s.Fn[p])
-        mpts.s.σᵢ[p] = mpts.s.τᵢ[p] ./ mpts.J[p]
+        mpts.s.σᵢ[p] = CauchyStress(mpts.s.τᵢ[p], T2(1.0)/mpts.J[p])
 
         # update material point's volume        
         mpts.Ω[p] = mpts.J[p] * mpts.Ω₀[p]

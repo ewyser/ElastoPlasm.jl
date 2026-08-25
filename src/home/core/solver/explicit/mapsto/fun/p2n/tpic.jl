@@ -21,7 +21,7 @@ Project 1D material point data to mesh nodes (TPIC scheme).
         ms, Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         xp     = mpts.x[p]        
         vp, ∇v = mpts.s.v[p]          , mpts.s.∇vᵢⱼ[p]
-        σ      = mpts.s.σᵢ[p] 
+        σ      = get_vector(mpts.s.σᵢ[p]) 
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -41,7 +41,7 @@ end
         ms, Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         xp     = mpts.x[p]        
         vp, ∇v = mpts.s.v[p]          , mpts.s.∇vᵢⱼ[p]
-        σ      = mpts.s.σᵢ[p]      
+        σ      = get_vector(mpts.s.σᵢ[p])      
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -63,7 +63,7 @@ end
         ms, Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         xp     = mpts.x[p]        
         vp, ∇v = mpts.s.v[p]          , mpts.s.∇vᵢⱼ[p]
-        σ      = mpts.s.σᵢ[p]
+        σ      = get_vector(mpts.s.σᵢ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
