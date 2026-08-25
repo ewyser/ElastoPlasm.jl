@@ -23,7 +23,7 @@ display(p)
 - Supports fields: pressure (`P`), plastic strain (`epII`), volumetric plastic strain (`epV`), displacement (`du`), initial vertical position (`z0`), initial cohesion (`coh0`), and initial friction angle (`phi0`).
 - Throws an error if the requested field is not defined.
 """
-function what_plot_field(mpts::Point{T1,T2,D,E},opts) where {T1,T2,D,E<:AbstractElasticity}
+function what_plot_field(mpts::Point{T1,T2,D},opts) where {T1,T2,D}
     if get(opts, :key, nothing) == "domain"
         return plot_domain_boxes(mpts, opts)
     end

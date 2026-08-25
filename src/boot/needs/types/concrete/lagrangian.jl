@@ -4,69 +4,25 @@
 
 export Point,PointSolidPhase,PointFluidPhase,PointThermalPhase
 
-struct LinearElasticity{T1,T2,D} <: AbstractElasticity{T1,T2}
-    # tensor in voigt notation
-    σᵢ   ::Matrix{T2}
-    σn   ::Matrix{T2}
-    # tensor in matrix notation
-    ϵᵢⱼ  ::Array{T2,3}
-    ωᵢⱼ  ::Array{T2,3}
-    σJᵢⱼ ::Array{T2,3}
-end
-function LinearElasticity(::Type{T1},::Type{T2},nmp::Integer,ndim::Integer) where {T1,T2}
-    if ndim == 2 
-        nstr = 3 
-    elseif ndim == 3 
-        nstr = 6 
-    end
-    σᵢ   = zeros(T2, nstr, nmp)
-    σn   = zeros(T2, nstr, nmp) 
-    ϵᵢⱼ  = zeros(T2, ndim, ndim, nmp)
-    ωᵢⱼ  = zeros(T2, ndim, ndim, nmp)
-    σJᵢⱼ = zeros(T2, ndim, ndim, nmp)
-    return LinearElasticity{T1,T2,ndim}(σᵢ, σn, ϵᵢⱼ, ωᵢⱼ, σJᵢⱼ)
-end
-@adapt_struct LinearElasticity
-
-struct FiniteElasticity{T1,T2,D} <: AbstractElasticity{T1,T2}
-    # tensor in voigt notation
-    σᵢ   ::Matrix{T2}
-    τᵢ   ::Matrix{T2}
-    # tensor in matrix notation
-    ϵᵢⱼ  ::Array{T2,3}
-end
-function FiniteElasticity(::Type{T1}, ::Type{T2}, nmp::Integer, ndim::Integer) where {T1,T2}
-    if ndim == 2 
-        nstr = 3 
-    elseif ndim == 3 
-        nstr = 6 
-    end
-    σᵢ  = zeros(T2, nstr, nmp)
-    τᵢ  = zeros(T2, nstr, nmp)
-    ϵᵢⱼ = zeros(T2, ndim, ndim, nmp)
-    return FiniteElasticity{T1,T2,ndim}(σᵢ, τᵢ, ϵᵢⱼ)
-end
-@adapt_struct FiniteElasticity
-
 """
-    PointSolidPhase{T1,T2,D,E,CM,TM,TV,TS,ST,SC,SK}
+    PointSolidPhase{T1,T2,D,CM,TM,TV,TS,ST,SC,SK}
 
 Per-particle solid-phase state. Beyond the historical `TM`/`TV`/`TS` static-array
 shape parameters, three trailing parameters carry the *typed tensor* storage
 introduced by the `tensor.jl` port (see `AbstractTensor`):
 
 - `ST<:AbstractStrain` — `ϵᵢⱼ`/`ϵn`. One parameter for both, since the field pair is
-  dual-purpose: `InfinitesimalStrain` under `E<:LinearElasticity`,
-  `LogarithmicStrain` under `E<:FiniteElasticity`. Resolved in
-  `build_solid_phase` by the same `solver.strain.deform` branch that picks `E`.
+  dual-purpose: `InfinitesimalStrain` under `strain.deform="infinitesimal"`,
+  `LogarithmicStrain` under `strain.deform="finite"`. Resolved in `build_solid_phase`
+  by the `solver.strain.deform` branch.
 - `SC<:AbstractStress` — `σᵢ`/`σn`, always `CauchyStress`.
 - `SK<:AbstractStress` — `τᵢ`, always `KirchhoffStress`.
 
 They are deliberately *trailing*: nearly every kernel signature in this repo
-pattern-matches only `Point{T1,T2,D}` or `Point{T1,T2,D,E}`, so adding them at the end
-left those signatures untouched.
+pattern-matches only `Point{T1,T2,D}`, so adding them at the end left those
+signatures untouched.
 """
-struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,SC<:AbstractStress,SK<:AbstractStress} <: AbstractMaterialPointPhase{T1,T2}
+struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,SC<:AbstractStress,SK<:AbstractStress} <: AbstractMaterialPointPhase{T1,T2}
     u    ::Vector{TV}   # displacement per MP : SVector{ndim,T2}
     v    ::Vector{TV}   # velocity per MP     : SVector{ndim,T2}
     # mechanical properties
@@ -79,7 +35,6 @@ struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveMod
     σᵢ   ::Vector{SC}
     σn   ::Vector{SC}
     τᵢ   ::Vector{SK}
-    P    ::Vector{T2}
     # tensor in matrix notation (SMatrix{ndim,ndim,T2} per MP)
     ∇vᵢⱼ ::Vector{TM}
     ∇uᵢⱼ ::Vector{TM}
@@ -89,8 +44,6 @@ struct PointSolidPhase{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveMod
     ϵᵢⱼ  ::Vector{ST}
     ϵn   ::Vector{ST}
     ωᵢⱼ  ::Vector{TM}
-    # new component-based fields
-    elast::E
     # per-particle static constitutive-model constants (Gc,Kc,Del,Hp,c₀,cᵣ,ϕ₀, ...)
     cmp  ::Vector{CM}
 end
@@ -110,7 +63,7 @@ struct PointThermalPhase{T1,T2,D} <: AbstractMaterialPointPhase{T1,T2}
 end
 @adapt_struct PointThermalPhase
 
-struct Point{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,SC<:AbstractStress,SK<:AbstractStress} <: AbstractMaterialPoint{T1,T2}
+struct Point{T1,T2,D,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,SC<:AbstractStress,SK<:AbstractStress} <: AbstractMaterialPoint{T1,T2}
     # general information
     ndim ::T1
     nmp  ::T1
@@ -134,7 +87,7 @@ struct Point{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveModel,TM,TV,T
     ΔJ   ::Vector{T2}
     J    ::Vector{T2}
     # solid phase
-    s    ::PointSolidPhase{T1,T2,D,E,CM,TM,TV,TS,ST,SC,SK}
+    s    ::PointSolidPhase{T1,T2,D,CM,TM,TV,TS,ST,SC,SK}
     # fluid phase
     f    ::Union{Nothing, PointFluidPhase{T1,T2,D}}
     # thermal phase

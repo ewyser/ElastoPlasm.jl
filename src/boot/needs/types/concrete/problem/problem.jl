@@ -5,13 +5,13 @@
 export MechanicalProblem
 
 """
-    MechanicalProblem{T1,T2,D,E,CM,TM,TV,TS,ST,SC,SK} <: AbstractProblem{T1,T2,D,SP}
+    MechanicalProblem{T1,T2,D,CM,TM,TV,TS,ST,SC,SK} <: AbstractProblem{T1,T2,D,SP}
 
 Bundles the IC-defining, expensive-to-regenerate part of a simulation — `Mesh`,
 `Point` and `Time` — as one object, distinct from `Basis` (cheap, swappable,
 still geometry-derived, built *against* a `Problem`) and `Solver` (config +
 kernels). `SP` (the phase type parameter on `AbstractProblem`) is tied to
-`PointSolidPhase{T1,T2,D,E,CM,TM,TV,TS,ST,SC,SK}`, i.e. the type of `mpts.s` — reusing
+`PointSolidPhase{T1,T2,D,CM,TM,TV,TS,ST,SC,SK}`, i.e. the type of `mpts.s` — reusing
 the existing `MaterialPointPhase` hierarchy rather than introducing a second,
 disconnected "phase" concept at the problem level.
 
@@ -22,9 +22,9 @@ persistence convenience: kernel/workflow signatures still take `mesh`/`mpts`/
 `time` as separate positional args, not `Problem` itself — threading `Problem`
 through every kernel call site is a much larger, currently out-of-scope lift.
 """
-struct MechanicalProblem{T1,T2,D,E<:AbstractElasticity{T1,T2},CM<:AbstractConstitutiveModel{T2,D},TM,TV,TS,ST<:AbstractStrain,SC<:AbstractStress,SK<:AbstractStress} <: AbstractProblem{T1,T2,D,PointSolidPhase{T1,T2,D,E,CM,TM,TV,TS,ST,SC,SK}}
+struct MechanicalProblem{T1,T2,D,CM<:AbstractConstitutiveModel{T2,D},TM,TV,TS,ST<:AbstractStrain,SC<:AbstractStress,SK<:AbstractStress} <: AbstractProblem{T1,T2,D,PointSolidPhase{T1,T2,D,CM,TM,TV,TS,ST,SC,SK}}
     mesh ::Mesh{T1,T2,D}
-    mpts ::Point{T1,T2,D,E,CM,TM,TV,TS,ST,SC,SK}
+    mpts ::Point{T1,T2,D,CM,TM,TV,TS,ST,SC,SK}
     time ::Time{T1,T2}
 end
 @adapt_struct MechanicalProblem

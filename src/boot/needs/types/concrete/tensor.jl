@@ -44,9 +44,9 @@ they give the same number whichever writer produced the object. Use `get_vector`
 `get_tensor` as the source of truth when consuming a stored tensor.
 
 The three abstract types themselves (`AbstractTensor`/`AbstractStrain`/`AbstractStress`)
-are declared in `types/abstract.jl`, alongside `AbstractElasticity`/
-`AbstractConstitutiveModel`, because `lagrangian.jl` needs them to constrain
-`PointSolidPhase`'s type parameters and loads before this file.
+are declared in `types/abstract.jl`, alongside `AbstractConstitutiveModel`, because
+`lagrangian.jl` needs them to constrain `PointSolidPhase`'s type parameters and loads
+before this file.
 """
 AbstractTensor
 
@@ -103,14 +103,13 @@ end
     InfinitesimalStrain{S,T,L} <: AbstractStrain{S,T,L}
 
 Small-strain tensor `ϵ = ½(ΔF + ΔFᵀ) - I`, the strain measure used under
-`strain.deform == "infinitesimal"` (`E<:LinearElasticity`). Built by
-`_infinitesimal_strain`.
+`strain.deform == "infinitesimal"`. Built by `_infinitesimal_strain`.
 
 Unlike `LogarithmicStrain` this type has no counterpart in `fancy-implementation`
 beyond the bare struct definition (that branch left it as unused scaffolding with no
 methods at all); its constructors and `_infinitesimal_strain` are new code written
 here, modelled on the same `vol`/`dev` pattern and on `elast.jl`'s pre-existing
-`LinearElasticity` kernel math.
+infinitesimal-strain kernel math.
 """
 struct InfinitesimalStrain{S,T,L} <: AbstractStrain{S,T,L}
     vol::T
@@ -124,7 +123,7 @@ end
     LogarithmicStrain{S,T,L} <: AbstractStrain{S,T,L}
 
 Logarithmic (Hencky) elastic strain tensor, the strain measure used under
-`strain.deform == "finite"` (`E<:FiniteElasticity`). Built by `_trial_elastic_strain`.
+`strain.deform == "finite"`. Built by `_trial_elastic_strain`.
 The `SVector` constructors take the *deviatoric* part in Voigt notation.
 """
 struct LogarithmicStrain{S,T,L} <: AbstractStrain{S,T,L}

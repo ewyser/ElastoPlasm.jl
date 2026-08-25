@@ -47,13 +47,13 @@ end
 # split naturally belongs now that it is what actually gets stored.
 
 """
-    elast(mpts::Point{T1,T2,D,E}) where {E<:FiniteElasticity}
+    elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {ST<:LogarithmicStrain}
 
 Finite-strain elastic predictor: push the stored logarithmic strain forward through
 `ΔFᵢⱼ` and evaluate the trial Kirchhoff stress from it. Writes a `LogarithmicStrain`
 into `mpts.s.ϵᵢⱼ[p]` and a `KirchhoffStress` into `mpts.s.τᵢ[p]`.
 """
-@kernel inbounds = true function elast(mpts::Point{T1,T2,D,E}) where {T1,T2,D,E<:FiniteElasticity}
+@kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM,TM,TV,TS,ST<:LogarithmicStrain}
     p = @index(Global)
     if p ≤ mpts.nmp
         cmp           = mpts.s.cmp[p]
@@ -65,7 +65,7 @@ into `mpts.s.ϵᵢⱼ[p]` and a `KirchhoffStress` into `mpts.s.τᵢ[p]`.
 end
 
 """
-    elast(mpts::Point{T1,T2,D,E}) where {E<:LinearElasticity}
+    elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {ST<:InfinitesimalStrain}
 
 Infinitesimal (small-strain) elastic update at material points: Jaumann-rate Cauchy
 stress increment `σ ← σ + Del·ϵ + (σω' + σ'ω)`. Writes an `InfinitesimalStrain` into
@@ -73,7 +73,7 @@ stress increment `σ ← σ + Del·ϵ + (σω' + σ'ω)`. Writes an `Infinitesim
 itself still happens in Voigt `SVector` form (via `get_vector`) so the numbers are
 unchanged, with the result wrapped once at the point of the store.
 """
-@kernel inbounds = true function elast(mpts::Point{T1,T2,D,E}) where {T1,T2,D,E<:LinearElasticity}
+@kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM,TM,TV,TS,ST<:InfinitesimalStrain}
     p = @index(Global)
     if p ≤ mpts.nmp
         Del = mpts.s.cmp[p].Del
@@ -90,7 +90,7 @@ unchanged, with the result wrapped once at the point of the store.
     end
 end
 
-@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,2,E}) where {T1,T2,E<:LinearElasticity}
+@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,2,CM,TM,TV,TS,ST}) where {T1,T2,CM,TM,TV,TS,ST<:InfinitesimalStrain}
     p = @index(Global)
     if p ≤ mpts.nmp
         Del = mpts.s.cmp[p].Del
@@ -108,7 +108,7 @@ end
         ))
     end
 end
-@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,3,E}) where {T1,T2,E<:LinearElasticity}
+@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,3,CM,TM,TV,TS,ST}) where {T1,T2,CM,TM,TV,TS,ST<:InfinitesimalStrain}
     p = @index(Global)
     if p ≤ mpts.nmp
         Del = mpts.s.cmp[p].Del

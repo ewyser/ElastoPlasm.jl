@@ -11,7 +11,6 @@ abstract type AbstractMeshPhase{T1, T2}      <: AbstractCartesianMesh{T1,T2} end
 abstract type AbstractLagrangian end
 abstract type AbstractMaterialPoint{T1, T2} <: AbstractLagrangian end
 abstract type AbstractMaterialPointPhase{T1, T2} <: AbstractMaterialPoint{T1,T2} end
-abstract type AbstractElasticity{T1, T2} end
 
 abstract type AbstractConstitutiveModel{T2, D} end
 

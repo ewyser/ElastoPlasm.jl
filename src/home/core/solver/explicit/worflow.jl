@@ -1,12 +1,12 @@
 export elastoplastic!,elastodynamic!,thermodynamic!              
 
 """
-    elastodynamic!(mpts::Point{T1,T2,E}, mesh, time::NamedTuple, instr::NamedTuple)
+    elastodynamic!(mpts::Point{T1,T2,CM}, mesh, time::NamedTuple, instr::NamedTuple)
 
 Run the explicit elastodynamic workflow for the given mesh, material points, constitutive model, and simulation configuration.
 
 # Arguments
-- `mpts::Point{T1,T2,E}`: Material point data structure.
+- `mpts::Point{T1,T2,CM}`: Material point data structure.
 - `mesh`: Mesh data structure.
 - `time::NamedTuple`: Time stepping configuration.
 - `instr::NamedTuple`: Simulation instructions and options.
@@ -45,12 +45,12 @@ function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2}
     return nothing
 end  
 """
-    elastoplastic!(mpts::Point{T1,T2,E}, mesh, time::NamedTuple, instr::NamedTuple)
+    elastoplastic!(mpts::Point{T1,T2,CM}, mesh, time::NamedTuple, instr::NamedTuple)
 
 Run the explicit elastoplastic workflow for the given mesh, material points, constitutive model, and simulation configuration.
 
 # Arguments
-- `mpts::Point{T1,T2,E}`: Material point data structure.
+- `mpts::Point{T1,T2,CM}`: Material point data structure.
 - `mesh`: Mesh data structure.
 - `time::NamedTuple`: Time stepping configuration.
 - `instr::NamedTuple`: Simulation instructions and options.
@@ -90,12 +90,12 @@ function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2}
     return nothing
 end  
 """
-    thermodynamic!(mpts::Point{T1,T2,D,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,E,S<:AbstractSolver{T1,T2,D}}
+    thermodynamic!(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,CM,S<:AbstractSolver{T1,T2,D}}
 
 Run the explicit thermodynamic workflow for the given mesh, material points, constitutive model, and simulation configuration.
 
 # Arguments
-- `mpts::Point{T1,T2,D,E}`: Material point data structure.
+- `mpts::Point{T1,T2,D,CM}`: Material point data structure.
 - `mesh::Mesh{T1,T2,D}`: Mesh data structure.
 - `basis::Basis{T1,T2,D}`: Topology container linking `mesh` and `mpts`.
 - `time::Time{T1,T2}`: Time stepping configuration.
@@ -109,7 +109,7 @@ Run the explicit thermodynamic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function thermodynamic!(mpts::Point{T1,T2,D,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,E,S<:AbstractSolver{T1,T2,D}}
+function thermodynamic!(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,CM,S<:AbstractSolver{T1,T2,D}}
     it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.t[2])))
     # action
     prog = Progress(length(checks);dt=0.5,desc="Solving thermodynamic!...",barlen=10)
