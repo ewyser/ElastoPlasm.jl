@@ -12,18 +12,19 @@
     end
 end
 
-@views @kernel inbounds = true function Dij_nd(mpts::Point{T1,T2,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D}) where {T1,T2,E,D}
+@kernel inbounds = true function Dij_nd(mpts::Point{T1,T2,E},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D}) where {T1,T2,E,D}
     p = @index(Global)
     # calculate delta functions for tpic
     if p ≤ mpts.nmp
+        Dᵢⱼ = zero(eltype(mpts.Dᵢⱼ))
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N  = basis.N[nn,p]
             # compute Dᵢⱼ tensor
-            δ                = mesh.x[no] .- mpts.x[p]
-            mpts.Δnp[nn,:,p].= δ
-            mpts.Dᵢⱼ[:,:,p] .= N.*(δ*δ')
+            δ   = mesh.x[no] - mpts.x[p]
+            Dᵢⱼ = N*(δ*δ')
         end
+        mpts.Dᵢⱼ[p] = Dᵢⱼ
     end
 end

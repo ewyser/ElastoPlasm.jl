@@ -15,14 +15,14 @@ Update material point velocities and positions from mesh nodes (PIC scheme, n-di
     p = @index(Global)
     if p ≤ mpts.nmp
         # Bᵢⱼ update
-        Bᵢⱼ,xₚ = zeros(T2,(length(mesh.prprt.nel)-1),(length(mesh.prprt.nel)-1)), mpts.x[p]
+        Bᵢⱼ,xₚ = zero(eltype(mpts.Bᵢⱼ)), mpts.x[p]
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N    = basis.N[nn,p]
             δ    = mesh.x[no] - xₚ
-            Bᵢⱼ.+= N .* (mesh.s.v[no] * δ')
+            Bᵢⱼ  = Bᵢⱼ + N * (mesh.s.v[no] * δ')
         end
-        mpts.Bᵢⱼ[:,:,p].= Bᵢⱼ
+        mpts.Bᵢⱼ[p] = Bᵢⱼ
     end
 end
