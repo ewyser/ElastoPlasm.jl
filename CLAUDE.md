@@ -115,6 +115,26 @@ on an unrelated branch.**
   `if...end` check for zero nodal mass"): `volumetric.jl`'s `ΔJp` now has the same
   `iszero(mesh.s.m[no])` guard the velocity kernels already had. Kept here only so the
   fix isn't rediscovered as a new bug.
+- ~~`mpts.s.Δλ` is never written under `plast.constitutive="J2"`, silently disabling
+  non-local regularization~~ — **fixed** (branch `feat-typed-strain-stress-tensors`).
+  `J2.jl`'s `finite_J2`/`infinitesimal_J2` computed `Δλ` as a purely loop-local
+  quantity feeding `Δσ`/`γ0`, and never assigned `mpts.s.Δλ[p]` at all. Since
+  `setup_mpts` zero-initializes it, it stayed `0.0` forever — and `nonlocal.jl` gates
+  *every* one of its three branches on `mpts.s.Δλ[p] != T2(0.0)`, so non-local
+  regularization never activated under J2 no matter what `solver.nonloc.status` said.
+  Fix: accumulate `Δλ` across the CPA iterations, store the sum after the loop, and
+  zero it in the elastic (`f ≤ 0`) branch. Measured on a 591-particle `slump_problem`
+  J2 + `nonloc.status=true` run, before → after: `Δλ != 0` on **0 → 424** particles
+  (finite) and **0 → 470** (infinitesimal); `ϵpII[2,:] != 0` (the non-local field)
+  **0 → 460** and **0 → 474**; `max ϵpII[2]` `0.0 → 3.43e-2` / `6.72e-2`. DP runs were
+  never affected. Kept here so the fix isn't rediscovered as a new bug.
+- ~~`finite_DP` never resets `mpts.s.Δλ[p]` on an elastic step~~ — **fixed** (same
+  branch). `infinitesimal_DP` zeroes `Δλ` unconditionally before the yield check and
+  then conditionally overwrites it; `finite_DP` only ever wrote it *inside* its
+  `if Δλ > 0` guard, so a particle that yielded once stayed permanently flagged
+  "yielding" for `nonlocal.jl`'s gate. (The zeroing had clearly been intended: it was
+  present in a large commented-out dead block in that kernel, which has now been
+  deleted along with the fix.) Same one-line `mpts.s.Δλ[p] = T2(0.0)` as its sibling.
 - ~~`_kirchoff_stress`'s 3D Voigt shear ordering disagreed with every consumer~~ —
   **fixed** as a side effect of the tensor port (same branch). The old
   `_kirchoff_stress(::SMatrix{3,3},...)` returned `(τxx,τyy,τzz,τxy,τxz,τyz)`, i.e.

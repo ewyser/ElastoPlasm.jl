@@ -85,6 +85,12 @@ end
 @views @kernel inbounds = true function finite_DP(mpts::Point{T1,T2}) where {T1,T2}
     p = @index(Global)
     if p≤mpts.nmp
+        # reset the plastic multiplier on every step: it is *the* activity gate read by
+        # `nonlocal.jl` (`mpts.s.Δλ[p] != 0`), so leaving last step's value in place on an
+        # elastic step kept a particle spuriously "yielding" forever. `infinitesimal_DP`
+        # below always did this; `finite_DP` did not — the zeroing was clearly intended,
+        # it just sat in the dead commented-out block this kernel used to carry.
+        mpts.s.Δλ[p] = T2(0.0)
         ϵᵢⱼ,τᵢ,Δλ,ϵpII = drucker_prager(mpts.s.τᵢ[p],mpts.s.ϵᵢⱼ[p],MVector{2,T2}(mpts.s.ϵpII[1,p],mpts.s.ϵpII[2,p]),mpts.s.cmp[p])
         if Δλ > T2(0.0)
             mpts.s.ϵᵢⱼ[p]     = ϵᵢⱼ

@@ -46,20 +46,29 @@ end
         # return mapping using CPA (non-quadratic convergence)
         if f>T2(0.0)
             γ0,σ0,ηit = mpts.s.ϵpII[2,p],get_vector(mpts.s.τᵢ[p]),1
+            Δλacc     = T2(0.0)
             while abs(f)>ftol && ηit<ηmax
                 ∂f∂σ = n
                 Δλ   = f/(∂f∂σ'*cmp.Del*∂f∂σ)
                 Δσ   = Δλ .* (cmp.Del*∂f∂σ)
                 σ0   = σ0 .- Δσ
                 γ0  += Δλ
+                Δλacc += Δλ
                 κ    = max(cmp.cᵣ,cmp.c₀+cmp.Hp*γ0)
                 f,n  = yield_J2(σ0,κ)
                 ηit += 1
             end
             mpts.s.ϵpII[1,p] = γ0
+            # Δλ was previously a pure loop-local: it fed Δσ/γ0 and was then thrown away,
+            # so mpts.s.Δλ[p] stayed at its zero-initialized value forever under
+            # plast.constitutive="J2" — permanently disabling nonlocal.jl's activity gate
+            # (`mpts.s.Δλ[p] != 0`). Accumulate it over the CPA iterations and store it.
+            mpts.s.Δλ[p]     = Δλacc
             mpts.s.τᵢ[p]     = KirchhoffStress(σ0)
             # update strain tensor
             mpts.s.ϵᵢⱼ[p]    = LogarithmicStrain(eltype(mpts.s.ΔFᵢⱼ)(mutate(cmp.Del\σ0,T2(0.5),:tensor)))
+        else
+            mpts.s.Δλ[p]     = T2(0.0)
         end
     end
 end
@@ -73,18 +82,24 @@ end
         # return mapping using CPA (non-quadratic convergence)
         if f>T2(0.0)
             γ0,σ0,ηit = mpts.s.ϵpII[2,p],get_vector(mpts.s.σᵢ[p]),1
+            Δλacc     = T2(0.0)
             while abs(f)>ftol && ηit<ηmax
                 ∂f∂σ = n
                 Δλ   = f/(∂f∂σ'*cmp.Del*∂f∂σ)
                 Δσ   = Δλ .* (cmp.Del*∂f∂σ)
                 σ0   = σ0 .- Δσ
                 γ0  += Δλ
+                Δλacc += Δλ
                 κ    = max(cmp.cᵣ,cmp.c₀+cmp.Hp*γ0)
                 f,n  = yield_J2(σ0,κ)
                 ηit += 1
             end
             mpts.s.ϵpII[1,p] = γ0
+            # see finite_J2 above — Δλ was never written, silently disabling nonlocal.jl
+            mpts.s.Δλ[p]     = Δλacc
             mpts.s.σᵢ[p]     = CauchyStress(σ0)
+        else
+            mpts.s.Δλ[p]     = T2(0.0)
         end
     end
 end
