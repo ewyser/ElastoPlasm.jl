@@ -59,7 +59,7 @@
     ┌ Welcome to ϵlastσPlasm 👻 v0.4.2
     │ New comer ? Try slumping out
     │   L,nel  = [64.1584,64.1584/4.0],[40,10];
-    │   jld2   = ic_slump(L,nel;cli()...);
+    │   jld2   = slump_problem(L,nel;cli()...);
     └   out    = elastoplasm(jld2; workflow = [elastodynamic!,elastoplastic!]);
 
     julia> 

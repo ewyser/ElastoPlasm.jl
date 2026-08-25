@@ -1,66 +1,43 @@
-export ic_thermal 
+export thermal_problem
 
-function ic_thermal(; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
-    L,nel = [16.0,16.0],[80,80]
-    
+"""
+    thermal_problem(L::Vector{Float64}, nel::Vector{Int64}; fid::String=..., kwargs...) -> String
+
+Initializes the mesh, material points, and simulation configuration for a heat-conduction
+test problem, and exports it to a `.jld2` file (same pipeline as `slump_problem`).
+
+# Arguments
+- `L::Vector{Float64}`: Domain dimensions.
+- `nel::Vector{Int64}`: Number of elements in each dimension.
+- `fid::String`: (Optional) File or run identifier.
+- `kwargs...`: Additional keyword arguments for simulation configuration (see `get_solver`);
+  override the thermal-specific defaults below the same way `slump_problem` does
+  (`thermal_problem(L, nel; cli()..., basis=(;which="gimpm",how="Uii"))`).
+
+# Returns
+- `String`: Path to the exported `.jld2` setup file.
+
+# Example
+```julia
+jld2 = thermal_problem([16.0, 16.0], [80, 80])
+out  = elastoplasm(jld2; workflows=[thermodynamic!])
+```
+"""
+function thermal_problem(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
     @info "Setting up mesh & material point system for $(length(L))d thermal problem"
-    # init & kwargs
-    instr = kwargser(kwargs; dim=length(L))
-    instr = merge(instr, 
+    # get solver and paths
+    solver = get_solver(; dim=length(L),
         (;
-            basis = (;
-                which = "bsmpm",
-                how = nothing,
-                ghost = false,
-            ),
-        )
-    )
-    instr = merge(instr, 
-        (;
-            plot = (;
-                status=true,
-                freq=0.01,
-                dpi=500,
-                what=[("mpts","T"),("mesh","T")],
-                cblim  = [(0.0, 25.0),(0.0, 25.0),],
-            )
-        )
-    )
-    instr = merge(instr, 
-        (;
-            bcs   = (;
-                dirichlet = [
-                    :fixed :fixed;
-                    :fixed :fixed], # for 2d, this translates to [lower_x upper_x;lower_y upper_y]
-            ),
-        )
-    )
-    paths = set_paths(fid,info.sys.out;interactive=false)  
-    # mesh & mpts initial conditions
-    mesh  = setup_mesh(instr     ; geom = get_geom(nel,L,instr)       )
-    cmpr  = setup_cmpr(mesh                                           )                       
-    mpts  = setup_mpts(mesh,instr,cmpr ; geom = get_thermal(mesh,cmpr,instr))
-    # time parameters
-    time  = setup_time(instr     ; te=5.0,tg=5.0,tep=0.0) 
-    # plot initial cohesion field
-    dims  = instr[:plot][:dpi].*(mesh.prprt.L[1]./mesh.prprt.L)
-    ms    = mesh.prprt.nel[1]*dims[1]
-    opts = (;
-        dims    = instr[:plot][:dpi].*(mesh.prprt.L./mesh.prprt.L[1]), 
-        what    = [("mpts","T"),],
-        backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
-        tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
-        cblim   = [(0.0,20.0),],
-        xlim    = (minimum(mesh.x[1,:]),maximum(mesh.x[1,:])), 
-        ylim    = (minimum(mesh.x[2,:]),maximum(mesh.x[2,:])),
-        file    = joinpath(paths[:plot],"$(mesh.prprt.dim)d_T.png"),
-    )
-    get_plot_field(mpts,mesh,opts);save_plot(opts)
-    # display summary
-    @info ic_log(mesh,mpts,time,instr)
-    misc = (;
-        prefix = "$(mesh.prprt.dim)d_$(instr[:fwrk][:trsfr])"
-    )
+            basis = (; which = "bsmpm", how = nothing),
+            bcs   = (; dirichlet = [:fixed :fixed; :fixed :fixed]), # for 2d: [lower_x upper_x;lower_y upper_y]
+            plot  = (; status = true, freq = 1.0, dpi = 300, what = [(;mpts=get_mpts_variable_config()["T"])]),
+        )...,
+        kwargs...)
+    paths   = mkpaths(fid,self.sys.dump;interactive=false)
+    # mesh, mpts, mat & time initial conditions
+    geom    = setup_geometry(L,nel,solver)
+    problem = setup_problem(geom,solver,get_thermal; te = 5.0, tg = 5.0, tep = 0.0, thermal = true)
+    basis   = setup_basis(problem,solver)
     # export to jld2 file and return path
-    return export_setup(mesh,mpts,cmpr,time,instr,paths,misc; path = paths[:dat], file = "thermal_simulation")
+    return export_problem(problem,basis,solver,paths; file = "thermal_simulation")
 end

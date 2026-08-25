@@ -4,7 +4,15 @@
 
 export BSplineBasis
 
-struct BSplineBasis <: AbstractBasis end
+struct BSplineBasis{T,D,NN} <: AbstractBasis
+    stencils::NTuple{D,UnitRange{T}}
+    #
+    function BSplineBasis{T,D}() where {T,D}
+        stencils = ntuple(_ -> UnitRange{T}(-1:2), D)
+        NN       = prod(length.(stencils))
+        return new{T,D,NN}(stencils)
+    end
+end
 
 @inline function t1_ϕ∂ϕ(ξ::T2) where {T2}
     ϕ,∂ϕ = T2(0.0),T2(0.0)
@@ -84,36 +92,51 @@ end
     return ϕ,∂ϕ*Δx⁻¹ 
 end
 
-@inline function basis(mpts::Point{T1,T2,D,B,E,R}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:OneDimension,B<:BSplineBasis,E,R}
-    no = mpts.p2n[nn,ip]
-    if iszero(no) 
-        return T1(0), T2(0.0), (T2(0.0),)
+@inline function eval_basis(mpts::Point{T1,T2,1,E}, mesh::Mesh{T1,T2,1}, basis::Basis{T1,T2,1,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E}
+    no = basis.p2n[ip][nn]
+    if iszero(no)
+        N, ∂N  = T2(0.0), SVector{1,T2}(0.0)
     else
-        ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[1,ip]-mesh.x[1,no]),mesh.type[1,no],mesh.prprt.h[1])
+        ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[ip][1]-mesh.x[no][1]),basis.type[1,no],mesh.prprt.h[1])
         # return convolution of basis function
-        return T1(no), T2(ϕξ), (T2(∂ϕξ),)
+        N, ∂N  = T2(ϕξ), SVector{1,T2}(∂ϕξ)
     end
+    return no, N, ∂N
 end
-@inline function basis(mpts::Point{T1,T2,D,B,E,R}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:TwoDimension,B<:BSplineBasis,E,R} 
-    no = mpts.p2n[nn,ip]
-    if iszero(no) 
-        return T1(0), T2(0.0), (T2(0.0), T2(0.0))
+@inline function eval_basis(mpts::Point{T1,T2,2,E}, mesh::Mesh{T1,T2,2}, basis::Basis{T1,T2,2,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E}
+    no = basis.p2n[ip][nn]
+    if iszero(no)
+        N, ∂N  = T2(0.0), SVector{2,T2}(0.0, 0.0)
     else
-        ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[1,ip]-mesh.x[1,no]),mesh.type[1,no],mesh.prprt.h[1]) 
-        ϕη,∂ϕη = ϕ∂ϕ((mpts.x[2,ip]-mesh.x[2,no]),mesh.type[2,no],mesh.prprt.h[2])
-        # return convolution of basis function
-        return T1(no), T2(ϕξ*ϕη), (T2(∂ϕξ*ϕη),T2(ϕξ*∂ϕη),)
+        ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[ip][1]-mesh.x[no][1]),basis.type[1,no],mesh.prprt.h[1])
+        ϕη,∂ϕη = ϕ∂ϕ((mpts.x[ip][2]-mesh.x[no][2]),basis.type[2,no],mesh.prprt.h[2])
+        # Construct the convolution of basis function and derivatives
+        N, ∂N  = T2(ϕξ*ϕη), SVector{2,T2}(∂ϕξ*ϕη, ϕξ*∂ϕη)
     end
+    return no, N, ∂N
 end
-@inline function basis(mpts::Point{T1,T2,D,B,E,R}, mesh::Mesh{T1,T2,D}, ip::T1, nn::T1) where {T1,T2,D<:ThreeDimension,B<:BSplineBasis,E,R} 
-    no = mpts.p2n[nn,ip]
-    if iszero(no) 
-        return T1(0), T2(0.0), (T2(0.0), T2(0.0), T2(0.0))
+@inline function eval_basis(mpts::Point{T1,T2,3,E}, mesh::Mesh{T1,T2,3}, basis::Basis{T1,T2,3,NN,K}, ip::T1, nn::T1) where {T1,T2,NN,K<:BSplineBasis,E}
+    no = basis.p2n[ip][nn]
+    if iszero(no)
+        N, ∂N  = T2(0.0), SVector{3,T2}(0.0, 0.0, 0.0)
     else
-        ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[1,ip]-mesh.x[1,no]),mesh.type[1,no],mesh.prprt.h[1])
-        ϕη,∂ϕη = ϕ∂ϕ((mpts.x[2,ip]-mesh.x[2,no]),mesh.type[2,no],mesh.prprt.h[2])
-        ϕζ,∂ϕζ = ϕ∂ϕ((mpts.x[3,ip]-mesh.x[3,no]),mesh.type[3,no],mesh.prprt.h[3])
-        # return convolution of basis function
-        return T1(no), T2(ϕξ*ϕη*ϕζ), (T2(∂ϕξ*ϕη*ϕζ),T2(ϕξ*∂ϕη*ϕζ),T2(ϕξ*ϕη*∂ϕζ),)
+        ϕξ,∂ϕξ = ϕ∂ϕ((mpts.x[ip][1]-mesh.x[no][1]),basis.type[1,no],mesh.prprt.h[1])
+        ϕη,∂ϕη = ϕ∂ϕ((mpts.x[ip][2]-mesh.x[no][2]),basis.type[2,no],mesh.prprt.h[2])
+        ϕζ,∂ϕζ = ϕ∂ϕ((mpts.x[ip][3]-mesh.x[no][3]),basis.type[3,no],mesh.prprt.h[3])
+        # Construct the convolution of basis function and derivatives
+        N, ∂N  = T2(ϕξ*ϕη*ϕζ), SVector{3,T2}(∂ϕξ*ϕη*ϕζ, ϕξ*∂ϕη*ϕζ, ϕξ*ϕη*∂ϕζ)
     end
+    return no, N, ∂N
+end
+
+
+@inline function get_ξηζ(xp::SVector{S,T}, xn::Vector{SVector{S,T}}, h::SVector{S,T},p2n::SVector{NN,Int}) where {S,T,NN}
+    nno = ntuple(i -> p2n[i], Val(NN))
+    ξηζ = ntuple(Val(NN)) do i
+        no = nno[i]
+        (
+            ntuple(j -> (xp[j] - xn[no][j]) / h[j], Val(S))
+        )
+    end # ξηζ = ((ξ₁, η₁, ζ₁), (ξ₂, η₂, ζ₂), ..., (ξn, ηn, ζn))
+    return nno, ξηζ
 end

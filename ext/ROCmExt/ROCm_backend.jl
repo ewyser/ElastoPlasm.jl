@@ -18,12 +18,12 @@ function add_backend!(::Val{:ROCm},info::Self)
             :functional => AMDGPU.functional(),
         ), 
     )
-    dev_id = length(keys(info.bckd.gpu))
+    dev_id = length(keys(self.bckd.gpu))
     for (platform, backend) ∈ availables
         if backend[:functional]
             for (k, device) ∈ enumerate(backend[:devices]())
                 dev_id += 1
-                info.bckd.gpu[Symbol("dev$(dev_id)")] = (; 
+                self.bckd.gpu[Symbol("dev$(dev_id)")] = (; 
                     dev      = backend[:dev],
                     platform = platform,
                     brand    = backend[:brand],
@@ -33,12 +33,12 @@ function add_backend!(::Val{:ROCm},info::Self)
                     handle   = device,
                 )
             end
-            push!(info.bckd.functional, "✓ $(backend[:brand]) $(platform)")
+            push!(self.bckd.functional, "✓ $(backend[:brand]) $(platform)")
         else
-            push!(info.bckd.functional, "✗ $(backend[:brand]) $(platform)")
+            push!(self.bckd.functional, "✗ $(backend[:brand]) $(platform)")
         end
     end
-    @info join(info.bckd.functional,"\n")
+    @info join(self.bckd.functional,"\n")
     return nothing
 end
 

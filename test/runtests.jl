@@ -21,7 +21,7 @@ function runtests()
         nothing
     else
         try
-            options = options[collect(request("Select device(s):",MultiSelectMenu(options; charset=:ascii)))]
+            options = options[collect(request("Select test case(s):",MultiSelectMenu(options; charset=:ascii)))]
         catch
             nothing
         end
@@ -42,7 +42,8 @@ function runtests()
     end
     return nfail
 end
-exit(runtests())
+runtests()
+#exit(runtests())
 
 #=
 To reproduce CI.yaml locally, run the following from the same repository state on julia version 1.10.10:
