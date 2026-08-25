@@ -21,9 +21,9 @@ end
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N  = basis.N[nn,p]
-            # compute Dᵢⱼ tensor
+            # accumulate Dᵢⱼ tensor over all neighbors
             δ   = mesh.x[no] - mpts.x[p]
-            Dᵢⱼ = N*(δ*δ')
+            Dᵢⱼ = Dᵢⱼ + N*(δ*δ')
         end
         mpts.Dᵢⱼ[p] = Dᵢⱼ
     end
