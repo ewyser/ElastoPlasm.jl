@@ -14,26 +14,27 @@ Project 1D material point data to mesh nodes (APIC scheme).
 # Returns
 - Updates mesh fields in-place.
 """
-@views @kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,T2,1},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function apic_p2n(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,T2,1},g::Vector{T2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
+        xp    = mpts.x[p]
+        vp    = mpts.s.v[p]
         σxx   = mpts.s.σᵢ[p][1]
+        Bp    = mpts.Bᵢⱼ[p]
+        Dp    = mpts.Dᵢⱼ[p]
+        D⁻¹   = abs(det(Dp)) > T2(1e-12) ? inv(Dp) : SMatrix{1,1,T2}(I)
         for nn ∈ 1:mesh.prprt.nn
-            no        = basis.p2n[p][nn]
-            δx        = mesh.x[no][1]-mpts.x[p][1]
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(1))
-            if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
-                D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p])
-            else
-                D⁻¹ = SMatrix{1,1,T2}(I)
-            end
+            δ     = mesh.x[no] - xp
+            mv    = N * ms * (vp + Bp * D⁻¹ * δ)
             # accumulation
-             mesh.m[no]     += N * ms
-             mesh.mv[:,no] .+= N .* ms .* (mpts.s.v[p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * δx)
-             mesh.s.oobf[no]-= Ω * (∂N[1] * σxx) - N * (ms * g[1])
+            @atom mesh.s.m[no]   += N * ms
+            @atom mesh.s.mv[no]  += mv[1]
+            @atom mesh.s.oobf[no]-= Ω * (∂N[1] * σxx) - N * (ms * g[1])
         end
     end
 end
@@ -42,22 +43,24 @@ end
     if p ≤ mpts.nmp
         # buffering
         ms ,Ω       = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
+        xp          = mpts.x[p]
+        vp          = mpts.s.v[p]
         σxx,σyy,σxy = mpts.s.σᵢ[p][1]       ,mpts.s.σᵢ[p][2]     ,mpts.s.σᵢ[p][3]
+        Bp          = mpts.Bᵢⱼ[p]
+        Dp          = mpts.Dᵢⱼ[p]
+        D⁻¹         = abs(det(Dp)) > T2(1e-12) ? inv(Dp) : SMatrix{2,2,T2}(I)
         for nn ∈ 1:mesh.prprt.nn
-            no        = basis.p2n[p][nn]
-            δx, δy    = mesh.x[no][1]-mpts.x[p][1], mesh.x[no][2]-mpts.x[p][2]
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(2))
-            if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
-                D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p])
-            else
-                D⁻¹ = SMatrix{2,2,T2}(I)
-            end
+            δ     = mesh.x[no] - xp
+            mv    = N * ms * (vp + Bp * D⁻¹ * δ)
             # accumulation
-             mesh.s.m[no]     += N * ms
-             mesh.s.mv[:,no] .+= N .* ms .* (mpts.s.v[p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * vcat(δx,δy))
-             mesh.s.oobf[1,no]-= Ω * (∂N[1] * σxx + ∂N[2] * σxy)
-             mesh.s.oobf[2,no]-= Ω * (∂N[1] * σxy + ∂N[2] * σyy) - N * (ms * g[2])
+            @atom mesh.s.m[no]     += N * ms
+            @atom mesh.s.mv[1,no]  += mv[1]
+            @atom mesh.s.mv[2,no]  += mv[2]
+            @atom mesh.s.oobf[1,no]-= Ω * (∂N[1] * σxx + ∂N[2] * σxy)
+            @atom mesh.s.oobf[2,no]-= Ω * (∂N[1] * σxy + ∂N[2] * σyy) - N * (ms * g[2])
         end
     end
 end
@@ -66,22 +69,25 @@ end
     if p ≤ mpts.nmp
         # buffering
         ms  ,Ω        = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
+        xp            = mpts.x[p]
+        vp            = mpts.s.v[p]
         σxx ,σyy ,σzz = mpts.s.σᵢ[p][1]       ,mpts.s.σᵢ[p][2] ,mpts.s.σᵢ[p][3]
         σyx ,σzy ,σzx = mpts.s.σᵢ[p][6]       ,mpts.s.σᵢ[p][4] ,mpts.s.σᵢ[p][5]
+        Bp            = mpts.Bᵢⱼ[p]
+        Dp            = mpts.Dᵢⱼ[p]
+        D⁻¹           = abs(det(Dp)) > T2(1e-12) ? inv(Dp) : SMatrix{3,3,T2}(I)
         for nn ∈ 1:mesh.prprt.nn
-            # buffering
-            no    = basis.p2n[p][nn]
+            no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(3))
             ∂Nx,∂Ny,∂Nz = ∂N[1], ∂N[2], ∂N[3]
+            δ     = mesh.x[no] - xp
+            mv    = N * ms * (vp + Bp * D⁻¹ * δ)
             # accumulation
-            @atom mesh.s.m[no]    += N * ms
-            if abs(det(mpts.Dᵢⱼ[:,:,p])) > T2(1e-12)
-                D⁻¹ = inv(mpts.Dᵢⱼ[:,:,p])
-            else
-                D⁻¹ = SMatrix{3,3,T2}(I)
-            end
-            mesh.s.mv[:,no] .+= N .* ms .* (mpts.s.v[p] .+ mpts.Bᵢⱼ[:,:,p] * D⁻¹ * mpts.Δnp[nn,:,p])
+            @atom mesh.s.m[no]     += N * ms
+            @atom mesh.s.mv[1,no]  += mv[1]
+            @atom mesh.s.mv[2,no]  += mv[2]
+            @atom mesh.s.mv[3,no]  += mv[3]
             @atom mesh.s.oobf[1,no]-= Ω * ( ∂Nx * σxx + ∂Ny * σyx + ∂Nz * σzx)
             @atom mesh.s.oobf[2,no]-= Ω * ( ∂Nx * σyx + ∂Ny * σyy + ∂Nz * σzy)
             @atom mesh.s.oobf[3,no]-= Ω * ( ∂Nx * σzx + ∂Ny * σzy + ∂Nz * σzz) - N * (ms * g[3])

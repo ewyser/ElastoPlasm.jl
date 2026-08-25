@@ -48,7 +48,9 @@ then just read by every P2G/G2P/update kernel, instead of recomputing per call s
 `(NN,nmp)`/`(NN,D,nmp)` arrays, not `Vector{SVector}`/`Vector{SMatrix}` — bundling all `NN`
 per-particle values into one `SVector`/`SMatrix` object defeats Julia's escape analysis for
 `NN` much above a handful, causing real per-particle heap allocation; scalar writes into a
-pre-allocated plain `Array` (the same pattern already used by `Point`'s `Δnp`/`Dᵢⱼ`) do not.
+pre-allocated plain `Array` (the same pattern already used by `Point`'s `NN`-sized `Δnp`) do not —
+`Point`'s `Bᵢⱼ`/`Dᵢⱼ` are `Vector{SMatrix}` instead, since those are single `D×D` per-particle
+accumulators, not `NN`-sized bundles, so the same allocation risk doesn't apply to them.
 Threaded through the solver as a third argument alongside `mpts`/`mesh`, e.g. `p2e2n(mpts,mesh,basis)`.
 """
 struct Basis{T1,T2,D,NN,K<:AbstractBasis}

@@ -138,8 +138,8 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
         # basis-related quantities
         T2.(zeros(props.nn,D,nmp        ))  , # Δnp
         # APIC-related
-        T2.(zeros(D,D,nmp            ))  , # Bᵢⱼ
-        T2.(zeros(D,D,nmp            ))  , # Dᵢⱼ
+        [zero(TM) for _ in 1:nmp]          , # Bᵢⱼ
+        [zero(TM) for _ in 1:nmp]          , # Dᵢⱼ
         # connectivity
         T1(props.nn)                          , # nn
         # material point properties

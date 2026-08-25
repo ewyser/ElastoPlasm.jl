@@ -101,8 +101,8 @@ struct Point{T1,T2,D,E<:AbstractElasticity,CM<:AbstractConstitutiveModel,TM,TV,T
     # basis-related quantities
     Δnp  ::Array{T2,3}
     # APIC-related
-    Bᵢⱼ  ::Array{T2,3}
-    Dᵢⱼ  ::Array{T2,3}
+    Bᵢⱼ  ::Vector{TM}
+    Dᵢⱼ  ::Vector{TM}
     # connectivity
     nn   ::T1
     # material point properties
