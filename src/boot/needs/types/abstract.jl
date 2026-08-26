@@ -34,5 +34,6 @@ Supertype Basis and Solver definition
 =#
 
 abstract type AbstractBasis end
+abstract type AbstractTransfer end
 
 abstract type AbstractSolver{T1<:Integer,T2<:Real,D} end

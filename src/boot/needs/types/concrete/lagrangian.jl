@@ -69,11 +69,6 @@ struct Point{T1,T2,D,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,S
     nmp  ::T1
     # CFL-related quantity
     vmax ::Vector{T2}
-    # basis-related quantities
-    Δnp  ::Array{T2,3}
-    # APIC-related
-    Bᵢⱼ  ::Vector{TM}
-    Dᵢⱼ  ::Vector{TM}
     # connectivity
     nn   ::T1
     # material point properties

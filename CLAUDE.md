@@ -81,6 +81,76 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
   `transfer.trsfr` (P2G/G2P transfer scheme: std/tpic/apic) are fully orthogonal — any
   basis kind pairs with any transfer scheme, including `mlsmpm`+`std` (MLS is usually
   *presented* alongside APIC in the literature, but nothing here couples them).
+- **Transfer scheme dispatch via `Basis`'s `TR` type parameter — done.** `Basis` gained
+  a second type parameter/field pair alongside `kind::K<:AbstractBasis`:
+  `transfer::TR<:AbstractTransfer`, mirroring the exact same "config string → concrete
+  marker instance → ordinary multiple dispatch" pattern `kind`/`get_basis` already used
+  — `get_transfer(solver.transfer.trsfr, T2, D, nmp)` (`transfer.jl`, new file, sibling
+  to `bsmpm.jl`/`gimpm.jl`/`smpm.jl`/`mlsmpm.jl`) maps `"std"`/`"tpic"`/`"apic"` to
+  `StdTransfer()`/`TpicTransfer()`/`ApicTransfer{T2,D,L}(nmp)`. `std_p2n`/`tpic_p2n`/
+  `apic_p2n` (three separately-named kernels `init_mapsto` used to pick between via a
+  `transfer.trsfr` string `if/elseif`) are now one kernel name, `p2n!`, with methods
+  dispatched on `Basis`'s `TR` — same pattern the DP/J2 `retmap` unification already
+  established for `Point`'s `CM`+`ST`. `init_mapsto` now registers
+  `mapsto[:map][:p2n!] = p2n!(CPU())` unconditionally, no string branch; unrecognized
+  `transfer.trsfr` strings now fail fast in `get_transfer` at `setup_basis` time.
+
+  `std.jl`'s thermal-phase overloads (dispatch on `mesh::MeshThermalPhase`, previously
+  named `std_p2n` like their mechanical sibling) were **also** renamed to `p2n!` —
+  necessary, not just cosmetic: thermal and mechanical `mapsto` share one Cairn `:p2n!`
+  slot, so if the thermal methods had kept a different name they would no longer be
+  reachable through that slot at all (the slot now only wraps whatever function is
+  literally named `p2n!`).
+
+  **Disclosed behavior change, found via testing, not by design**: previously,
+  `transfer.trsfr∈{"apic","tpic"}` combined with a thermal-only workflow threw
+  `MethodError` (confirmed via `git worktree` diff against the pre-refactor commit) —
+  but this was an *accident* of the old separate-kernel-names scheme (thermal only ever
+  had methods under the name `std_p2n`, so any Cairn slot pointing at `apic_p2n`/
+  `tpic_p2n` obviously had no matching method), not a deliberate restriction — thermal
+  transfer physically never depended on `transfer.trsfr` at all. Now that every
+  `p2n!` method (mechanical and thermal) shares one name, thermal's method — which
+  carries no `TR` constraint, since it never needed one — matches regardless of what
+  `TR` the `Basis` carries, so **thermal now works under any `transfer.trsfr` value**.
+  Verified this is the only such change (full smoke matrix + `test_workflow.jl`'s
+  71/25 baseline both otherwise unchanged) and is a strictly permissive fix of an
+  accidental restriction, not a regression — but flagging plainly rather than silently
+  accepting it, since the original plan explicitly (and, it turned out, incorrectly)
+  expected this restriction to be preserved.
+
+  Also relocated (Addendum A of the queued plan): `Point`'s `Δnp` field (confirmed
+  dead — zero reads anywhere) was deleted outright; `Bᵢⱼ`/`Dᵢⱼ` (100% APIC-exclusive —
+  written by `shpfun.jl`'s `Dij_nd` and `Bij.jl`'s `Bij`, read by `apic.jl`'s `p2n!`)
+  moved from `Point` onto `ApicTransfer{T,D,L}` (`Bᵢⱼ::Vector{SMatrix{D,D,T,L}}`,
+  `Dᵢⱼ::Vector{SMatrix{D,D,T,L}}` — `L` is a separate type parameter, not `D*D` computed
+  inline, since that expression on a bare `TypeVar` isn't valid inside a struct's own
+  field-type declaration; `L=D*D` is only computed once `D` is concrete, inside the
+  inner constructor). `Bij`'s kernel gained no-op `TR<:Union{StdTransfer,TpicTransfer}`
+  methods so `mapsto.jl` can call it unconditionally instead of behind an
+  `if transfer.trsfr=="apic"` check. Persistence note: `Bᵢⱼ`/`Dᵢⱼ` used to persist as
+  part of `ic["problem"]` (via `Point`); now they persist as part of `ic["basis"]` (via
+  `Basis`/`ApicTransfer`) — a deliberate JLD2 layout change, round-trip-verified
+  (save/load under `transfer.trsfr="apic"`, confirmed types and nonzero values survive).
+
+  Also folded in (Addendum B): the `shpfun!`/`MLSBasis` dispatch ambiguity fixed earlier
+  via a fragile naming-based workaround (see the `test_workflow.jl` Known-bugs entry)
+  was made structurally robust as part of this same pass — the generic `shpfun!`
+  method's `basis` argument is now `Basis{T1,T2,D,NN,K}` with
+  `K<:Union{BSplineBasis,GimpBasis,LinearBasis}`, explicitly excluding `MLSBasis`,
+  instead of leaving `K` unconstrained. Verified via `Test.detect_ambiguities`: zero
+  ambiguities.
+
+  Verified: clean load; zero `shpfun!` ambiguities (`Test.detect_ambiguities`); full
+  numeric-equivalence check via `git worktree` against the pre-refactor commit —
+  `slump_problem` with `transfer.trsfr∈{"std","tpic","apic"}` ×
+  `plast.constitutive∈{"DP","VM"}` (6 combos), `max epII`/`sum(epII)`/yielding-particle
+  count **bit-for-bit identical** before/after for every combo, confirming both the
+  `p2n!` rewrite and the `Bᵢⱼ`/`Dᵢⱼ` relocation change nothing numerically;
+  `test_workflow.jl`'s 96-case sweep exactly **71 passed/25 failed**, identical
+  per-basis-kind breakdown to the established baseline; `test_collapse.jl` 4/4;
+  `test_basis.jl` running cleanly; `test_performance.jl` **-18.3% memory / -5.4%
+  allocs / 0.0% time** vs baseline (the concrete payoff of no longer allocating
+  `Δnp`/`Bᵢⱼ`/`Dᵢⱼ` on every `Point` regardless of transfer scheme).
 
 ## Explicit vs dynamic_relaxation solvers
 

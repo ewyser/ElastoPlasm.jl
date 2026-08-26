@@ -2,9 +2,10 @@
 # TPIC transfer scheme, see Nakamura etal, 2023, https://doi.org/10.1016/j.cma.2022.115720
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 """
-    tpic_1d_p2n(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, g::Vector{T2}) where {T1,T2}
+    p2n!(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, basis::Basis{...,TR}, g::Vector{T2}) where {T1,T2,TR<:TpicTransfer}
 
-Project 1D material point data to mesh nodes (TPIC scheme).
+Project material point data to mesh nodes (TPIC scheme). Dispatched via `Basis`'s `TR`
+type parameter — see `Basis`'s docstring.
 
 # Arguments
 - `mpts::Point{T1,T2}`: Material point data structure.
@@ -14,7 +15,7 @@ Project 1D material point data to mesh nodes (TPIC scheme).
 # Returns 
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,T2,1},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function p2n!(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,T2,1,NN,K,TR},g::Vector{T2}) where {T1,T2,NN,K,TR<:TpicTransfer}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -35,7 +36,7 @@ Project 1D material point data to mesh nodes (TPIC scheme).
         end
     end
 end
-@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function p2n!(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2,NN,K,TR},g::Vector{T2}) where {T1,T2,NN,K,TR<:TpicTransfer}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms, Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
@@ -57,7 +58,7 @@ end
         end
     end
 end
-@kernel inbounds = true function tpic_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function p2n!(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3,NN,K,TR},g::Vector{T2}) where {T1,T2,NN,K,TR<:TpicTransfer}
     p = @index(Global)
     if p ≤ mpts.nmp
         ms, Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]

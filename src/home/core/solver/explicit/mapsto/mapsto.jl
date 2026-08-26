@@ -14,16 +14,11 @@ function init_mapsto(instr::NamedTuple; mapsto::Dict = Dict(:map => Dict{Symbol,
     if instr.strain.deform == "finite"
         mapsto[:map][:σᵢⱼ!] = transform(CPU())
     end
-    if instr.transfer.trsfr == "std"
-        mapsto[:map][:p2n!] = std_p2n(CPU())
-    elseif instr.transfer.trsfr == "tpic"
-        mapsto[:map][:p2n!] = tpic_p2n(CPU())
-    elseif instr.transfer.trsfr == "apic"
-        mapsto[:map][:p2n!] = apic_p2n(CPU())
-        mapsto[:map][:Bᵢⱼ!] = Bij(CPU())
-    else
-        return throw(ArgumentError("$(instr.transfer.trsfr) is an unsupported transfer scheme"))
-    end
+    # dispatch resolves at kernel launch from Basis's TR (StdTransfer/TpicTransfer/
+    # ApicTransfer) type parameter — see Basis's docstring. Unrecognized
+    # transfer.trsfr strings fail fast in get_transfer (setup_basis.jl), not here.
+    mapsto[:map][:p2n!] = p2n!(CPU())
+    mapsto[:map][:Bᵢⱼ!] = Bij(CPU())
     mapsto[:map][:solve!] = euler(CPU())
     mapsto[:map][:n2p!]   = picflip_n2p(CPU())
     if instr.transfer.musl 
@@ -76,10 +71,9 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Vect
         # solve for nodal incremental displacement
         solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
     end
-    # (for APIC) compute Bᵢⱼ for material points
-    if solver.transfer.trsfr == "apic"
-        solver.cairn.mapsto.map.Bᵢⱼ!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
-    end
+    # (for APIC) compute Bᵢⱼ for material points — Bij's TR<:StdTransfer/TpicTransfer
+    # methods are no-ops, so this is safe to call unconditionally.
+    solver.cairn.mapsto.map.Bᵢⱼ!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
     return nothing
 end
 

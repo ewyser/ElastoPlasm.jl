@@ -35,7 +35,7 @@ function get_basis(which::String, ::Type{T1}, D::Integer) where {T1}
 end
 
 """
-    Basis{T1,T2,D,NN,K<:AbstractBasis}
+    Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}
 
 Owns the topology that links a `Mesh` and a `Point` container: which nodes neighbor each element
 (`e2n`) and each material point (`p2n`), which elements neighbor each other (`e2e`) and each
@@ -48,13 +48,21 @@ then just read by every P2G/G2P/update kernel, instead of recomputing per call s
 `(NN,nmp)`/`(NN,D,nmp)` arrays, not `Vector{SVector}`/`Vector{SMatrix}` — bundling all `NN`
 per-particle values into one `SVector`/`SMatrix` object defeats Julia's escape analysis for
 `NN` much above a handful, causing real per-particle heap allocation; scalar writes into a
-pre-allocated plain `Array` (the same pattern already used by `Point`'s `NN`-sized `Δnp`) do not —
-`Point`'s `Bᵢⱼ`/`Dᵢⱼ` are `Vector{SMatrix}` instead, since those are single `D×D` per-particle
-accumulators, not `NN`-sized bundles, so the same allocation risk doesn't apply to them.
+pre-allocated plain `Array` do not.
+`kind::K` dispatches `eval_basis`/`shpfun!` onto the concrete basis kind
+(`BSplineBasis`/`GimpBasis`/`LinearBasis`/`MLSBasis`); `transfer::TR` does the same for
+the P2G/G2P transfer scheme (`StdTransfer`/`TpicTransfer`/`ApicTransfer`) — both fields
+follow the identical pattern: a config string (`basis.which`/`transfer.trsfr`) mapped
+once at setup time (`get_basis`/`get_transfer`) to a concrete marker instance, then
+dispatched on via ordinary Julia multiple dispatch instead of a runtime string branch.
+`ApicTransfer` additionally carries `Bᵢⱼ`/`Dᵢⱼ` (`Vector{SMatrix}` per-particle
+accumulators, 100% APIC-exclusive — see its own docstring), the same kind-specific-data-
+lives-on-the-kind-struct pattern `GimpBasis`'s `stencils` already uses.
 Threaded through the solver as a third argument alongside `mpts`/`mesh`, e.g. `p2e2n(mpts,mesh,basis)`.
 """
-struct Basis{T1,T2,D,NN,K<:AbstractBasis}
-    kind::K                              # BSplineBasis()/GimpBasis()/LinearBasis()
+struct Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}
+    kind    ::K                              # BSplineBasis()/GimpBasis()/LinearBasis()/MLSBasis()
+    transfer::TR                             # StdTransfer()/TpicTransfer()/ApicTransfer()
     e2n  ::Vector{SVector{NN,T1}}
     e2e  ::SparseMatrixCSC{T1,T1}
     p2n  ::Vector{SVector{NN,T1}}

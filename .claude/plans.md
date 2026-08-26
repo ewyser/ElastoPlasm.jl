@@ -9,9 +9,15 @@ this repo, alongside `.claude/task-state.md`.
 
 # Dispatch transfer scheme via a `Basis` type parameter
 
-**Status: queued, not started.** Approved design, not yet implemented. Start a new
-branch off the current `dev` tip (which includes the merged typed-tensor work) when
-picking this up — e.g. `feat-dispatch-transfer-scheme-on-basis`.
+**Status: done.** Implemented on branch `feat-dispatch-transfer-scheme-on-basis`
+(off `mimic-implementation-logic-of-ample`, after the DP/J2 retmap-unification and
+`shpfun!`/`MLSBasis` ambiguity-fix work merged into it). See CLAUDE.md's "Transfer
+scheme dispatch via `Basis`'s `TR` type parameter — done" entry for the full writeup,
+verification results, and one disclosed behavior change found during implementation
+(thermal workflows now work under any `transfer.trsfr`, not just `"std"` — previously
+an accidental restriction, not a deliberate one). Both addenda below (the
+`Δnp`/`Bᵢⱼ`/`Dᵢⱼ` relocation and the `shpfun!`/`MLSBasis` disjoint-`Union` fix) were
+implemented as part of this same pass, as planned.
 
 ## Context
 
