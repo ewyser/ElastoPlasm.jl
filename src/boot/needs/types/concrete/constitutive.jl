@@ -1,4 +1,4 @@
-export PerfectlyElastic,DruckerPrager
+export PerfectlyElastic,DruckerPrager,VonMises
 
 """
     PerfectlyElastic{T2,D} <: AbstractConstitutiveModel{T2,D}
@@ -25,10 +25,12 @@ matrix `Del`, softening modulus `Hp`, and initial/residual cohesion + friction a
 built by `setup_cmp`. Evolving plastic state (`Δλ`,`ϵpII`,`ϵpV`) stays on
 `PointSolidPhase` as flat mutable vectors, not in this bundle.
 
-Both `finite_DP`/`infinitesimal_DP` (`retmap/DP.jl`) and `finite_J2`/`infinitesimal_J2`
-(`retmap/J2.jl`) read the same field set off this struct (`J2` simply never reads
-`ϕ₀`), so `setup_cmp` always builds `DruckerPrager` regardless of
-`plast.constitutive ∈ {"DP","J2"}`.
+Built by `setup_cmp` when `plast.constitutive == "DP"`. `VonMises` (below) is the
+sibling built for `plast.constitutive == "VM"` — the same field set minus `ϕ₀`, since
+J2/von Mises yield has no pressure dependence. Both `retmap/DP.jl` and `retmap/J2.jl`
+contribute methods to the shared `retmap` kernel, dispatched on `Point`'s `CM`
+(`DruckerPrager`/`VonMises`) type parameter together with `ST`
+(`LogarithmicStrain`/`InfinitesimalStrain`).
 
 Deviates from the plan's literal `Del::SMatrix{D,D,T2}` field spec: `Del` is the Voigt-
 notation elastic stiffness matrix, sized `nstr×nstr` (3×3 in 2D, 6×6 in 3D — see
@@ -46,3 +48,23 @@ struct DruckerPrager{T2,D,NSTR,L} <: AbstractConstitutiveModel{T2,D}
     ϕ₀ ::T2
 end
 @adapt_struct DruckerPrager
+
+"""
+    VonMises{T2,D,NSTR,L} <: AbstractConstitutiveModel{T2,D}
+
+Per-particle static constitutive constants for the J2/von Mises plastic model: shear
+modulus `Gc`, bulk modulus `Kc`, elastic stiffness matrix `Del`, softening modulus `Hp`,
+and initial/residual cohesion `c₀`,`cᵣ`. Mirrors `DruckerPrager` exactly, minus the
+friction angle `ϕ₀` — J2/von Mises yield has no pressure dependence, so there is no
+friction angle to store. One instance per material point
+(`mpts.s.cmp::Vector{VonMises}`), built by `setup_cmp` when `plast.constitutive=="VM"`.
+"""
+struct VonMises{T2,D,NSTR,L} <: AbstractConstitutiveModel{T2,D}
+    Gc ::T2
+    Kc ::T2
+    Del::SMatrix{NSTR,NSTR,T2,L}
+    Hp ::T2
+    c₀ ::T2
+    cᵣ ::T2
+end
+@adapt_struct VonMises

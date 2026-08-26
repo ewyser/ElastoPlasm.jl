@@ -112,25 +112,37 @@ function setup_material_constants(solver::AbstractSolver{T1,T2,D};
 end
 
 """
-    setup_cmp(nmp, coh0, cohr, phi; E, ν, Hp, D) -> Vector{DruckerPrager{T2,D,NSTR,L}}
+    setup_cmp(nmp, coh0, cohr, phi; E, ν, Hp, D, constitutive) -> Vector{<:AbstractConstitutiveModel}
 
 Build one per-particle `AbstractConstitutiveModel` instance for every material point,
 from the (possibly spatially-heterogeneous, e.g. GRF-perturbed) per-particle cohesion/
 friction fields already computed by `get_slump`/`get_thermal`/`get_collision`/
 `get_collapse`/`mpts_populate`, plus the uniform elastic constants derived once from
-`E`,`ν` via `get_elastic_stiffness`. Always builds `DruckerPrager` (never
-`PerfectlyElastic`) — see `DruckerPrager`'s docstring for why.
+`E`,`ν` via `get_elastic_stiffness`. Branches on `constitutive` (typically
+`solver.plast.constitutive`) to build `Vector{DruckerPrager}` (`"DP"`) or
+`Vector{VonMises}` (`"VM"`) — never `PerfectlyElastic`, see its docstring for why. An
+unrecognized `constitutive` string throws immediately here, at setup time, rather than
+deferring to a runtime error the first time the retmap kernel is invoked.
 
 # Arguments
 - `nmp`: Number of material points.
 - `coh0`,`cohr`,`phi`: Per-particle initial cohesion, residual cohesion, friction angle.
+  `phi` is ignored when `constitutive=="VM"` (von Mises has no friction angle) — still
+  required positionally so callers don't need to conditionally omit it.
 - `E`,`ν`: Young's modulus, Poisson's ratio (used to derive `Kc`,`Gc`,`Del`).
 - `Hp`: Softening modulus (uniform across particles).
 - `D`: Spatial dimension.
+- `constitutive`: `"DP"` or `"VM"`, selects the concrete `AbstractConstitutiveModel`.
 """
 function setup_cmp(nmp::Integer,coh0::AbstractVector{T2},cohr::AbstractVector{T2},phi::AbstractVector{T2};
-    E::T2,ν::T2,Hp::T2,D::Integer,
+    E::T2,ν::T2,Hp::T2,D::Integer,constitutive::String,
     ) where {T2}
     Kc,Gc,Del = get_elastic_stiffness(E,ν,D)
-    return [DruckerPrager{T2,D,size(Del,1),length(Del)}(Gc,Kc,Del,Hp,T2(coh0[p]),T2(cohr[p]),T2(phi[p])) for p ∈ 1:nmp]
+    if constitutive == "DP"
+        return [DruckerPrager{T2,D,size(Del,1),length(Del)}(Gc,Kc,Del,Hp,T2(coh0[p]),T2(cohr[p]),T2(phi[p])) for p ∈ 1:nmp]
+    elseif constitutive == "VM"
+        return [VonMises{T2,D,size(Del,1),length(Del)}(Gc,Kc,Del,Hp,T2(coh0[p]),T2(cohr[p])) for p ∈ 1:nmp]
+    else
+        throw(error("InvalidConstitutiveModel: $(constitutive) (expected \"DP\" or \"VM\")"))
+    end
 end

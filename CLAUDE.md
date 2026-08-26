@@ -115,6 +115,57 @@ Bugs discovered but not yet fixed, kept here so they don't get rediscovered from
 identifiable (e.g. `fix-volumetric-locking-zero-mass-guard`), rather than fixing in place
 on an unrelated branch.**
 
+- ~~`test/testset/test_workflow.jl`'s 96-case sweep reported 47 passed/49 failed,
+  not the 71/25 baseline recorded elsewhere in this file~~ — **fixed** (same
+  commit as the `shpfun!`/`mlsmpm` ambiguity below). Root cause: **every one of
+  `mlsmpm`'s 24 cases was throwing `MethodError: ... is ambiguous`** — a genuine
+  `shpfun!` method-dispatch ambiguity between the generic method
+  (`src/home/core/common/shpfun.jl`) and `mlsmpm.jl`'s MLS-specific method,
+  introduced by commit `d0292f2` ("chore: Minor cosmetic-related improvement
+  here and there") narrowing the generic method's `Point` pattern from
+  `Point{T1,T2,D,CM}` (4 explicit type params) to `Point{T1,T2,D}` (3 explicit
+  params). Both patterns match the exact same set of concrete `Point` types
+  (`CM` is unconstrained either way) — but empirically verified via
+  `Test.detect_ambiguities` on an isolated reproduction: Julia's method-
+  specificity algorithm treats an explicitly-named-but-free type parameter
+  differently from an implicit "rest" pattern when compared against a sibling
+  method (`mlsmpm.jl`'s) that constrains a *different* parameter
+  (`Basis{...,K<:MLSBasis}`) — a real, if obscure, Julia dispatch-specificity
+  quirk, not something reviewable by eye. Fix: name `CM` explicitly again in
+  `shpfun!`'s generic method. Verified: the full sweep now reports **71
+  passed/25 failed, an exact match** to this file's documented baseline,
+  including the identical per-basis-kind breakdown (smpm 12 fail, gimpm 13
+  fail, bsmpm 0 fail, mlsmpm 0 fail). 24 previously-broken `mlsmpm` cases
+  (0/24 → 24/24) exactly accounts for the 49−25=24 discrepancy — confirmed via
+  a `MethodError`-count-based diagnosis, not assumption.
+
+  This bug is unrelated to the σᵢⱼ/τᵢⱼ rename or the DP/J2 retmap unification
+  (both landed in commits between `d0292f2` and when this was found, but
+  neither touches `shpfun.jl`/`mlsmpm.jl`), and predates both.
+
+  **Also corrects a real methodology mistake made earlier while chasing this**:
+  an earlier version of this entry claimed a much more dramatic finding —
+  `elastodynamic!`/`elastoplastic!` producing exactly zero velocity/stress for
+  a `slump_problem` run — and treated it as a separate, serious pre-existing
+  bug undermining every `success=true` smoke-test claim in this file. That was
+  **wrong**, not a real bug: it was caused by calling `elastoplasm(...)` (no
+  `!`) and then re-loading `mpts` from the on-disk JLD2 file afterward.
+  `elastoplasm` opens the file read-only and never writes the post-workflow
+  state back — only `elastoplasm!` does (see both functions' definitions,
+  `elastoplasm.jl`) — so that re-load was always returning the untouched,
+  zero-initialized pre-simulation state, never the actual simulated result.
+  **Lesson for next time this file is touched**: always verify simulated
+  output through `elastoplasm!`, never `elastoplasm`, when the goal is to
+  inspect post-run `mpts`/`mesh` state from the JLD2 file afterward —
+  `elastoplasm`'s return value doesn't carry the mutated objects either, only a
+  bare `(;simulation,success)` NamedTuple, so there is no way to recover real
+  results from it short of re-reading the file, which is exactly the trap this
+  entry fell into. This session's DP/J2 retmap-unification work was re-verified
+  properly afterward with `elastoplasm!` (see that entry) and is unaffected;
+  the direct unit tests on `drucker_prager`/`von_mises` used throughout that
+  work never went through the JLD2 pipeline at all and were never affected by
+  this mistake either way.
+
 - ~~`basis.which` ∈ {`"gimpm"`, `"mlsmpm"`} combined with `stab.locking=true` crashes
   with `InexactError: trunc(Int64, NaN)`~~ — **fixed** (commit `455fc35`, "fix: Add
   `if...end` check for zero nodal mass"): `volumetric.jl`'s `ΔJp` now has the same
@@ -405,11 +456,11 @@ on an unrelated branch.**
   fields inside it (see `constitutive.jl`'s docstrings for the full rationale,
   including why `Del` is sized `nstr×nstr`, the Voigt stiffness matrix, not `D×D` as
   originally sketched). Two things worth knowing if you touch this next:
-  - `PerfectlyElastic` is defined but has **no construction path** — `setup_cmp`
-    (`src/home/init/setup_cmp.jl`) always builds `DruckerPrager`, since both live
-    retmap kernels (`DP.jl`, `J2.jl`) need its full field set. It's currently dead
-    scaffolding, the same category `PointSolidPhase.elast::E` used to be in before it
-    was removed (see below).
+  - `PerfectlyElastic` is defined but has **no construction path** — it's currently
+    dead scaffolding, the same category `PointSolidPhase.elast::E` used to be in before
+    it was removed (see below). `DruckerPrager`/`VonMises` (the latter added by the
+    retmap unification below) both **do** have construction paths, branched on
+    `plast.constitutive` — see "DP/J2 retmap kernel unification" below.
   - The old duplicate flat `PointSolidPhase.c₀`/`cᵣ`/`ϕ₀` vectors have been retired —
     `DP.jl`/`J2.jl` already read `cmp[p].c₀`/`.cᵣ`/`.ϕ₀` instead, and the plotting path
     (`get_coh0`/`get_phi0` in `src/home/plot/variables.jl`) was the last reader,
@@ -444,6 +495,87 @@ on an unrelated branch.**
     known-bug entry above, throws immediately if exercised regardless (`fint_p2n!`
     dispatch never registered), so its `cmp` rerouting specifically hasn't been proven
     correct either way.
+- **DP/J2 retmap kernel unification — done.** `retmap/DP.jl`'s `finite_DP`/
+  `infinitesimal_DP` and `retmap/J2.jl`'s `finite_J2`/`infinitesimal_J2` — four
+  separately-named kernels `init_update` picked between via a nested
+  `plast.constitutive`/`strain.deform` string branch — are now one kernel name,
+  `retmap`, with four methods dispatched via Julia multiple dispatch on `Point`'s `CM`
+  (`DruckerPrager`/`VonMises`) and `ST` (`LogarithmicStrain`/`InfinitesimalStrain`) type
+  parameters, mirroring `elast!`'s existing `ST`-only dispatch (see "Kernel granularity"
+  above) extended to a second axis. `init_update` now registers
+  `update[:retmap!] = retmap(CPU())` unconditionally, no string branch.
+
+  A new `VonMises{T2,D,NSTR,L} <: AbstractConstitutiveModel{T2,D}` struct
+  (`constitutive.jl`) was added — same fields as `DruckerPrager` minus `ϕ₀` (no friction
+  angle: J2/von Mises yield has no pressure dependence). `setup_cmp` now branches on a
+  new required `constitutive::String` keyword (threaded from `solver.plast.constitutive`
+  via `build_solid_phase`) to build `Vector{DruckerPrager}` (`"DP"`) or
+  `Vector{VonMises}` (`"VM"`); an unrecognized string now throws immediately in
+  `setup_cmp`, at setup time, instead of deferring to the old runtime
+  `throw(error("InvalidReturnMapping: ..."))` that used to live in `init_update` and
+  only fired the first time `elastoplast` called `retmap!`. The config string is
+  unified to `"VM"` everywhere (`cli.jl` already used `"VM"`; `update.jl` used to check
+  `"J2"` — that inconsistency is now resolved). `J2.jl`'s internal algorithm names
+  (`yield_J2`, `_yield_normal`, the file itself) are unchanged — those are standard
+  J2-invariant-theory terminology, unrelated to the config string or the new struct
+  name.
+
+  Both `DP.jl` and `J2.jl` also gained a shared return-mapping core per model
+  (`_druckerprager_return_map`, `_vonmises_return_map`), extracted from what used to be
+  duplicated inline in each finite/infinitesimal kernel pair — `drucker_prager`/
+  `von_mises` are now each two methods (one per stress/strain-type pair) that call the
+  shared core and wrap the result, rather than `infinitesimal_DP`/`infinitesimal_J2`
+  hand-duplicating the whole closed-form/CPA algebra separately from their finite-strain
+  siblings. This was the concrete fix for "dispatch directly based on drucker_prager
+  function instead, i.e., Stress and Strain" — previously only `finite_DP` actually
+  called `drucker_prager`; `infinitesimal_DP` had its own fully-duplicated inline block.
+
+  Verified: clean load; `methods(ElastoPlasm.cpu_retmap)` shows exactly 4 methods with
+  the expected `CM`/`ST` constraints, no ambiguity; `setup_cmp(...;constitutive="MC")`
+  throws immediately as designed; direct unit tests on all 4 `retmap`-dispatch paths
+  (DP×finite, DP×infinitesimal, VM×finite, VM×infinitesimal) via hand-built yielding
+  stress states, confirming each actually changes on yield; the extracted
+  `_vonmises_return_map` — the single highest-regression-risk edit in this refactor,
+  since it's the only step that rewrites control flow rather than purely renaming — was
+  checked against a standalone reproduction of the original inline CPA loop on the same
+  input and matched **bit-for-bit** (`Δλ`, returned stress, and the accumulated
+  hardening variable `γ0` all `==`, not just `≈`); full `slump_problem`→`elastoplasm`
+  smoke matrix (`plast.constitutive∈{"DP","VM"}` × `strain.deform∈{"finite",
+  "infinitesimal"}` × `nonloc.status∈{true,false}`, 8 combos) all `success=true`; a
+  `dynamic_relaxation`/`elastoquasistatic!` run also `success=true` (confirmed by direct
+  grep that `dynamic_relaxation/` never wires or calls `retmap!` at all, so this is a
+  general no-regression check, not one that exercises this refactor specifically).
+
+  **Follow-up bug, found via manual interactive testing (`cli(ui=true)`, not caught by
+  the smoke matrix above since that only drives `slump_problem` with `plot.status=false`
+  overrides):** `slump_problem` unconditionally plots both `"coh0"` and `"phi0"` initial-
+  condition fields whenever `plot.status=true`, regardless of `plast.constitutive` —
+  `get_phi0` (`plot/variables.jl`) reads `cmp.ϕ₀` for every particle unconditionally.
+  Before this refactor that was harmless (`setup_cmp` always built `DruckerPrager`, which
+  always has `ϕ₀`, even under `plast.constitutive="J2"`); now that `VonMises` genuinely
+  has no `ϕ₀` field, a `plast.constitutive="VM"` run with plotting on crashed with
+  `type VonMises has no field ϕ₀` the moment `slump_problem` tried to render its initial
+  fields. Fixed in `slump.jl`: only include `"phi0"` in the plotted `what` list when
+  `solver.plast.constitutive=="DP"` — not by faking a friction-angle value for a
+  pressure-independent yield surface that doesn't have one. Verified both `"DP"` and
+  `"VM"` now plot cleanly with `plot.status=true`.
+
+  **Full-pipeline numeric verification, done properly with `elastoplasm!` (not
+  `elastoplasm`).** An earlier pass at this used `elastoplasm(jld2;...)` (no `!`) and
+  then re-read `mpts` from the JLD2 file afterward — which always returns the untouched,
+  zero-initialized pre-simulation state, since only `elastoplasm!` writes the
+  post-workflow state back (see the corrected `test_workflow.jl` Known-bugs entry for
+  the full story). Redone correctly via a `git worktree` checkout of the pre-refactor
+  commit (`595664f`) run side-by-side with this branch, same `slump_problem` config,
+  `plast.constitutive="DP"`/`"J2"` (pre-refactor selector) vs `"DP"`/`"VM"`
+  (post-refactor): `max epII`, `sum(epII)`, and the count of yielding particles
+  (`nonzeroΔλ`) matched to ~10 significant figures between baseline and this branch for
+  both constitutive models (`DP`: max `1.5940467834092973`→`1.5940467834087906`, sum
+  `160.14165807639964`→`160.14165807638446`, `295`→`295` yielding; `J2`/`VM`: max
+  `0.05779403104658105`→`0.05779403104658105`, sum `4.121223496201461`→
+  `4.121223496201461`, `424`→`424` yielding) — consistent with the documented ≤1 ulp
+  storage round-trip tolerance from the tensor-port work, i.e. this refactor changed
+  nothing numerically through the real pipeline, not just in isolated unit tests.
 - **Typed strain/stress tensor storage — done.** `mpts.s.ϵᵢⱼ`/`.ϵn`/`.σᵢⱼ`/`.σn`/`.τᵢⱼ` no
   longer hold bare `SMatrix{D,D}`/`SVector{nstr}` values. They hold typed tensor objects
   from `src/boot/needs/types/concrete/tensor.jl`, each storing a volumetric+deviatoric

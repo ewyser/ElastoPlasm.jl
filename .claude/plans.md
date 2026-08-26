@@ -154,6 +154,49 @@ not assumed):
   which array it's allowed to write into, which the relocation itself already enforces
   (the field simply doesn't exist under `std`/`tpic`).
 
+## Addendum: fold in the robust `shpfun!`/`MLSBasis` disambiguation fix
+
+**Background** (from a later session): `shpfun!`'s generic method (`src/home/
+core/common/shpfun.jl`) and `mlsmpm.jl`'s MLS-specific override
+(`mlsmpm.jl:121`) went ambiguous after commit `d0292f2` narrowed the generic
+method's `Point` pattern from `Point{T1,T2,D,CM}` to `Point{T1,T2,D}` — both
+match the exact same concrete types, but Julia's method-specificity
+algorithm treats an explicitly-named-but-free type parameter differently
+from an implicit "rest" pattern when compared against a sibling method
+constraining a *different* argument's type parameter (`Basis{...,
+K<:MLSBasis}`). This silently broke every `mlsmpm` case in
+`test_workflow.jl`'s 96-case sweep (`MethodError: ... is ambiguous`, 24/24
+failing) for an unknown stretch of commits before being root-caused. Fixed
+in that session by re-naming `CM` explicitly (commit `7f70ae4`) — verified
+to exactly restore the documented 71/25 sweep baseline — but that fix
+relies on the Julia specificity quirk rather than a structural guarantee,
+so it's fragile: someone editing `shpfun.jl` again without knowing this
+history could silently reintroduce the ambiguity.
+
+**Fold into this plan's scope**: when implementing the `TR`-dispatch work
+above (which already restructures `Basis`'s type-parameter list and touches
+every `K`-dispatched method in these same files), also make the
+`shpfun!` disambiguation structurally robust instead of naming-based. In
+`src/home/core/common/shpfun.jl`, change the generic `shpfun!` method's
+`basis` argument from `basis::Basis{T1,T2,D,NN}` to
+`basis::Basis{T1,T2,D,NN,K}` with `K<:Union{BSplineBasis,GimpBasis,
+LinearBasis}` — excluding `MLSBasis` explicitly, instead of leaving `K`
+unconstrained. This makes the generic method's and `mlsmpm.jl`'s method's
+`Basis` type patterns **disjoint by construction** (`K<:Union{...three...}`
+and `K<:MLSBasis` cannot both match the same concrete `K`), so no call can
+ever be ambiguous between them regardless of future edits to either
+signature — not merely incidentally non-ambiguous today. (A 5th basis kind
+added later would need adding to this `Union`, or the generic method simply
+wouldn't match it — a clear "no method matching" error rather than a silent
+ambiguity, a reasonable tradeoff.)
+
+Add to this plan's own verification section when implemented: confirm via
+`Test.detect_ambiguities` (not just "no crash") that the `Union`-based
+signature has zero ambiguities, and re-confirm `test_workflow.jl`'s 71/25
+baseline — with the exact per-basis-kind breakdown (smpm 12 fail, gimpm 13
+fail, bsmpm 0 fail, mlsmpm 0 fail) — is unchanged after the `TR`-dispatch
+work lands.
+
 ## What stays unchanged
 
 - `solver.transfer.trsfr` (the string) stays in the config — still needed by

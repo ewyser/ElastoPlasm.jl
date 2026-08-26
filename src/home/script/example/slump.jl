@@ -34,7 +34,12 @@ function slump_problem(L,nel; fid::String=first(splitext(basename(@__FILE__))), 
         dims  = solver.plot.dpi.*(problem.mesh.prprt.L[1]./problem.mesh.prprt.L)
         ms    = dims[1]/(problem.mesh.prprt.nel[1]*2)
 
-        what = [(;mpts=get_mpts_variable_config()[name]) for name ∈ ["coh0", "phi0"]]
+        # phi0 (friction angle) only exists on DruckerPrager's constitutive constants —
+        # VonMises (plast.constitutive=="VM") has no friction angle at all (J2 yield has
+        # no pressure dependence, see VonMises's docstring), so plotting it there would
+        # either crash (no .ϕ₀ field) or fake a value that doesn't mean anything.
+        names = solver.plast.constitutive == "DP" ? ["coh0", "phi0"] : ["coh0"]
+        what = [(;mpts=get_mpts_variable_config()[name]) for name ∈ names]
         opts = (;
             dims    = solver.plot.dpi.*(problem.mesh.prprt.L./problem.mesh.prprt.L[1]),
             what    = what,
