@@ -656,6 +656,23 @@ on an unrelated branch.**
   Verified: clean load, DP+nonlocal and J2+nonlocal `slump_problem` smoke runs both
   `success=true`, and a `dynamic_relaxation`/`elastoquasistatic!` run (exercising the
   renamed fields in `fint.jl`/`implicit.jl`/`update.jl`) also `success=true`.
+
+  **Follow-up (commit `9f3f27c`)**: the rename above was a blind substring match on
+  `σᵢ`/`τᵢ`, which also caught *local* `get_voigt(...)` result variables inside
+  `DP.jl`'s `drucker_prager`/`infinitesimal_DP` and `dynamic_relaxation/fint.jl` — those
+  are genuinely vectors (Voigt notation), not tensors, so per the naming convention
+  above they should have stayed `σᵢ`/`τᵢ`, not become `σᵢⱼ`/`τᵢⱼ`. Fixed by renaming
+  those specific locals back. Untangling this in `drucker_prager` also surfaced a real,
+  separately-introduced correctness bug (from a manual in-progress edit, not the
+  original mechanical rename): the return-mapped stress was being written to a variable
+  the function no longer returned, so `drucker_prager` silently returned the **pre-yield**
+  stress on every yielding step — the DP plastic corrector was a no-op. Verified fixed
+  with a direct unit test on `drucker_prager` in isolation: a hand-built stress state
+  well past the DP yield surface now returns an actually-changed Kirchhoff stress
+  (`Δλ=0.0104`, input Voigt `[50000,-10000,30000]` → output `[21773,18226,1773]`,
+  confirmed different). This is a good example of why a mechanical rename like this
+  needs a semantic check (tensor vs. vector), not just a substring match — see the
+  `ᵢⱼ`-vs-`ᵢ` house rule above.
 - **3D conformity check**: verify 3D simulations behave consistently across the
   explicit solver's configuration space (basis kind, `stab.locking`, `strain.deform`)
   — most of this session's verification was 2D-only.
