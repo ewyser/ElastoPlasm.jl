@@ -40,15 +40,15 @@ stored `(p,dev)` split is representational rather than canonically trace-free (s
 `AbstractTensor` docstring), so the invariants are re-derived from the Voigt view.
 `σn` naturally returns a pressure `Pn` and a scaled deviator, so the returned stress is
 rebuilt from those directly rather than re-split from a Voigt vector. The returned
-strain, when yielding, is built directly by `LogarithmicStrain(cmp.Del\\τᵢⱼ)` — the
-compliance solve `Del\\τᵢⱼ` is already an engineering-Voigt strain vector, and that
+strain, when yielding, is built directly by `LogarithmicStrain(cmp.Del\\τᵢ)` — the
+compliance solve `Del\\τᵢ` is already an engineering-Voigt strain vector, and that
 constructor (`tensor.jl`) does the engineering→tensor conversion and vol/dev split in
 one step.
 """
-@inline function drucker_prager(τ::AbstractStress{S,T,L},ϵ::AbstractStrain{S,T,L},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel) where {S,T,L}
-    τᵢⱼ     = get_voigt(τ)
+@inline function drucker_prager(τᵢⱼ::AbstractStress{S,T,L},ϵᵢⱼ::AbstractStrain{S,T,L},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel) where {S,T,L}
+    τᵢ     = get_voigt(τᵢⱼ)
     Δλ     = T(0.0)
-    ψ,nstr = T(0.0*π/180.0),length(τᵢⱼ)
+    ψ,nstr = T(0.0*π/180.0),length(τᵢ)
     ϕ₀,c₀,cᵣ = cmp.ϕ₀,cmp.c₀,cmp.cᵣ
 
     # Closed-form solution return-mapping for D-P
@@ -56,32 +56,30 @@ one step.
     if c<cᵣ
         c = cᵣ
     end
-    P,τ0,τII = σTr(τᵢⱼ)
+    P,τ0,τII = σTr(τᵢ)
     η,ηB,ξ   = materialParam(ϕ₀,ψ,c,nstr)
     σm,τP    = ξ/η,ξ-η*(ξ/η)
     fs,ft    = τII+η*P-ξ,P-σm         
     αP,h     = sqrt(T(1.0)+η^2)-η,τII-τP-(sqrt(T(1.0)+η^2))*(P-σm)
-    τout = τ
     if fs>T(0.0) && P<σm || h>T(0.0) && P≥σm
         Δλ       = fs/(cmp.Gc+cmp.Kc*η*ηB)
         Pn,τn    = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
-        τᵢⱼ       = σn(Pn,τ0,τn,τII)
-        τout     = KirchhoffStress(-Pn, τ0 .* (τn / τII))
+        τᵢ       = σn(Pn,τ0,τn,τII)
+        τᵢⱼ      = KirchhoffStress(-Pn, τ0 .* (τn / τII))
         ϵpII[1] += Δλ*sqrt(T(1/3)+T(2/9)*ηB^2)
     end
     if h≤0.0 && P≥σm
         Δλ      = (P-σm)/cmp.Kc
         Pn      = σm-P
-        τᵢⱼ      = (σn(Pn,τ0,T(0.0),τII))
-        τout    = KirchhoffStress(-Pn, τ0 .* (T(0.0) / τII))
+        τᵢ      = (σn(Pn,τ0,T(0.0),τII))
+        τᵢⱼ     = KirchhoffStress(-Pn, τ0 .* (T(0.0) / τII))
         ϵpII[1]+= sqrt(T(2.0))*Δλ/T(3.0)
     end
     # Update logarithmic strain tensor
-    ϵout = ϵ
     if Δλ > T(0.0)
-        ϵout = LogarithmicStrain(cmp.Del\τᵢⱼ)
+        ϵᵢⱼ = LogarithmicStrain(cmp.Del\τᵢ)
     end
-    return ϵout,τout,Δλ,ϵpII
+    return ϵᵢⱼ,τᵢⱼ,Δλ,ϵpII
 end
 
 @kernel inbounds = true function finite_DP(mpts::Point{T1,T2}) where {T1,T2}
@@ -107,15 +105,15 @@ end
     if p≤mpts.nmp
         cmp = mpts.s.cmp[p]
         mpts.s.Δλ[p] = T2(0.0)
-        σᵢⱼ       = get_voigt(mpts.s.σᵢⱼ[p])
-        ψ,nstr   = T2(0.0*π/180.0),length(σᵢⱼ)
+        σᵢ       = get_voigt(mpts.s.σᵢⱼ[p])
+        ψ,nstr   = T2(0.0*π/180.0),length(σᵢ)
 
         # closed-form solution return-mapping for D-P
         c   = cmp.c₀+cmp.Hp*mpts.s.ϵpII[p][2]
         if c<cmp.cᵣ
             c = cmp.cᵣ
         end
-        P,τ0,τII = σTr(σᵢⱼ)
+        P,τ0,τII = σTr(σᵢ)
         η,ηB,ξ   = materialParam(cmp.ϕ₀,ψ,c,nstr)
         σm,τP    = ξ/η,ξ-η*(ξ/η)
         fs,ft    = τII+η*P-ξ,P-σm         

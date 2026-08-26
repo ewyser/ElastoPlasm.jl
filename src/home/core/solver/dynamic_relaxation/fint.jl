@@ -46,14 +46,14 @@ end
         ωᵢⱼ = T2(0.5) .* (∇vᵢⱼ - ∇vᵢⱼ')
         
         # update cauchy stress tensor
-        σᵢⱼ   = get_voigt(mpts.s.σn[p])
+        σᵢ   = get_voigt(mpts.s.σn[p])
         σJᵢⱼ = get_tensor(mpts.s.σn[p])
         σJᵢⱼ = σJᵢⱼ*ωᵢⱼ'+σJᵢⱼ'*ωᵢⱼ
-        σᵢⱼ   = σᵢⱼ + typeof(σᵢⱼ)(Del * get_voigt(InfinitesimalStrain(ϵᵢⱼ)) .+ voigt_of(σJᵢⱼ))
-        
+        σᵢ   = σᵢ + typeof(σᵢ)(Del * get_voigt(InfinitesimalStrain(ϵᵢⱼ)) .+ voigt_of(σJᵢⱼ))
+
         # buffered values
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        σxx, σyy, σxy = σᵢⱼ[1], σᵢⱼ[2], σᵢⱼ[3]
+        σxx, σyy, σxy = σᵢ[1], σᵢ[2], σᵢ[3]
         
         # calculate oobf
         for nn ∈ 1:mesh.prprt.nn
@@ -65,7 +65,7 @@ end
 
         # save deformation gradient and cauchy stress
         mpts.s.Fᵢⱼ[p] = ΔFᵢⱼ * mpts.s.Fn[p]
-        mpts.s.σᵢⱼ[p]    = CauchyStress(σᵢⱼ)
+        mpts.s.σᵢⱼ[p] = CauchyStress(σᵢ)
     end
 end
 
