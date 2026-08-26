@@ -1039,6 +1039,13 @@ tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `slump_problem
 
 ## Conventions / house rules
 
+- **Unicode subscripts encode tensor rank**: a full 2nd-order tensor field/variable
+  (stress, strain, deformation gradient, ...) uses the double-index `ᵢⱼ` suffix (e.g.
+  `σᵢⱼ`, `τᵢⱼ`, `ϵᵢⱼ`, `Fᵢⱼ`, `Bᵢⱼ`, `Dᵢⱼ`); a genuine vector quantity (velocity,
+  displacement component, ...) uses the single-index `ᵢ` suffix. Never use `ᵢ` on a
+  field that actually stores a full tensor — it misleadingly reads as a vector
+  component. This is why `PointSolidPhase.σᵢ`/`τᵢ` were renamed `σᵢⱼ`/`τᵢⱼ` (commit
+  `22e06f3`), matching the pre-existing `ϵᵢⱼ`/`Fᵢⱼ`/`Bᵢⱼ`/`Dᵢⱼ` tensor fields.
 - `NN` (nodes-per-element count) belongs to `Basis`, never to `Point` or `Mesh` — it's
   topology, not point/mesh state.
 - Prefer `SVector`/`SMatrix` (StaticArrays.jl) over runtime-sized arrays for per-point
