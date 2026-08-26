@@ -152,6 +152,56 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
   allocs / 0.0% time** vs baseline (the concrete payoff of no longer allocating
   `Δnp`/`Bᵢⱼ`/`Dᵢⱼ` on every `Point` regardless of transfer scheme).
 
+  **Follow-up: config restructured to match — done.** The above made `Basis` (the
+  struct) own both `kind` and `transfer` as sibling fields, but `solver.basis`/
+  `solver.transfer` stayed two separate top-level *config* sections — a mismatch,
+  raised and fixed in the same session. `transfer.trsfr`/`.C_pf` moved into `basis`
+  (mirroring the struct pairing; the `transfer` config section is gone entirely);
+  `transfer.musl` moved into `stab` instead — MUSL is a stabilization technique
+  (nodal-velocity reprojection) applied regardless of which transfer scheme ran, kept
+  deliberately orthogonal to `TR`-based dispatch at the code level (no `Bij`/`p2n!`
+  method anywhere constrains on `musl`), so it belongs with `locking`/`damping`, not
+  with `trsfr`/`C_pf`. One naming idea considered and **rejected**: renaming
+  `basis.which`→`basis.type` — `Basis` already has an unrelated real field literally
+  named `type` (the per-axis node boundary-layer classification consumed by
+  `BSplineBasis`), so `basis.type` (config) vs `basis.type` (struct field) would have
+  been a confusing same-name-different-thing collision; `which` stays.
+
+  `ExplicitSolver`/`ImplicitSolver` lost their dedicated `transfer::TR` field/type
+  parameter entirely (not renamed — removed, since the content moved into `basis`/
+  `stab`, both of which already existed as fields). Every config-level read site
+  (`setup_basis.jl`, `mapsto.jl`, `ignite.jl`, `dynamic_relaxation/implicit.jl`,
+  `logs.jl`, `export_problem.jl`) updated to `.basis.trsfr`/`.basis.C_pf`/
+  `.stab.musl` — **not** `Basis`'s own `transfer::TR` struct field
+  (`basis.transfer.Bᵢⱼ`/`.Dᵢⱼ`), which is a completely different, unrelated thing
+  left untouched.
+
+  Surfaced two real, previously-live bugs while sweeping for call sites that build a
+  partial `basis=(;which=...)` NamedTuple (the exact shallow-merge trap documented
+  under "Controlling solver behaviour" below — `merge` replaces the whole `:basis`
+  entry, it doesn't recurse): `thermal_problem`'s own hardcoded internal
+  `basis=(;which="bsmpm",how=nothing)` override, and `test_basis.jl`'s
+  `basis=(;which=w,how="Uii")` call site — both silently dropped `trsfr`/`C_pf`
+  the moment those fields moved into `basis`, throwing `type NamedTuple has no field
+  trsfr` from `setup_basis.jl`. Both fixed by spreading `get_default().basis...`
+  first. Also fixed, while at it: `metanalysis.jl`'s sweep loop built a `basis`
+  NamedTuple varying basis kind (`which=shp`) every iteration but **never actually
+  passed it to `slump_problem`** — a separate, pre-existing dead-variable bug (the
+  loop silently always ran with the default `"bsmpm"` regardless of the intended
+  4-basis-kind sweep) surfaced only because `trsfr` now had to be threaded through
+  the same `basis` kwarg, forcing that call site to actually pass `basis=basis`.
+
+  Verified: clean load; full smoke matrix (`basis.trsfr∈{"std","tpic","apic"}` ×
+  `stab.musl∈{true,false}`, 6 combos via `elastoplasm!`) all `success=true` with real
+  nonzero motion; numeric equivalence via `git worktree` against the pre-restructure
+  commit — `max|v|` **bit-for-bit identical** for every combo; `test_workflow.jl`
+  exactly 71/25 unchanged, identical per-basis-kind breakdown; `test_collapse.jl` 4/4;
+  `test_basis.jl` clean (after the fix above); `thermal_problem` runs `success=true`
+  (after its fix); `dynamic_relaxation`/`elastoquasistatic!` `success=true`;
+  `test_performance.jl` unchanged (pure config-plumbing rename, no allocation/timing
+  shift expected or observed beyond the prior refactor's already-measured -18.3%/
+  -5.4%/0.0%).
+
 ## Explicit vs dynamic_relaxation solvers
 
 - `src/home/core/common/` — kernels/wrappers shared by **both** solver paths:
@@ -1169,21 +1219,31 @@ gone now; see `solution` below for how the concrete type is chosen instead.)
 - `dtype` — arithmetic precision (`bits`, element types `T0`)
 - `basis` — `which` (`"bsmpm"`/`"gimpm"`/`"smpm"`/`"mlsmpm"`, see `get_basis`), `how`
   (GIMP domain update mode: `"detFij"`/`"Fii"`/`"Uii"` finite, `"detΔFij"`/`"ΔFii"`/
-  `"ΔUii"` infinitesimal), `ghost` (ghost-node count)
+  `"ΔUii"` infinitesimal), `trsfr` (P2G/G2P transfer scheme: `"std"`/`"tpic"`/`"apic"`,
+  see `get_transfer`), `C_pf` (PIC/FLIP blend). `trsfr`/`C_pf` used to live under their
+  own top-level `transfer` block — folded into `basis` since `Basis` (the struct) owns
+  both `kind` and `transfer` as sibling fields (see "Transfer scheme dispatch via
+  `Basis`'s `TR` type parameter" under Planned improvements), so the config now mirrors
+  that pairing instead of splitting it across two sections.
 - `strain` — `deform` (`"finite"`/`"infinitesimal"`)
-- `transfer` — `trsfr` (transfer scheme: `"std"`/`"tpic"`/`"apic"`), `C_pf` (PIC/FLIP
-  blend), `musl` (MUSL velocity reprojection on/off)
-- `stab` — `locking` (F-bar volumetric locking correction on/off), `damping`
+- `stab` — `locking` (F-bar volumetric locking correction on/off), `damping`, `musl`
+  (MUSL velocity reprojection on/off — moved here from the old `transfer` block: MUSL is
+  a stabilization technique applied regardless of which transfer scheme ran, not a
+  transfer-scheme-specific knob, so it belongs with `locking`/`damping` rather than with
+  `trsfr`/`C_pf`).
 
   (`strain`/`transfer`/`stab` used to be one flat `fwrk` block — split by concern since
   `deform`, the transfer-scheme knobs, and the stabilization knobs are three genuinely
-  separate things that happened to share a vague name. `ExplicitSolver`/`ImplicitSolver`
-  now carry three corresponding fields instead of one `fwrk` field.)
+  separate things that happened to share a vague name; `transfer` was later folded away
+  entirely as described above. `ExplicitSolver`/`ImplicitSolver` carry `basis`/`strain`/
+  `stab` fields — no separate `transfer` field anymore.)
 - `bcs` — `dirichlet` boundary condition matrix, one `[lower upper]` row per dimension
 - `grf` — Gaussian random field generator for heterogeneous cohesion/friction fields
   (`status` toggles it on; see `GRF.jl`)
-- `plast` — `status`, `constitutive` (`"DP"`/`"J2"`/`"MC"`/`"camC"` — not all are
-  wired up, check `update/update.jl`'s `init_update` dispatch before relying on one)
+- `plast` — `status`, `constitutive` (`"DP"`/`"VM"`/`"MC"`/`"camC"` — not all are
+  wired up, check `setup_cmp`'s branch before relying on one; the `retmap` kernel
+  dispatch itself now lives on `Point`'s `CM` type parameter, not a runtime string —
+  see "DP/J2 retmap kernel unification" above)
 - `nonloc` — non-local plastic strain regularization (`status`, `ls` length scale)
 - `plot` — `status`, `freq` (plot every N `Time` checkpoints), `dpi`, `what` (list of
   field specs to plot, keyed by name via `get_mpts_variable_config()`)
@@ -1198,11 +1258,15 @@ Two ways to change solver behaviour:
    whose keys already exist in `default` (unrecognized kwargs just get a `@warn`, not
    an error), then deep-merges them over `default` via `merge(ref, user)`. Note this is
    a shallow-per-key merge — to override one field of a nested `NamedTuple` block
-   (e.g. just `transfer.trsfr`) you must pass the *whole* `transfer = (; trsfr=...,
-   C_pf=..., musl=...)` NamedTuple, not just the one field, since `merge` replaces the
-   whole `:transfer` entry rather than recursing into it. Example:
+   (e.g. just `basis.trsfr`) you must pass the *whole* `basis = (; which=..., how=...,
+   trsfr=..., C_pf=...)` NamedTuple, not just the one field, since `merge` replaces the
+   whole `:basis` entry rather than recursing into it — a real, previously-live bug this
+   session, twice: `thermal_problem`'s own hardcoded `basis=(;which="bsmpm",how=nothing)`
+   internal override, and `test_basis.jl`'s `basis=(;which=w,how="Uii")` call site, both
+   silently dropped `trsfr`/`C_pf` entirely once those fields moved into `basis`, until
+   fixed to spread `get_default().basis...` first. Example:
    ```julia
-   slump_problem(L, nel; basis=(;which="gimpm",how="Uii",ghost=0), strain=(;deform="finite"), transfer=(;trsfr="apic",C_pf=1.0,musl=true), stab=(;locking=true,damping=0.1))
+   slump_problem(L, nel; basis=(;which="gimpm",how="Uii",trsfr="apic",C_pf=1.0), strain=(;deform="finite"), stab=(;locking=true,damping=0.1,musl=true))
    ```
 2. **Change the package-wide default** — edit the literal value in `get_default()`
    directly. Do this only for a genuine change of the shipped default behaviour, not

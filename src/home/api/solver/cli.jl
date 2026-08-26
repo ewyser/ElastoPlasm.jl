@@ -32,18 +32,16 @@ function get_option()
             basis = (
                 which = ("Select basis type",["bsmpm", "gimpm", "smpm", "mlsmpm"]),
                 how = ("Select material point domain update",[nothing]),
+                trsfr = ("Select the mapping scheme",["std", "tpic", "apic"]),
+                C_pf = ("Select picflip ratio",[1.0, 0.99, 0.95]),
             ),
             strain   = (
                 deform = ("Select the deformation framework",["finite", "infinitesimal"]),
             ),
-            transfer = (
-                trsfr = ("Select the mapping scheme",["std", "tpic", "apic"]),
-                C_pf = ("Select picflip ratio",[1.0, 0.99, 0.95]),
-                musl = ("Enable musl update",[true, false]),
-            ),
             stab     = (
                 locking = ("Enable volumetric locking mitigation",[true, false]),
-                damping = ("Select damping coefficient",[0.0, 0.1, 0.2, 0.4])
+                damping = ("Select damping coefficient",[0.0, 0.1, 0.2, 0.4]),
+                musl = ("Enable musl update",[true, false]),
             ),
             grf   = (
                 status = ("Enable Gaussian Random Field ",[true, false]),

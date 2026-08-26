@@ -37,7 +37,7 @@ function setup_basis(problem::MechanicalProblem{T1,T2,D}, solver::S) where {T1,T
     e2n_data = get_element_to_nodes(nel, nno, kind.stencils)
     e2e_data = T1.(e2e(T1(D), nel, collect(mesh.prprt.h), solver))
     nmp      = mpts.nmp
-    transfer = get_transfer(solver.transfer.trsfr, T2, D, nmp)
+    transfer = get_transfer(solver.basis.trsfr, T2, D, nmp)
     return Basis{T1,T2,D,NN,typeof(kind),typeof(transfer)}(
         kind,
         transfer,
