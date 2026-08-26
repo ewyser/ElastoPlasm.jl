@@ -24,20 +24,20 @@ accumulators from `basis.transfer.Bᵢⱼ`/`.Dᵢⱼ` (moved here from `Point`, 
         ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         xp    = mpts.x[p]
         vp    = mpts.s.v[p]
-        σxx   = get_voigt(mpts.s.σᵢⱼ[p])[1]
-        Bp    = basis.transfer.Bᵢⱼ[p]
-        Dp    = basis.transfer.Dᵢⱼ[p]
-        D⁻¹   = abs(det(Dp)) > T2(1e-12) ? inv(Dp) : SMatrix{1,1,T2}(I)
+        σ     = get_voigt(mpts.s.σᵢⱼ[p])
+        Bᵢⱼ   = basis.transfer.Bᵢⱼ[p]
+        Dᵢⱼ   = basis.transfer.Dᵢⱼ[p]
+        D⁻¹   = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{1,1,T2}(I)
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(1))
             δ     = mesh.x[no] - xp
-            mv    = N * ms * (vp + Bp * D⁻¹ * δ)
+            mv    = N * ms * (vp + Bᵢⱼ * D⁻¹ * δ)
             # accumulation
             @atom mesh.s.m[no]   += N * ms
             @atom mesh.s.mv[no]  += mv[1]
-            @atom mesh.s.oobf[no]-= Ω * (∂N[1] * σxx) - N * (ms * g[1])
+            @atom mesh.s.oobf[no]-= Ω * (∂N[1] * σ[1]) - N * (ms * g[1])
         end
     end
 end
@@ -49,22 +49,21 @@ end
         xp          = mpts.x[p]
         vp          = mpts.s.v[p]
         σ           = get_voigt(mpts.s.σᵢⱼ[p])
-        σxx,σyy,σxy = σ[1]                  ,σ[2]                ,σ[3]
-        Bp          = basis.transfer.Bᵢⱼ[p]
-        Dp          = basis.transfer.Dᵢⱼ[p]
-        D⁻¹         = abs(det(Dp)) > T2(1e-12) ? inv(Dp) : SMatrix{2,2,T2}(I)
+        Bᵢⱼ         = basis.transfer.Bᵢⱼ[p]
+        Dᵢⱼ         = basis.transfer.Dᵢⱼ[p]
+        D⁻¹         = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{2,2,T2}(I)
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(2))
             δ     = mesh.x[no] - xp
-            mv    = N * ms * (vp + Bp * D⁻¹ * δ)
+            mv    = N * ms * (vp + Bᵢⱼ * D⁻¹ * δ)
             # accumulation
             @atom mesh.s.m[no]     += N * ms
             @atom mesh.s.mv[1,no]  += mv[1]
             @atom mesh.s.mv[2,no]  += mv[2]
-            @atom mesh.s.oobf[1,no]-= Ω * (∂N[1] * σxx + ∂N[2] * σxy)
-            @atom mesh.s.oobf[2,no]-= Ω * (∂N[1] * σxy + ∂N[2] * σyy) - N * (ms * g[2])
+            @atom mesh.s.oobf[1,no]-= Ω * (∂N[1] * σ[1] + ∂N[2] * σ[3])
+            @atom mesh.s.oobf[2,no]-= Ω * (∂N[1] * σ[3] + ∂N[2] * σ[2]) - N * (ms * g[2])
         end
     end
 end
@@ -76,26 +75,23 @@ end
         xp            = mpts.x[p]
         vp            = mpts.s.v[p]
         σ             = get_voigt(mpts.s.σᵢⱼ[p])
-        σxx ,σyy ,σzz = σ[1]                  ,σ[2]            ,σ[3]
-        σyx ,σzy ,σzx = σ[6]                  ,σ[4]            ,σ[5]
-        Bp            = basis.transfer.Bᵢⱼ[p]
-        Dp            = basis.transfer.Dᵢⱼ[p]
-        D⁻¹           = abs(det(Dp)) > T2(1e-12) ? inv(Dp) : SMatrix{3,3,T2}(I)
+        Bᵢⱼ           = basis.transfer.Bᵢⱼ[p]
+        Dᵢⱼ           = basis.transfer.Dᵢⱼ[p]
+        D⁻¹           = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{3,3,T2}(I)
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(3))
-            ∂Nx,∂Ny,∂Nz = ∂N[1], ∂N[2], ∂N[3]
             δ     = mesh.x[no] - xp
-            mv    = N * ms * (vp + Bp * D⁻¹ * δ)
+            mv    = N * ms * (vp + Bᵢⱼ * D⁻¹ * δ)
             # accumulation
             @atom mesh.s.m[no]     += N * ms
             @atom mesh.s.mv[1,no]  += mv[1]
             @atom mesh.s.mv[2,no]  += mv[2]
             @atom mesh.s.mv[3,no]  += mv[3]
-            @atom mesh.s.oobf[1,no]-= Ω * ( ∂Nx * σxx + ∂Ny * σyx + ∂Nz * σzx)
-            @atom mesh.s.oobf[2,no]-= Ω * ( ∂Nx * σyx + ∂Ny * σyy + ∂Nz * σzy)
-            @atom mesh.s.oobf[3,no]-= Ω * ( ∂Nx * σzx + ∂Ny * σzy + ∂Nz * σzz) - N * (ms * g[3])
+            @atom mesh.s.oobf[1,no]-= Ω * ( ∂N[1] * σ[1] + ∂N[2] * σ[6] + ∂N[3] * σ[5])
+            @atom mesh.s.oobf[2,no]-= Ω * ( ∂N[1] * σ[6] + ∂N[2] * σ[2] + ∂N[3] * σ[4])
+            @atom mesh.s.oobf[3,no]-= Ω * ( ∂N[1] * σ[5] + ∂N[2] * σ[4] + ∂N[3] * σ[3]) - N * (ms * g[3])
         end
     end
 end
