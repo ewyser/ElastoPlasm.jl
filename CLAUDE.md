@@ -19,7 +19,7 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
 - `Point{T1,T2,D,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,SC<:AbstractStress,SK<:AbstractStress}`
   — material points (Lagrangian). The trailing `ST`/`SC`/`SK` are the typed
   strain/stress storage on `mpts.s` (see "Typed strain/stress tensor storage" under
-  Planned improvements); `mpts.s.σᵢ[p]` returns a `CauchyStress`, **not** an
+  Planned improvements); `mpts.s.σᵢⱼ[p]` returns a `CauchyStress`, **not** an
   `SVector` — read it with `get_voigt(...)`. No longer carries `NN`, `B`, or connectivity
   (`p2n`/`p2e`/`e2p`/`p2p` moved out). `mpts.x :: Vector{SVector{D,T2}}` — NOT a
   matrix; index fields with `getindex.(x, i)` or iterate, never `x[i, :]`.
@@ -81,6 +81,126 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
   `transfer.trsfr` (P2G/G2P transfer scheme: std/tpic/apic) are fully orthogonal — any
   basis kind pairs with any transfer scheme, including `mlsmpm`+`std` (MLS is usually
   *presented* alongside APIC in the literature, but nothing here couples them).
+- **Transfer scheme dispatch via `Basis`'s `TR` type parameter — done.** `Basis` gained
+  a second type parameter/field pair alongside `kind::K<:AbstractBasis`:
+  `transfer::TR<:AbstractTransfer`, mirroring the exact same "config string → concrete
+  marker instance → ordinary multiple dispatch" pattern `kind`/`get_basis` already used
+  — `get_transfer(solver.transfer.trsfr, T2, D, nmp)` (`transfer.jl`, new file, sibling
+  to `bsmpm.jl`/`gimpm.jl`/`smpm.jl`/`mlsmpm.jl`) maps `"std"`/`"tpic"`/`"apic"` to
+  `StdTransfer()`/`TpicTransfer()`/`ApicTransfer{T2,D,L}(nmp)`. `std_p2n`/`tpic_p2n`/
+  `apic_p2n` (three separately-named kernels `init_mapsto` used to pick between via a
+  `transfer.trsfr` string `if/elseif`) are now one kernel name, `p2n!`, with methods
+  dispatched on `Basis`'s `TR` — same pattern the DP/J2 `retmap` unification already
+  established for `Point`'s `CM`+`ST`. `init_mapsto` now registers
+  `mapsto[:map][:p2n!] = p2n!(CPU())` unconditionally, no string branch; unrecognized
+  `transfer.trsfr` strings now fail fast in `get_transfer` at `setup_basis` time.
+
+  `std.jl`'s thermal-phase overloads (dispatch on `mesh::MeshThermalPhase`, previously
+  named `std_p2n` like their mechanical sibling) were **also** renamed to `p2n!` —
+  necessary, not just cosmetic: thermal and mechanical `mapsto` share one Cairn `:p2n!`
+  slot, so if the thermal methods had kept a different name they would no longer be
+  reachable through that slot at all (the slot now only wraps whatever function is
+  literally named `p2n!`).
+
+  **Disclosed behavior change, found via testing, not by design**: previously,
+  `transfer.trsfr∈{"apic","tpic"}` combined with a thermal-only workflow threw
+  `MethodError` (confirmed via `git worktree` diff against the pre-refactor commit) —
+  but this was an *accident* of the old separate-kernel-names scheme (thermal only ever
+  had methods under the name `std_p2n`, so any Cairn slot pointing at `apic_p2n`/
+  `tpic_p2n` obviously had no matching method), not a deliberate restriction — thermal
+  transfer physically never depended on `transfer.trsfr` at all. Now that every
+  `p2n!` method (mechanical and thermal) shares one name, thermal's method — which
+  carries no `TR` constraint, since it never needed one — matches regardless of what
+  `TR` the `Basis` carries, so **thermal now works under any `transfer.trsfr` value**.
+  Verified this is the only such change (full smoke matrix + `test_workflow.jl`'s
+  71/25 baseline both otherwise unchanged) and is a strictly permissive fix of an
+  accidental restriction, not a regression — but flagging plainly rather than silently
+  accepting it, since the original plan explicitly (and, it turned out, incorrectly)
+  expected this restriction to be preserved.
+
+  Also relocated (Addendum A of the queued plan): `Point`'s `Δnp` field (confirmed
+  dead — zero reads anywhere) was deleted outright; `Bᵢⱼ`/`Dᵢⱼ` (100% APIC-exclusive —
+  written by `shpfun.jl`'s `Dij_nd` and `Bij.jl`'s `Bij`, read by `apic.jl`'s `p2n!`)
+  moved from `Point` onto `ApicTransfer{T,D,L}` (`Bᵢⱼ::Vector{SMatrix{D,D,T,L}}`,
+  `Dᵢⱼ::Vector{SMatrix{D,D,T,L}}` — `L` is a separate type parameter, not `D*D` computed
+  inline, since that expression on a bare `TypeVar` isn't valid inside a struct's own
+  field-type declaration; `L=D*D` is only computed once `D` is concrete, inside the
+  inner constructor). `Bij`'s kernel gained no-op `TR<:Union{StdTransfer,TpicTransfer}`
+  methods so `mapsto.jl` can call it unconditionally instead of behind an
+  `if transfer.trsfr=="apic"` check. Persistence note: `Bᵢⱼ`/`Dᵢⱼ` used to persist as
+  part of `ic["problem"]` (via `Point`); now they persist as part of `ic["basis"]` (via
+  `Basis`/`ApicTransfer`) — a deliberate JLD2 layout change, round-trip-verified
+  (save/load under `transfer.trsfr="apic"`, confirmed types and nonzero values survive).
+
+  Also folded in (Addendum B): the `shpfun!`/`MLSBasis` dispatch ambiguity fixed earlier
+  via a fragile naming-based workaround (see the `test_workflow.jl` Known-bugs entry)
+  was made structurally robust as part of this same pass — the generic `shpfun!`
+  method's `basis` argument is now `Basis{T1,T2,D,NN,K}` with
+  `K<:Union{BSplineBasis,GimpBasis,LinearBasis}`, explicitly excluding `MLSBasis`,
+  instead of leaving `K` unconstrained. Verified via `Test.detect_ambiguities`: zero
+  ambiguities.
+
+  Verified: clean load; zero `shpfun!` ambiguities (`Test.detect_ambiguities`); full
+  numeric-equivalence check via `git worktree` against the pre-refactor commit —
+  `slump_problem` with `transfer.trsfr∈{"std","tpic","apic"}` ×
+  `plast.constitutive∈{"DP","VM"}` (6 combos), `max epII`/`sum(epII)`/yielding-particle
+  count **bit-for-bit identical** before/after for every combo, confirming both the
+  `p2n!` rewrite and the `Bᵢⱼ`/`Dᵢⱼ` relocation change nothing numerically;
+  `test_workflow.jl`'s 96-case sweep exactly **71 passed/25 failed**, identical
+  per-basis-kind breakdown to the established baseline; `test_collapse.jl` 4/4;
+  `test_basis.jl` running cleanly; `test_performance.jl` **-18.3% memory / -5.4%
+  allocs / 0.0% time** vs baseline (the concrete payoff of no longer allocating
+  `Δnp`/`Bᵢⱼ`/`Dᵢⱼ` on every `Point` regardless of transfer scheme).
+
+  **Follow-up: config restructured to match — done.** The above made `Basis` (the
+  struct) own both `kind` and `transfer` as sibling fields, but `solver.basis`/
+  `solver.transfer` stayed two separate top-level *config* sections — a mismatch,
+  raised and fixed in the same session. `transfer.trsfr`/`.C_pf` moved into `basis`
+  (mirroring the struct pairing; the `transfer` config section is gone entirely);
+  `transfer.musl` moved into `stab` instead — MUSL is a stabilization technique
+  (nodal-velocity reprojection) applied regardless of which transfer scheme ran, kept
+  deliberately orthogonal to `TR`-based dispatch at the code level (no `Bij`/`p2n!`
+  method anywhere constrains on `musl`), so it belongs with `locking`/`damping`, not
+  with `trsfr`/`C_pf`. One naming idea considered and **rejected**: renaming
+  `basis.which`→`basis.type` — `Basis` already has an unrelated real field literally
+  named `type` (the per-axis node boundary-layer classification consumed by
+  `BSplineBasis`), so `basis.type` (config) vs `basis.type` (struct field) would have
+  been a confusing same-name-different-thing collision; `which` stays.
+
+  `ExplicitSolver`/`ImplicitSolver` lost their dedicated `transfer::TR` field/type
+  parameter entirely (not renamed — removed, since the content moved into `basis`/
+  `stab`, both of which already existed as fields). Every config-level read site
+  (`setup_basis.jl`, `mapsto.jl`, `ignite.jl`, `dynamic_relaxation/implicit.jl`,
+  `logs.jl`, `export_problem.jl`) updated to `.basis.trsfr`/`.basis.C_pf`/
+  `.stab.musl` — **not** `Basis`'s own `transfer::TR` struct field
+  (`basis.transfer.Bᵢⱼ`/`.Dᵢⱼ`), which is a completely different, unrelated thing
+  left untouched.
+
+  Surfaced two real, previously-live bugs while sweeping for call sites that build a
+  partial `basis=(;which=...)` NamedTuple (the exact shallow-merge trap documented
+  under "Controlling solver behaviour" below — `merge` replaces the whole `:basis`
+  entry, it doesn't recurse): `thermal_problem`'s own hardcoded internal
+  `basis=(;which="bsmpm",how=nothing)` override, and `test_basis.jl`'s
+  `basis=(;which=w,how="Uii")` call site — both silently dropped `trsfr`/`C_pf`
+  the moment those fields moved into `basis`, throwing `type NamedTuple has no field
+  trsfr` from `setup_basis.jl`. Both fixed by spreading `get_default().basis...`
+  first. Also fixed, while at it: `metanalysis.jl`'s sweep loop built a `basis`
+  NamedTuple varying basis kind (`which=shp`) every iteration but **never actually
+  passed it to `slump_problem`** — a separate, pre-existing dead-variable bug (the
+  loop silently always ran with the default `"bsmpm"` regardless of the intended
+  4-basis-kind sweep) surfaced only because `trsfr` now had to be threaded through
+  the same `basis` kwarg, forcing that call site to actually pass `basis=basis`.
+
+  Verified: clean load; full smoke matrix (`basis.trsfr∈{"std","tpic","apic"}` ×
+  `stab.musl∈{true,false}`, 6 combos via `elastoplasm!`) all `success=true` with real
+  nonzero motion; numeric equivalence via `git worktree` against the pre-restructure
+  commit — `max|v|` **bit-for-bit identical** for every combo; `test_workflow.jl`
+  exactly 71/25 unchanged, identical per-basis-kind breakdown; `test_collapse.jl` 4/4;
+  `test_basis.jl` clean (after the fix above); `thermal_problem` runs `success=true`
+  (after its fix); `dynamic_relaxation`/`elastoquasistatic!` `success=true`;
+  `test_performance.jl` unchanged (pure config-plumbing rename, no allocation/timing
+  shift expected or observed beyond the prior refactor's already-measured -18.3%/
+  -5.4%/0.0%).
 
 ## Explicit vs dynamic_relaxation solvers
 
@@ -114,6 +234,57 @@ Bugs discovered but not yet fixed, kept here so they don't get rediscovered from
 **When picking one up: create a new branch off the current branch, named so the fix is
 identifiable (e.g. `fix-volumetric-locking-zero-mass-guard`), rather than fixing in place
 on an unrelated branch.**
+
+- ~~`test/testset/test_workflow.jl`'s 96-case sweep reported 47 passed/49 failed,
+  not the 71/25 baseline recorded elsewhere in this file~~ — **fixed** (same
+  commit as the `shpfun!`/`mlsmpm` ambiguity below). Root cause: **every one of
+  `mlsmpm`'s 24 cases was throwing `MethodError: ... is ambiguous`** — a genuine
+  `shpfun!` method-dispatch ambiguity between the generic method
+  (`src/home/core/common/shpfun.jl`) and `mlsmpm.jl`'s MLS-specific method,
+  introduced by commit `d0292f2` ("chore: Minor cosmetic-related improvement
+  here and there") narrowing the generic method's `Point` pattern from
+  `Point{T1,T2,D,CM}` (4 explicit type params) to `Point{T1,T2,D}` (3 explicit
+  params). Both patterns match the exact same set of concrete `Point` types
+  (`CM` is unconstrained either way) — but empirically verified via
+  `Test.detect_ambiguities` on an isolated reproduction: Julia's method-
+  specificity algorithm treats an explicitly-named-but-free type parameter
+  differently from an implicit "rest" pattern when compared against a sibling
+  method (`mlsmpm.jl`'s) that constrains a *different* parameter
+  (`Basis{...,K<:MLSBasis}`) — a real, if obscure, Julia dispatch-specificity
+  quirk, not something reviewable by eye. Fix: name `CM` explicitly again in
+  `shpfun!`'s generic method. Verified: the full sweep now reports **71
+  passed/25 failed, an exact match** to this file's documented baseline,
+  including the identical per-basis-kind breakdown (smpm 12 fail, gimpm 13
+  fail, bsmpm 0 fail, mlsmpm 0 fail). 24 previously-broken `mlsmpm` cases
+  (0/24 → 24/24) exactly accounts for the 49−25=24 discrepancy — confirmed via
+  a `MethodError`-count-based diagnosis, not assumption.
+
+  This bug is unrelated to the σᵢⱼ/τᵢⱼ rename or the DP/J2 retmap unification
+  (both landed in commits between `d0292f2` and when this was found, but
+  neither touches `shpfun.jl`/`mlsmpm.jl`), and predates both.
+
+  **Also corrects a real methodology mistake made earlier while chasing this**:
+  an earlier version of this entry claimed a much more dramatic finding —
+  `elastodynamic!`/`elastoplastic!` producing exactly zero velocity/stress for
+  a `slump_problem` run — and treated it as a separate, serious pre-existing
+  bug undermining every `success=true` smoke-test claim in this file. That was
+  **wrong**, not a real bug: it was caused by calling `elastoplasm(...)` (no
+  `!`) and then re-loading `mpts` from the on-disk JLD2 file afterward.
+  `elastoplasm` opens the file read-only and never writes the post-workflow
+  state back — only `elastoplasm!` does (see both functions' definitions,
+  `elastoplasm.jl`) — so that re-load was always returning the untouched,
+  zero-initialized pre-simulation state, never the actual simulated result.
+  **Lesson for next time this file is touched**: always verify simulated
+  output through `elastoplasm!`, never `elastoplasm`, when the goal is to
+  inspect post-run `mpts`/`mesh` state from the JLD2 file afterward —
+  `elastoplasm`'s return value doesn't carry the mutated objects either, only a
+  bare `(;simulation,success)` NamedTuple, so there is no way to recover real
+  results from it short of re-reading the file, which is exactly the trap this
+  entry fell into. This session's DP/J2 retmap-unification work was re-verified
+  properly afterward with `elastoplasm!` (see that entry) and is unaffected;
+  the direct unit tests on `drucker_prager`/`von_mises` used throughout that
+  work never went through the JLD2 pipeline at all and were never affected by
+  this mistake either way.
 
 - ~~`basis.which` ∈ {`"gimpm"`, `"mlsmpm"`} combined with `stab.locking=true` crashes
   with `InexactError: trunc(Int64, NaN)`~~ — **fixed** (commit `455fc35`, "fix: Add
@@ -296,6 +467,12 @@ on an unrelated branch.**
   `gimpm_{finite,infinitesimal}_{std,tpic,apic}_locktrue_musl{true,false}` minus
   `gimpm_finite_tpic_locktrue_musltrue`, plus
   `gimpm_{finite,infinitesimal}_tpic_lockfalse_muslfalse` (13).
+  **Still holds after the typed-strain/stress-tensor work merged to `dev`
+  (`78838bf`)**: re-verified at each of that work's five commits (the tensor port
+  itself, the `Δλ` fixes, the `AbstractElasticity` removal, the `get_voigt` convention
+  fix, and the final constructor/comment cleanup) — same 71 passed/25 failed count
+  every time, none of that work touches basis-kind dispatch so a total-count match is
+  conclusive.
 - **`ic_collision`'s initial-velocity plot crashes**: `what_plot_field` errors with
   `type NamedTuple has no field data`, because `collision.jl`'s `plot.what` entries are
   hand-built as `(;mpts=(name="u",cblim=(...)))` instead of going through
@@ -399,11 +576,11 @@ on an unrelated branch.**
   fields inside it (see `constitutive.jl`'s docstrings for the full rationale,
   including why `Del` is sized `nstr×nstr`, the Voigt stiffness matrix, not `D×D` as
   originally sketched). Two things worth knowing if you touch this next:
-  - `PerfectlyElastic` is defined but has **no construction path** — `setup_cmp`
-    (`src/home/init/setup_cmp.jl`) always builds `DruckerPrager`, since both live
-    retmap kernels (`DP.jl`, `J2.jl`) need its full field set. It's currently dead
-    scaffolding, the same category `PointSolidPhase.elast::E` used to be in before it
-    was removed (see below).
+  - `PerfectlyElastic` is defined but has **no construction path** — it's currently
+    dead scaffolding, the same category `PointSolidPhase.elast::E` used to be in before
+    it was removed (see below). `DruckerPrager`/`VonMises` (the latter added by the
+    retmap unification below) both **do** have construction paths, branched on
+    `plast.constitutive` — see "DP/J2 retmap kernel unification" below.
   - The old duplicate flat `PointSolidPhase.c₀`/`cᵣ`/`ϕ₀` vectors have been retired —
     `DP.jl`/`J2.jl` already read `cmp[p].c₀`/`.cᵣ`/`.ϕ₀` instead, and the plotting path
     (`get_coh0`/`get_phi0` in `src/home/plot/variables.jl`) was the last reader,
@@ -438,7 +615,88 @@ on an unrelated branch.**
     known-bug entry above, throws immediately if exercised regardless (`fint_p2n!`
     dispatch never registered), so its `cmp` rerouting specifically hasn't been proven
     correct either way.
-- **Typed strain/stress tensor storage — done.** `mpts.s.ϵᵢⱼ`/`.ϵn`/`.σᵢ`/`.σn`/`.τᵢ` no
+- **DP/J2 retmap kernel unification — done.** `retmap/DP.jl`'s `finite_DP`/
+  `infinitesimal_DP` and `retmap/J2.jl`'s `finite_J2`/`infinitesimal_J2` — four
+  separately-named kernels `init_update` picked between via a nested
+  `plast.constitutive`/`strain.deform` string branch — are now one kernel name,
+  `retmap`, with four methods dispatched via Julia multiple dispatch on `Point`'s `CM`
+  (`DruckerPrager`/`VonMises`) and `ST` (`LogarithmicStrain`/`InfinitesimalStrain`) type
+  parameters, mirroring `elast!`'s existing `ST`-only dispatch (see "Kernel granularity"
+  above) extended to a second axis. `init_update` now registers
+  `update[:retmap!] = retmap(CPU())` unconditionally, no string branch.
+
+  A new `VonMises{T2,D,NSTR,L} <: AbstractConstitutiveModel{T2,D}` struct
+  (`constitutive.jl`) was added — same fields as `DruckerPrager` minus `ϕ₀` (no friction
+  angle: J2/von Mises yield has no pressure dependence). `setup_cmp` now branches on a
+  new required `constitutive::String` keyword (threaded from `solver.plast.constitutive`
+  via `build_solid_phase`) to build `Vector{DruckerPrager}` (`"DP"`) or
+  `Vector{VonMises}` (`"VM"`); an unrecognized string now throws immediately in
+  `setup_cmp`, at setup time, instead of deferring to the old runtime
+  `throw(error("InvalidReturnMapping: ..."))` that used to live in `init_update` and
+  only fired the first time `elastoplast` called `retmap!`. The config string is
+  unified to `"VM"` everywhere (`cli.jl` already used `"VM"`; `update.jl` used to check
+  `"J2"` — that inconsistency is now resolved). `J2.jl`'s internal algorithm names
+  (`yield_J2`, `_yield_normal`, the file itself) are unchanged — those are standard
+  J2-invariant-theory terminology, unrelated to the config string or the new struct
+  name.
+
+  Both `DP.jl` and `J2.jl` also gained a shared return-mapping core per model
+  (`_druckerprager_return_map`, `_vonmises_return_map`), extracted from what used to be
+  duplicated inline in each finite/infinitesimal kernel pair — `drucker_prager`/
+  `von_mises` are now each two methods (one per stress/strain-type pair) that call the
+  shared core and wrap the result, rather than `infinitesimal_DP`/`infinitesimal_J2`
+  hand-duplicating the whole closed-form/CPA algebra separately from their finite-strain
+  siblings. This was the concrete fix for "dispatch directly based on drucker_prager
+  function instead, i.e., Stress and Strain" — previously only `finite_DP` actually
+  called `drucker_prager`; `infinitesimal_DP` had its own fully-duplicated inline block.
+
+  Verified: clean load; `methods(ElastoPlasm.cpu_retmap)` shows exactly 4 methods with
+  the expected `CM`/`ST` constraints, no ambiguity; `setup_cmp(...;constitutive="MC")`
+  throws immediately as designed; direct unit tests on all 4 `retmap`-dispatch paths
+  (DP×finite, DP×infinitesimal, VM×finite, VM×infinitesimal) via hand-built yielding
+  stress states, confirming each actually changes on yield; the extracted
+  `_vonmises_return_map` — the single highest-regression-risk edit in this refactor,
+  since it's the only step that rewrites control flow rather than purely renaming — was
+  checked against a standalone reproduction of the original inline CPA loop on the same
+  input and matched **bit-for-bit** (`Δλ`, returned stress, and the accumulated
+  hardening variable `γ0` all `==`, not just `≈`); full `slump_problem`→`elastoplasm`
+  smoke matrix (`plast.constitutive∈{"DP","VM"}` × `strain.deform∈{"finite",
+  "infinitesimal"}` × `nonloc.status∈{true,false}`, 8 combos) all `success=true`; a
+  `dynamic_relaxation`/`elastoquasistatic!` run also `success=true` (confirmed by direct
+  grep that `dynamic_relaxation/` never wires or calls `retmap!` at all, so this is a
+  general no-regression check, not one that exercises this refactor specifically).
+
+  **Follow-up bug, found via manual interactive testing (`cli(ui=true)`, not caught by
+  the smoke matrix above since that only drives `slump_problem` with `plot.status=false`
+  overrides):** `slump_problem` unconditionally plots both `"coh0"` and `"phi0"` initial-
+  condition fields whenever `plot.status=true`, regardless of `plast.constitutive` —
+  `get_phi0` (`plot/variables.jl`) reads `cmp.ϕ₀` for every particle unconditionally.
+  Before this refactor that was harmless (`setup_cmp` always built `DruckerPrager`, which
+  always has `ϕ₀`, even under `plast.constitutive="J2"`); now that `VonMises` genuinely
+  has no `ϕ₀` field, a `plast.constitutive="VM"` run with plotting on crashed with
+  `type VonMises has no field ϕ₀` the moment `slump_problem` tried to render its initial
+  fields. Fixed in `slump.jl`: only include `"phi0"` in the plotted `what` list when
+  `solver.plast.constitutive=="DP"` — not by faking a friction-angle value for a
+  pressure-independent yield surface that doesn't have one. Verified both `"DP"` and
+  `"VM"` now plot cleanly with `plot.status=true`.
+
+  **Full-pipeline numeric verification, done properly with `elastoplasm!` (not
+  `elastoplasm`).** An earlier pass at this used `elastoplasm(jld2;...)` (no `!`) and
+  then re-read `mpts` from the JLD2 file afterward — which always returns the untouched,
+  zero-initialized pre-simulation state, since only `elastoplasm!` writes the
+  post-workflow state back (see the corrected `test_workflow.jl` Known-bugs entry for
+  the full story). Redone correctly via a `git worktree` checkout of the pre-refactor
+  commit (`595664f`) run side-by-side with this branch, same `slump_problem` config,
+  `plast.constitutive="DP"`/`"J2"` (pre-refactor selector) vs `"DP"`/`"VM"`
+  (post-refactor): `max epII`, `sum(epII)`, and the count of yielding particles
+  (`nonzeroΔλ`) matched to ~10 significant figures between baseline and this branch for
+  both constitutive models (`DP`: max `1.5940467834092973`→`1.5940467834087906`, sum
+  `160.14165807639964`→`160.14165807638446`, `295`→`295` yielding; `J2`/`VM`: max
+  `0.05779403104658105`→`0.05779403104658105`, sum `4.121223496201461`→
+  `4.121223496201461`, `424`→`424` yielding) — consistent with the documented ≤1 ulp
+  storage round-trip tolerance from the tensor-port work, i.e. this refactor changed
+  nothing numerically through the real pipeline, not just in isolated unit tests.
+- **Typed strain/stress tensor storage — done.** `mpts.s.ϵᵢⱼ`/`.ϵn`/`.σᵢⱼ`/`.σn`/`.τᵢⱼ` no
   longer hold bare `SMatrix{D,D}`/`SVector{nstr}` values. They hold typed tensor objects
   from `src/boot/needs/types/concrete/tensor.jl`, each storing a volumetric+deviatoric
   additive split:
@@ -446,7 +704,7 @@ on an unrelated branch.**
     `dev::SMatrix{S,S,T,L}`) — `ϵᵢⱼ`/`ϵn`, picked by `solver.strain.deform`
     (`"finite"`→log, `"infinitesimal"`→small strain) in `build_solid_phase`.
   - `CauchyStress{S,T,L}` / `KirchhoffStress{S,T,L}` (`p::T` positive in compression,
-    `dev::SMatrix{S,S,T,L}`) — `σᵢ`/`σn` are always Cauchy, `τᵢ` always Kirchhoff.
+    `dev::SMatrix{S,S,T,L}`) — `σᵢⱼ`/`σn` are always Cauchy, `τᵢⱼ` always Kirchhoff.
 
   The abstract supertypes `AbstractTensor{T}`/`AbstractStrain{S,T,L}`/
   `AbstractStress{S,T,L}` live in `types/abstract.jl`, **not** in `concrete/tensor.jl` —
@@ -547,9 +805,39 @@ on an unrelated branch.**
   `setup_mpts` call.
 - ~~`PointSolidPhase.P::Vector{T2}` field~~ — **removed**, same pass as `elast::E`
   above. Confirmed zero reads anywhere in `src/`/`test/` before removal; pressure lives
-  on the stress objects themselves now (`mpts.s.σᵢ[p].p`/`mpts.s.τᵢ[p].p`, or
+  on the stress objects themselves now (`mpts.s.σᵢⱼ[p].p`/`mpts.s.τᵢⱼ[p].p`, or
   `get_voigt`'d), making the separate scalar field redundant rather than merely
   unused.
+- **`PointSolidPhase.ϵpII` changed from `Matrix{T2}` (size `2×nmp`) to
+  `Vector{SVector{2,T2}}`** — matches the rest of the codebase's per-particle
+  `Vector{SVector}` convention (`mpts.x`, `mpts.s.τᵢⱼ`, etc.) instead of standing out as
+  a lone `Matrix`-backed field, and reads/writes at call sites (`mpts.s.ϵpII[p]` /
+  `mpts.s.ϵpII[p][1]`/`[2]`) read more naturally than the old `mpts.s.ϵpII[1,p]`/
+  `[:,p]` slice syntax. Verified perf-neutral-to-better before doing the sweep: a
+  standalone microbenchmark of the three real access patterns (per-particle read/write,
+  `nonlocal.jl`'s O(n²) weighted-sum gather, and the scalar `+=` mutation `DP.jl`/`J2.jl`
+  do every yielding step) showed identical timing for read/write and the O(n²) gather
+  (both 0-alloc either way), and the `+=` mutation pattern was ~25% *faster* as
+  `Vector{SVector}` (rebuilding a 2-element `SVector` beats the `Matrix`'s column-stride
+  indexing). Since `SVector` is immutable, every in-place mutation site (`DP.jl`'s two
+  `ϵpII[1] +=`/`ϵpII[2] +=`-shaped sites inside `drucker_prager`'s local `MVector{2,T}`
+  scratch, `finite_DP`'s/`infinitesimal_DP`'s stores, `J2.jl`'s `ϵpII[1,p] = γ0` stores
+  in both `finite_J2`/`infinitesimal_J2`, `nonlocal.jl`'s `[2,p] = [1,p]` reset and
+  weighted-sum accumulation, and `update.jl`'s two bulk `ϵpII[2,:] .= ...` resets) had to
+  be rewritten as "read the whole `SVector`, rebuild it with the changed component,
+  write it back" rather than a scalar in-place update — `drucker_prager`'s internal
+  scratch stays an `MVector{2,T}` (mutable, unchanged) since the return-mapping algebra
+  genuinely wants in-place scalar accumulation; only the *stored* `mpts.s.ϵpII[p]` is
+  the immutable `SVector`. `get_epII` (`plot/variables.jl`, and the near-duplicate copy
+  in `ext/PlotsExt/variables.jl` — both exist, keep both in sync) changed from
+  `vec(mpts.s.ϵpII[1,:])` to `getindex.(mpts.s.ϵpII,1)`. `nonlocal.jl`'s and
+  `MCRetMap.jl`'s `mpts.ϵpII[p,...]`/`mpts.ϵpII[p]` reads inside already-dead/commented-
+  out code (see "Kernel dispatch table" / known dead-code notes elsewhere in this file)
+  were deliberately left untouched. Verified: clean load; DP+nonlocal and J2+nonlocal
+  smoke runs both `success=true` through the full `slump_problem`→`elastoplasm` pipeline
+  including a JLD2 round-trip re-load of `mpts.s.ϵpII`; a `plot.status=true` run
+  confirmed `get_epII` (the only consumer of the field outside the retmap/nonlocal
+  kernels themselves) renders correctly end-to-end.
 - **`get_vector` renamed `get_voigt`, and its strain-side shear convention was wrong —
   fixed, and `mutate`/`_mutate` retired as a result.** The user asked whether the old
   free functions `mutate(ϵ,Χ,type)`/`_mutate(ϵ)` (`elast.jl`, predating the tensor port)
@@ -579,10 +867,10 @@ on an unrelated branch.**
 
   With that gap closed, 8 of `mutate`'s 10 call sites collapse into existing or new
   `tensor.jl` calls: the two `Χ=1.0,:tensor` stress-reshape sites (`elast.jl`,
-  `dynamic_relaxation/fint.jl`) become `get_tensor(mpts.s.σᵢ[p])` directly; the two
+  `dynamic_relaxation/fint.jl`) become `get_tensor(mpts.s.σᵢⱼ[p])` directly; the two
   `Χ=2.0,:voigt` strain→`Del` sites become `get_voigt(InfinitesimalStrain(ϵ))`; the two
   `Χ=0.5,:tensor` `Del\\...`→strain sites (`DP.jl`, `J2.jl`) become
-  `LogarithmicStrain(cmp.Del\\τᵢ)` directly, dropping the intermediate `SMatrix` wrap
+  `LogarithmicStrain(cmp.Del\\τᵢⱼ)` directly, dropping the intermediate `SMatrix` wrap
   entirely. The two remaining sites (`elast.jl`/`fint.jl`'s Jaumann-rate correction term
   `σJ*ω'+σJ'*ω` — genuinely not "the" particle's stress, so no typed object exists for
   it) got a small dedicated replacement, `voigt_of(M)` (`elast.jl`, stress-convention
@@ -607,6 +895,36 @@ on an unrelated branch.**
   `test_basis.jl` passing; `test_performance.jl` unchanged (-17.2% memory/-5.4%
   allocs/0.0% time vs baseline — this refactor's touched code isn't on the benchmarked
   finite-strain default path, so no shift was expected).
+- **`PointSolidPhase.σᵢ`/`τᵢ` fields renamed `σᵢⱼ`/`τᵢⱼ`** — the single-index subscript
+  was misleading for a full 2nd-order tensor field (it read like a vector component,
+  not a tensor), and inconsistent with the sibling strain fields `ϵᵢⱼ`/`ϵn` which
+  already used the double-index form. Mechanical rename across every call site (~18
+  files: `lagrangian.jl`'s struct definition, `setup_mpts.jl`, `elast.jl`, `DP.jl`,
+  `J2.jl`, `nonlocal.jl`'s comments, every `mapsto/fun/p2n/*.jl` kernel, `transform.jl`,
+  `mapsto.jl`, `tensor.jl`, all three `dynamic_relaxation/*.jl` files, `plot/
+  variables.jl` and its near-duplicate in `ext/PlotsExt/variables.jl`, and
+  `test_collapse.jl`) — no behavior change, `σn` (the previous-step Cauchy stress) was
+  deliberately left as-is since it already carried no misleading index letter at all.
+  Verified: clean load, DP+nonlocal and J2+nonlocal `slump_problem` smoke runs both
+  `success=true`, and a `dynamic_relaxation`/`elastoquasistatic!` run (exercising the
+  renamed fields in `fint.jl`/`implicit.jl`/`update.jl`) also `success=true`.
+
+  **Follow-up (commit `9f3f27c`)**: the rename above was a blind substring match on
+  `σᵢ`/`τᵢ`, which also caught *local* `get_voigt(...)` result variables inside
+  `DP.jl`'s `drucker_prager`/`infinitesimal_DP` and `dynamic_relaxation/fint.jl` — those
+  are genuinely vectors (Voigt notation), not tensors, so per the naming convention
+  above they should have stayed `σᵢ`/`τᵢ`, not become `σᵢⱼ`/`τᵢⱼ`. Fixed by renaming
+  those specific locals back. Untangling this in `drucker_prager` also surfaced a real,
+  separately-introduced correctness bug (from a manual in-progress edit, not the
+  original mechanical rename): the return-mapped stress was being written to a variable
+  the function no longer returned, so `drucker_prager` silently returned the **pre-yield**
+  stress on every yielding step — the DP plastic corrector was a no-op. Verified fixed
+  with a direct unit test on `drucker_prager` in isolation: a hand-built stress state
+  well past the DP yield surface now returns an actually-changed Kirchhoff stress
+  (`Δλ=0.0104`, input Voigt `[50000,-10000,30000]` → output `[21773,18226,1773]`,
+  confirmed different). This is a good example of why a mechanical rename like this
+  needs a semantic check (tensor vs. vector), not just a substring match — see the
+  `ᵢⱼ`-vs-`ᵢ` house rule above.
 - **3D conformity check**: verify 3D simulations behave consistently across the
   explicit solver's configuration space (basis kind, `stab.locking`, `strain.deform`)
   — most of this session's verification was 2D-only.
@@ -901,21 +1219,31 @@ gone now; see `solution` below for how the concrete type is chosen instead.)
 - `dtype` — arithmetic precision (`bits`, element types `T0`)
 - `basis` — `which` (`"bsmpm"`/`"gimpm"`/`"smpm"`/`"mlsmpm"`, see `get_basis`), `how`
   (GIMP domain update mode: `"detFij"`/`"Fii"`/`"Uii"` finite, `"detΔFij"`/`"ΔFii"`/
-  `"ΔUii"` infinitesimal), `ghost` (ghost-node count)
+  `"ΔUii"` infinitesimal), `trsfr` (P2G/G2P transfer scheme: `"std"`/`"tpic"`/`"apic"`,
+  see `get_transfer`), `C_pf` (PIC/FLIP blend). `trsfr`/`C_pf` used to live under their
+  own top-level `transfer` block — folded into `basis` since `Basis` (the struct) owns
+  both `kind` and `transfer` as sibling fields (see "Transfer scheme dispatch via
+  `Basis`'s `TR` type parameter" under Planned improvements), so the config now mirrors
+  that pairing instead of splitting it across two sections.
 - `strain` — `deform` (`"finite"`/`"infinitesimal"`)
-- `transfer` — `trsfr` (transfer scheme: `"std"`/`"tpic"`/`"apic"`), `C_pf` (PIC/FLIP
-  blend), `musl` (MUSL velocity reprojection on/off)
-- `stab` — `locking` (F-bar volumetric locking correction on/off), `damping`
+- `stab` — `locking` (F-bar volumetric locking correction on/off), `damping`, `musl`
+  (MUSL velocity reprojection on/off — moved here from the old `transfer` block: MUSL is
+  a stabilization technique applied regardless of which transfer scheme ran, not a
+  transfer-scheme-specific knob, so it belongs with `locking`/`damping` rather than with
+  `trsfr`/`C_pf`).
 
   (`strain`/`transfer`/`stab` used to be one flat `fwrk` block — split by concern since
   `deform`, the transfer-scheme knobs, and the stabilization knobs are three genuinely
-  separate things that happened to share a vague name. `ExplicitSolver`/`ImplicitSolver`
-  now carry three corresponding fields instead of one `fwrk` field.)
+  separate things that happened to share a vague name; `transfer` was later folded away
+  entirely as described above. `ExplicitSolver`/`ImplicitSolver` carry `basis`/`strain`/
+  `stab` fields — no separate `transfer` field anymore.)
 - `bcs` — `dirichlet` boundary condition matrix, one `[lower upper]` row per dimension
 - `grf` — Gaussian random field generator for heterogeneous cohesion/friction fields
   (`status` toggles it on; see `GRF.jl`)
-- `plast` — `status`, `constitutive` (`"DP"`/`"J2"`/`"MC"`/`"camC"` — not all are
-  wired up, check `update/update.jl`'s `init_update` dispatch before relying on one)
+- `plast` — `status`, `constitutive` (`"DP"`/`"VM"`/`"MC"`/`"camC"` — not all are
+  wired up, check `setup_cmp`'s branch before relying on one; the `retmap` kernel
+  dispatch itself now lives on `Point`'s `CM` type parameter, not a runtime string —
+  see "DP/J2 retmap kernel unification" above)
 - `nonloc` — non-local plastic strain regularization (`status`, `ls` length scale)
 - `plot` — `status`, `freq` (plot every N `Time` checkpoints), `dpi`, `what` (list of
   field specs to plot, keyed by name via `get_mpts_variable_config()`)
@@ -930,11 +1258,15 @@ Two ways to change solver behaviour:
    whose keys already exist in `default` (unrecognized kwargs just get a `@warn`, not
    an error), then deep-merges them over `default` via `merge(ref, user)`. Note this is
    a shallow-per-key merge — to override one field of a nested `NamedTuple` block
-   (e.g. just `transfer.trsfr`) you must pass the *whole* `transfer = (; trsfr=...,
-   C_pf=..., musl=...)` NamedTuple, not just the one field, since `merge` replaces the
-   whole `:transfer` entry rather than recursing into it. Example:
+   (e.g. just `basis.trsfr`) you must pass the *whole* `basis = (; which=..., how=...,
+   trsfr=..., C_pf=...)` NamedTuple, not just the one field, since `merge` replaces the
+   whole `:basis` entry rather than recursing into it — a real, previously-live bug this
+   session, twice: `thermal_problem`'s own hardcoded `basis=(;which="bsmpm",how=nothing)`
+   internal override, and `test_basis.jl`'s `basis=(;which=w,how="Uii")` call site, both
+   silently dropped `trsfr`/`C_pf` entirely once those fields moved into `basis`, until
+   fixed to spread `get_default().basis...` first. Example:
    ```julia
-   slump_problem(L, nel; basis=(;which="gimpm",how="Uii",ghost=0), strain=(;deform="finite"), transfer=(;trsfr="apic",C_pf=1.0,musl=true), stab=(;locking=true,damping=0.1))
+   slump_problem(L, nel; basis=(;which="gimpm",how="Uii",trsfr="apic",C_pf=1.0), strain=(;deform="finite"), stab=(;locking=true,damping=0.1,musl=true))
    ```
 2. **Change the package-wide default** — edit the literal value in `get_default()`
    directly. Do this only for a genuine change of the shipped default behaviour, not
@@ -990,6 +1322,13 @@ tree into a `Dict{Any,Any}` of kwargs suitable for splatting into `slump_problem
 
 ## Conventions / house rules
 
+- **Unicode subscripts encode tensor rank**: a full 2nd-order tensor field/variable
+  (stress, strain, deformation gradient, ...) uses the double-index `ᵢⱼ` suffix (e.g.
+  `σᵢⱼ`, `τᵢⱼ`, `ϵᵢⱼ`, `Fᵢⱼ`, `Bᵢⱼ`, `Dᵢⱼ`); a genuine vector quantity (velocity,
+  displacement component, ...) uses the single-index `ᵢ` suffix. Never use `ᵢ` on a
+  field that actually stores a full tensor — it misleadingly reads as a vector
+  component. This is why `PointSolidPhase.σᵢ`/`τᵢ` were renamed `σᵢⱼ`/`τᵢⱼ` (commit
+  `22e06f3`), matching the pre-existing `ϵᵢⱼ`/`Fᵢⱼ`/`Bᵢⱼ`/`Dᵢⱼ` tensor fields.
 - `NN` (nodes-per-element count) belongs to `Basis`, never to `Point` or `Mesh` — it's
   topology, not point/mesh state.
 - Prefer `SVector`/`SMatrix` (StaticArrays.jl) over runtime-sized arrays for per-point

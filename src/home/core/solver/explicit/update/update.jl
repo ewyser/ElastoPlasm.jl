@@ -43,25 +43,11 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
 
 
     update[:nonloc!] = nonlocal(CPU())
-    if instr[:plast][:constitutive] == "MC"
-        #ηmax = MCRetMap!(mpts,ϵpII,cmp,instr[:fwrk])
-    elseif instr[:plast][:constitutive] == "DP"        
-        if instr[:strain][:deform] == "finite"
-            update[:retmap!] = finite_DP(CPU())
-        elseif instr[:strain][:deform] == "infinitesimal"
-            update[:retmap!] = infinitesimal_DP(CPU())
-        end
-    elseif instr[:plast][:constitutive] == "J2"
-        if instr[:strain][:deform] == "finite"
-            update[:retmap!] = finite_J2(CPU())
-        elseif instr[:strain][:deform] == "infinitesimal"
-            update[:retmap!] = infinitesimal_J2(CPU())
-        end
-    elseif instr[:plast][:constitutive] == "camC"
-        #ηmax = camCRetMap!(mpts,cmp,instr[:fwrk])
-    else
-        throw(error("InvalidReturnMapping: $(instr[:plast][:constitutive])"))
-    end
+    # dispatch resolves at kernel launch from Point's CM (DruckerPrager/VonMises) and ST
+    # (LogarithmicStrain/InfinitesimalStrain) type parameters — see DP.jl's `retmap`
+    # docstring. Unrecognized `plast.constitutive` strings now fail fast in `setup_cmp`
+    # (setup time), not here.
+    update[:retmap!] = retmap(CPU())
 
     # update mp's coordinates
     update[:coords!] = coord(CPU())
@@ -118,13 +104,17 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt
     if solver.nonloc.status
         fill!(basis.e2p,T1(0))
         fill!(basis.p2p,T1(0))
-        mpts.s.ϵpII[2,:].= T2(0.0)
+        for p ∈ 1:mpts.nmp
+            mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], T2(0.0))
+        end
         W,w     = spzeros(T2,mpts.nmp),spzeros(T2,mpts.nmp,mpts.nmp)
         for proc ∈ ["tplgy","p->q","p<-q"]
             solver.cairn.update.nonloc!(W,w,mpts,mesh,basis,T2(solver.nonloc.ls),proc; ndrange=mpts.nmp);sync(CPU())
         end
     else
-        mpts.s.ϵpII[2,:].= mpts.s.ϵpII[1,:]
+        for p ∈ 1:mpts.nmp
+            mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], mpts.s.ϵpII[p][1])
+        end
     end
     # plastic return-mapping dispatcher
     solver.cairn.update.retmap!(mpts; ndrange=mpts.nmp);sync(CPU())

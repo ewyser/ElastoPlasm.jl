@@ -9,9 +9,11 @@ needs them to build `Point`'s type parameters.
 
 `ST` (the typed strain storage of `ϵᵢⱼ`/`ϵn`, see `concrete/tensor.jl`) is picked by
 `solver.strain.deform`: `LogarithmicStrain` for `"finite"`, `InfinitesimalStrain` for
-`"infinitesimal"`. `SC`/`SK` (`σᵢ`/`σn` and `τᵢ`) are always `CauchyStress`/
+`"infinitesimal"`. `SC`/`SK` (`σᵢⱼ`/`σn` and `τᵢⱼ`) are always `CauchyStress`/
 `KirchhoffStress` regardless of `deform`, exactly as both field families existed
-unconditionally before the port.
+unconditionally before the port. `CM` (the constitutive-model type of `cmp`) is picked
+by `solver.plast.constitutive`: `DruckerPrager` for `"DP"`, `VonMises` for `"VM"` — see
+`setup_cmp`.
 """
 function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
     L = D*D
@@ -23,7 +25,7 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
     SC = CauchyStress{D,T2,L}
     SK = KirchhoffStress{D,T2,L}
 
-    cmp = setup_cmp(nmp,T2.(vec(copy(geom.coh0))),T2.(vec(copy(geom.cohr))),T2.(vec(copy(geom.phi))); E=T2(mat[:E]),ν=T2(mat[:ν]),Hp=T2(mat[:Hp]),D=Int(D))
+    cmp = setup_cmp(nmp,T2.(vec(copy(geom.coh0))),T2.(vec(copy(geom.cohr))),T2.(vec(copy(geom.phi))); E=T2(mat[:E]),ν=T2(mat[:ν]),Hp=T2(mat[:Hp]),D=Int(D),constitutive=solver.plast.constitutive)
     CM  = eltype(cmp)
 
     s = PointSolidPhase{T1,T2,D,CM,TM,TV,TS,ST,SC,SK}(
@@ -33,12 +35,12 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
         T2.(vec(copy(ρ0)))                                  , # ρ₀
         T2.(vec(copy(ρ0)))                                  , # ρ
         T2.(zeros(nmp))                                     , # Δλ
-        T2.(zeros(2,nmp))                                   , # ϵpII
+        [zero(SVector{2,T2}) for _ in 1:nmp]                , # ϵpII
         T2.(zeros(nmp))                                     , # ϵpV
         # typed stress tensors (concrete/tensor.jl)
-        [zero(SC) for _ in 1:nmp]                          , # σᵢ
+        [zero(SC) for _ in 1:nmp]                          , # σᵢⱼ
         [zero(SC) for _ in 1:nmp]                          , # σn
-        [zero(SK) for _ in 1:nmp]                          , # τᵢ
+        [zero(SK) for _ in 1:nmp]                          , # τᵢⱼ
         # tensor in matrix notation
         [zero(TM) for _ in 1:nmp]                          , # ∇vᵢⱼ
         [zero(TM) for _ in 1:nmp]                          , # ∇uᵢⱼ
@@ -142,11 +144,6 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
         T1(D)                              , # ndim
         T1(nmp)                              , # nmp
         T2.(zeros(D))                      , # vmax
-        # basis-related quantities
-        T2.(zeros(props.nn,D,nmp        ))  , # Δnp
-        # APIC-related
-        [zero(TM) for _ in 1:nmp]          , # Bᵢⱼ
-        [zero(TM) for _ in 1:nmp]          , # Dᵢⱼ
         # connectivity
         T1(props.nn)                          , # nn
         # material point properties

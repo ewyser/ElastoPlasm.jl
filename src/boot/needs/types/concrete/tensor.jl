@@ -10,7 +10,7 @@ export get_tensor, get_voigt, get_J2, get_τII
     AbstractTensor{T}
 
 Supertype of every per-particle second-order tensor stored on `PointSolidPhase`
-(`ϵᵢⱼ`/`ϵn`/`σᵢ`/`σn`/`τᵢ`). Stored as a volumetric+deviatoric split — `(vol, dev)` for
+(`ϵᵢⱼ`/`ϵn`/`σᵢⱼ`/`σn`/`τᵢⱼ`). Stored as a volumetric+deviatoric split — `(vol, dev)` for
 strains, `(p, dev)` for stresses — so the physical meaning is carried by the type.
 
 `dev` is **not** required to be trace-free: `_trial_elastic_stress` uses `tr(ϵ)/3` even
@@ -261,7 +261,7 @@ end
 """
     CauchyStress{S,T,L} <: AbstractStress{S,T,L}
 
-Cauchy (true) stress. Stored by `mpts.s.σᵢ`/`mpts.s.σn`.
+Cauchy (true) stress. Stored by `mpts.s.σᵢⱼ`/`mpts.s.σn`.
 """
 struct CauchyStress{S,T,L} <: AbstractStress{S,T,L}
     p  ::T
@@ -311,8 +311,8 @@ end
 """
     KirchhoffStress{S,T,L} <: AbstractStress{S,T,L}
 
-Kirchhoff stress `τ = J·σ`. Stored by `mpts.s.τᵢ`; `transform` divides by `J` to get
-`mpts.s.σᵢ`.
+Kirchhoff stress `τ = J·σ`. Stored by `mpts.s.τᵢⱼ`; `transform` divides by `J` to get
+`mpts.s.σᵢⱼ`.
 """
 struct KirchhoffStress{S,T,L} <: AbstractStress{S,T,L}
     p  ::T

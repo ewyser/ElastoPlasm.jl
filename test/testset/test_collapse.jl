@@ -57,9 +57,9 @@ function compute_collapse_error(jld2, l0, solver)
         ρ0   = mpts.s.ρ₀[1]
 
         # Numeric and analytic solution
-        # mpts.s.σᵢ holds typed CauchyStress objects (see concrete/tensor.jl), so pull the
+        # mpts.s.σᵢⱼ holds typed CauchyStress objects (see concrete/tensor.jl), so pull the
         # Voigt view first rather than indexing the stored (p,dev) split directly
-        xnum = abs.(getindex.(get_voigt.(mpts.s.σᵢ), idx))
+        xnum = abs.(getindex.(get_voigt.(mpts.s.σᵢⱼ), idx))
         ynum = z0
         x    = abs.(ρ0 * 9.81 * (l0 .- z0))
         y    = z0
@@ -84,10 +84,10 @@ function run_collapse_convergence_tests(solver, fwrk)
     plot_path = ""
     for (k, nel) ∈ enumerate(nels)
         @testset "- nel = $nel" verbose = true begin
-            strain   = (; deform = fwrk.deform)
-            transfer = (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf, musl = fwrk.musl)
-            stab     = (; locking = fwrk.locking, damping = fwrk.damping)
-            sim = collapse_problem(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse", strain=strain, transfer=transfer, stab=stab)
+            strain = (; deform = fwrk.deform)
+            basis  = merge(get_default().basis, (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf))
+            stab   = (; locking = fwrk.locking, damping = fwrk.damping, musl = fwrk.musl)
+            sim = collapse_problem(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse", strain=strain, basis=basis, stab=stab)
 
             setup = load_simulation_setup(sim)
             err = compute_collapse_error(sim, l0, solver)

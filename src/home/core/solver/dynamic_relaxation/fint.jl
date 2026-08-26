@@ -11,7 +11,7 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         ms, Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        σxx   = get_voigt(mpts.s.σᵢ[p])[1]
+        σxx   = get_voigt(mpts.s.σᵢⱼ[p])[1]
         for nn ∈ 1:mesh.prprt.nn
             no, N, ∂N = eval_basis(mpts, mesh, basis, p, nn)
             if iszero(no) continue end
@@ -50,7 +50,7 @@ end
         σJᵢⱼ = get_tensor(mpts.s.σn[p])
         σJᵢⱼ = σJᵢⱼ*ωᵢⱼ'+σJᵢⱼ'*ωᵢⱼ
         σᵢ   = σᵢ + typeof(σᵢ)(Del * get_voigt(InfinitesimalStrain(ϵᵢⱼ)) .+ voigt_of(σJᵢⱼ))
-        
+
         # buffered values
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         σxx, σyy, σxy = σᵢ[1], σᵢ[2], σᵢ[3]
@@ -65,7 +65,7 @@ end
 
         # save deformation gradient and cauchy stress
         mpts.s.Fᵢⱼ[p] = ΔFᵢⱼ * mpts.s.Fn[p]
-        mpts.s.σᵢ[p]    = CauchyStress(σᵢ)
+        mpts.s.σᵢⱼ[p] = CauchyStress(σᵢ)
     end
 end
 
@@ -123,7 +123,7 @@ end
         # Store deformation gradient, logarithmic strain and Kirchhoff stress
         mpts.s.Fᵢⱼ[mp] = Fᵢⱼ
         mpts.s.ϵᵢⱼ[mp] = LogarithmicStrain(SMatrix{2,2,T2,4}(ϵᵢⱼ))
-        mpts.s.τᵢ[mp]  = KirchhoffStress(SVector{3,T2}(τxx, τyy, τxy))
+        mpts.s.τᵢⱼ[mp]  = KirchhoffStress(SVector{3,T2}(τxx, τyy, τxy))
     end
 end
 
@@ -131,9 +131,9 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         ms , Ω        = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
-        σ             = get_voigt(mpts.s.σᵢ[p])
+        σ             = get_voigt(mpts.s.σᵢⱼ[p])
         σxx, σyy, σzz = σ[1], σ[2], σ[3]
-        # (was `mpts.s.σᵢ[6,p]`/`[4,p]`/`[5,p]` — matrix-style indexing into what has been
+        # (was `mpts.s.σᵢⱼ[6,p]`/`[4,p]`/`[5,p]` — matrix-style indexing into what has been
         #  a Vector of per-particle statics for a while now, i.e. dead on arrival; the
         #  typed-tensor port forces it to be written correctly)
         σyx, σzy, σzx = σ[6], σ[4], σ[5]

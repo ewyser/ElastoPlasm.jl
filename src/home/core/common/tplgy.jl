@@ -25,7 +25,7 @@ end
     p2n = e2n[el]
     return el,p2n
 end
-@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D,NN}) where {T1,T2,D,NN,CM}
+@kernel inbounds = true function p2e2n(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D,NN}) where {T1,T2,D,NN}
     p = @index(Global)
     if p ≤ mpts.nmp
         el, e2n = element_to_nodes_topology(mpts.x[p], mesh.x₀, basis.e2n, mesh.prprt.h, mesh.prprt.nel)

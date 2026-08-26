@@ -68,9 +68,9 @@ end
                             try
                                 @suppress begin
                                     strain   = (; deform = fwrk.deform)
-                                    transfer = (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf, musl = fwrk.musl)
-                                    stab     = (; locking = fwrk.locking, damping = fwrk.damping)
-                                    jld2     = slump_problem(geom.L, geom.nel; fid="test/$(name)", grf=cfg_grf, basis=basis, strain=strain, transfer=transfer, stab=stab, nonloc=cfg_nonloc)
+                                    basiscfg = merge(basis, (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf))
+                                    stab     = (; locking = fwrk.locking, damping = fwrk.damping, musl = fwrk.musl)
+                                    jld2     = slump_problem(geom.L, geom.nel; fid="test/$(name)", grf=cfg_grf, basis=basiscfg, strain=strain, stab=stab, nonloc=cfg_nonloc)
                                     status   = elastoplasm!(jld2; workflows=[elastodynamic!, elastoplastic!]).success
                                 end
                             catch e

@@ -51,7 +51,6 @@ function get_solver(; dim::Number=2, kwargs...)
         instr[:dtype],
         instr[:basis],
         instr[:strain],
-        instr[:transfer],
         instr[:stab],
         instr[:bcs],
         instr[:grf],

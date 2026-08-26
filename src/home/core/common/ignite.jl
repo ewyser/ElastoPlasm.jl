@@ -16,7 +16,7 @@ function init_ignite(instr::NamedTuple; ignite::Dict{Symbol,Cairn} = Dict{Symbol
     ignite[:tplgy!]  = p2e2n(CPU())
     # cache shape values/gradients for all basis kinds, once per particle per timestep
     ignite[:shpfun!] = shpfun!(CPU())
-    if instr[:transfer][:trsfr] == "apic"
+    if instr[:basis][:trsfr] == "apic"
         ignite[:Dᵢⱼ!] = Dij_nd(CPU()) 
     end    
     return (;ignite...)
@@ -40,7 +40,7 @@ function ignite(mpts::Point,mesh::Mesh,basis::Basis,solver::AbstractSolver)
     # cache shape values/gradients for all NN neighbors of every particle
     solver.cairn.ignite.shpfun!(mpts,mesh,basis; ndrange=(mpts.nmp));sync(CPU())
     # calculate identity shape functions
-    if solver.transfer.trsfr == "apic"
+    if solver.basis.trsfr == "apic"
         solver.cairn.ignite.Dᵢⱼ!(mpts,mesh,basis; ndrange=(mpts.nmp));sync(CPU())
     end
     return nothing

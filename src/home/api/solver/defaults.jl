@@ -16,10 +16,9 @@ println(cfg.basis.which)  # prints the default basis type
 
 # Configuration Keys
 - `:dtype`    — Arithmetic precision (e.g., 64 for Float64)
-- `:basis`    — Shape function type and options
+- `:basis`    — Shape function type/options, and the P2G/G2P transfer scheme and its blend knob
 - `:strain`   — Strain formulation (finite/infinitesimal)
-- `:transfer` — P2G/G2P transfer scheme and its blend/MUSL knobs
-- `:stab`     — Numerical stabilization (F-bar locking correction, damping)
+- `:stab`     — Numerical stabilization (F-bar locking correction, damping, MUSL reprojection)
 - `:bcs`      — Boundary condition settings
 - `:grf`     — Gaussian Random Field generator options
 - `:plast`   — Plasticity onset and flow law
@@ -38,18 +37,16 @@ function get_default()
         basis = (;
             which = "bsmpm",
             how = nothing,
+            trsfr = "std",
+            C_pf = 1.0,
         ),
         strain   = (;
             deform = "finite",
         ),
-        transfer = (;
-            trsfr = "std",
-            C_pf = 1.0,
-            musl = true,
-        ),
         stab     = (;
             locking = true,
-            damping = 0.1
+            damping = 0.1,
+            musl = true,
         ),
         bcs   = (;
             dirichlet = [
