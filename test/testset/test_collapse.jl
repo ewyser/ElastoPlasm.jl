@@ -84,10 +84,10 @@ function run_collapse_convergence_tests(solver, fwrk)
     plot_path = ""
     for (k, nel) ∈ enumerate(nels)
         @testset "- nel = $nel" verbose = true begin
-            strain   = (; deform = fwrk.deform)
-            transfer = (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf, musl = fwrk.musl)
-            stab     = (; locking = fwrk.locking, damping = fwrk.damping)
-            sim = collapse_problem(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse", strain=strain, transfer=transfer, stab=stab)
+            strain = (; deform = fwrk.deform)
+            basis  = merge(get_default().basis, (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf))
+            stab   = (; locking = fwrk.locking, damping = fwrk.damping, musl = fwrk.musl)
+            sim = collapse_problem(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse", strain=strain, basis=basis, stab=stab)
 
             setup = load_simulation_setup(sim)
             err = compute_collapse_error(sim, l0, solver)

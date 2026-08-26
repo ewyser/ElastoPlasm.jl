@@ -2,9 +2,10 @@
 # FLIP transfer scheme, see Nakamura etal, 2023, https://doi.org/10.1016/j.cma.2022.115720
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 """
-    std_1d_p2n(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, g::Vector{T2}) where {T1,T2}
+    p2n!(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, basis::Basis{...,TR}, g::Vector{T2}) where {T1,T2,TR<:StdTransfer}
 
-Project 1D material point data to mesh nodes (FLIP scheme).
+Project material point data to mesh nodes (FLIP scheme). Dispatched via `Basis`'s `TR`
+type parameter — see `Basis`'s docstring.
 
 # Arguments
 - `mpts::Point{T1,T2}`: Material point data structure.
@@ -14,7 +15,7 @@ Project 1D material point data to mesh nodes (FLIP scheme).
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,T2,1},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function p2n!(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,T2,1,NN,K,TR},g::Vector{T2}) where {T1,T2,NN,K,TR<:StdTransfer}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -32,7 +33,7 @@ Project 1D material point data to mesh nodes (FLIP scheme).
         end
     end
 end
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function p2n!(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2,NN,K,TR},g::Vector{T2}) where {T1,T2,NN,K,TR<:StdTransfer}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -52,7 +53,7 @@ end
         end
     end
 end
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3},g::Vector{T2}) where {T1,T2}
+@kernel inbounds = true function p2n!(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3,NN,K,TR},g::Vector{T2}) where {T1,T2,NN,K,TR<:StdTransfer}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -88,7 +89,7 @@ end
 
 
 
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,1},mesh::MeshThermalPhase{T1,T2,1},basis::Basis{T1,T2,1}) where {T1,T2}
+@kernel inbounds = true function p2n!(mpts::Point{T1,T2,1},mesh::MeshThermalPhase{T1,T2,1},basis::Basis{T1,T2,1}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -111,7 +112,7 @@ end
     end
 end
 
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,2},mesh::MeshThermalPhase{T1,T2,2},basis::Basis{T1,T2,2}) where {T1,T2}
+@kernel inbounds = true function p2n!(mpts::Point{T1,T2,2},mesh::MeshThermalPhase{T1,T2,2},basis::Basis{T1,T2,2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -133,7 +134,7 @@ end
         end
     end
 end
-@kernel inbounds = true function std_p2n(mpts::Point{T1,T2,3},mesh::MeshThermalPhase{T1,T2,3},basis::Basis{T1,T2,3}) where {T1,T2}
+@kernel inbounds = true function p2n!(mpts::Point{T1,T2,3},mesh::MeshThermalPhase{T1,T2,3},basis::Basis{T1,T2,3}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering

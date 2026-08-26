@@ -14,19 +14,14 @@ function init_mapsto(instr::NamedTuple; mapsto::Dict = Dict(:map => Dict{Symbol,
     if instr.strain.deform == "finite"
         mapsto[:map][:σᵢⱼ!] = transform(CPU())
     end
-    if instr.transfer.trsfr == "std"
-        mapsto[:map][:p2n!] = std_p2n(CPU())
-    elseif instr.transfer.trsfr == "tpic"
-        mapsto[:map][:p2n!] = tpic_p2n(CPU())
-    elseif instr.transfer.trsfr == "apic"
-        mapsto[:map][:p2n!] = apic_p2n(CPU())
-        mapsto[:map][:Bᵢⱼ!] = Bij(CPU())
-    else
-        return throw(ArgumentError("$(instr.transfer.trsfr) is an unsupported transfer scheme"))
-    end
+    # dispatch resolves at kernel launch from Basis's TR (StdTransfer/TpicTransfer/
+    # ApicTransfer) type parameter — see Basis's docstring. Unrecognized
+    # basis.trsfr strings fail fast in get_transfer (setup_basis.jl), not here.
+    mapsto[:map][:p2n!] = p2n!(CPU())
+    mapsto[:map][:Bᵢⱼ!] = Bij(CPU())
     mapsto[:map][:solve!] = euler(CPU())
     mapsto[:map][:n2p!]   = picflip_n2p(CPU())
-    if instr.transfer.musl 
+    if instr.stab.musl
         mapsto[:augm][:p2n!]   = augm_p2n(CPU())
         mapsto[:augm][:solve!] = augm_solve(CPU())
         return (; map = (; mapsto[:map]...), augm = (; mapsto[:augm]...))
@@ -65,9 +60,9 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Vect
     # solve Eulerian momentum equation
     solver.cairn.mapsto.map.solve!(mesh,dt,T2(solver.stab.damping); ndrange=mesh.prprt.nno[end]);sync(CPU())
     # maps back solution to material point
-    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.transfer.C_pf); ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.basis.C_pf); ndrange=mpts.nmp);sync(CPU())
     # (if musl) reproject nodal velocities
-    if solver.transfer.musl
+    if solver.stab.musl
         # reset nodal quantities
         fill!(mesh.s.mv, T2(0.0))
         fill!(mesh.s.v , zero(eltype(mesh.s.v)))
@@ -76,10 +71,9 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Vect
         # solve for nodal incremental displacement
         solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
     end
-    # (for APIC) compute Bᵢⱼ for material points
-    if solver.transfer.trsfr == "apic"
-        solver.cairn.mapsto.map.Bᵢⱼ!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
-    end
+    # (for APIC) compute Bᵢⱼ for material points — Bij's TR<:StdTransfer/TpicTransfer
+    # methods are no-ops, so this is safe to call unconditionally.
+    solver.cairn.mapsto.map.Bᵢⱼ!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
     return nothing
 end
 
@@ -113,9 +107,9 @@ function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1
     # solve nodal heat-balance equation
     solver.cairn.mapsto.map.solve!(mesh,dt; ndrange=mesh.prprt.nno[end]);sync(CPU())
     # maps back solution to material point
-    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.transfer.C_pf); ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.basis.C_pf); ndrange=mpts.nmp);sync(CPU())
     # (if musl) reproject nodal temperature
-    if solver.transfer.musl
+    if solver.stab.musl
         fill!(mesh.mcT,T2(0.0))
         solver.cairn.mapsto.augm.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
         solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())

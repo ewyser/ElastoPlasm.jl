@@ -99,7 +99,7 @@ function elastoplasm_log(solver::S; msg::String="elastodynamic") where {T1<:Inte
         "└ $(nthreads()) active thread(s)",
         "- solver: $(solver.solution)",
         "- $(solver.strain.deform) strain formulation",
-        "- $(solver.transfer.trsfr) mapping scheme",
+        "- $(solver.basis.trsfr) mapping scheme",
         "- $(solver.basis.which) calculation cycle",
     ]
     # add optional lines only if the corresponding flags are true
