@@ -2,6 +2,10 @@
 # Mesh Types and subtypes
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+abstract type AbstractEulerian end
+abstract type AbstractCartesianMesh{T1, T2}  <: AbstractEulerian end
+abstract type AbstractMeshPhase{T1, T2}      <: AbstractCartesianMesh{T1,T2} end
+
 export Mesh
 
 struct MeshProperties{T1,T2,D}

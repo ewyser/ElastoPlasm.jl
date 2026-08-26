@@ -29,9 +29,11 @@ function superInc(lists::Vector{String}; root::String="",lib::Dict=Dict(), tree:
         
         # Collect and include all .jl files in this subtree
         # Files in a directory are included before its subdirectories are recursed into,
-        # since subdirectories commonly build on the types/functions defined alongside them
-        # (e.g. concrete/basis/ depends on concrete/eulerian.jl's Mesh and concrete/lagrangian.jl's Point).
+        # since subdirectories commonly build on the functions defined alongside them.
         # Both groups are sorted for deterministic, reproducible load order.
+        # NOTE: only used for src/home/ now — src/boot/needs/types/ uses an explicit,
+        # hand-ordered include list instead (see boot.jl), since its dependency order
+        # doesn't match alphabetical order (see CLAUDE.md "Project shape").
         function collect_and_include_jls(d, path="")
             files = String[]
             entries = sort(collect(d); by=first)

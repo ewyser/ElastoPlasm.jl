@@ -5,12 +5,23 @@ codebase evolves. Read this first when picking up work here.
 
 ## Project shape
 
-MPM/geomechanics solver in Julia. Files are loaded via a custom recursive includer
-(`src/boot/include.jl`, `collect_and_include_jls`) that walks `src/` and includes every
-`.jl` file — files in a directory load before its subdirectories, both sorted
-alphabetically, so load order is deterministic. A failed include only `@warn`s, it
-doesn't crash — so a stale/broken file can silently go unused; always check for
-`@warn "Failed to include..."` after `using ElastoPlasm` when touching files here.
+MPM/geomechanics solver in Julia. `src/home/` is loaded via a custom recursive includer
+(`src/boot/include.jl`, `collect_and_include_jls`) that walks the directory tree and
+includes every `.jl` file — files in a directory load before its subdirectories, both
+sorted alphabetically, so load order is deterministic there. A failed include only
+`@warn`s, it doesn't crash — so a stale/broken file can silently go unused; always
+check for `@warn "Failed to include..."` after `using ElastoPlasm` when touching files
+under `home/`.
+
+`src/boot/needs/types/` is loaded differently: `boot.jl` includes its files through an
+explicit, hand-ordered list rather than `superInc`/`collect_and_include_jls`, because
+alphabetical order doesn't match dependency order there (e.g. `tensor.jl`'s
+`AbstractStrain`/`AbstractStress` must exist before `problem/lagrangian.jl`'s `Point`
+constrains against them). Each abstract type is defined directly in the file that
+implements its concrete subtype(s) (no central `abstract.jl`) — see "Core types" below
+for the directory layout. Adding a new file under `types/` means adding it to that
+explicit list in `boot.jl`, in the right dependency position; it is NOT picked up
+automatically the way `home/` files are.
 
 ## Core types
 
@@ -28,12 +39,12 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
   kernel unification"); `ST` to `LogarithmicStrain`/`InfinitesimalStrain` depending on
   `strain.deform`.
 - `MechanicalProblem{T1,T2,D,CM,TM,TV,TS,ST,SC,SK} <: AbstractProblem{T1,T2,D,SP}`
-  (`src/boot/needs/types/concrete/problem/problem.jl`) — bundles `mesh::Mesh`+
+  (`src/boot/needs/types/problem/problem.jl`) — bundles `mesh::Mesh`+
   `mpts::Point`+`time::Time` as the IC-defining part of a simulation, built via
   `setup_problem` (see "`Problem` type decoupling..." under Planned improvements).
   Deliberately excludes `Basis`/`Solver` — those stay independent types.
 - `Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}`
-  (`src/boot/needs/types/concrete/basis/basis.jl`) — independent struct owning ALL
+  (`src/boot/needs/types/basis/basis.jl`) — independent struct owning ALL
   mesh/point connectivity (`e2n`, `e2e`, `p2n`, `p2e`, `e2p`, `p2p`), plus `kind::K`
   (dispatches shape-function evaluation, `eval_basis`/`shpfun!`), `transfer::TR`
   (dispatches P2G/G2P transfer-scheme kernels, `p2n!`/`Bij` — see "Transfer scheme
@@ -272,7 +283,7 @@ on an unrelated branch.**
   the separate lumped/diagonal `m::Vector{T2}` nodal mass field for everything; `Mᵢⱼ`
   looks like leftover scaffolding for a never-finished consistent-mass-matrix
   formulation. Removed the field from `MeshSolidPhase`
-  (`src/boot/needs/types/concrete/eulerian.jl`) and its construction in
+  (`src/boot/needs/types/problem/eulerian.jl`) and its construction in
   `build_solid_mesh_phase` (`src/home/init/setup_mesh.jl`).
 
 ## Planned improvements (not bugs, just known follow-up work)
@@ -282,8 +293,12 @@ on an unrelated branch.**
   IC-defining part of a simulation — as one object, reusing the existing
   `MaterialPointPhase` hierarchy rather than a second "phase" concept. `Basis`/`Solver`
   remain separate, un-bundled types, since `basis.which` and `basis.trsfr` vary
-  independently. Lives in its own `concrete/problem/` subdirectory so it loads *after*
-  `eulerian.jl`/`lagrangian.jl`/`solver.jl` regardless of alphabetical file order.
+  independently. `types/problem/` holds every file that feeds `MechanicalProblem`
+  construction — `constitutive.jl`, `geometry.jl`, `eulerian.jl` (Mesh), `tensor.jl`
+  (the `AbstractStrain`/`AbstractStress` tensor types `Point` stores), `lagrangian.jl`
+  (Point), `time.jl` (Time), `problem.jl` (the bundle itself) — loaded in that explicit
+  order by `boot.jl`'s hand-ordered include list (see "Project shape"), not by
+  alphabetical file order.
 
   `setup_problem` (`src/home/init/setup_problem.jl`) is the entry point — calls
   `setup_mesh`/`setup_material_constants`/`setup_mpts`/`setup_time` internally and
@@ -340,17 +355,21 @@ on an unrelated branch.**
   field, so plotting it unconditionally used to crash under `"VM"`. Don't fake a value;
   the field just isn't applicable for a pressure-independent yield surface.
 - **Typed strain/stress tensor storage — done.** `mpts.s.ϵᵢⱼ`/`.ϵn`/`.σᵢⱼ`/`.σn`/`.τᵢⱼ`
-  hold typed tensor objects from `src/boot/needs/types/concrete/tensor.jl`, each
+  hold typed tensor objects from `src/boot/needs/types/problem/tensor.jl`, each
   storing a volumetric+deviatoric additive split:
   - `LogarithmicStrain{S,T,L}` / `InfinitesimalStrain{S,T,L}` (`vol::T`,
     `dev::SMatrix{S,S,T,L}`) — `ϵᵢⱼ`/`ϵn`, picked by `solver.strain.deform`.
   - `CauchyStress{S,T,L}` / `KirchhoffStress{S,T,L}` (`p::T` positive in compression,
     `dev::SMatrix{S,S,T,L}`) — `σᵢⱼ`/`σn` are always Cauchy, `τᵢⱼ` always Kirchhoff.
 
-  The abstract supertypes live in `types/abstract.jl`, not `concrete/tensor.jl` (load
-  order). `PointSolidPhase`/`Point`/`MechanicalProblem` carry `ST`/`SC`/`SK` as
-  **trailing** type parameters specifically so pre-existing `Point{T1,T2,D}`-pattern
-  kernel signatures needed no edit.
+  The abstract supertypes (`AbstractTensor`/`AbstractStrain`/`AbstractStress`) live in
+  `types/problem/tensor.jl` alongside their concrete subtypes — `tensor.jl` is
+  deliberately included before `types/problem/lagrangian.jl` in `boot.jl`'s explicit
+  list (see
+  "Project shape"), since `Point`/`PointSolidPhase` there constrain their `ST`/`SC`/`SK`
+  type parameters against these abstracts. `PointSolidPhase`/`Point`/`MechanicalProblem`
+  carry `ST`/`SC`/`SK` as **trailing** type parameters specifically so pre-existing
+  `Point{T1,T2,D}`-pattern kernel signatures needed no edit.
 
   Two things worth knowing before touching this:
   - **The stored split is representational, not canonical.** The only invariant
@@ -683,8 +702,8 @@ wherever `init_ignite`/`init_mapsto`/`init_update`/`init_implicit` branch on
 `instr[:section][:key]` to select kernels — grep those `init_*` functions for the
 existing pattern before adding a new one. If the new field belongs on the solver
 struct itself (like `solution` did), it also needs threading through
-`ExplicitSolver`'s/`ImplicitSolver`'s field list (`src/boot/needs/types/concrete/
-solver.jl`) and the corresponding positional arg in `get_solver.jl`'s final
+`ExplicitSolver`'s/`ImplicitSolver`'s field list (`src/boot/needs/types/solver.jl`) and
+the corresponding positional arg in `get_solver.jl`'s final
 constructor call — both structs are kept in lockstep by hand.
 
 ### Using `cli()`

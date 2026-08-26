@@ -2,6 +2,9 @@
 # Concrete Basis types
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+abstract type AbstractBasis end
+abstract type AbstractTransfer end
+
 export get_basis, Basis, ∂Nrow
 
 """
