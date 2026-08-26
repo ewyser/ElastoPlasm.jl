@@ -19,13 +19,17 @@ function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_ve
     printstyled("┌ $greeting\n", color=:green, bold=true)
     printstyled("│", color=:green, bold=true); println(" New comer ? Try $(showcase) out")
     if showcase == "slumping"
-        printstyled("│", color=:green, bold=true); println("   L,nel  = [64.1584,64.1584/4.0],[40,10];")
-        printstyled("│", color=:green, bold=true); println("   jld2   = slump_problem(L,nel;cli()...);")
-        printstyled("└", color=:green, bold=true); println("   out    = elastoplasm(jld2; workflows = [elastodynamic!,elastoplastic!]);")
+        printstyled("│", color=:green, bold=true); println("   L,nel = [64.1584,64.1584/4.0],[40,10];")
+        printstyled("│", color=:green, bold=true); println("   jld2  = slump_problem(L,nel;cli()...);")
+        printstyled("└", color=:green, bold=true); println("   out   = elastoplasm(jld2; workflows = [elastodynamic!,elastoplastic!]);")
     elseif showcase == "heating"
-        printstyled("│", color=:green, bold=true); println("   L,nel  = [16.0,16.0],[80,80];")
-        printstyled("│", color=:green, bold=true); println("   jld2   = thermal_problem(L,nel);")
-        printstyled("└", color=:green, bold=true); println("   out    = elastoplasm(jld2; workflows = [thermodynamic!]);")
+        printstyled("│", color=:green, bold=true); println("   L,nel = [16.0,16.0],[80,80];")
+        printstyled("│", color=:green, bold=true); println("   jld2  = thermal_problem(L,nel);")
+        printstyled("└", color=:green, bold=true); println("   out   = elastoplasm(jld2; workflows = [thermodynamic!]);")
+    elseif showcase == "collapsing"
+        printstyled("│", color=:green, bold=true); println("   nel  = [92,22];")
+        printstyled("│", color=:green, bold=true); println("   jld2 = collapse_problem(nel);")
+        printstyled("└", color=:green, bold=true); println("   out  = elastoplasm(jld2; workflows = [elastodynamic!,elastoplastic!]);")
     else
         printstyled("└", color=:green, bold=true); println("   ...$(showcase) ?!? \e[5m¯\\_(ツ)_/¯\e[0m")
     end

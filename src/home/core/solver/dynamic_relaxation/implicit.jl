@@ -134,7 +134,7 @@ end
 
 
 #=
-sim = collapse_problem([5, 10], 0.0, 1.0e4, 80.0, 50.0;cli()...)
+sim = column_problem([5, 10], 0.0, 1.0e4, 80.0, 50.0;cli()...)
 elastoplasm(sim; workflows=[elastoquasistatic!])
 =#
 

@@ -36,11 +36,11 @@ function load_simulation_setup(sim_file::String)
 end
 
 """
-    compute_collapse_error(sim_file, l0) -> Float64
+    compute_column_error(sim_file, l0) -> Float64
 
-Compute error between numeric and analytic solution for elastic collapse.
+Compute error between numeric and analytic solution for the elastic column test.
 """
-function compute_collapse_error(jld2, l0, solver)
+function compute_column_error(jld2, l0, solver)
     # Load setup to get initial material point positions
     setup = load_simulation_setup(jld2)
     idx   = length(setup.mesh.prprt.nel)-1
@@ -70,11 +70,11 @@ function compute_collapse_error(jld2, l0, solver)
 end
 
 """
-    run_collapse_convergence_tests(basis, l0, plot_cfg, fwrk_cfg) -> Nothing
+    run_column_convergence_tests(basis, l0, plot_cfg, fwrk_cfg) -> Nothing
 
 Run convergence tests for a given basis configuration.
 """
-function run_collapse_convergence_tests(solver, fwrk)
+function run_column_convergence_tests(solver, fwrk)
     l0     = 50.0
     nels   = generate_nels_cases()
     nk     = length(nels) + 1
@@ -87,10 +87,10 @@ function run_collapse_convergence_tests(solver, fwrk)
             strain = (; deform = fwrk.deform)
             basis  = merge(get_default().basis, (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf))
             stab   = (; locking = fwrk.locking, damping = fwrk.damping, musl = fwrk.musl)
-            sim = collapse_problem(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/collapse", strain=strain, basis=basis, stab=stab)
+            sim = column_problem(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/column", strain=strain, basis=basis, stab=stab)
 
             setup = load_simulation_setup(sim)
-            err = compute_collapse_error(sim, l0, solver)
+            err = compute_column_error(sim, l0, solver)
             errors[k+1] = err
             hs[k+1] = setup.mesh.prprt.h[end]
             plot_path = setup.paths[:plot]
@@ -135,8 +135,8 @@ solver = elastoquasistatic!
 
 for fwrk in fwrks
     @info "Running convergence tests for workflow: $solver"
-    @testset "- 2d elastic collapse" verbose = true begin
-        errors, hs, sim_plot_path = run_collapse_convergence_tests(solver, fwrk)
+    @testset "- 2d elastic column" verbose = true begin
+        errors, hs, sim_plot_path = run_column_convergence_tests(solver, fwrk)
         plot_path = sim_plot_path
         push!(all_errors, errors)
         push!(all_hs, hs)
@@ -149,8 +149,8 @@ config_plot()
 opts = (;
     dims    = (450, 250),
     backend = gr(legend=true, markersize=2.0, markershape=:circle, markerstrokewidth=0.75),
-    tit     = "Convergence for elastic collapse",
-    file    = joinpath(plot_path, "2d_elastic_column_collapse_convergence.png"),
+    tit     = "Convergence for elastic column",
+    file    = joinpath(plot_path, "2d_elastic_column_convergence.png"),
 )
 opts.backend
 

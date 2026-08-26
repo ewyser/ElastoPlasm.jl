@@ -52,7 +52,7 @@ end
 Compute the raw scalar material constants (elastic + plastic + thermal) for a
 simulation, based on dimensionality. This is a **transient, setup-time-only**
 NamedTuple (formerly `setup_cmpr`/`cmpr`) — it is consumed by `get_slump`/`get_thermal`/
-`get_collision`/`get_collapse`/`mpts_populate` (to build possibly-heterogeneous
+`get_collision`/`get_column`/`get_collapse`/`mpts_populate` (to build possibly-heterogeneous
 per-particle geometry fields, e.g. under GRF) and by `setup_cmp` (to build the
 per-particle `cmp::Vector{<:AbstractConstitutiveModel}` that actually lands on
 `Point`), but it is never itself persisted to JLD2 and never threaded into any
@@ -117,7 +117,7 @@ end
 Build one per-particle `AbstractConstitutiveModel` instance for every material point,
 from the (possibly spatially-heterogeneous, e.g. GRF-perturbed) per-particle cohesion/
 friction fields already computed by `get_slump`/`get_thermal`/`get_collision`/
-`get_collapse`/`mpts_populate`, plus the uniform elastic constants derived once from
+`get_column`/`get_collapse`/`mpts_populate`, plus the uniform elastic constants derived once from
 `E`,`ν` via `get_elastic_stiffness`. Branches on `constitutive` (typically
 `solver.plast.constitutive`) to build `Vector{DruckerPrager}` (`"DP"`) or
 `Vector{VonMises}` (`"VM"`) — never `PerfectlyElastic`, see its docstring for why. An

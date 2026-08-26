@@ -24,7 +24,6 @@ struct MeshSolidPhase{T1,T2,D} <: AbstractMeshPhase{T1,T2}
     prprt ::MeshProperties{T1,T2,D}
     bcs   ::MeshBoundary
     m     ::Vector{T2} # consistent lumped mass matrix
-    Mᵢⱼ   ::Matrix{T2}
     oobf  ::Matrix{T2} # out-of-balance mechanical load (atomic writes: keep Matrix)
     oobp  ::Vector{T2} # out-of-balance continuity residual (u-P)
     a     ::Vector{SVector{D,T2}} # acceleration per node : SVector{ndim,T2}

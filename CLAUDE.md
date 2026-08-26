@@ -192,19 +192,27 @@ on an unrelated branch.**
   `pt_solve!`/`relax` always call `oobf_assembly!` with the 4-trailing-arg
   `ST<:LogarithmicStrain` (finite-strain) shape; under `"infinitesimal"` only a 3-arg
   method exists, throwing `MethodError`. Confirmed pre-existing, not caused by any
-  recent refactor. `test_collapse.jl` and every other verified `dynamic_relaxation` run
+  recent refactor. `test_column.jl` and every other verified `dynamic_relaxation` run
   use the default `"finite"`, which is why this went unnoticed. Someone needs to either
   fix `oobf_assembly`'s infinitesimal method to actually get called, or make
   `"infinitesimal"` genuinely unsupported by construction (an explicit error) rather
   than an opaque `MethodError` deep in a kernel.
-- ~~`test_collapse.jl` fully non-functional~~ — **fixed**. `collapse_problem` (renamed
-  from `ic_collapse`) was rewritten to the current `get_solver → setup_geometry →
-  setup_problem → setup_basis → export_problem` pipeline; `test_collapse.jl` updated
-  to read `file["ic/problem"]`/`file["cfg/solver"]` instead of the old
-  `ic["mesh"]`/`ic["mpts"]`/`ic["cmpr"]`/`cfg["instr"]` layout. All 4 `nel` convergence
-  cases pass, including `@test errors[k+1] < errors[k]` — a real physics-correctness
-  signal. Also the first real exercise of `dynamic_relaxation`'s `cmp`-rerouted reads
-  (see "Typed constitutive-model abstraction" below), now confirmed working.
+- ~~`test_collapse.jl` fully non-functional~~ — **fixed, and since renamed**.
+  `collapse_problem` (renamed from `ic_collapse`) was rewritten to the current
+  `get_solver → setup_geometry → setup_problem → setup_basis → export_problem`
+  pipeline; `test_collapse.jl` updated to read `file["ic/problem"]`/`file["cfg/solver"]`
+  instead of the old `ic["mesh"]`/`ic["mpts"]`/`ic["cmpr"]`/`cfg["instr"]` layout. All 4
+  `nel` convergence cases pass, including `@test errors[k+1] < errors[k]` — a real
+  physics-correctness signal. Also the first real exercise of `dynamic_relaxation`'s
+  `cmp`-rerouted reads (see "Typed constitutive-model abstraction" below), now
+  confirmed working. **Since renamed**: this test is a 1-D elastic self-weight column
+  convergence check (no plasticity ever exercised), not a granular collapse — the
+  misleading name was freed up for an actual granular-collapse example, `collapse_problem`
+  (see the `collapse_problem`/`column_problem` bullets under "Operating the package"
+  below). `collapse_problem`→`column_problem`,
+  `collapse.jl`→`column.jl`, `get_collapse`→`get_column`,
+  `test_collapse.jl`→`test_column.jl`; the 4/4 convergence result above is unchanged
+  post-rename.
 - **`test_workflow.jl`'s full 96-case sweep has genuine, reproducible
   numerical-instability failures confined to `smpm`/`gimpm` — `bsmpm`/`mlsmpm` pass
   cleanly.** Current baseline (re-measured multiple times across major refactors,
@@ -254,6 +262,18 @@ on an unrelated branch.**
   like `slump_problem` does. Pre-existing, not touched by the `ic_collision` rewrite
   that fixed its undefined-`kwargser`/stale-pipeline issues. Workaround: run with
   `plot.status=false` until fixed.
+- ~~`MeshSolidPhase.Mᵢⱼ::Matrix{T2}` allocated a full **dense `nno×nno` matrix**
+  unconditionally in `setup_mesh.jl`, regardless of solver~~ — **fixed (removed)**.
+  O(nodes²) memory: harmless at small mesh sizes (e.g. 6,601 nodes → ~349 MB) but
+  `OutOfMemoryError` at moderate resolution (32,841 nodes → ~8.6 GB) — found while
+  trying to run `collapse_problem` at a MaterialPointSolver.jl-matched fine resolution
+  (`nel=[368,88]`). Confirmed dead (zero reads anywhere in `src/`, only its own
+  declaration/construction) before removing — the explicit solver path already uses
+  the separate lumped/diagonal `m::Vector{T2}` nodal mass field for everything; `Mᵢⱼ`
+  looks like leftover scaffolding for a never-finished consistent-mass-matrix
+  formulation. Removed the field from `MeshSolidPhase`
+  (`src/boot/needs/types/concrete/eulerian.jl`) and its construction in
+  `build_solid_mesh_phase` (`src/home/init/setup_mesh.jl`).
 
 ## Planned improvements (not bugs, just known follow-up work)
 
@@ -293,7 +313,7 @@ on an unrelated branch.**
     attempt at the same per-particle constitutive-data problem — was retired entirely,
     since `cmp` already supersedes it.
   - `dynamic_relaxation`'s `cmp`-rerouted reads are confirmed working for the plain
-    (non-u-P) path via `test_collapse.jl`'s convergence sweep, including its
+    (non-u-P) path via `test_column.jl`'s convergence sweep, including its
     correctness assertions. The u-P variant remains unverified (and throws immediately
     if exercised regardless — see Known bugs).
 - **DP/J2 retmap kernel unification — done.** `retmap/DP.jl`/`retmap/J2.jl`'s four
@@ -499,10 +519,10 @@ problem.mesh, problem.mpts, problem.time; basis = file["ic/basis"]`; `elastoplas
 write-back after each workflow rebuilds `file["ic/problem"]`/`file["ic/basis"]` in
 place. Both take a `workflows::Vector{Function}` kwarg (plural — not `workflow`).
 `mpts.s.cmp` (constitutive constants) persists as part of `ic["problem"].mpts`; there
-is no separate `ic["cmpr"]` key. `test_collapse.jl` predated the current three-key
-layout for a long stretch (undefined `kwargser`, stale `cfg["instr"]`, matrix-style
-`mpts.x` indexing) but was fully fixed — see Known bugs history if picking that file up
-again ever surfaces a similar staleness.
+is no separate `ic["cmpr"]` key. `test_column.jl` (formerly `test_collapse.jl`)
+predated the current three-key layout for a long stretch (undefined `kwargser`, stale
+`cfg["instr"]`, matrix-style `mpts.x` indexing) but was fully fixed — see Known bugs
+history if picking that file up again ever surfaces a similar staleness.
 
 ## Operating the package
 
@@ -525,6 +545,26 @@ Use `elastoplasm!` (not `elastoplasm`) whenever you need to inspect post-run
   `setup_mpts`, which calls `setup_cmp` to build `mpts.s.cmp` → `setup_time`; returns a
   `MechanicalProblem`) → `setup_basis`, then `export_problem(...)` to persist to
   `.jld2` and returns that path. Use it as the template for a new example problem.
+- `collapse_problem(nel; kwargs...)` (`src/home/script/example/collapse.jl`) is a dry
+  granular Drucker-Prager block-collapse example — a plain rectangular block released
+  under gravity with no pre-existing slope, geometry via `get_collapse`
+  (`src/home/init/mpts/get_collapse.jl`, masks the shared `mpts_populate` candidate
+  grid down to a `[0,w0]×[0,h0]` box). Modeled directly on MaterialPointSolver.jl's
+  `2d_collapse.jl` reference scenario (`LandslideSIM/Archive_MaterialPointSolver.jl_paper`)
+  — domain/block size/material constants are hardcoded to match it, so `nel` is the
+  only argument meant to normally change; everything else is an override. Uses the
+  manual low-level `setup_geometry → setup_mesh → setup_material_constants →
+  setup_mpts → setup_time → MechanicalProblem → setup_basis` pipeline (not the
+  `setup_problem` wrapper), since it needs custom `ρ0`/`E`/`ν`/`ϕ`/`c0` that
+  `setup_problem`'s fixed `(mesh,mat,solver)` geometry-helper signature can't pass
+  through. Defaults `plast.status=true`/`plast.constitutive="DP"`, and — unlike the
+  package default (`:roller`, frictionless normal-only slip) — a `:fixed` (sticky/
+  no-slip) base boundary, needed for the material to actually pile up instead of
+  sliding indefinitely; matches MaterialPointSolver.jl's own boundary treatment.
+  **Not to be confused with `column_problem`** (`src/home/script/example/column.jl`,
+  renamed from the old `collapse_problem`) — a 1-D elastic self-weight column
+  convergence test with no plasticity at all; see the Known bugs entry on
+  `test_collapse.jl`/`test_column.jl` for that history.
 - `cli()` (`src/home/api/solver/cli.jl`) parses interactive/CLI overrides for solver
   config; `cli(; ui=true)` prompts interactively, `cli()` with no args picks defaults
   non-interactively — pass its result as `kwargs...` into `slump_problem`/`get_solver`.
