@@ -43,25 +43,11 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
 
 
     update[:nonloc!] = nonlocal(CPU())
-    if instr[:plast][:constitutive] == "MC"
-        #ηmax = MCRetMap!(mpts,ϵpII,cmp,instr[:fwrk])
-    elseif instr[:plast][:constitutive] == "DP"        
-        if instr[:strain][:deform] == "finite"
-            update[:retmap!] = finite_DP(CPU())
-        elseif instr[:strain][:deform] == "infinitesimal"
-            update[:retmap!] = infinitesimal_DP(CPU())
-        end
-    elseif instr[:plast][:constitutive] == "J2"
-        if instr[:strain][:deform] == "finite"
-            update[:retmap!] = finite_J2(CPU())
-        elseif instr[:strain][:deform] == "infinitesimal"
-            update[:retmap!] = infinitesimal_J2(CPU())
-        end
-    elseif instr[:plast][:constitutive] == "camC"
-        #ηmax = camCRetMap!(mpts,cmp,instr[:fwrk])
-    else
-        throw(error("InvalidReturnMapping: $(instr[:plast][:constitutive])"))
-    end
+    # dispatch resolves at kernel launch from Point's CM (DruckerPrager/VonMises) and ST
+    # (LogarithmicStrain/InfinitesimalStrain) type parameters — see DP.jl's `retmap`
+    # docstring. Unrecognized `plast.constitutive` strings now fail fast in `setup_cmp`
+    # (setup time), not here.
+    update[:retmap!] = retmap(CPU())
 
     # update mp's coordinates
     update[:coords!] = coord(CPU())

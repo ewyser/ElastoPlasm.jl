@@ -11,7 +11,9 @@ needs them to build `Point`'s type parameters.
 `solver.strain.deform`: `LogarithmicStrain` for `"finite"`, `InfinitesimalStrain` for
 `"infinitesimal"`. `SC`/`SK` (`σᵢⱼ`/`σn` and `τᵢⱼ`) are always `CauchyStress`/
 `KirchhoffStress` regardless of `deform`, exactly as both field families existed
-unconditionally before the port.
+unconditionally before the port. `CM` (the constitutive-model type of `cmp`) is picked
+by `solver.plast.constitutive`: `DruckerPrager` for `"DP"`, `VonMises` for `"VM"` — see
+`setup_cmp`.
 """
 function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
     L = D*D
@@ -23,7 +25,7 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
     SC = CauchyStress{D,T2,L}
     SK = KirchhoffStress{D,T2,L}
 
-    cmp = setup_cmp(nmp,T2.(vec(copy(geom.coh0))),T2.(vec(copy(geom.cohr))),T2.(vec(copy(geom.phi))); E=T2(mat[:E]),ν=T2(mat[:ν]),Hp=T2(mat[:Hp]),D=Int(D))
+    cmp = setup_cmp(nmp,T2.(vec(copy(geom.coh0))),T2.(vec(copy(geom.cohr))),T2.(vec(copy(geom.phi))); E=T2(mat[:E]),ν=T2(mat[:ν]),Hp=T2(mat[:Hp]),D=Int(D),constitutive=solver.plast.constitutive)
     CM  = eltype(cmp)
 
     s = PointSolidPhase{T1,T2,D,CM,TM,TV,TS,ST,SC,SK}(

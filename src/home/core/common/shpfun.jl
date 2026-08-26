@@ -1,4 +1,4 @@
-@kernel inbounds = true function shpfun!(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D,NN}) where {T1,T2,D,NN}
+@kernel inbounds = true function shpfun!(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D,NN}) where {T1,T2,D,NN,CM}
     p = @index(Global)
     # cache shape values/gradients for all NN neighbors of particle p, once per timestep
     if p ≤ mpts.nmp
