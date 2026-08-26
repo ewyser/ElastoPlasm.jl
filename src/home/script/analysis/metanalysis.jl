@@ -23,18 +23,16 @@ function prepare_simulations!(L, nel, fid, paths)
                 basis = (;
                     which = shp,
                     how = nothing,
+                    trsfr = trsfr,
+                    C_pf = 1.0,
                 )
                 strain = (;
                     deform = deform,
                 )
-                transfer = (;
-                    trsfr = trsfr,
-                    C_pf = 1.0,
-                    musl = true,
-                )
                 stab = (;
                     locking = false,
-                    damping = 0.1
+                    damping = 0.1,
+                    musl = true,
                 )
                 plot = (;
                     status = false,
@@ -43,7 +41,7 @@ function prepare_simulations!(L, nel, fid, paths)
                     what = [(; mpts=(name="epII", cblim=(0.0, 1.5)),),],
                 )
                 @suppress begin
-                    _ = slump_problem(L, nel; fid="$fid/sim_$sim", strain=strain, transfer=transfer, stab=stab, plot=plot)
+                    _ = slump_problem(L, nel; fid="$fid/sim_$sim", basis=basis, strain=strain, stab=stab, plot=plot)
                 end
                 next!(prog; desc="Preparing simulation(s) $sim/$nsim...")
                 sim += 1

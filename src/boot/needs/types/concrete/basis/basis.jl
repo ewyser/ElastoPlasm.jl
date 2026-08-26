@@ -52,9 +52,11 @@ pre-allocated plain `Array` do not.
 `kind::K` dispatches `eval_basis`/`shpfun!` onto the concrete basis kind
 (`BSplineBasis`/`GimpBasis`/`LinearBasis`/`MLSBasis`); `transfer::TR` does the same for
 the P2G/G2P transfer scheme (`StdTransfer`/`TpicTransfer`/`ApicTransfer`) — both fields
-follow the identical pattern: a config string (`basis.which`/`transfer.trsfr`) mapped
-once at setup time (`get_basis`/`get_transfer`) to a concrete marker instance, then
-dispatched on via ordinary Julia multiple dispatch instead of a runtime string branch.
+follow the identical pattern: a config string (`solver.basis.which`/`solver.basis.trsfr`
+— both live under the same `basis` config section, mirroring this struct owning both
+`kind` and `transfer`) mapped once at setup time (`get_basis`/`get_transfer`) to a
+concrete marker instance, then dispatched on via ordinary Julia multiple dispatch
+instead of a runtime string branch.
 `ApicTransfer` additionally carries `Bᵢⱼ`/`Dᵢⱼ` (`Vector{SMatrix}` per-particle
 accumulators, 100% APIC-exclusive — see its own docstring), the same kind-specific-data-
 lives-on-the-kind-struct pattern `GimpBasis`'s `stencils` already uses.

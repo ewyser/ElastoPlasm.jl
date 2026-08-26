@@ -12,7 +12,9 @@ test problem, and exports it to a `.jld2` file (same pipeline as `slump_problem`
 - `fid::String`: (Optional) File or run identifier.
 - `kwargs...`: Additional keyword arguments for simulation configuration (see `get_solver`);
   override the thermal-specific defaults below the same way `slump_problem` does
-  (`thermal_problem(L, nel; cli()..., basis=(;which="gimpm",how="Uii"))`).
+  (`thermal_problem(L, nel; cli()..., basis=(;get_default().basis...,which="gimpm",how="Uii"))`
+  — spread `get_default().basis` first since `basis` now has more fields than just
+  `which`/`how`, per `get_solver`'s shallow per-key merge).
 
 # Returns
 - `String`: Path to the exported `.jld2` setup file.
@@ -28,7 +30,7 @@ function thermal_problem(L,nel; fid::String=first(splitext(basename(@__FILE__)))
     # get solver and paths
     solver = get_solver(; dim=length(L),
         (;
-            basis = (; which = "bsmpm", how = nothing),
+            basis = (; get_default().basis..., which = "bsmpm", how = nothing),
             bcs   = (; dirichlet = [:fixed :fixed; :fixed :fixed]), # for 2d: [lower_x upper_x;lower_y upper_y]
             plot  = (; status = true, freq = 1.0, dpi = 300, what = [(;mpts=get_mpts_variable_config()["T"])]),
         )...,

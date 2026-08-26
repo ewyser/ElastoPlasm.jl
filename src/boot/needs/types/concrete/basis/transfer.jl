@@ -27,7 +27,7 @@ Affine PIC (APIC) transfer scheme. Unlike `StdTransfer`/`TpicTransfer`, APIC nee
 per-particle `D×D` accumulators (`Bᵢⱼ`, the affine velocity matrix, and `Dᵢⱼ`, the
 inertia-like normalization matrix) — moved here from `Point` since they are 100%
 APIC-exclusive (see `shpfun.jl`'s `Dij_nd` and `mapsto/fun/Bij.jl`'s `Bij`, both only
-registered/called under `transfer.trsfr=="apic"`). Needs `nmp` at construction time to
+registered/called under `basis.trsfr=="apic"`). Needs `nmp` at construction time to
 size its vectors, unlike `StdTransfer`/`TpicTransfer`'s zero-arg constructors. `L=D*D`
 is a separate type parameter (matching `DruckerPrager{T2,D,NSTR,L}`'s pattern) since
 `SMatrix{D,D,T,D*D}` — computing the length inline from `D` — isn't valid inside a
@@ -50,7 +50,7 @@ end
 """
     get_transfer(which::String, ::Type{T2}, D::Integer, nmp::Integer) -> AbstractTransfer
 
-Map a solver's `transfer.trsfr` string to its concrete `AbstractTransfer` instance.
+Map a solver's `basis.trsfr` string to its concrete `AbstractTransfer` instance.
 Mirrors `get_basis`, except `ApicTransfer` additionally needs `T2`/`D`/`nmp` to size its
 per-particle vectors (which `get_basis`'s marker-only kinds never needed).
 """

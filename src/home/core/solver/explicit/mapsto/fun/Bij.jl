@@ -4,7 +4,7 @@
 Update the per-particle affine velocity matrix `basis.transfer.Bᵢⱼ` (APIC scheme,
 n-dim). `TR<:StdTransfer`/`TpicTransfer` get no-op methods below — both schemes have no
 `Bᵢⱼ` to update, and dispatching a no-op lets `mapsto.jl` call this kernel
-unconditionally instead of behind an `if transfer.trsfr=="apic"` check.
+unconditionally instead of behind an `if basis.trsfr=="apic"` check.
 
 # Arguments
 - `mpts::Point{T1,T2,D}`: Material point data structure.
