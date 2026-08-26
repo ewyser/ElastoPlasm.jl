@@ -21,13 +21,11 @@ accumulators from `basis.transfer.Bᵢⱼ`/`.Dᵢⱼ` (moved here from `Point`, 
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
-        ms ,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        xp    = mpts.x[p]
-        vp    = mpts.s.v[p]
-        σ     = get_voigt(mpts.s.σᵢⱼ[p])
-        Bᵢⱼ   = basis.transfer.Bᵢⱼ[p]
-        Dᵢⱼ   = basis.transfer.Dᵢⱼ[p]
-        D⁻¹   = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{1,1,T2}(I)
+        ms ,Ω    = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        xp ,vp   = mpts.x[p]            , mpts.s.v[p]
+        Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
+        D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{1,1,T2}(I)
+        σ        = get_voigt(mpts.s.σᵢⱼ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -45,13 +43,11 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
-        ms ,Ω       = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        xp          = mpts.x[p]
-        vp          = mpts.s.v[p]
-        σ           = get_voigt(mpts.s.σᵢⱼ[p])
-        Bᵢⱼ         = basis.transfer.Bᵢⱼ[p]
-        Dᵢⱼ         = basis.transfer.Dᵢⱼ[p]
-        D⁻¹         = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{2,2,T2}(I)
+        ms ,Ω    = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        xp ,vp   = mpts.x[p]            , mpts.s.v[p]
+        Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
+        D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{2,2,T2}(I)
+        σ        = get_voigt(mpts.s.σᵢⱼ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -71,13 +67,11 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
-        ms  ,Ω        = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
-        xp            = mpts.x[p]
-        vp            = mpts.s.v[p]
-        σ             = get_voigt(mpts.s.σᵢⱼ[p])
-        Bᵢⱼ           = basis.transfer.Bᵢⱼ[p]
-        Dᵢⱼ           = basis.transfer.Dᵢⱼ[p]
-        D⁻¹           = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{3,3,T2}(I)
+        ms ,Ω    = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        xp ,vp   = mpts.x[p]            , mpts.s.v[p]
+        Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
+        D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{3,3,T2}(I)
+        σ        = get_voigt(mpts.s.σᵢⱼ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
