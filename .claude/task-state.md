@@ -165,6 +165,33 @@ not a true geometry match). Landed on branch `feat-granular-collapse-example` (o
   the session — explicitly confirmed as "just an experiment... revert when committing",
   so `defaults.jl` was restored to its original `status=true` before this commit.
 
+**Follow-up, same day, session-closing**: user tried the actual same-geometry
+performance comparison themselves (matched `collapse_problem` resolution against
+MaterialPointSolver.jl's `2d_collapse.jl`, `nel=[368,88]`≈32,841 nodes). Hit a real bug
+along the way: `MeshSolidPhase.Mᵢⱼ::Matrix{T2}` (`src/boot/needs/types/concrete/
+eulerian.jl`) allocated a full **dense `nno×nno` matrix** unconditionally in
+`setup_mesh.jl`, regardless of solver — O(nodes²) memory, harmless at the small mesh
+sizes exercised earlier in the session (~6,600 nodes → ~349MB) but a hard
+`OutOfMemoryError` at this finer, MaterialPointSolver.jl-matched resolution (~33k
+nodes → ~8.6GB for that one field). User confirmed it's "an artifact from the past" —
+Claude confirmed zero reads anywhere in `src/` before removing (the explicit solver
+path already uses the separate lumped/diagonal `m::Vector{T2}` field for nodal mass).
+Fixed: field removed from `MeshSolidPhase` and its construction in
+`build_solid_mesh_phase`. Committed as two commits on `feat-granular-collapse-example`
+(`4da9783` the rename+new-example work, `ff37f65` the `Mᵢⱼ` fix), then merged into
+`mimic-implementation-logic-of-ample` (merge commit `4776b26`) — clean load confirmed
+post-merge. Nothing pushed to `origin`.
+
+**User's final assessment, this task's actual closing conclusion**: "i think we can
+safely say the implementation quite holds compared to MaterialPointSolver" — i.e. once
+the comparison was made genuinely apples-to-apples (matched physics config, then
+matched geometry via the new example), ElastoPlasm's core kernels are competitive with
+a solver purpose-built for throughput, despite carrying substantially more generality
+(pluggable basis/transfer/constitutive-model/strain-type dispatch). The `Mᵢⱼ` bug is a
+concrete example of the benchmarking exercise surfacing a real, independently-valuable
+fix. No further action requested; the same-geometry timing re-run itself (at the fixed,
+now-working resolution) was left to the user rather than re-run by Claude.
+
 Scripts used (scratch, not committed): `mps_bench/smoke_test.jl` and
 `mps_bench/matched_run.jl` in the session scratchpad, `ep_bench.jl` alongside them.
 Used `basis.which="bsmpm"` on the ElastoPlasm side specifically to dodge the known
