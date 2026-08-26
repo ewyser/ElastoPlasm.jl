@@ -3,7 +3,7 @@ export get_mpts_variable_config, get_variable_plot_options
 
 # Variable extraction functions for metanalysis. All return raw (SI) values;
 # unit conversion for display is applied afterwards via each entry's `scale`.
-get_epII(mpts) = @views vec(mpts.s.ϵpII[1, :])
+get_epII(mpts) = getindex.(mpts.s.ϵpII, 1)
 # NB: this is the pre-existing "mean of all stored Voigt components" definition (shear
 # included, divided by nstr), kept verbatim through the typed-tensor port — it is NOT
 # `stress.p`, and swapping it would silently change every published pressure plot.

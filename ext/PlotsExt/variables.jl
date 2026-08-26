@@ -2,7 +2,7 @@
 export get_mpts_variable_config, get_variable_plot_options
 
 # Variable extraction functions for metanalysis
-get_epII(mpts) = @views vec(mpts.s.ϵpII[1, :])
+get_epII(mpts) = getindex.(mpts.s.ϵpII, 1)
 get_P(mpts)    = [-sum(σ)/length(σ)/1e3 for σ in mpts.s.σᵢ]
 get_J(mpts)    = @views vec(mpts.J)
 get_v(mpts)    = [sqrt(v[1]^2 + v[2]^2) for v in mpts.s.v]

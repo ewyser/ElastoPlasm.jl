@@ -556,6 +556,36 @@ on an unrelated branch.**
   on the stress objects themselves now (`mpts.s.σᵢ[p].p`/`mpts.s.τᵢ[p].p`, or
   `get_voigt`'d), making the separate scalar field redundant rather than merely
   unused.
+- **`PointSolidPhase.ϵpII` changed from `Matrix{T2}` (size `2×nmp`) to
+  `Vector{SVector{2,T2}}`** — matches the rest of the codebase's per-particle
+  `Vector{SVector}` convention (`mpts.x`, `mpts.s.τᵢ`, etc.) instead of standing out as
+  a lone `Matrix`-backed field, and reads/writes at call sites (`mpts.s.ϵpII[p]` /
+  `mpts.s.ϵpII[p][1]`/`[2]`) read more naturally than the old `mpts.s.ϵpII[1,p]`/
+  `[:,p]` slice syntax. Verified perf-neutral-to-better before doing the sweep: a
+  standalone microbenchmark of the three real access patterns (per-particle read/write,
+  `nonlocal.jl`'s O(n²) weighted-sum gather, and the scalar `+=` mutation `DP.jl`/`J2.jl`
+  do every yielding step) showed identical timing for read/write and the O(n²) gather
+  (both 0-alloc either way), and the `+=` mutation pattern was ~25% *faster* as
+  `Vector{SVector}` (rebuilding a 2-element `SVector` beats the `Matrix`'s column-stride
+  indexing). Since `SVector` is immutable, every in-place mutation site (`DP.jl`'s two
+  `ϵpII[1] +=`/`ϵpII[2] +=`-shaped sites inside `drucker_prager`'s local `MVector{2,T}`
+  scratch, `finite_DP`'s/`infinitesimal_DP`'s stores, `J2.jl`'s `ϵpII[1,p] = γ0` stores
+  in both `finite_J2`/`infinitesimal_J2`, `nonlocal.jl`'s `[2,p] = [1,p]` reset and
+  weighted-sum accumulation, and `update.jl`'s two bulk `ϵpII[2,:] .= ...` resets) had to
+  be rewritten as "read the whole `SVector`, rebuild it with the changed component,
+  write it back" rather than a scalar in-place update — `drucker_prager`'s internal
+  scratch stays an `MVector{2,T}` (mutable, unchanged) since the return-mapping algebra
+  genuinely wants in-place scalar accumulation; only the *stored* `mpts.s.ϵpII[p]` is
+  the immutable `SVector`. `get_epII` (`plot/variables.jl`, and the near-duplicate copy
+  in `ext/PlotsExt/variables.jl` — both exist, keep both in sync) changed from
+  `vec(mpts.s.ϵpII[1,:])` to `getindex.(mpts.s.ϵpII,1)`. `nonlocal.jl`'s and
+  `MCRetMap.jl`'s `mpts.ϵpII[p,...]`/`mpts.ϵpII[p]` reads inside already-dead/commented-
+  out code (see "Kernel dispatch table" / known dead-code notes elsewhere in this file)
+  were deliberately left untouched. Verified: clean load; DP+nonlocal and J2+nonlocal
+  smoke runs both `success=true` through the full `slump_problem`→`elastoplasm` pipeline
+  including a JLD2 round-trip re-load of `mpts.s.ϵpII`; a `plot.status=true` run
+  confirmed `get_epII` (the only consumer of the field outside the retmap/nonlocal
+  kernels themselves) renders correctly end-to-end.
 - **`get_vector` renamed `get_voigt`, and its strain-side shear convention was wrong —
   fixed, and `mutate`/`_mutate` retired as a result.** The user asked whether the old
   free functions `mutate(ϵ,Χ,type)`/`_mutate(ϵ)` (`elast.jl`, predating the tensor port)

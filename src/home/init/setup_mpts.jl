@@ -33,7 +33,7 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
         T2.(vec(copy(ρ0)))                                  , # ρ₀
         T2.(vec(copy(ρ0)))                                  , # ρ
         T2.(zeros(nmp))                                     , # Δλ
-        T2.(zeros(2,nmp))                                   , # ϵpII
+        [zero(SVector{2,T2}) for _ in 1:nmp]                , # ϵpII
         T2.(zeros(nmp))                                     , # ϵpV
         # typed stress tensors (concrete/tensor.jl)
         [zero(SC) for _ in 1:nmp]                          , # σᵢ

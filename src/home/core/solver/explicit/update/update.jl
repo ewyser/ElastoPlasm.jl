@@ -118,13 +118,17 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt
     if solver.nonloc.status
         fill!(basis.e2p,T1(0))
         fill!(basis.p2p,T1(0))
-        mpts.s.ϵpII[2,:].= T2(0.0)
+        for p ∈ 1:mpts.nmp
+            mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], T2(0.0))
+        end
         W,w     = spzeros(T2,mpts.nmp),spzeros(T2,mpts.nmp,mpts.nmp)
         for proc ∈ ["tplgy","p->q","p<-q"]
             solver.cairn.update.nonloc!(W,w,mpts,mesh,basis,T2(solver.nonloc.ls),proc; ndrange=mpts.nmp);sync(CPU())
         end
     else
-        mpts.s.ϵpII[2,:].= mpts.s.ϵpII[1,:]
+        for p ∈ 1:mpts.nmp
+            mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], mpts.s.ϵpII[p][1])
+        end
     end
     # plastic return-mapping dispatcher
     solver.cairn.update.retmap!(mpts; ndrange=mpts.nmp);sync(CPU())

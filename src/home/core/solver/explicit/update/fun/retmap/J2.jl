@@ -30,7 +30,7 @@ end
 end
 
 # Rewritten to match the current Point/PointSolidPhase/AbstractConstitutiveModel layout
-# (mpts.s.τᵢ/mpts.s.σᵢ are Vector{SVector}, mpts.s.ϵpII is a Matrix, and constitutive
+# (mpts.s.τᵢ/mpts.s.σᵢ/mpts.s.ϵpII are Vector{SVector}, and constitutive
 # constants live on mpts.s.cmp[p]::DruckerPrager — see DP.jl for the sibling kernel this
 # mirrors). The pre-refactor version of this file indexed flat, non-existent fields
 # (mpts.cᵣ[p]/mpts.c₀[p] instead of mpts.s.*, mpts.bᵢⱼ which never existed) and had a
@@ -41,11 +41,11 @@ end
     if p≤mpts.nmp
         cmp = mpts.s.cmp[p]
         # calculate yield function
-        κ   = max(cmp.cᵣ,cmp.c₀+cmp.Hp*mpts.s.ϵpII[2,p])
+        κ   = max(cmp.cᵣ,cmp.c₀+cmp.Hp*mpts.s.ϵpII[p][2])
         f,n = yield_J2(get_voigt(mpts.s.τᵢ[p]),κ)
         # return mapping using CPA (non-quadratic convergence)
         if f>T2(0.0)
-            γ0,σ0,ηit = mpts.s.ϵpII[2,p],get_voigt(mpts.s.τᵢ[p]),1
+            γ0,σ0,ηit = mpts.s.ϵpII[p][2],get_voigt(mpts.s.τᵢ[p]),1
             Δλacc     = T2(0.0)
             while abs(f)>ftol && ηit<ηmax
                 ∂f∂σ = n
@@ -58,7 +58,7 @@ end
                 f,n  = yield_J2(σ0,κ)
                 ηit += 1
             end
-            mpts.s.ϵpII[1,p] = γ0
+            mpts.s.ϵpII[p]   = SVector{2,T2}(γ0, mpts.s.ϵpII[p][2])
             # Δλ was previously a pure loop-local: it fed Δσ/γ0 and was then thrown away,
             # so mpts.s.Δλ[p] stayed at its zero-initialized value forever under
             # plast.constitutive="J2" — permanently disabling nonlocal.jl's activity gate
@@ -79,11 +79,11 @@ end
     if p≤mpts.nmp
         cmp = mpts.s.cmp[p]
         # calculate yield function
-        κ   = max(cmp.cᵣ,cmp.c₀+cmp.Hp*mpts.s.ϵpII[2,p])
+        κ   = max(cmp.cᵣ,cmp.c₀+cmp.Hp*mpts.s.ϵpII[p][2])
         f,n = yield_J2(get_voigt(mpts.s.σᵢ[p]),κ)
         # return mapping using CPA (non-quadratic convergence)
         if f>T2(0.0)
-            γ0,σ0,ηit = mpts.s.ϵpII[2,p],get_voigt(mpts.s.σᵢ[p]),1
+            γ0,σ0,ηit = mpts.s.ϵpII[p][2],get_voigt(mpts.s.σᵢ[p]),1
             Δλacc     = T2(0.0)
             while abs(f)>ftol && ηit<ηmax
                 ∂f∂σ = n
@@ -96,7 +96,7 @@ end
                 f,n  = yield_J2(σ0,κ)
                 ηit += 1
             end
-            mpts.s.ϵpII[1,p] = γ0
+            mpts.s.ϵpII[p]   = SVector{2,T2}(γ0, mpts.s.ϵpII[p][2])
             # see finite_J2 above — Δλ was never written, silently disabling nonlocal.jl
             mpts.s.Δλ[p]     = Δλacc
             mpts.s.σᵢ[p]     = CauchyStress(σ0)

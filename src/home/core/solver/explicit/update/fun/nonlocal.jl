@@ -40,13 +40,15 @@ Apply nonlocal averaging for regularization of plastic strain at material points
         end
     elseif type == "p<-q" && p ≤ mpts.nmp && mpts.s.Δλ[p] != T2(0.0)
         if isapprox(W[p]>T2(1e-16),T2(0.0),atol=T2(1e-16))
-            mpts.s.ϵpII[2,p] = mpts.s.ϵpII[1,p]
+            mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], mpts.s.ϵpII[p][1])
         else
+            acc = mpts.s.ϵpII[p][2]
             for q ∈ axes(basis.p2p,1)
                 if !iszero(basis.p2p[q,p])
-                    mpts.s.ϵpII[2,p]+= (w[p,q]/W[p])*mpts.s.ϵpII[1,q]
+                    acc += (w[p,q]/W[p])*mpts.s.ϵpII[q][1]
                 end
             end
+            mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], acc)
         end
     end
 end
