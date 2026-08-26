@@ -12,7 +12,7 @@ Initialize mapping, solving and transfering kernels for MPM cycle based on dimen
 """
 function init_mapsto(instr::NamedTuple; mapsto::Dict = Dict(:map => Dict{Symbol,Cairn}(),:augm => Dict{Symbol,Cairn}()))
     if instr.strain.deform == "finite"
-        mapsto[:map][:σᵢ!] = transform(CPU())
+        mapsto[:map][:σᵢⱼ!] = transform(CPU())
     end
     if instr.transfer.trsfr == "std"
         mapsto[:map][:p2n!] = std_p2n(CPU())
@@ -52,7 +52,7 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Vector{T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     # get cauchy stress
     if solver.strain.deform == "finite"
-        solver.cairn.mapsto.map.σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
+        solver.cairn.mapsto.map.σᵢⱼ!(ndrange=mpts.nmp,mpts);sync(CPU())
     end
     # reset nodal quantities
     fill!(mesh.s.m  ,T2(0.0))

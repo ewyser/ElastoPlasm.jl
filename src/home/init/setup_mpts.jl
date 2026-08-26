@@ -9,7 +9,7 @@ needs them to build `Point`'s type parameters.
 
 `ST` (the typed strain storage of `ϵᵢⱼ`/`ϵn`, see `concrete/tensor.jl`) is picked by
 `solver.strain.deform`: `LogarithmicStrain` for `"finite"`, `InfinitesimalStrain` for
-`"infinitesimal"`. `SC`/`SK` (`σᵢ`/`σn` and `τᵢ`) are always `CauchyStress`/
+`"infinitesimal"`. `SC`/`SK` (`σᵢⱼ`/`σn` and `τᵢⱼ`) are always `CauchyStress`/
 `KirchhoffStress` regardless of `deform`, exactly as both field families existed
 unconditionally before the port.
 """
@@ -36,9 +36,9 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
         [zero(SVector{2,T2}) for _ in 1:nmp]                , # ϵpII
         T2.(zeros(nmp))                                     , # ϵpV
         # typed stress tensors (concrete/tensor.jl)
-        [zero(SC) for _ in 1:nmp]                          , # σᵢ
+        [zero(SC) for _ in 1:nmp]                          , # σᵢⱼ
         [zero(SC) for _ in 1:nmp]                          , # σn
-        [zero(SK) for _ in 1:nmp]                          , # τᵢ
+        [zero(SK) for _ in 1:nmp]                          , # τᵢⱼ
         # tensor in matrix notation
         [zero(TM) for _ in 1:nmp]                          , # ∇vᵢⱼ
         [zero(TM) for _ in 1:nmp]                          , # ∇uᵢⱼ

@@ -19,7 +19,7 @@ doesn't crash — so a stale/broken file can silently go unused; always check fo
 - `Point{T1,T2,D,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,SC<:AbstractStress,SK<:AbstractStress}`
   — material points (Lagrangian). The trailing `ST`/`SC`/`SK` are the typed
   strain/stress storage on `mpts.s` (see "Typed strain/stress tensor storage" under
-  Planned improvements); `mpts.s.σᵢ[p]` returns a `CauchyStress`, **not** an
+  Planned improvements); `mpts.s.σᵢⱼ[p]` returns a `CauchyStress`, **not** an
   `SVector` — read it with `get_voigt(...)`. No longer carries `NN`, `B`, or connectivity
   (`p2n`/`p2e`/`e2p`/`p2p` moved out). `mpts.x :: Vector{SVector{D,T2}}` — NOT a
   matrix; index fields with `getindex.(x, i)` or iterate, never `x[i, :]`.
@@ -444,7 +444,7 @@ on an unrelated branch.**
     known-bug entry above, throws immediately if exercised regardless (`fint_p2n!`
     dispatch never registered), so its `cmp` rerouting specifically hasn't been proven
     correct either way.
-- **Typed strain/stress tensor storage — done.** `mpts.s.ϵᵢⱼ`/`.ϵn`/`.σᵢ`/`.σn`/`.τᵢ` no
+- **Typed strain/stress tensor storage — done.** `mpts.s.ϵᵢⱼ`/`.ϵn`/`.σᵢⱼ`/`.σn`/`.τᵢⱼ` no
   longer hold bare `SMatrix{D,D}`/`SVector{nstr}` values. They hold typed tensor objects
   from `src/boot/needs/types/concrete/tensor.jl`, each storing a volumetric+deviatoric
   additive split:
@@ -452,7 +452,7 @@ on an unrelated branch.**
     `dev::SMatrix{S,S,T,L}`) — `ϵᵢⱼ`/`ϵn`, picked by `solver.strain.deform`
     (`"finite"`→log, `"infinitesimal"`→small strain) in `build_solid_phase`.
   - `CauchyStress{S,T,L}` / `KirchhoffStress{S,T,L}` (`p::T` positive in compression,
-    `dev::SMatrix{S,S,T,L}`) — `σᵢ`/`σn` are always Cauchy, `τᵢ` always Kirchhoff.
+    `dev::SMatrix{S,S,T,L}`) — `σᵢⱼ`/`σn` are always Cauchy, `τᵢⱼ` always Kirchhoff.
 
   The abstract supertypes `AbstractTensor{T}`/`AbstractStrain{S,T,L}`/
   `AbstractStress{S,T,L}` live in `types/abstract.jl`, **not** in `concrete/tensor.jl` —
@@ -553,12 +553,12 @@ on an unrelated branch.**
   `setup_mpts` call.
 - ~~`PointSolidPhase.P::Vector{T2}` field~~ — **removed**, same pass as `elast::E`
   above. Confirmed zero reads anywhere in `src/`/`test/` before removal; pressure lives
-  on the stress objects themselves now (`mpts.s.σᵢ[p].p`/`mpts.s.τᵢ[p].p`, or
+  on the stress objects themselves now (`mpts.s.σᵢⱼ[p].p`/`mpts.s.τᵢⱼ[p].p`, or
   `get_voigt`'d), making the separate scalar field redundant rather than merely
   unused.
 - **`PointSolidPhase.ϵpII` changed from `Matrix{T2}` (size `2×nmp`) to
   `Vector{SVector{2,T2}}`** — matches the rest of the codebase's per-particle
-  `Vector{SVector}` convention (`mpts.x`, `mpts.s.τᵢ`, etc.) instead of standing out as
+  `Vector{SVector}` convention (`mpts.x`, `mpts.s.τᵢⱼ`, etc.) instead of standing out as
   a lone `Matrix`-backed field, and reads/writes at call sites (`mpts.s.ϵpII[p]` /
   `mpts.s.ϵpII[p][1]`/`[2]`) read more naturally than the old `mpts.s.ϵpII[1,p]`/
   `[:,p]` slice syntax. Verified perf-neutral-to-better before doing the sweep: a
@@ -615,10 +615,10 @@ on an unrelated branch.**
 
   With that gap closed, 8 of `mutate`'s 10 call sites collapse into existing or new
   `tensor.jl` calls: the two `Χ=1.0,:tensor` stress-reshape sites (`elast.jl`,
-  `dynamic_relaxation/fint.jl`) become `get_tensor(mpts.s.σᵢ[p])` directly; the two
+  `dynamic_relaxation/fint.jl`) become `get_tensor(mpts.s.σᵢⱼ[p])` directly; the two
   `Χ=2.0,:voigt` strain→`Del` sites become `get_voigt(InfinitesimalStrain(ϵ))`; the two
   `Χ=0.5,:tensor` `Del\\...`→strain sites (`DP.jl`, `J2.jl`) become
-  `LogarithmicStrain(cmp.Del\\τᵢ)` directly, dropping the intermediate `SMatrix` wrap
+  `LogarithmicStrain(cmp.Del\\τᵢⱼ)` directly, dropping the intermediate `SMatrix` wrap
   entirely. The two remaining sites (`elast.jl`/`fint.jl`'s Jaumann-rate correction term
   `σJ*ω'+σJ'*ω` — genuinely not "the" particle's stress, so no typed object exists for
   it) got a small dedicated replacement, `voigt_of(M)` (`elast.jl`, stress-convention
@@ -643,6 +643,19 @@ on an unrelated branch.**
   `test_basis.jl` passing; `test_performance.jl` unchanged (-17.2% memory/-5.4%
   allocs/0.0% time vs baseline — this refactor's touched code isn't on the benchmarked
   finite-strain default path, so no shift was expected).
+- **`PointSolidPhase.σᵢ`/`τᵢ` fields renamed `σᵢⱼ`/`τᵢⱼ`** — the single-index subscript
+  was misleading for a full 2nd-order tensor field (it read like a vector component,
+  not a tensor), and inconsistent with the sibling strain fields `ϵᵢⱼ`/`ϵn` which
+  already used the double-index form. Mechanical rename across every call site (~18
+  files: `lagrangian.jl`'s struct definition, `setup_mpts.jl`, `elast.jl`, `DP.jl`,
+  `J2.jl`, `nonlocal.jl`'s comments, every `mapsto/fun/p2n/*.jl` kernel, `transform.jl`,
+  `mapsto.jl`, `tensor.jl`, all three `dynamic_relaxation/*.jl` files, `plot/
+  variables.jl` and its near-duplicate in `ext/PlotsExt/variables.jl`, and
+  `test_collapse.jl`) — no behavior change, `σn` (the previous-step Cauchy stress) was
+  deliberately left as-is since it already carried no misleading index letter at all.
+  Verified: clean load, DP+nonlocal and J2+nonlocal `slump_problem` smoke runs both
+  `success=true`, and a `dynamic_relaxation`/`elastoquasistatic!` run (exercising the
+  renamed fields in `fint.jl`/`implicit.jl`/`update.jl`) also `success=true`.
 - **3D conformity check**: verify 3D simulations behave consistently across the
   explicit solver's configuration space (basis kind, `stab.locking`, `strain.deform`)
   — most of this session's verification was 2D-only.

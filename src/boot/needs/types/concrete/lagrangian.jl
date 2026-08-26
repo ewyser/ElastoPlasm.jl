@@ -15,8 +15,8 @@ introduced by the `tensor.jl` port (see `AbstractTensor`):
   dual-purpose: `InfinitesimalStrain` under `strain.deform="infinitesimal"`,
   `LogarithmicStrain` under `strain.deform="finite"`. Resolved in `build_solid_phase`
   by the `solver.strain.deform` branch.
-- `SC<:AbstractStress` — `σᵢ`/`σn`, always `CauchyStress`.
-- `SK<:AbstractStress` — `τᵢ`, always `KirchhoffStress`.
+- `SC<:AbstractStress` — `σᵢⱼ`/`σn`, always `CauchyStress`.
+- `SK<:AbstractStress` — `τᵢⱼ`, always `KirchhoffStress`.
 
 They are deliberately *trailing*: nearly every kernel signature in this repo
 pattern-matches only `Point{T1,T2,D}`, so adding them at the end left those
@@ -32,9 +32,9 @@ struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:Abstra
     ϵpII ::Vector{SVector{2,T2}}
     ϵpV  ::Vector{T2}
     # typed stress tensors (see concrete/tensor.jl); Voigt view via `get_voigt`
-    σᵢ   ::Vector{SC}
+    σᵢⱼ  ::Vector{SC}
     σn   ::Vector{SC}
-    τᵢ   ::Vector{SK}
+    τᵢⱼ  ::Vector{SK}
     # tensor in matrix notation (SMatrix{ndim,ndim,T2} per MP)
     ∇vᵢⱼ ::Vector{TM}
     ∇uᵢⱼ ::Vector{TM}

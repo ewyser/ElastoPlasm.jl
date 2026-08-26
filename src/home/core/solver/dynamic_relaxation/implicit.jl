@@ -191,7 +191,7 @@ function pt_solve_uP!(mpts, mesh, basis, g, dt, instr;
     h_min = minimum(mesh.prprt.h)
 
     mv_n = copy(mesh.s.mv)
-    σ_n  = copy(mpts.s.σᵢ)
+    σ_n  = copy(mpts.s.σᵢⱼ)
     p_n  = copy(mpts.s.p)
 
     # PT time steps — dimensionless, O(1)
@@ -268,7 +268,7 @@ function pt_solve_uP!(mpts, mesh, basis, g, dt, instr;
 
         # --- trial deformation + deviatoric stress reset + elast_dev ---
         instr.cairn.implicit.trial_deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
-        mpts.s.σᵢ .= σ_n
+        mpts.s.σᵢⱼ .= σ_n
         instr.cairn.implicit.elast_dev!(mpts,Gc,p_n; ndrange=mpts.nmp);sync(CPU())
 
         # --- recompute f_int and continuity residual ---
@@ -313,11 +313,11 @@ function pt_solve_uP!(mpts, mesh, basis, g, dt, instr;
         end
     end
 
-    # τᵢ holds the converged u-P total stress so the workflow can restore it after elasto!
-    mpts.s.τᵢ .= KirchhoffStress.(mpts.s.σᵢ)
+    # τᵢⱼ holds the converged u-P total stress so the workflow can restore it after elasto!
+    mpts.s.τᵢⱼ .= KirchhoffStress.(mpts.s.σᵢⱼ)
     # restore σ^n so elasto! can do the permanent kinematic + stress update
     # keep mpts.s.p at converged value so pressure persists between load steps
-    mpts.s.σᵢ .= σ_n
+    mpts.s.σᵢⱼ .= σ_n
 
     return nothing
 end

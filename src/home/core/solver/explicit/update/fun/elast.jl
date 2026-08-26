@@ -24,16 +24,16 @@ one genuinely doesn't.
 
 Finite-strain elastic predictor: push the stored logarithmic strain forward through
 `ΔFᵢⱼ` and evaluate the trial Kirchhoff stress from it. Writes a `LogarithmicStrain`
-into `mpts.s.ϵᵢⱼ[p]` and a `KirchhoffStress` into `mpts.s.τᵢ[p]`.
+into `mpts.s.ϵᵢⱼ[p]` and a `KirchhoffStress` into `mpts.s.τᵢⱼ[p]`.
 """
 @kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM,TM,TV,TS,ST<:LogarithmicStrain}
     p = @index(Global)
     if p ≤ mpts.nmp
         cmp           = mpts.s.cmp[p]
         ϵᵢⱼ           = _trial_elastic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.ϵᵢⱼ[p])
-        τᵢ            = _trial_elastic_stress(ϵᵢⱼ, cmp.Kc, cmp.Gc)
+        τᵢⱼ           = _trial_elastic_stress(ϵᵢⱼ, cmp.Kc, cmp.Gc)
         mpts.s.ϵᵢⱼ[p] = ϵᵢⱼ
-        mpts.s.τᵢ[p]  = τᵢ
+        mpts.s.τᵢⱼ[p] = τᵢⱼ
     end
 end
 
@@ -42,7 +42,7 @@ end
 
 Infinitesimal (small-strain) elastic update at material points: Jaumann-rate Cauchy
 stress increment `σ ← σ + Del·ϵ + (σω' + σ'ω)`. Writes an `InfinitesimalStrain` into
-`mpts.s.ϵᵢⱼ[p]` and a `CauchyStress` into `mpts.s.σᵢ[p]`; the incremental arithmetic
+`mpts.s.ϵᵢⱼ[p]` and a `CauchyStress` into `mpts.s.σᵢⱼ[p]`; the incremental arithmetic
 itself still happens in Voigt `SVector` form (via `get_voigt`) so the numbers are
 unchanged, with the result wrapped once at the point of the store. `Del` expects the
 engineering-Voigt strain vector, which `get_voigt(InfinitesimalStrain(ϵ))` now
@@ -57,12 +57,12 @@ until wrapped, same as before.
         ∇v  = mpts.s.∇vᵢⱼ[p]
         ϵ   = T2(0.5) .* (ΔF + ΔF') .- eltype(mpts.s.ΔFᵢⱼ)(I)
         ω   = T2(0.5) .* (∇v - ∇v')
-        σ   = get_voigt(mpts.s.σᵢ[p])
-        σJ  = get_tensor(mpts.s.σᵢ[p])
+        σ   = get_voigt(mpts.s.σᵢⱼ[p])
+        σJ  = get_tensor(mpts.s.σᵢⱼ[p])
         jaumann       = σJ * ω' + σJ' * ω
         mpts.s.ϵᵢⱼ[p] = InfinitesimalStrain(eltype(mpts.s.ΔFᵢⱼ)(ϵ))
         mpts.s.ωᵢⱼ[p] = eltype(mpts.s.ωᵢⱼ)(ω)
-        mpts.s.σᵢ[p]  = CauchyStress(σ + typeof(σ)(Del * get_voigt(InfinitesimalStrain(ϵ)) .+ voigt_of(jaumann)))
+        mpts.s.σᵢⱼ[p]  = CauchyStress(σ + typeof(σ)(Del * get_voigt(InfinitesimalStrain(ϵ)) .+ voigt_of(jaumann)))
     end
 end
 
@@ -76,8 +76,8 @@ end
         ϵyy = ΔF[2,2] - T2(1.0)
         ϵxy = ΔF[1,2] + ΔF[2,1]
         ωxy = T2(0.5) * (ω[1,2] - ω[2,1])
-        σ = get_voigt(mpts.s.σᵢ[p])
-        mpts.s.σᵢ[p] = CauchyStress(SVector{3,T2}(
+        σ = get_voigt(mpts.s.σᵢⱼ[p])
+        mpts.s.σᵢⱼ[p] = CauchyStress(SVector{3,T2}(
             σ[1] + (Del[1,1]*ϵxx+Del[1,2]*ϵyy+Del[1,3]*ϵxy) + ωxy*T2(2.0)*σ[3],
             σ[2] + (Del[2,1]*ϵxx+Del[2,2]*ϵyy+Del[2,3]*ϵxy) - ωxy*T2(2.0)*σ[3],
             σ[3] + (Del[3,1]*ϵxx+Del[3,2]*ϵyy+Del[3,3]*ϵxy) + ωxy*T2(1.0)*(σ[2]-σ[1]),
@@ -99,8 +99,8 @@ end
         ωyz = T2(0.5) * (ω[2,3] - ω[3,2])
         ωxz = T2(0.5) * (ω[1,3] - ω[3,1])
         ωxy = T2(0.5) * (ω[1,2] - ω[2,1])
-        σ = get_voigt(mpts.s.σᵢ[p])
-        mpts.s.σᵢ[p] = CauchyStress(SVector{6,T2}(
+        σ = get_voigt(mpts.s.σᵢⱼ[p])
+        mpts.s.σᵢⱼ[p] = CauchyStress(SVector{6,T2}(
             σ[1] + (Del[1,1]*ϵxx+Del[1,2]*ϵyy+Del[1,3]*ϵzz+Del[1,4]*ϵyz+Del[1,5]*ϵxz+Del[1,6]*ϵxy) + T2(2.0)*(ωxy*σ[6]+ωxz*σ[5]),
             σ[2] + (Del[2,1]*ϵxx+Del[2,2]*ϵyy+Del[2,3]*ϵzz+Del[2,4]*ϵyz+Del[2,5]*ϵxz+Del[2,6]*ϵxy) - T2(2.0)*(ωxy*σ[6]-ωyz*σ[4]),
             σ[3] + (Del[3,1]*ϵxx+Del[3,2]*ϵyy+Del[3,3]*ϵzz+Del[3,4]*ϵyz+Del[3,5]*ϵxz+Del[3,6]*ϵxy) - T2(2.0)*(ωxz*σ[5]+ωyz*σ[4]),
