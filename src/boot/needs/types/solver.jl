@@ -1,4 +1,6 @@
-export ExplicitSolver,ImplicitSolver,DynamicRelaxationSolver, Time
+abstract type AbstractSolver{T1<:Integer,T2<:Real,D} end
+
+export ExplicitSolver,ImplicitSolver,DynamicRelaxationSolver
 
 struct ExplicitSolver{T1<:Integer,T2<:Real,D,DT,BA,ST,SB,BC,GR,PL,NL,PT,PF,BK,CN} <: AbstractSolver{T1,T2,D}
     solution ::String
@@ -57,13 +59,3 @@ function ImplicitSolver{T1,T2,D}(solution::String,dtype::DT,basis::BA,strain::ST
     return ImplicitSolver{T1,T2,D,DT,BA,ST,SB,BC,GR,PL,NL,PT,PF,BK,CN}(solution,dtype,basis,strain,stab,bcs,grf,plast,nonloc,plot,perf,backend,cairn)
 end
 @adapt_struct ImplicitSolver
-
-
-
-struct Time{T1<:Integer,T2<:Real}
-    t  ::Vector{T2}
-    te ::T2
-    tg ::T2
-    tep::T2
-end
-@adapt_struct Time

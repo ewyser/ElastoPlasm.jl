@@ -16,7 +16,7 @@ one genuinely doesn't.
 
 # The former free functions `_logarithmic_strain`/`_kirchoff_stress` are gone: their
 # math now lives on the typed tensors as `_trial_elastic_strain`/`_trial_elastic_stress`
-# (`src/boot/needs/types/concrete/tensor.jl`), which is where the volumetric/deviatoric
+# (`src/boot/needs/types/tensor.jl`), which is where the volumetric/deviatoric
 # split naturally belongs now that it is what actually gets stored.
 
 """

@@ -21,7 +21,7 @@ re-derive a trace-free deviator from `get_voigt` for exactly this reason.
 `get_voigt` is one function dispatched onto `AbstractStrain`/`AbstractStress`: strain
 uses the engineering-shear convention (`γxy = 2ϵxy`), stress does not.
 """
-AbstractTensor
+abstract type AbstractTensor{T} end
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Strain tensor supertype, concrete types and methods
@@ -31,10 +31,9 @@ AbstractTensor
     AbstractStrain{S,T,L} <: AbstractTensor{T}
 
 Second-order strain tensor stored as `vol::T` (volumetric part) + `dev::SMatrix{S,S,T,L}`
-(deviatoric part). `S` is the spatial dimension, `L == S*S`. Declared in
-`types/abstract.jl`; concrete subtypes and methods live here.
+(deviatoric part). `S` is the spatial dimension, `L == S*S`.
 """
-AbstractStrain
+abstract type AbstractStrain{S,T,L} <: AbstractTensor{T} end
 
 Base.getindex(strain::AbstractStrain{S,T,L}, i::Int, j::Int) where {S,T,L} =
     strain.dev[i,j] + (i == j ? strain.vol : zero(T))
@@ -72,6 +71,14 @@ end
         T(2.0) * strain.dev[1,2],
     )
 end
+
+"""
+    LinearAlgebra.eigen(strain::AbstractStrain)
+
+Eigen-decomposition of the reassembled (symmetric) strain tensor. Lets kernels write
+`eigen(mpts.s.ϵn[p])` directly on a stored strain object.
+"""
+@inline LinearAlgebra.eigen(strain::AbstractStrain{S,T,L}) where {S,T,L} = eigen(Symmetric(get_tensor(strain)))
 
 """
     InfinitesimalStrain{S,T,L} <: AbstractStrain{S,T,L}
@@ -155,14 +162,6 @@ Base.zero(::Type{InfinitesimalStrain{S,T,L}}) where {S,T,L} = InfinitesimalStrai
 Base.zero(::Type{LogarithmicStrain{S,T,L}})   where {S,T,L} = LogarithmicStrain(  zero(T), zero(SMatrix{S,S,T,L}))
 
 """
-    LinearAlgebra.eigen(strain::AbstractStrain)
-
-Eigen-decomposition of the reassembled (symmetric) strain tensor. Lets kernels write
-`eigen(mpts.s.ϵn[p])` directly on a stored strain object.
-"""
-@inline LinearAlgebra.eigen(strain::AbstractStrain{S,T,L}) where {S,T,L} = eigen(Symmetric(get_tensor(strain)))
-
-"""
     _trial_elastic_strain(ΔFᵢⱼ, strain::LogarithmicStrain) -> LogarithmicStrain
 
 Push the stored logarithmic strain forward through the incremental deformation
@@ -221,9 +220,8 @@ end
 
 Second-order stress tensor stored as `p::T` (pressure, **positive in compression**) +
 `dev::SMatrix{S,S,T,L}` (deviatoric part), so the full tensor is `dev - p·I`.
-Declared in `types/abstract.jl`; concrete subtypes and methods live here.
 """
-AbstractStress
+abstract type AbstractStress{S,T,L} <: AbstractTensor{T} end
 
 """
     get_tensor(stress::AbstractStress{S,T,L}) -> SMatrix{S,S,T,L}
@@ -256,6 +254,32 @@ end
         stress.dev[1,3],
         stress.dev[1,2],
     )
+end
+
+"""
+    get_J2(stress::AbstractStress) -> T
+
+Second deviatoric stress invariant `J₂ = ½ sᵢⱼsᵢⱼ`, re-derived from `get_voigt` (see
+`AbstractTensor`) rather than trusting the stored `dev`.
+"""
+@inline function get_J2(stress::AbstractStress{2,T,L}) where {T,L}
+    σ = get_voigt(stress)
+    P = (σ[1] + σ[2]) / T(2.0)
+    return T(0.5) * ((σ[1] - P)^2 + (σ[2] - P)^2) + σ[3]^2
+end
+@inline function get_J2(stress::AbstractStress{3,T,L}) where {T,L}
+    σ = get_voigt(stress)
+    P = (σ[1] + σ[2] + σ[3]) / T(3.0)
+    return T(0.5) * ((σ[1] - P)^2 + (σ[2] - P)^2 + (σ[3] - P)^2) + σ[4]^2 + σ[5]^2 + σ[6]^2
+end
+
+"""
+    get_τII(stress::AbstractStress) -> T
+
+Second invariant `τII = √J₂` of the deviatoric stress.
+"""
+@inline function get_τII(stress::AbstractStress)
+    return sqrt(get_J2(stress))
 end
 
 """
@@ -387,30 +411,4 @@ which isn't defined until later in the file.
 end
 @inline function KirchhoffStress(σ::CauchyStress{S,T,L}) where {S,T,L}
     return KirchhoffStress(σ.p, σ.dev)
-end
-
-"""
-    get_J2(stress::AbstractStress) -> T
-
-Second deviatoric stress invariant `J₂ = ½ sᵢⱼsᵢⱼ`, re-derived from `get_voigt` (see
-`AbstractTensor`) rather than trusting the stored `dev`.
-"""
-@inline function get_J2(stress::AbstractStress{2,T,L}) where {T,L}
-    σ = get_voigt(stress)
-    P = (σ[1] + σ[2]) / T(2.0)
-    return T(0.5) * ((σ[1] - P)^2 + (σ[2] - P)^2) + σ[3]^2
-end
-@inline function get_J2(stress::AbstractStress{3,T,L}) where {T,L}
-    σ = get_voigt(stress)
-    P = (σ[1] + σ[2] + σ[3]) / T(3.0)
-    return T(0.5) * ((σ[1] - P)^2 + (σ[2] - P)^2 + (σ[3] - P)^2) + σ[4]^2 + σ[5]^2 + σ[6]^2
-end
-
-"""
-    get_τII(stress::AbstractStress) -> T
-
-Second invariant `τII = √J₂` of the deviatoric stress.
-"""
-@inline function get_τII(stress::AbstractStress)
-    return sqrt(get_J2(stress))
 end

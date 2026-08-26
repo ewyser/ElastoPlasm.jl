@@ -1,5 +1,5 @@
 # NOTE ON NAMING: these two `_yield_normal` methods used to be called `get_J2`, which
-# collided semantically with `get_J2(::AbstractStress)` in `concrete/tensor.jl` — same
+# collided semantically with `get_J2(::AbstractStress)` in `tensor.jl` — same
 # name, different return value (this one returns `(‖ξ‖, n̂)`, the yield-surface normal
 # and the norm of the deviator; that one returns the scalar invariant J₂). They were
 # deliberately NOT merged during the tensor port: unifying them would have meant either

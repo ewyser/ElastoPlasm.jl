@@ -7,7 +7,7 @@ constitutive-model bundle (`cmp`, via `setup_cmp`), and all mechanical state fie
 zero-initialized except `v`/`ρ`. `CM`/`ST`/`SC`/`SK` are also returned since the caller
 needs them to build `Point`'s type parameters.
 
-`ST` (the typed strain storage of `ϵᵢⱼ`/`ϵn`, see `concrete/tensor.jl`) is picked by
+`ST` (the typed strain storage of `ϵᵢⱼ`/`ϵn`, see `tensor.jl`) is picked by
 `solver.strain.deform`: `LogarithmicStrain` for `"finite"`, `InfinitesimalStrain` for
 `"infinitesimal"`. `SC`/`SK` (`σᵢⱼ`/`σn` and `τᵢⱼ`) are always `CauchyStress`/
 `KirchhoffStress` regardless of `deform`, exactly as both field families existed
@@ -37,7 +37,7 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
         T2.(zeros(nmp))                                     , # Δλ
         [zero(SVector{2,T2}) for _ in 1:nmp]                , # ϵpII
         T2.(zeros(nmp))                                     , # ϵpV
-        # typed stress tensors (concrete/tensor.jl)
+        # typed stress tensors (tensor.jl)
         [zero(SC) for _ in 1:nmp]                          , # σᵢⱼ
         [zero(SC) for _ in 1:nmp]                          , # σn
         [zero(SK) for _ in 1:nmp]                          , # τᵢⱼ
