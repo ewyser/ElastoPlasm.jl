@@ -10,7 +10,6 @@ function build_solid_mesh_phase(T1,T2,D,prop,bcs,nn_total,SVD)
         prop,
         bcs,
         T2.(zeros(nn_total             )), # m
-        T2.(zeros(nn_total,nn_total    )), # Mᵢⱼ
         T2.(zeros(D,nn_total          )), # oobf  (Matrix: atomic writes)
         T2.(zeros(nn_total             )), # oobp
         [zero(SVD) for _ in 1:nn_total]  , # a
