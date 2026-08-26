@@ -42,7 +42,8 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     end
 
 
-    update[:nonloc!] = nonlocal(CPU())
+    update[:nonloc_pq!] = nonlocal_pq(CPU())
+    update[:nonloc_qp!] = nonlocal_qp(CPU())
     # dispatch resolves at kernel launch from Point's CM (DruckerPrager/VonMises) and ST
     # (LogarithmicStrain/InfinitesimalStrain) type parameters — see DP.jl's `retmap`
     # docstring. Unrecognized `plast.constitutive` strings now fail fast in `setup_cmp`
@@ -110,9 +111,8 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt
         # e2p/p2p scan — see nonlocal.jl's docstring.
         ptr,idx = build_el2p(basis.p2e, T1(mesh.prprt.nel[end]))
         W       = zeros(T2,mpts.nmp)
-        for proc ∈ ["p->q","p<-q"]
-            solver.cairn.update.nonloc!(W,mpts,basis,T2(solver.nonloc.ls),ptr,idx,proc; ndrange=mpts.nmp);sync(CPU())
-        end
+        solver.cairn.update.nonloc_pq!(W,mpts,basis,T2(solver.nonloc.ls),ptr,idx; ndrange=mpts.nmp);sync(CPU())
+        solver.cairn.update.nonloc_qp!(W,mpts,basis,T2(solver.nonloc.ls),ptr,idx; ndrange=mpts.nmp);sync(CPU())
     else
         for p ∈ 1:mpts.nmp
             mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], mpts.s.ϵpII[p][1])

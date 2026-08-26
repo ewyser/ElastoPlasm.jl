@@ -310,7 +310,13 @@ on an unrelated branch.**
   sequential) combined with `basis.e2e` bounds the neighbor search to `O(nmp×k)` (`k` =
   local particle density within `ls`, resolution-independent); `Basis.e2p`/`p2p` and the
   per-step `w` matrix are gone entirely (pairwise weights are cheap enough — one
-  `sqrt`+`exp` — to recompute in both passes rather than cache).
+  `sqrt`+`exp` — to recompute in both passes rather than cache). The old single kernel
+  branching on a `type::String` ("tplgy"/"p->q"/"p<-q") was also split into two
+  separately-named kernels, `nonlocal_pq`/`nonlocal_qp` (`update[:nonloc_pq!]`/
+  `[:nonloc_qp!]` in the `Cairn` table) — matching the one-kernel-per-concern convention
+  used everywhere else in this codebase (`elast!`, `ignite`/`mapsto`'s per-phase entries)
+  and dropping a per-particle `String` comparison that no longer served any purpose once
+  the `"tplgy"` phase was gone.
 
   **While verifying this fix bit-for-bit against the old code, found the old code was
   never actually correct**: it deduplicates each unordered pair `(p,q)` via `if
