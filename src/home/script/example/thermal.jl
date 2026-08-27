@@ -31,7 +31,7 @@ function thermal_problem(L,nel; fid::String=first(splitext(basename(@__FILE__)))
     solver = get_solver(; dim=length(L),
         (;
             basis = (; get_default().basis..., which = "bsmpm", how = nothing),
-            bcs   = (; dirichlet = [:fixed :fixed; :fixed :fixed]), # for 2d: [lower_x upper_x;lower_y upper_y]
+            bcs   = (; dirichlet = fill(:fixed, length(L), 2)), # one [lower upper] row per dimension
             plot  = (; status = true, freq = 1.0, dpi = 300, what = [(;mpts=get_mpts_variable_config()["T"])]),
         )...,
         kwargs...)
