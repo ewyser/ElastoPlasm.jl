@@ -271,6 +271,38 @@ on an unrelated branch.**
   damped shape function near crossing events (out of scope to design here), or at
   minimum a defensive sign/clamp guard on `ΔJ^dim` in `volumetric.jl` (doesn't fix the
   root cause, but closes the crash).
+- **`test_workflow.jl`'s config-case generators were restructured to match actual
+  solver config sections, and nonlocal regularization is now covered by the sweep.**
+  The old `generate_fwrk_cases()` bundled `deform`/`trsfr`/`locking`/`musl` into one
+  flat, ad-hoc `fwrk` NamedTuple with no counterpart in the real solver config
+  (`ExplicitSolver` keeps `strain`/`stab` separate, and `trsfr`/`C_pf` live inside
+  `basis` — no `fwrk` field anywhere in that struct; a `fwrk` field does exist, but
+  only on the separate, unused `DynamicRelaxationSolver`, where it plays a different
+  role). Replaced with four generators, one per real config section —
+  `generate_strain_cases()`, `generate_transfer_cases()`, `generate_stab_cases()`,
+  `generate_nonloc_cases()` — each returning NamedTuples shaped exactly as
+  `slump_problem` expects, mirroring how `generate_basis_cases()` already worked. The
+  main loop crosses these four directly and passes them straight through, with no
+  manual field-unpacking. `generate_nonloc_cases()` is new: nonlocal regularization
+  (`nonloc.status`) had no sweep coverage at all before this — every prior run of
+  `test_workflow.jl` hardcoded `nonloc.status=false`, despite nonlocal having had a
+  real, long-standing correctness bug (see the nonlocal-regularization entry above).
+
+  Re-ran the (now 2D-only again — 3D re-commented out locally, see "3D conformity
+  check" below) sweep with `nonloc` as a genuine axis: **141/192 passed.** `smpm`'s 12
+  failing configs are unchanged by nonlocal (just doubled to 24/48 by the new axis —
+  nonlocal doesn't interact with that instability either way); `bsmpm`/`mlsmpm` stay
+  fully clean (48/48) regardless of `nonloc.status`. `gimpm` goes from 13/24 (baseline)
+  to 21/48 — the expected doubling (26) **plus exactly one new failure**:
+  `gimpm, finite, tpic, locking=true, musl=true` passes with `nonloc.status=false` but
+  fails with `nonloc.status=true` (`BoundsError: attempt to access 400-element
+  Vector{...} at index [16346]` in `element_to_nodes_topology`, `tplgy.jl:15` — a
+  particle drifting far outside the mesh, same failure mode as the grid-crossing
+  instability above, just newly triggered on an otherwise-stable configuration). Not
+  root-caused — flagged here as a genuine, narrow, nonlocal-specific instability for
+  `gimpm`+`tpic` worth investigating alongside the broader grid-crossing theory above,
+  since nonlocal regularization's plastic-strain averaging could plausibly be feeding
+  back into the same kind of drift.
 - **`ic_collision`'s initial-velocity plot crashes**: `what_plot_field` errors with
   `type NamedTuple has no field data`, because `collision.jl`'s `plot.what` entries are
   hand-built `NamedTuple`s missing the `data`/`label`/`unit`/`scale`/`cb` fields
