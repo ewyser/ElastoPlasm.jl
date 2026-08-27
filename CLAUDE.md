@@ -226,11 +226,14 @@ on an unrelated branch.**
   `collapse.jl`→`column.jl`, `get_collapse`→`get_column`,
   `test_collapse.jl`→`test_column.jl`; the 4/4 convergence result above is unchanged
   post-rename.
-- **`test_workflow.jl`'s full 96-case sweep has genuine, reproducible
-  numerical-instability failures confined to `smpm`/`gimpm` — `bsmpm`/`mlsmpm` pass
-  cleanly.** Current baseline (re-measured multiple times across major refactors,
-  unchanged every time): **smpm 12/24 fail, gimpm 13/24 fail, bsmpm 0/24, mlsmpm
-  0/24 — 25 failures total.** Every failure is a real thrown exception
+- **`test_workflow.jl`'s full sweep has genuine, reproducible numerical-instability
+  failures confined to `smpm`/`gimpm` — `bsmpm`/`mlsmpm` pass cleanly.** Originally a
+  96-case, 2D-only sweep; the 3D geometry case is now uncommented too (see "3D
+  conformity check" below), making it 192 cases (96×2D + 96×3D). 2D baseline
+  (re-measured multiple times across major refactors, unchanged every time): **smpm
+  12/24 fail, gimpm 13/24 fail, bsmpm 0/24, mlsmpm 0/24 — 25 failures total.** 3D:
+  smpm 12/24, gimpm 6/24, bsmpm 0/24, mlsmpm 0/24 — 18 failures total, same failure
+  signature, not a new instability. Every failure is a real thrown exception
   (`DomainError` or `BoundsError`), caught and logged by the sweep's own `try/@warn` —
   not a silent `success=false` path (`elastoplasm`/`elastoplasm!` have no such path).
   Full failing case list, for future diffs:
@@ -275,6 +278,15 @@ on an unrelated branch.**
   like `slump_problem` does. Pre-existing, not touched by the `ic_collision` rewrite
   that fixed its undefined-`kwargser`/stale-pipeline issues. Workaround: run with
   `plot.status=false` until fixed.
+- ~~`thermal_problem`'s default `bcs.dirichlet` was a hardcoded 2×2 matrix~~ — **fixed**.
+  `thermal.jl` had `bcs = (; dirichlet = [:fixed :fixed; :fixed :fixed])` — a literal
+  2D-only shape. Any 3D `thermal_problem` call threw `BoundsError: attempt to access
+  2×2 Matrix{Symbol} at index [3, 1]` in `get_bc`/`setup_mesh`, before reaching any
+  basis/transfer-scheme code — 3D thermal was entirely unreachable through the normal
+  entry point (found while investigating 3D conformity — see that entry under Planned
+  improvements). Fixed to `fill(:fixed, length(L), 2)`, one `[lower upper]` row per
+  dimension; verified both 2D and 3D `thermal_problem`→`elastoplasm!` runs succeed with
+  no `bcs` override needed.
 - ~~`MeshSolidPhase.Mᵢⱼ::Matrix{T2}` allocated a full **dense `nno×nno` matrix**
   unconditionally in `setup_mesh.jl`, regardless of solver~~ — **fixed (removed)**.
   O(nodes²) memory: harmless at small mesh sizes (e.g. 6,601 nodes → ~349 MB) but
@@ -334,6 +346,28 @@ on an unrelated branch.**
   independent brute-force recomputation of `W`/`ϵpII[2]` for several particles — it does
   **not**, and structurally cannot, reproduce the old asymmetric numbers; that is the
   fix, not a regression.
+- **`solver.plast.status` is dead config in the explicit solver path — it gates
+  nothing.** Found while investigating 3D conformity: `elastoplastic!` (one of the two
+  built-in explicit workflows) calls `elastoplast()`
+  (`src/home/core/solver/explicit/update/update.jl`), which calls
+  `solver.cairn.update.retmap!(...)` (the plastic return-mapping dispatcher)
+  **unconditionally** — there is no `if solver.plast.status` branch at that call site,
+  nor anywhere else in `src/home/`; the only other reference to `plast.status` in the
+  entire directory is a docstring comment (`collapse.jl`). Whether plasticity actually
+  runs is decided entirely by *which workflow function you pass to `elastoplasm!`* —
+  `elasto`/`elastodynamic!` never touches `retmap!`, `elastoplast`/`elastoplastic!`
+  always does — the config flag plays no role. Concretely: `test_workflow.jl`'s sweep
+  (and the 3D sweep run against it, see "3D conformity check" below) calls
+  `elastoplasm!(jld2; workflows=[elastodynamic!, elastoplastic!])` with `plast.status`
+  left at its `false` default, and plasticity genuinely runs anyway — so, unlike
+  initially assumed, that sweep *does* exercise the plastic corrector, not just the
+  elastic path. Contrast with `nonloc.status`, a same-shaped, similarly-named flag that
+  **is** live (gates the nonlocal regularization block inside `elastoplast` itself) —
+  the two flags look parallel but behave completely differently, which is exactly the
+  kind of thing worth checking directly rather than assuming from the name. Not fixed:
+  either `plast.status` should actually gate `retmap!`'s call (matching what its name
+  implies), or it should be removed/documented as vestigial if `elasto`/`elastoplast`
+  being separate workflow functions is considered sufficient by design.
 
 ## Planned improvements (not bugs, just known follow-up work)
 
@@ -485,12 +519,50 @@ on an unrelated branch.**
   hand-built past-yield stress state now returns an actually-changed result). Lesson:
   a mechanical rename like this needs a semantic check (tensor vs. vector), not just a
   substring match.
-- **3D conformity check**: verify 3D simulations behave consistently across the
-  explicit solver's configuration space (basis kind, `stab.locking`, `strain.deform`)
-  — most verification to date has been 2D-only. 3D APIC currently hits a `DomainError`
-  (sqrt of a negative value) even with `stab.locking=false`, root cause not chased
-  (see "Thermal solution" below, which found and fixed unrelated 3D APIC bugs along
-  the way but hit this separate, pre-existing instability).
+- **3D conformity check — done, via `test_workflow.jl` itself.** The 3D geometry case
+  in `generate_geometry_cases()` (`L=[64.1584,64.1584/4,64.1584/4]`, `nel=[40,10,10]` —
+  matching the 2D case's resolution exactly, not a coarser stand-in) is now
+  **uncommented and part of the regular 192-case sweep** (96×2D + 96×3D). Full run:
+  **149/192 passed (71/96 2D + 78/96 3D)**. 2D reproduces the documented baseline
+  exactly (smpm 12/24, gimpm 13/24, bsmpm 0/24, mlsmpm 0/24 fail). 3D: **smpm 12/24,
+  gimpm 6/24, bsmpm 0/24, mlsmpm 0/24 fail** — same shape as 2D, and *better* than 2D
+  on `gimpm` specifically (6 fail vs. 13) rather than worse. Every 3D failure fits the
+  already-documented 2D root cause: mostly the same `DomainError` (a negative value
+  into `volumetric.jl`'s unguarded fractional-power `ΔJ^dim`, e.g. `-123.7`, `-567.6`),
+  plus 3 `BoundsError`s (`attempt to access 4000-element Vector{...} at index [-303]`
+  etc.) matching the documented "particle drifts out of mesh under `locking=false`"
+  failure mode. **Conclusion: 3D is not meaningfully less stable than 2D** for the
+  basis-kind/transfer-scheme/locking/musl configuration space this sweep covers — no
+  new 3D-specific failure category turned up. Plasticity *does* actually run in this
+  sweep in both dimensions, despite `plast.status` staying at its `false` default — see
+  the `plast.status` finding above under "DP/J2 retmap kernel unification"'s neighbors:
+  `elastoplast()` (invoked by the `elastoplastic!` workflow, which every case here
+  runs) calls `retmap!` unconditionally, with no `if solver.plast.status` gate at that
+  or any call site in `src/home/` — `plast.status` is read nowhere except a docstring
+  comment. Which workflow function you pass to `elastoplasm!`/`elastoplasm` (`elasto`
+  via `elastodynamic!`, vs. `elastoplast` via `elastoplastic!`) is what actually
+  decides whether the plastic corrector runs, not the config flag.
+
+  **Could not reproduce the previously-reported "3D APIC hits `DomainError` even with
+  `stab.locking=false`" issue** (below/"Thermal solution") under the current code,
+  across several attempts: plain `slump_problem` 3D+APIC (`bsmpm`, `locking=false`),
+  same with `plast.status=true` enabled, and `thermal_problem` 3D+APIC — all ran clean
+  (`success=true`). Either it was fixed as a side effect of unrelated later work, or it
+  needs a more specific trigger (finer resolution, `collapse_problem`-style violent
+  impact, a different `nel`/domain) not yet found. Leaving the old note below as
+  unconfirmed/unreproduced rather than deleting it, since "couldn't reproduce" isn't
+  the same as "fixed."
+
+  **Found instead, a real and still-live bug**: `thermal_problem`'s own default
+  `bcs = (; dirichlet = [:fixed :fixed; :fixed :fixed])` (`thermal.jl`) is a hardcoded
+  2×2 matrix — `get_bc` indexes it per-dimension, so any 3D `thermal_problem` call
+  throws `BoundsError: attempt to access 2×2 Matrix{Symbol} at index [3, 1]` immediately
+  in `setup_mesh`, before reaching any basis/transfer-scheme code at all. Confirmed by
+  passing an explicit 3-row `bcs` override as a workaround; not yet fixed at the
+  source. `slump_problem`/`collapse_problem` don't have this problem (they don't
+  hardcode `bcs` themselves, or `collapse_problem` is 2D-only already — see its own
+  hardcoded `L=[0.92,0.22]` 2D default). Fix should build `bcs.dirichlet` from `dim`
+  rather than a literal 2-row matrix.
 - **`basis.how`/`basis.ghost` are GIMP-specific concepts living in the generic `basis`
   config section.** `how` is read unconditionally in `update.jl`'s dispatch regardless
   of basis kind; worth moving both onto `GimpBasis` itself (construction-time fields
