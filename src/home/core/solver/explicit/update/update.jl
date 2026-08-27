@@ -42,7 +42,8 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     end
 
 
-    update[:nonloc!] = nonlocal(CPU())
+    update[:nonloc_pq!] = nonlocal_pq(CPU())
+    update[:nonloc_qp!] = nonlocal_qp(CPU())
     # dispatch resolves at kernel launch from Point's CM (DruckerPrager/VonMises) and ST
     # (LogarithmicStrain/InfinitesimalStrain) type parameters — see DP.jl's `retmap`
     # docstring. Unrecognized `plast.constitutive` strings now fail fast in `setup_cmp`
@@ -102,15 +103,16 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt
     solver.cairn.update.elast!(mpts; ndrange=mpts.nmp);sync(CPU())
     # plastic corrector
     if solver.nonloc.status
-        fill!(basis.e2p,T1(0))
-        fill!(basis.p2p,T1(0))
         for p ∈ 1:mpts.nmp
             mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], T2(0.0))
         end
-        W,w     = spzeros(T2,mpts.nmp),spzeros(T2,mpts.nmp,mpts.nmp)
-        for proc ∈ ["tplgy","p->q","p<-q"]
-            solver.cairn.update.nonloc!(W,w,mpts,mesh,basis,T2(solver.nonloc.ls),proc; ndrange=mpts.nmp);sync(CPU())
-        end
+        # CSR element→particle bucket list (O(nmp+nel), sequential) bounds nonlocal's
+        # neighbor search to O(nmp×k) via basis.e2e, instead of the old O(nmp²) dense
+        # e2p/p2p scan — see nonlocal.jl's docstring.
+        ptr,idx = build_el2p(basis.p2e, T1(mesh.prprt.nel[end]))
+        W       = zeros(T2,mpts.nmp)
+        solver.cairn.update.nonloc_pq!(W,mpts,basis,T2(solver.nonloc.ls),ptr,idx; ndrange=mpts.nmp);sync(CPU())
+        solver.cairn.update.nonloc_qp!(W,mpts,basis,T2(solver.nonloc.ls),ptr,idx; ndrange=mpts.nmp);sync(CPU())
     else
         for p ∈ 1:mpts.nmp
             mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], mpts.s.ϵpII[p][1])

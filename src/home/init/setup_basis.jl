@@ -4,9 +4,9 @@
 
 Construct the topology container linking `problem.mesh` and `problem.mpts`: element-to-node
 (`e2n`) and element-to-element (`e2e`) connectivity from the mesh geometry and neighbor stencil,
-plus zero-initialized point-to-node (`p2n`), point-to-element (`p2e`), element-to-points (`e2p`),
-and point-to-point (`p2p`) connectivity — populated at runtime by the `p2e2n`/`nonlocal` kernels —
-and `type`, the per-axis node boundary-layer classification used by `BSplineBasis`'s `eval_basis`.
+plus zero-initialized point-to-node (`p2n`) and point-to-element (`p2e`) connectivity —
+populated at runtime by the `p2e2n` kernel — and `type`, the per-axis node boundary-layer
+classification used by `BSplineBasis`'s `eval_basis`.
 `N`/`∂N` (per-particle cached shape values/gradients) are zero-initialized here and populated each
 timestep by the `shpfun!` ignite kernel.
 
@@ -22,7 +22,7 @@ bundles.
 - `solver::S`: Solver instance (e.g. `ExplicitSolver`), selects the basis kind and nonlocal support length scale.
 
 # Returns
-- `Basis`: Topology container with fields `kind`, `e2n`, `e2e`, `p2n`, `p2e`, `e2p`, `p2p`.
+- `Basis`: Topology container with fields `kind`, `e2n`, `e2e`, `p2n`, `p2e`.
 
 # Example
 ```julia
@@ -45,8 +45,6 @@ function setup_basis(problem::MechanicalProblem{T1,T2,D}, solver::S) where {T1,T
         e2e_data,
         [zero(SVector{NN,T1}) for _ in 1:nmp]  , # p2n
         T1.(zeros(Int,nmp))                    , # p2e
-        T1.(spzeros(Int,nmp,nel[end]))         , # e2p
-        T1.(spzeros(Int,nmp,nmp))              , # p2p
         T1.(get_node_type(T1(D),nno))          , # type
         zeros(T2,NN,nmp)                       , # N
         zeros(T2,NN,D,nmp)                     , # ∂N

@@ -1,3 +1,5 @@
+abstract type AbstractConstitutiveModel{T2, D} end
+
 export PerfectlyElastic,DruckerPrager,VonMises
 
 """

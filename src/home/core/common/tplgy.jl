@@ -35,3 +35,35 @@ end
         basis.p2e[p] = el
     end
 end
+
+"""
+    build_el2p(p2e::Vector{T1}, nel::T1) -> (ptr::Vector{T1}, idx::Vector{T1})
+
+Counting-sort `p2e` (particle → its element, already populated by `p2e2n` every step)
+into a CSR-style element→particle bucket list: particles in element `el` are
+`idx[ptr[el]:ptr[el+1]-1]`. `O(nmp+nel)`, sequential (not a `@kernel`) — replaces the
+old `Basis.e2p`/`p2p` dense `nmp×nel`/`nmp×nmp` matrices `nonlocal.jl` used to rebuild
+and scan every timestep; see `nonlocal.jl`'s docstring for why this bucket + `e2e`
+(genuinely sparse element neighbor structure) is enough to bound the neighbor search to
+`O(nmp × k)` instead of `O(nmp²)`.
+"""
+function build_el2p(p2e::Vector{T1}, nel::T1) where {T1}
+    nmp    = length(p2e)
+    counts = zeros(T1, nel)
+    for p ∈ 1:nmp
+        counts[p2e[p]] += 1
+    end
+    ptr = Vector{T1}(undef, nel+1)
+    ptr[1] = 1
+    for el ∈ 1:nel
+        ptr[el+1] = ptr[el] + counts[el]
+    end
+    cursor = copy(ptr[1:nel])
+    idx    = Vector{T1}(undef, nmp)
+    for p ∈ 1:nmp
+        el         = p2e[p]
+        idx[cursor[el]] = p
+        cursor[el] += 1
+    end
+    return ptr, idx
+end

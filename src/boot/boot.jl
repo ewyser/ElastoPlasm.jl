@@ -1,4 +1,4 @@
-# include dependencies
+# Include dependencies
 using Revise,Pkg,Test
 using Plots,LaTeXStrings,ProgressMeter,REPL.TerminalMenus
 using LinearAlgebra,StaticArrays,SparseArrays,Random
@@ -10,11 +10,34 @@ import KernelAbstractions.synchronize as sync
 import Adapt.adapt as user_adapt
 import Adapt.@adapt_structure as @adapt_struct
 
-# include types &
+# Include types 
 include(joinpath(SRC,"boot/include.jl"))
-sucess = superInc(["boot/needs/types"]; root=SRC)
+for f ∈ [
+    "self.jl",
+    "solver.jl",
+    "problem/constitutive.jl",
+    "problem/geometry.jl",
+    "problem/eulerian.jl",
+    "problem/tensor.jl",
+    "problem/lagrangian.jl",
+    "problem/time.jl",
+    "problem/problem.jl",
+    "basis/basis.jl",
+    "basis/bsmpm.jl",
+    "basis/gimpm.jl",
+    "basis/mlsmpm.jl",
+    "basis/smpm.jl",
+    "basis/transfer.jl",
+]
+    include(joinpath(SRC,"boot/needs/types",f))
+end
 
-# create primitive structs
+# Include utility and backend files
+include(joinpath(SRC,"boot/needs/utils.jl"))
+include(joinpath(SRC,"boot/needs/backend.jl"))
+include(joinpath(SRC,"boot/needs/distributed.jl"))
+
+# Create self object
 self = Self(
     sys = Path(
         root = SRC,
@@ -26,17 +49,12 @@ self = Self(
     mpi = Distributed()
 )  
 
-# include
-include(joinpath(SRC,"boot/needs/utils.jl"))
-include(joinpath(SRC,"boot/needs/backend.jl"))
-include(joinpath(SRC,"boot/needs/distributed.jl"))
-
-# flushing
+# Flushing
 rootflush(self.sys.dump)
 
-# find & printout active backend(s)
+# Find & printout active backend(s)
 add_backend!(self.bckd, Val(:x86_64))
 
-# include .jl files
+# Automatically include .jl files
 lists = ["home/api","home/init","home/plot","home/utils","home/script","home/core"]
 @info join(superInc(lists; root=SRC, lib=self.sys.lib),"\n")

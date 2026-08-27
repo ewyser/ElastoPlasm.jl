@@ -2,6 +2,8 @@
 # Problem Types and subtypes
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+abstract type AbstractProblem{T1,T2,D,SP<:AbstractMaterialPointPhase{T1,T2}} end
+
 export MechanicalProblem
 
 """
