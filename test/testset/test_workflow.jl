@@ -6,7 +6,7 @@ Generate all combinations of shape functions.
 function generate_geometry_cases()
     return [
         (dim = 2, L = [64.1584, 64.1584 / 4.0]               , nel = [40, 10]    ),
-        #(dim = 3, L = [64.1584, 64.1584 / 4.0, 64.1584 / 4.0], nel = [40, 10, 10]),
+        (dim = 3, L = [64.1584, 64.1584 / 4.0, 64.1584 / 4.0], nel = [40, 10, 10]),
     ]
 end
 
