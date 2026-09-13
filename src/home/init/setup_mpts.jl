@@ -15,7 +15,7 @@ unconditionally before the port. `CM` (the constitutive-model type of `cmp`) is 
 by `solver.plast.constitutive`: `DruckerPrager` for `"DP"`, `VonMises` for `"VM"` — see
 `setup_cmp`.
 """
-function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
+function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0,TM,TV,TS)
     L = D*D
     if solver.strain.deform == "finite"
         ST    = LogarithmicStrain{D,T2,L}
@@ -32,11 +32,11 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
         [zero(TV)  for _ in 1:nmp]                         , # u
         [TV(T2.(vp[:,p])) for p in 1:nmp]                  , # v
         # mechanical properties
-        T2.(vec(copy(ρ0)))                                  , # ρ₀
-        T2.(vec(copy(ρ0)))                                  , # ρ
-        T2.(zeros(nmp))                                     , # Δλ
-        [zero(SVector{2,T2}) for _ in 1:nmp]                , # ϵpII
-        T2.(zeros(nmp))                                     , # ϵpV
+        T2.(vec(copy(ρ0)))                                 , # ρ₀
+        T2.(vec(copy((1.0.-n0).*ρ0)))                      , # ρ
+        T2.(zeros(nmp))                                    , # Δλ
+        [zero(SVector{2,T2}) for _ in 1:nmp]               , # ϵpII
+        T2.(zeros(nmp))                                    , # ϵpV
         # typed stress tensors (tensor.jl)
         [zero(SC) for _ in 1:nmp]                          , # σᵢⱼ
         [zero(SC) for _ in 1:nmp]                          , # σn
@@ -117,7 +117,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
     # unpack material geometry
     ni,nmp,xp = geom.ni,geom.nmp,geom.xp
     # scalars & vectors
-    n0 = 0.0.*ones(nmp)
+    n0 = 0.1.*ones(nmp)
     l0 = ones(size(xp)).*0.5.*(props.h./ni)
     v0 = prod(2 .* l0; dims=1)
     ρ0 = fill(mat[:ρ0],nmp)
@@ -136,7 +136,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
     end
 
     # constructor - create components
-    s, cmp, CM, ST, SC, SK = build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS)
+    s, cmp, CM, ST, SC, SK = build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0,TM,TV,TS)
     t = build_thermal_phase(T1,T2,D,geom,nmp; thermal=thermal)
 
     mpts = Point{T1,T2,D,CM,TM,TV,TS,ST,SC,SK}(

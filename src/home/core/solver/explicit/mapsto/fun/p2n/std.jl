@@ -19,7 +19,7 @@ type parameter — see `Basis`'s docstring.
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
-        ms,Ω = (T2(1.0)-mpts.n[p])*mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
+        ms,Ω = mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         px   = ms*mpts.s.v[p][1]
         σxx  = get_voigt(mpts.s.σᵢⱼ[p])[1]
         for nn ∈ 1:mesh.prprt.nn
@@ -37,7 +37,7 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
-        ms, Ω = (T2(1.0)-mpts.n[p])*mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        ms, Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         mv    = ms*mpts.s.v[p]
         σ     = get_voigt(mpts.s.σᵢⱼ[p])
         for nn ∈ 1:mesh.prprt.nn
@@ -57,7 +57,7 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
-        ms, Ω = (T2(1.0)-mpts.n[p])*mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        ms, Ω = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         mv    = ms*mpts.s.v[p]
         σ     = get_voigt(mpts.s.σᵢⱼ[p])
         for nn ∈ 1:mesh.prprt.nn
@@ -93,7 +93,7 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
-        ms ,Ω  = (T2(1.0)-mpts.n[p])*mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        ms ,Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         c  ,T  = mpts.t.c[p]          , mpts.t.T[p]
         qx     = mpts.t.q[1,p]
         γ      = T2(0.0) # heat source
