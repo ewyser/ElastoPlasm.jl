@@ -26,7 +26,7 @@
         mpts.J[p]   = J
         mpts.Ω[p]   = J * mpts.Ω₀[p]
         n           = T2(1.0) - T2(1.0)/J*(T2(1.0)-mpts.n₀[p])
-        mpts.n[p]   = min(max(n, T2(0.0)), T2(1.0))
+        #mpts.n[p]   = min(max(n, T2(0.0)), T2(1.0))
     end
 end
 

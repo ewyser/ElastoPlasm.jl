@@ -117,7 +117,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
     # unpack material geometry
     ni,nmp,xp = geom.ni,geom.nmp,geom.xp
     # scalars & vectors
-    n0 = 0.1.*ones(nmp)
+    n0 = 0.0.*ones(nmp)
     l0 = ones(size(xp)).*0.5.*(props.h./ni)
     v0 = prod(2 .* l0; dims=1)
     ρ0 = fill(mat[:ρ0],nmp)
