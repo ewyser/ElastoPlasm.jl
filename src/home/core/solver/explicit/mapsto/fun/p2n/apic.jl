@@ -21,7 +21,7 @@ accumulators from `basis.transfer.Bᵢⱼ`/`.Dᵢⱼ` (moved here from `Point`, 
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
-        ms ,Ω    = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        ms ,Ω    = (T2(1.0)-mpts.n[p])*mpts.s.ρ[p]*mpts.Ω[p],mpts.Ω[p]
         xp ,vp   = mpts.x[p]            , mpts.s.v[p]
         Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
         D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{1,1,T2}(I)
@@ -43,7 +43,7 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
-        ms ,Ω    = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        ms ,Ω    = (T2(1.0)-mpts.n[p])*mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         xp ,vp   = mpts.x[p]            , mpts.s.v[p]
         Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
         D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{2,2,T2}(I)
@@ -67,7 +67,7 @@ end
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
-        ms ,Ω    = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        ms ,Ω    = (T2(1.0)-mpts.n[p])*mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
         xp ,vp   = mpts.x[p]            , mpts.s.v[p]
         Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
         D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{3,3,T2}(I)

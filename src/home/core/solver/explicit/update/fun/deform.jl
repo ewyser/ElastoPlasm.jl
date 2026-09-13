@@ -22,11 +22,11 @@
         mpts.s.Fᵢⱼ[p]  = Fᵢⱼ
         ΔJ = det(ΔFᵢⱼ)
         J  = det(Fᵢⱼ)
-        mpts.ΔJ[p] = ΔJ
-        mpts.J[p]  = J
-        mpts.Ω[p]  = J * mpts.Ω₀[p]
-        mpts.s.ρ[p] = mpts.s.ρ[p] / ΔJ
-        mpts.n[p]   = T2(1.0) - T2(1.0)/J*(T2(1.0)-mpts.n[p])
+        mpts.ΔJ[p]  = ΔJ
+        mpts.J[p]   = J
+        mpts.Ω[p]   = J * mpts.Ω₀[p]
+        n           = T2(1.0) - T2(1.0)/J*(T2(1.0)-mpts.n₀[p])
+        mpts.n[p]   = min(max(n, T2(0.0)), T2(1.0))
     end
 end
 

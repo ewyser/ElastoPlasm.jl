@@ -13,7 +13,7 @@ Accumulate material point momentum to mesh nodes for DM augmentation.
 @kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
-        ms = mpts.s.ρ[p]*mpts.Ω[p]
+        ms = (T2(1.0)-mpts.n[p])*mpts.s.ρ[p]*mpts.Ω[p]
         mv = ms * mpts.s.v[p]
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
@@ -27,7 +27,7 @@ end
 @kernel inbounds = true function augm_p2n(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3}) where {T1,T2}
     p = @index(Global)
     if p ≤ mpts.nmp
-        ms = mpts.s.ρ[p]*mpts.Ω[p]
+        ms = (T2(1.0)-mpts.n[p])*mpts.s.ρ[p]*mpts.Ω[p]
         mv = ms * mpts.s.v[p]
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
