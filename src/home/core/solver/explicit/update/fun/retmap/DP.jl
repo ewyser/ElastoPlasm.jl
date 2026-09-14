@@ -95,6 +95,11 @@ not re-derived from the return-mapped stress.
     if Δλ > T(0.0)
         τᵢⱼ = KirchhoffStress(τᵢ)
         ϵᵢⱼ = LogarithmicStrain(cmp.Del\τᵢ)
+
+
+        #Kt  = cmp.Kc/(T(2.0)*n^3)*(n^2*(ϵᵢⱼ.vol^2+T(4.0)*ϵᵢⱼ.vol+2)-ϵᵢⱼ.vol*n*(T(3.0)*ϵᵢⱼ.vol+T(4.0))+T(2.0)*ϵᵢⱼ.vol^2)
+
+
     end
     return ϵᵢⱼ,τᵢⱼ,Δλ,ϵpII
 end
