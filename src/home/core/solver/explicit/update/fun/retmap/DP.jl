@@ -97,9 +97,12 @@ not re-derived from the return-mapped stress.
         ϵᵢⱼ = LogarithmicStrain(cmp.Del\τᵢ)
 
 
+#= WIP 
+        Dalg = StressStrainStiffness{3,T}()
+        Dalg = cmp.Kc*Dalg.vol + 2.0*cmp.Gc*Dalg.dev
+        ϵᵢⱼ = LogarithmicStrain(Dalg\τᵢ)
         #Kt  = cmp.Kc/(T(2.0)*n^3)*(n^2*(ϵᵢⱼ.vol^2+T(4.0)*ϵᵢⱼ.vol+2)-ϵᵢⱼ.vol*n*(T(3.0)*ϵᵢⱼ.vol+T(4.0))+T(2.0)*ϵᵢⱼ.vol^2)
-
-
+=#        
     end
     return ϵᵢⱼ,τᵢⱼ,Δλ,ϵpII
 end
