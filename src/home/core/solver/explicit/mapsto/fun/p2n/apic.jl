@@ -47,7 +47,7 @@ end
         xp ,vp   = mpts.x[p]            , mpts.s.v[p]
         Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
         D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{2,2,T2}(I)
-        σ        = get_voigt(mpts.s.σᵢⱼ[p])
+        σᵢⱼ      = get_tensor(mpts.s.σᵢⱼ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -58,8 +58,8 @@ end
             @atom mesh.s.m[no]     += N * ms
             @atom mesh.s.mv[1,no]  += mv[1]
             @atom mesh.s.mv[2,no]  += mv[2]
-            @atom mesh.s.oobf[1,no]-= Ω * (∂N[1] * σ[1] + ∂N[2] * σ[3])
-            @atom mesh.s.oobf[2,no]-= Ω * (∂N[1] * σ[3] + ∂N[2] * σ[2]) - N * (ms * g[2])
+            @atom mesh.s.oobf[1,no]-= Ω * (∂N[1] * σᵢⱼ[1,1] + ∂N[2] * σᵢⱼ[1,2])
+            @atom mesh.s.oobf[2,no]-= Ω * (∂N[1] * σᵢⱼ[2,1] + ∂N[2] * σᵢⱼ[2,2]) - N * (ms * g[2])
         end
     end
 end
@@ -71,7 +71,7 @@ end
         xp ,vp   = mpts.x[p]            , mpts.s.v[p]
         Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
         D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{3,3,T2}(I)
-        σ        = get_voigt(mpts.s.σᵢⱼ[p])
+        σᵢⱼ      = get_tensor(mpts.s.σᵢⱼ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -83,9 +83,9 @@ end
             @atom mesh.s.mv[1,no]  += mv[1]
             @atom mesh.s.mv[2,no]  += mv[2]
             @atom mesh.s.mv[3,no]  += mv[3]
-            @atom mesh.s.oobf[1,no]-= Ω * ( ∂N[1] * σ[1] + ∂N[2] * σ[6] + ∂N[3] * σ[5])
-            @atom mesh.s.oobf[2,no]-= Ω * ( ∂N[1] * σ[6] + ∂N[2] * σ[2] + ∂N[3] * σ[4])
-            @atom mesh.s.oobf[3,no]-= Ω * ( ∂N[1] * σ[5] + ∂N[2] * σ[4] + ∂N[3] * σ[3]) - N * (ms * g[3])
+            @atom mesh.s.oobf[1,no]-= Ω * ( ∂N[1] * σᵢⱼ[1,1] + ∂N[2] * σᵢⱼ[1,2] + ∂N[3] * σᵢⱼ[1,3])
+            @atom mesh.s.oobf[2,no]-= Ω * ( ∂N[1] * σᵢⱼ[2,1] + ∂N[2] * σᵢⱼ[2,2] + ∂N[3] * σᵢⱼ[2,3])
+            @atom mesh.s.oobf[3,no]-= Ω * ( ∂N[1] * σᵢⱼ[3,1] + ∂N[2] * σᵢⱼ[3,2] + ∂N[3] * σᵢⱼ[3,3]) - N * (ms * g[3])
         end
     end
 end
