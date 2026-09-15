@@ -36,15 +36,15 @@ Second-order strain tensor stored as `vol::T` (volumetric part) + `dev::SMatrix{
 abstract type AbstractStrain{S,T,L} <: AbstractTensor{T} end
 
 Base.getindex(strain::AbstractStrain{S,T,L}, i::Int, j::Int) where {S,T,L} =
-    strain.dev[i,j] + (i == j ? strain.vol : zero(T))
+    strain.dev[i,j] + (i == j ? strain.vol / T(3.0) : zero(T))
 
 """
     get_tensor(strain::AbstractStrain{S,T,L}) -> SMatrix{S,S,T,L}
 
-Reassemble the full strain tensor `dev + vol·I`.
+Reassemble the full strain tensor `dev + (vol/3)·I`.
 """
 @inline function get_tensor(strain::AbstractStrain{S,T,L}) where {S,T,L}
-    return strain.dev + strain.vol * SMatrix{S,S,T,L}(I)
+    return strain.dev + (strain.vol / T(3.0)) * SMatrix{S,S,T,L}(I)
 end
 
 """
@@ -56,16 +56,16 @@ Round-trips with `LogarithmicStrain(ϵ::SVector)`/`InfinitesimalStrain(ϵ::SVect
 """
 @inline function get_voigt(strain::AbstractStrain{2,T,L}) where {T,L}
     return SVector{3,T}(
-        strain.dev[1,1] + strain.vol,
-        strain.dev[2,2] + strain.vol,
+        strain.dev[1,1] + strain.vol / T(3.0),
+        strain.dev[2,2] + strain.vol / T(3.0),
         T(2.0) * strain.dev[1,2],
     )
 end
 @inline function get_voigt(strain::AbstractStrain{3,T,L}) where {T,L}
     return SVector{6,T}(
-        strain.dev[1,1] + strain.vol,
-        strain.dev[2,2] + strain.vol,
-        strain.dev[3,3] + strain.vol,
+        strain.dev[1,1] + strain.vol / T(3.0),
+        strain.dev[2,2] + strain.vol / T(3.0),
+        strain.dev[3,3] + strain.vol / T(3.0),
         T(2.0) * strain.dev[2,3],
         T(2.0) * strain.dev[1,3],
         T(2.0) * strain.dev[1,2],
@@ -134,8 +134,8 @@ end
 Split a full logarithmic strain tensor into `vol = tr(ϵ)/3` + `dev = ϵ - vol·I`.
 """
 @inline function LogarithmicStrain(ϵᵢⱼ::SMatrix{S,S,T,L}) where {S,T,L}
-    vol = tr(ϵᵢⱼ) / T(3.0)
-    return LogarithmicStrain(vol, SMatrix{S,S,T,L}(ϵᵢⱼ - vol * SMatrix{S,S,T,L}(I)))
+    vol = tr(ϵᵢⱼ)
+    return LogarithmicStrain(vol, SMatrix{S,S,T,L}(ϵᵢⱼ - vol / T(3.0) * SMatrix{S,S,T,L}(I)))
 end
 
 """
@@ -146,15 +146,15 @@ plane-strain convention as the `SMatrix` constructor above — not stress's `tr/
 Exact inverse of `get_voigt`.
 """
 @inline function LogarithmicStrain(ϵ::SVector{3,T}) where {T}
-    vol = (ϵ[1] + ϵ[2]) / T(3.0)
-    return LogarithmicStrain(vol, SMatrix{2,2,T,4}(ϵ[1] - vol, ϵ[3]/T(2.0), ϵ[3]/T(2.0), ϵ[2] - vol))
+    vol = (ϵ[1] + ϵ[2]) 
+    return LogarithmicStrain(vol, SMatrix{2,2,T,4}(ϵ[1] - vol / T(3.0), ϵ[3]/T(2.0), ϵ[3]/T(2.0), ϵ[2] - vol / T(3.0)))
 end
 @inline function LogarithmicStrain(ϵ::SVector{6,T}) where {T}
-    vol = (ϵ[1] + ϵ[2] + ϵ[3]) / T(3.0)
+    vol = (ϵ[1] + ϵ[2] + ϵ[3]) 
     return LogarithmicStrain(vol, SMatrix{3,3,T,9}(
-        ϵ[1] - vol, ϵ[6]/T(2.0), ϵ[5]/T(2.0),
-        ϵ[6]/T(2.0), ϵ[2] - vol, ϵ[4]/T(2.0),
-        ϵ[5]/T(2.0), ϵ[4]/T(2.0), ϵ[3] - vol,
+        ϵ[1] - vol / T(3.0), ϵ[6]/T(2.0)        , ϵ[5]/T(2.0)        ,
+        ϵ[6]/T(2.0)        , ϵ[2] - vol / T(3.0), ϵ[4]/T(2.0)        ,
+        ϵ[5]/T(2.0)        , ϵ[4]/T(2.0)        , ϵ[3] - vol / T(3.0),
     ))
 end
 
@@ -174,8 +174,8 @@ gradient `ΔFᵢⱼ` and return the trial elastic logarithmic strain.
     # logarithmic strain tensor from the eigen-decomposition of bᵢⱼ
     λ, n = eigen(Symmetric(bᵢⱼ))
     ϵᵢⱼ  = T(0.5) * (n * diagm(log.(λ)) * n')
-    vol  = tr(ϵᵢⱼ) / T(3.0)
-    dev  = ϵᵢⱼ - vol * SMatrix{S,S,T,L}(I)
+    vol  = tr(ϵᵢⱼ) 
+    dev  = ϵᵢⱼ - vol / T(3.0) * SMatrix{S,S,T,L}(I)
     return LogarithmicStrain(vol, SMatrix{S,S,T,L}(dev))
 end
 
@@ -185,8 +185,8 @@ end
 Small-strain tensor `ϵ = ½(ΔF + ΔFᵀ) - I`, split into `vol = tr(ϵ)/3` and `dev = ϵ - vol·I`.
 """
 @inline function InfinitesimalStrain(ϵᵢⱼ::SMatrix{S,S,T,L}) where {S,T,L}
-    vol = tr(ϵᵢⱼ) / T(3.0)
-    return InfinitesimalStrain(vol, SMatrix{S,S,T,L}(ϵᵢⱼ - vol * SMatrix{S,S,T,L}(I)))
+    vol = tr(ϵᵢⱼ) 
+    return InfinitesimalStrain(vol, SMatrix{S,S,T,L}(ϵᵢⱼ - vol / T(3.0) * SMatrix{S,S,T,L}(I)))
 end
 @inline function _infinitesimal_strain(ΔFᵢⱼ::SMatrix{S,S,T,L}) where {S,T,L}
     return InfinitesimalStrain(T(0.5) .* (ΔFᵢⱼ + ΔFᵢⱼ') .- SMatrix{S,S,T,L}(I))
@@ -199,15 +199,18 @@ Build directly from a full engineering-Voigt strain vector, same convention as
 `LogarithmicStrain(ϵ::SVector)`.
 """
 @inline function InfinitesimalStrain(ϵ::SVector{3,T}) where {T}
-    vol = (ϵ[1] + ϵ[2]) / T(3.0)
-    return InfinitesimalStrain(vol, SMatrix{2,2,T,4}(ϵ[1] - vol, ϵ[3]/T(2.0), ϵ[3]/T(2.0), ϵ[2] - vol))
+    vol = (ϵ[1] + ϵ[2]) 
+    return InfinitesimalStrain(vol, SMatrix{2,2,T,4}(
+        ϵ[1] - vol / T(3.0), ϵ[3]/T(2.0)        , 
+        ϵ[3]/T(2.0)        , ϵ[2] - vol / T(3.0),
+    ))
 end
 @inline function InfinitesimalStrain(ϵ::SVector{6,T}) where {T}
-    vol = (ϵ[1] + ϵ[2] + ϵ[3]) / T(3.0)
+    vol = (ϵ[1] + ϵ[2] + ϵ[3]) 
     return InfinitesimalStrain(vol, SMatrix{3,3,T,9}(
-        ϵ[1] - vol, ϵ[6]/T(2.0), ϵ[5]/T(2.0),
-        ϵ[6]/T(2.0), ϵ[2] - vol, ϵ[4]/T(2.0),
-        ϵ[5]/T(2.0), ϵ[4]/T(2.0), ϵ[3] - vol,
+        ϵ[1] - vol / T(3.0), ϵ[6]/T(2.0)        , ϵ[5]/T(2.0),
+        ϵ[6]/T(2.0)        , ϵ[2] - vol / T(3.0), ϵ[4]/T(2.0),
+        ϵ[5]/T(2.0)        , ϵ[4]/T(2.0)        , ϵ[3] - vol / T(3.0),
     ))
 end
 
@@ -390,7 +393,7 @@ Isotropic linear-elastic trial Kirchhoff stress: `p = -3·Kc·ϵvol` (positive i
 compression), `dev = 2·Gc·ϵdev`.
 """
 @inline function _trial_elastic_stress(strain::LogarithmicStrain{S,T,L}, Kc::T, Gc::T) where {S,T,L}
-    P   = -T(3.0) * Kc * strain.vol
+    P   =         - Kc * strain.vol
     dev =  T(2.0) * Gc * strain.dev
     return KirchhoffStress(P, dev)
 end
