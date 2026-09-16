@@ -79,13 +79,13 @@ Drucker-Prager return mapping, dispatched on stress/strain type — one method p
 `(stress,strain)` pair, sharing the closed-form `_druckerprager_return_map` core rather
 than duplicating it. Both methods do the algebra in Voigt space (`get_voigt`) using the
 pre-existing `σTr`/`σn` helpers — the stored `(p,dev)` split is representational rather
-than canonically trace-free (see the `AbstractTensor` docstring), so the invariants are
-re-derived from the Voigt view.
+than canonically trace-free (see the `AbstractStrain`/`AbstractStress` docstrings in
+`strain.jl`/`stress.jl`), so the invariants are re-derived from the Voigt view.
 
 The finite-strain (`KirchhoffStress`/`LogarithmicStrain`) method additionally updates
 the strain when yielding, built directly by `LogarithmicStrain(cmp.Del\\τᵢ)` — the
 compliance solve `Del\\τᵢ` is already an engineering-Voigt strain vector, and that
-constructor (`tensor.jl`) does the engineering→tensor conversion and vol/dev split in
+constructor (`strain.jl`) does the engineering→tensor conversion and vol/dev split in
 one step. The infinitesimal-strain (`CauchyStress`/`InfinitesimalStrain`) method never
 updates the strain — infinitesimal strain is tracked incrementally by `elast!` itself,
 not re-derived from the return-mapped stress.

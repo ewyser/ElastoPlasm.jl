@@ -1,12 +1,12 @@
 # NOTE ON NAMING: these two `_yield_normal` methods used to be called `get_J2`, which
-# collided semantically with `get_J2(::AbstractStress)` in `tensor.jl` — same
+# collided semantically with `get_J2(::AbstractStress)` in `stress.jl` — same
 # name, different return value (this one returns `(‖ξ‖, n̂)`, the yield-surface normal
 # and the norm of the deviator; that one returns the scalar invariant J₂). They were
 # deliberately NOT merged during the tensor port: unifying them would have meant either
 # silently changing what one call site gets back, or reformulating the return mapping in
 # terms of the stored (p,dev) split, which is not canonically trace-free (see the
-# `AbstractTensor` docstring). Renamed instead, so the collision is gone and each name
-# means one thing.
+# `AbstractStrain`/`AbstractStress` docstrings in `strain.jl`/`stress.jl`). Renamed
+# instead, so the collision is gone and each name means one thing.
 @inline function _yield_normal(σ0::SVector{3,T}) where {T}
     P  = (σ0[1]+σ0[2])/T(2.0)
     ξ  = σ0 .- SVector{3,T}(P,P,zero(T))
@@ -73,7 +73,7 @@ J2/von Mises return mapping, dispatched on stress/strain type — mirrors `DP.jl
 `_vonmises_return_map` rather than duplicating the iterative loop (Borja (1990); De
 Souza Neto (2008)). The finite-strain method additionally rebuilds the strain on yield
 via `LogarithmicStrain(cmp.Del\\σ0)` (`Del\\σ0` is already an engineering-Voigt strain
-vector — see `tensor.jl`); the infinitesimal-strain method never touches strain,
+vector — see `strain.jl`); the infinitesimal-strain method never touches strain,
 matching `elast!`'s incremental infinitesimal-strain tracking.
 """
 @inline function von_mises(τᵢⱼ::KirchhoffStress{S,T,L},ϵᵢⱼ::LogarithmicStrain{S,T,L},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel;ftol::Real=1e-9,ηmax::Int=20) where {S,T,L}

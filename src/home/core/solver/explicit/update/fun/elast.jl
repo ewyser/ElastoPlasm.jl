@@ -8,7 +8,7 @@ home — e.g. a Jaumann-rate correction term, not itself "the" particle's stress
 Replaces the old free functions `mutate`/`_mutate`, which used to also handle the
 strain-side engineering↔tensor shear conversion — that conversion now lives on
 `LogarithmicStrain`/`InfinitesimalStrain`'s `SVector` constructors and `get_voigt`
-directly (`tensor.jl`), since `Del`-facing strain values have a real typed home this
+directly (`strain.jl`), since `Del`-facing strain values have a real typed home this
 one genuinely doesn't.
 """
 @inline voigt_of(M::SMatrix{2,2,T}) where {T} = SVector{3,T}(M[1,1], M[2,2], M[1,2])
@@ -16,8 +16,8 @@ one genuinely doesn't.
 
 # The former free functions `_logarithmic_strain`/`_kirchoff_stress` are gone: their
 # math now lives on the typed tensors as `_trial_elastic_strain`/`_trial_elastic_stress`
-# (`src/boot/needs/types/tensor.jl`), which is where the volumetric/deviatoric
-# split naturally belongs now that it is what actually gets stored.
+# (`src/boot/needs/types/problem/strain.jl`/`stress.jl`), which is where the
+# volumetric/deviatoric split naturally belongs now that it is what actually gets stored.
 
 """
     elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {ST<:LogarithmicStrain}
@@ -46,7 +46,7 @@ stress increment `σ ← σ + Del·ϵ + (σω' + σ'ω)`. Writes an `Infinitesim
 itself still happens in Voigt `SVector` form (via `get_voigt`) so the numbers are
 unchanged, with the result wrapped once at the point of the store. `Del` expects the
 engineering-Voigt strain vector, which `get_voigt(InfinitesimalStrain(ϵ))` now
-produces directly (see `tensor.jl`) — `ϵ` itself stays a raw tensor-shear `SMatrix`
+produces directly (see `strain.jl`) — `ϵ` itself stays a raw tensor-shear `SMatrix`
 until wrapped, same as before.
 """
 @kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM,TM,TV,TS,ST<:InfinitesimalStrain}

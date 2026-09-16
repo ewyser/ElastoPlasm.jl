@@ -13,7 +13,8 @@ export Point,PointSolidPhase,PointFluidPhase,PointThermalPhase
 
 Per-particle solid-phase state. Beyond the historical `TM`/`TV`/`TS` static-array
 shape parameters, three trailing parameters carry the *typed tensor* storage
-introduced by the `tensor.jl` port (see `AbstractTensor`):
+introduced by the tensor port (see `AbstractStrain` in `strain.jl` /
+`AbstractStress` in `stress.jl`):
 
 - `ST<:AbstractStrain` — `ϵᵢⱼ`/`ϵn`. One parameter for both, since the field pair is
   dual-purpose: `InfinitesimalStrain` under `strain.deform="infinitesimal"`,
@@ -35,7 +36,7 @@ struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:Abstra
     Δλ   ::Vector{T2}
     ϵpII ::Vector{SVector{2,T2}}
     ϵpV  ::Vector{T2}
-    # typed stress tensors (see tensor.jl); Voigt view via `get_voigt`
+    # typed stress tensors (see stress.jl); Voigt view via `get_voigt`
     σᵢⱼ  ::Vector{SC}
     σn   ::Vector{SC}
     τᵢⱼ  ::Vector{SK}
