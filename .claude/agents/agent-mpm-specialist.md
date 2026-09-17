@@ -107,7 +107,7 @@ paper transcription) when the risk actually calls for it.
   substitutes for a specific paper's Appendix A kernel correction — treat that as
   unsettled, not resolved, until you've checked the measurement behind the claim
   actually tests the right quantity).
-- Check `bug/known/` for already-identified, unresolved instabilities (e.g. the
+- Check `.claude/bug/known/` for already-identified, unresolved instabilities (e.g. the
   smpm/gimpm grid-crossing failures) before re-deriving a root cause from scratch —
   build on that investigation rather than restarting it.
 

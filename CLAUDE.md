@@ -5,8 +5,8 @@ codebase evolves. Read this first when picking up work here.
 
 This file is the overview: purpose, structure, core method, and git conventions. Detail
 lives in `.claude/docs/` (auto-loaded below via `@` imports, so nothing here is lost by
-splitting it out) and in `bug/` (currently-open bugs under `bug/known/`, resolved bugs
-with full investigation history under `bug/fixed/` — one file per issue, referenced on
+splitting it out) and in `.claude/bug/` (currently-open bugs under `.claude/bug/known/`, resolved bugs
+with full investigation history under `.claude/bug/fixed/` — one file per issue, referenced on
 demand rather than imported wholesale).
 
 ## Project shape
@@ -48,7 +48,7 @@ position; it is NOT picked up automatically the way `home/` files are.
 - House rules (unicode subscript tensor-rank convention, refactor-verification
   discipline, `dump/` flushing on load, etc.): `.claude/docs/conventions.md`.
 - Known-follow-up design work (not bugs): `.claude/docs/planned-improvements.md`.
-- Open bugs: `bug/known/*.md`. Resolved bugs, kept for archaeology: `bug/fixed/*.md`.
+- Open bugs: `.claude/bug/known/*.md`. Resolved bugs, kept for archaeology: `.claude/bug/fixed/*.md`.
   **When picking up an open bug: create a new branch off the current branch, named so
   the fix is identifiable (e.g. `fix-volumetric-locking-zero-mass-guard`), rather than
   fixing in place on an unrelated branch.**
@@ -72,7 +72,7 @@ position; it is NOT picked up automatically the way `home/` files are.
 ## End of every task
 
 Before considering a task done, review the six `.claude/docs/*.md` files and
-`bug/known/`/`bug/fixed/` against what actually happened, and update whichever files
+`.claude/bug/known/`/`.claude/bug/fixed/` against what actually happened, and update whichever files
 have gone stale — a fixed bug, a newly found bug, a design decision, or identified
 follow-up work. This is a standing expectation for every task, not something that only
 happens when `/log-session` is invoked by name; use that skill when the update is

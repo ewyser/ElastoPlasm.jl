@@ -6,7 +6,7 @@
 (`setup_basis.jl` built them via `T1.(spzeros(...))`, but the struct fields
 were plain `Matrix`, so the sparse-zeros broadcast got densified on
 construction) regardless of `solver.nonloc.status` — same class of bug as
-`bug/fixed/mesh-solid-phase-dense-mij-matrix.md`, and just as live:
+`.claude/bug/fixed/mesh-solid-phase-dense-mij-matrix.md`, and just as live:
 `nonloc.status` **defaults to `true`** (`defaults.jl`), independent of
 `plast.status`, so this ran by default in essentially every simulation.
 Every timestep also allocated a fresh `w = spzeros(T2,nmp,nmp)` and wrote

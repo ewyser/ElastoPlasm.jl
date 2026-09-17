@@ -8,5 +8,5 @@ consumer convention throughout. Note this means **3D finite-strain results
 change** (2D unaffected — one shear slot only); not verified against a
 reference solution, only made internally self-consistent. 3D remains
 generally undertested (see
-`bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`'s "3D
+`.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`'s "3D
 conformity check" section).

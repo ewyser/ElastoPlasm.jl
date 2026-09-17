@@ -22,7 +22,7 @@
   (`src/boot/needs/types/basis/basis.jl`) — independent struct owning ALL
   mesh/point connectivity (`e2n`, `e2e`, `p2n`, `p2e` — `e2e` also doubles as the
   neighbor-search structure for nonlocal plastic-strain regularization, see
-  `bug/fixed/nonlocal-regularization-on2-and-asymmetry-bug.md`), plus `kind::K`
+  `.claude/bug/fixed/nonlocal-regularization-on2-and-asymmetry-bug.md`), plus `kind::K`
   (dispatches shape-function evaluation, `eval_basis`/`shpfun!`), `transfer::TR`
   (dispatches P2G/G2P transfer-scheme kernels, `p2n!`/`Bij` — see "Transfer scheme
   dispatch" below), `NN` (nodes per element — only known once mesh+basis kind are fixed,
@@ -114,6 +114,6 @@ commit to be the *only* behavior change from this refactor; not a regression.
 
 ## Open/resolved issues
 
-Currently-open bugs live under `bug/known/`, one file per issue. Resolved bugs with
-their full investigation history live under `bug/fixed/`. Check both before
+Currently-open bugs live under `.claude/bug/known/`, one file per issue. Resolved bugs with
+their full investigation history live under `.claude/bug/fixed/`. Check both before
 re-investigating a symptom from scratch.

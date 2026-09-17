@@ -1,13 +1,13 @@
 ---
 name: log-session
-description: Reconcile ElastoPlasm.jl's doc set (CLAUDE.md, .claude/docs/, bug/known/, bug/fixed/) with what actually happened in this conversation — fixed bugs, newly found bugs, design decisions, follow-up work. Invoke at the end of a work session, or whenever asked to "write this up" / "update the docs" / "log what we did".
+description: Reconcile ElastoPlasm.jl's doc set (CLAUDE.md, .claude/docs/, .claude/bug/known/, .claude/bug/fixed/) with what actually happened in this conversation — fixed bugs, newly found bugs, design decisions, follow-up work. Invoke at the end of a work session, or whenever asked to "write this up" / "update the docs" / "log what we did".
 ---
 
 # Log session
 
 This repo's working memory is split across `CLAUDE.md` (overview), `.claude/docs/*.md`
 (architecture/operations/persistence/gotchas/conventions/planned-improvements), and
-`bug/known/`+`bug/fixed/` (one file per bug). This skill's job is to fold this
+`.claude/bug/known/`+`.claude/bug/fixed/` (one file per bug). This skill's job is to fold this
 session's real work into that structure correctly — not to write a session transcript
 or a new standalone report file.
 
@@ -17,9 +17,9 @@ Re-read the conversation and classify each substantive thing that happened into
 exactly one of these buckets. Do not log a bucket that didn't happen — an empty
 session on some axis means no edit to that file, not a filler sentence.
 
-- **A bug was fixed.** A `bug/known/*.md` file's issue was resolved, or a new bug was
+- **A bug was fixed.** A `.claude/bug/known/*.md` file's issue was resolved, or a new bug was
   found *and* fixed in the same session.
-- **A new bug was found but not fixed.** Needs a new `bug/known/*.md` file.
+- **A new bug was found but not fixed.** Needs a new `.claude/bug/known/*.md` file.
 - **A design/architecture decision was made or changed** (a new type, a renamed
   convention, a new config knob, a dispatch pattern). Belongs in
   `.claude/docs/architecture.md`, `.claude/docs/conventions.md`, or
@@ -35,9 +35,9 @@ session on some axis means no edit to that file, not a filler sentence.
 ## Step 2 — Match this session's writing conventions
 
 Before writing anything, skim 2-3 existing files in the bucket you're writing to
-(e.g. two files under `bug/fixed/` if closing a bug) and match their shape exactly:
+(e.g. two files under `.claude/bug/fixed/` if closing a bug) and match their shape exactly:
 
-- `bug/*/*.md`: one bug per file, kebab-case filename from the lead symptom, a
+- `.claude/bug/*/*.md`: one bug per file, kebab-case filename from the lead symptom, a
   `# <symptom>` heading, a `**Status: fixed.**`/`**Status: open.**` line, then the
   narrative — root cause, fix, and any methodology lesson or follow-on finding,
   written the same terse, evidence-citing style already there (concrete numbers,
@@ -46,11 +46,11 @@ Before writing anything, skim 2-3 existing files in the bucket you're writing to
   edited in place inside the existing file — do not create a new doc file for a topic
   one of the six existing files already owns.
 - Cross-references: use the same relative-path style already in use
-  (`` `bug/known/foo.md` ``, `` `.claude/docs/architecture.md` ``) — check both
+  (`` `.claude/bug/known/foo.md` ``, `` `.claude/docs/architecture.md` ``) — check both
   directions: a new bug file that supersedes/relates to an existing one should link
   it, and the existing one should be updated to point forward if it's now stale or
   fixed.
-- If a bug moves from open to fixed: move the file from `bug/known/` to `bug/fixed/`
+- If a bug moves from open to fixed: move the file from `.claude/bug/known/` to `.claude/bug/fixed/`
   (git mv, don't leave a duplicate), update its status line, and grep the rest of the
   tree for anything that referenced it by its old path.
 

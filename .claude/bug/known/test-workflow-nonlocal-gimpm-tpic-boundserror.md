@@ -3,7 +3,7 @@
 **Status: open, narrow, not root-caused.**
 
 Found as part of the `test_workflow.jl` sweep restructuring documented in
-`bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`:
+`.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`:
 `gimpm, finite, tpic, locking=true, musl=true` passes with
 `nonloc.status=false` but fails with `nonloc.status=true` (`BoundsError:
 attempt to access 400-element Vector{...} at index [16346]` in

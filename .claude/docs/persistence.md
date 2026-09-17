@@ -12,5 +12,5 @@ place. Both take a `workflows::Vector{Function}` kwarg (plural — not `workflow
 is no separate `ic["cmpr"]` key. `test_column.jl` (formerly `test_collapse.jl`)
 predated the current three-key layout for a long stretch (undefined `kwargser`, stale
 `cfg["instr"]`, matrix-style `mpts.x` indexing) but was fully fixed — see
-`bug/fixed/test-collapse-renamed-and-fixed.md` if picking that file up again ever
+`.claude/bug/fixed/test-collapse-renamed-and-fixed.md` if picking that file up again ever
 surfaces a similar staleness.

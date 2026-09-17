@@ -73,7 +73,7 @@ directly and passes them straight through, with no manual field-unpacking.
 had no sweep coverage at all before this — every prior run of
 `test_workflow.jl` hardcoded `nonloc.status=false`, despite nonlocal having
 had a real, long-standing correctness bug (see
-`bug/fixed/nonlocal-regularization-on2-and-asymmetry-bug.md`).
+`.claude/bug/fixed/nonlocal-regularization-on2-and-asymmetry-bug.md`).
 
 Re-ran the (now 2D-only again — 3D re-commented out locally, see "3D
 conformity check" below) sweep with `nonloc` as a genuine axis: **141/192
@@ -89,7 +89,7 @@ Vector{...} at index [16346]` in `element_to_nodes_topology`, `tplgy.jl:15`
 grid-crossing instability above, just newly triggered on an otherwise-stable
 configuration). This narrow, `gimpm`+`tpic`-specific case is not
 root-caused — see
-`bug/known/test-workflow-nonlocal-gimpm-tpic-boundserror.md`, since
+`.claude/bug/known/test-workflow-nonlocal-gimpm-tpic-boundserror.md`, since
 nonlocal regularization's plastic-strain averaging could plausibly be
 feeding back into the same kind of drift.
 
@@ -112,7 +112,7 @@ e.g. `-123.7`, `-567.6`), plus 3 `BoundsError`s (`attempt to access
 basis-kind/transfer-scheme/locking/musl configuration space this sweep
 covers — no new 3D-specific failure category turned up. Plasticity *does*
 actually run in this sweep in both dimensions, despite `plast.status` staying
-at its `false` default — see `bug/known/plast-status-dead-config-flag.md`:
+at its `false` default — see `.claude/bug/known/plast-status-dead-config-flag.md`:
 `elastoplast()` (invoked by the `elastoplastic!` workflow, which every case
 here runs) calls `retmap!` unconditionally, with no `if solver.plast.status`
 gate at that or any call site in `src/home/` — `plast.status` is read nowhere
@@ -133,4 +133,4 @@ found. Leaving this as unconfirmed/unreproduced rather than deleting it,
 since "couldn't reproduce" isn't the same as "fixed."
 
 Found instead, a real and separately-fixed bug along the way: see
-`bug/fixed/thermal-problem-2d-hardcoded-bcs.md`.
+`.claude/bug/fixed/thermal-problem-2d-hardcoded-bcs.md`.

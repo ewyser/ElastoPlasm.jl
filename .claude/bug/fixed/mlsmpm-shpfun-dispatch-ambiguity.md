@@ -21,7 +21,7 @@ robust by constraining the generic method's `K` to
 methods' `Basis` type patterns are now disjoint by construction. Verified:
 sweep exactly matches the documented 71/25 baseline, identical per-basis-kind
 breakdown (smpm 12 fail, gimpm 13 fail, bsmpm 0 fail, mlsmpm 0 fail — see
-`bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md` for that
+`.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md` for that
 baseline's own history); zero `shpfun!` ambiguities via
 `Test.detect_ambiguities`.
 

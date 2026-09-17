@@ -42,7 +42,7 @@
   - `dynamic_relaxation`'s `cmp`-rerouted reads are confirmed working for the plain
     (non-u-P) path via `test_column.jl`'s convergence sweep, including its
     correctness assertions. The u-P variant remains unverified (and throws immediately
-    if exercised regardless — see `bug/known/dynamic-relaxation-uP-fint-p2n-missing.md`).
+    if exercised regardless — see `.claude/bug/known/dynamic-relaxation-uP-fint-p2n-missing.md`).
 - **DP/J2 retmap kernel unification — done.** `retmap/DP.jl`/`retmap/J2.jl`'s four
   separately-named kernels (`finite_DP`/`infinitesimal_DP`/`finite_J2`/
   `infinitesimal_J2`, picked between via a `plast.constitutive`/`strain.deform` string
@@ -149,7 +149,7 @@
   a mechanical rename like this needs a semantic check (tensor vs. vector), not just a
   substring match.
 - **3D conformity check — done, via `test_workflow.jl` itself.** See
-  `bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md` for the full
+  `.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md` for the full
   results (149/192 passed overall, 3D not meaningfully less stable than 2D) and the
   related `plast.status` finding.
 - **`basis.how`/`basis.ghost` are GIMP-specific concepts living in the generic `basis`
@@ -189,7 +189,7 @@
   piece of follow-up work. Separately found+fixed in the same pass: 3D APIC transfer
   for the *solid* phase had the identical dead-`ϕ∂ϕ` bug plus a mismatched mesh-phase
   type — fixed, but 3D+APIC then hits the pre-existing 3D instability noted in
-  `bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`; 1D APIC has a
+  `.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`; 1D APIC has a
   similar unfixed inconsistency (1D is essentially never exercised in this codebase).
 - **Consider a persistent Julia session for iteration (Kaimon/Revise pattern, seen in
   sibling repo FEMTools.jl).** A `slump_problem`→`elastoplasm!` smoke test costs full

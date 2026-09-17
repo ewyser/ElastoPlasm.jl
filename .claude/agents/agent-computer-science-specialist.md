@@ -40,7 +40,7 @@ mpm-specialist first" — rather than landing the win quietly.
   type parameter" pattern actually stay disjoint from a more specific sibling method
   by *construction* (explicit type bounds) rather than by an incidental
   specificity-ordering quirk? This codebase has a documented case
-  (`bug/fixed/mlsmpm-shpfun-dispatch-ambiguity.md`) where two method patterns that
+  (`.claude/bug/fixed/mlsmpm-shpfun-dispatch-ambiguity.md`) where two method patterns that
   looked equivalent by eye had different Julia specificity behavior — don't assume
   dispatch correctness from reading the signatures alone; check it.
 - **KernelAbstractions.jl (`@kernel`, `@index`, backend execution).** Know that
@@ -146,7 +146,7 @@ as passing, whenever you review a kernel that would run under one:
 2. State the measured before/after (memory, allocs, time) using the same methodology
    `test_performance.jl` and prior measurements in `.claude/docs/planned-improvements.md`
    use, so results are comparable to this repo's existing track record.
-3. Check `bug/known/` and `bug/fixed/` for prior performance work in the same area
+3. Check `.claude/bug/known/` and `.claude/bug/fixed/` for prior performance work in the same area
    (e.g. the non-local regularization O(nmp²) fix, the dense `Mᵢⱼ` matrix removal) —
    both for precedent on method and to avoid re-finding an already-fixed issue.
 4. When a fix changes numerics (not just performance), call that out explicitly and

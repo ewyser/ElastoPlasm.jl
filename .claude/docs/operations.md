@@ -12,7 +12,7 @@ out   = elastoplasm!(jld2; workflows = [elastodynamic!, elastoplastic!])
 
 Use `elastoplasm!` (not `elastoplasm`) whenever you need to inspect post-run
 `mpts`/`mesh` state afterward — see
-`bug/fixed/mlsmpm-shpfun-dispatch-ambiguity.md` for why.
+`.claude/bug/fixed/mlsmpm-shpfun-dispatch-ambiguity.md` for why.
 
 - `slump_problem(L, nel; fid="...", kwargs...)` (`src/home/script/example/slump.jl`) is
   the reference example problem. Calls, in order: `get_solver` → `setup_geometry` →
@@ -39,7 +39,7 @@ Use `elastoplasm!` (not `elastoplasm`) whenever you need to inspect post-run
   **Not to be confused with `column_problem`** (`src/home/script/example/column.jl`,
   renamed from the old `collapse_problem`) — a 1-D elastic self-weight column
   convergence test with no plasticity at all; see
-  `bug/fixed/test-collapse-renamed-and-fixed.md` for that history.
+  `.claude/bug/fixed/test-collapse-renamed-and-fixed.md` for that history.
 - `cli()` (`src/home/api/solver/cli.jl`) parses interactive/CLI overrides for solver
   config; `cli(; ui=true)` prompts interactively, `cli()` with no args picks defaults
   non-interactively — pass its result as `kwargs...` into `slump_problem`/`get_solver`.

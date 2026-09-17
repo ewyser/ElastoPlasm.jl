@@ -14,7 +14,7 @@ call site, nor anywhere else in `src/home/`; the only other reference to
 `elastodynamic!` never touches `retmap!`, `elastoplast`/`elastoplastic!`
 always does — the config flag plays no role. Concretely: `test_workflow.jl`'s
 sweep (and the 3D sweep run against it, see
-`bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`) calls
+`.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`) calls
 `elastoplasm!(jld2; workflows=[elastodynamic!, elastoplastic!])` with
 `plast.status` left at its `false` default, and plasticity genuinely runs
 anyway — so that sweep *does* exercise the plastic corrector, not just the

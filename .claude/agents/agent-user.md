@@ -92,7 +92,7 @@ which is worse than no docs site at all.
 
 ## What "cumbersome" looks like in this codebase — grounding examples
 
-Before auditing, read `CLAUDE.md` and skim `.claude/docs/*.md` and `bug/known/*.md` —
+Before auditing, read `CLAUDE.md` and skim `.claude/docs/*.md` and `.claude/bug/known/*.md` —
 several genuine usability bugs have already been found and are documented there; don't
 rediscover them from scratch, and don't repeat them as new findings. Examples of the
 *category* of thing to look for (see the docs for full detail, don't assume these
