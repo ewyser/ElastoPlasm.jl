@@ -1,34 +1,41 @@
 
 """
-    build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS) -> (s, cmp, CM, ST, SC, SK)
+    build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS) -> (s, cmp, CM, ST, SM, SC, SK)
 
 Build the per-particle solid-phase state (`PointSolidPhase`) — per-particle
 constitutive-model bundle (`cmp`, via `setup_cmp`), and all mechanical state fields,
-zero-initialized except `v`/`ρ`. `CM`/`ST`/`SC`/`SK` are also returned since the caller
-needs them to build `Point`'s type parameters.
+zero-initialized except `v`/`ρ`. `CM`/`ST`/`SM`/`SC`/`SK` are also returned since the
+caller needs them to build `Point`'s type parameters.
 
-`ST` (the typed strain storage of `ϵᵢⱼ`/`ϵn`, see `strain.jl`) is picked by
-`solver.strain.deform`: `LogarithmicStrain` for `"finite"`, `InfinitesimalStrain` for
-`"infinitesimal"`. `SC`/`SK` (`σᵢⱼ`/`σn` and `τᵢⱼ`) are always `CauchyStress`/
-`KirchhoffStress` regardless of `deform`, exactly as both field families existed
-unconditionally before the port. `CM` (the constitutive-model type of `cmp`) is picked
-by `solver.plast.constitutive`: `DruckerPrager` for `"DP"`, `VonMises` for `"VM"` — see
-`setup_cmp`.
+`ST` (the typed strain storage of `ϵᵢⱼ`/`ϵn`, see `strain.jl`) and `SM`
+(`Point`'s solid-formulation dispatch tag, see `AbstractSolid` in `lagrangian.jl`) are
+both picked here, together, purely from `solver.material.elastic` — there is no
+separate strain-formulation config key. `"linear"` → `InfinitesimalStrain`+
+`LinearSolid`; `"hencky"`/`"improved hencky"` → `LogarithmicStrain`+
+(`HenckySolid`/`ImprovedHenckySolid`). `SC`/`SK` (`σᵢⱼ`/`σn` and `τᵢⱼ`) are always
+`CauchyStress`/`KirchhoffStress` regardless of the elastic law, exactly as both field
+families existed unconditionally before the port. `CM` (the constitutive-model type
+of `cmp`) is picked by `solver.material.plastic`: `DruckerPrager` for `"DP"`,
+`VonMises` for `"VM"` — see `setup_cmp`.
 """
 function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0,TM,TV,TS)
     L = D*D
-    if solver.strain.deform == "finite"
-        ST    = LogarithmicStrain{D,T2,L}
-    elseif solver.strain.deform == "infinitesimal"
-        ST    = InfinitesimalStrain{D,T2,L}
+    ST,SM = if solver.material.elastic == "linear"
+        InfinitesimalStrain{D,T2,L}, LinearSolid
+    elseif solver.material.elastic == "hencky"
+        LogarithmicStrain{D,T2,L}, HenckySolid
+    elseif solver.material.elastic == "improved hencky"
+        LogarithmicStrain{D,T2,L}, ImprovedHenckySolid
+    else
+        throw(error("InvalidElasticLaw: $(solver.material.elastic) (expected \"linear\", \"hencky\" or \"improved hencky\")"))
     end
     SC = CauchyStress{D,T2,L}
     SK = KirchhoffStress{D,T2,L}
 
-    cmp = setup_cmp(nmp,T2.(vec(copy(geom.coh0))),T2.(vec(copy(geom.cohr))),T2.(vec(copy(geom.phi))); E=T2(mat[:E]),ν=T2(mat[:ν]),Hp=T2(mat[:Hp]),D=Int(D),constitutive=solver.plast.constitutive)
+    cmp = setup_cmp(nmp,T2.(vec(copy(geom.coh0))),T2.(vec(copy(geom.cohr))),T2.(vec(copy(geom.phi))); E=T2(mat[:E]),ν=T2(mat[:ν]),Hp=T2(mat[:Hp]),D=Int(D),constitutive=solver.material.plastic)
     CM  = eltype(cmp)
 
-    s = PointSolidPhase{T1,T2,D,CM,TM,TV,TS,ST,SC,SK}(
+    s = PointSolidPhase{T1,T2,D,CM,TM,TV,TS,ST,SM,SC,SK}(
         [zero(TV)  for _ in 1:nmp]                         , # u
         [TV(T2.(vp[:,p])) for p in 1:nmp]                  , # v
         # mechanical properties
@@ -53,7 +60,7 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0,TM,TV,TS)
         # per-particle constitutive-model constants
         cmp                                                  , # cmp::Vector{CM}
     )
-    return s, cmp, CM, ST, SC, SK
+    return s, cmp, CM, ST, SM, SC, SK
 end
 
 """
@@ -136,10 +143,10 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
     end
 
     # constructor - create components
-    s, cmp, CM, ST, SC, SK = build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0,TM,TV,TS)
+    s, cmp, CM, ST, SM, SC, SK = build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0,TM,TV,TS)
     t = build_thermal_phase(T1,T2,D,geom,nmp; thermal=thermal)
 
-    mpts = Point{T1,T2,D,CM,TM,TV,TS,ST,SC,SK}(
+    mpts = Point{T1,T2,D,CM,TM,TV,TS,ST,SM,SC,SK}(
         # general information
         T1(D)                              , # ndim
         T1(nmp)                              , # nmp
