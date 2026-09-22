@@ -38,6 +38,24 @@ into `mpts.s.ϵᵢⱼ[p]` and a `KirchhoffStress` into `mpts.s.τᵢⱼ[p]`.
 end
 
 """
+    elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST,SM}) where {SM<:ImprovedHenckySolid}
+
+Finite-strain elastic predictor, porosity-weighted "improved Hencky" law (see
+`_trial_elastic_stress_improved` in `stress.jl`). Otherwise identical to the
+`SM<:HenckySolid` method above.
+"""
+@kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST,SM}) where {T1,T2,D,CM,TM,TV,TS,ST<:LogarithmicStrain,SM<:ImprovedHenckySolid}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        cmp           = mpts.s.cmp[p]
+        ϵᵢⱼ           = _trial_elastic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.ϵᵢⱼ[p])
+        τᵢⱼ           = _trial_elastic_stress_improved(ϵᵢⱼ, cmp, mpts.n₀[p])
+        mpts.s.ϵᵢⱼ[p] = ϵᵢⱼ
+        mpts.s.τᵢⱼ[p] = τᵢⱼ
+    end
+end
+
+"""
     elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {ST<:InfinitesimalStrain}
 
 Infinitesimal (small-strain) elastic update at material points: Jaumann-rate Cauchy

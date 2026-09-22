@@ -198,6 +198,29 @@ compression), `dev = 2·Gc·ϵdev`.
     return KirchhoffStress(P, dev)
 end
 
+"""
+    _trial_elastic_stress_improved(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel, n₀) -> KirchhoffStress
+
+Porosity-weighted "improved Hencky" trial Kirchhoff stress (Pretti, Coombs, Augarde,
+Marchena Puigvert, Reyna Gutiérrez, *Mechanics of Materials* 192 (2024) 104958, Eqs.
+33/34 — elastic part only; no fluid/Terzaghi term, no plastic hardening term). Called
+from `elast.jl`'s `SM<:ImprovedHenckySolid` kernel method. `n` is recomputed here from
+the elastic volumetric strain via their Eq. (23), `n = 1 - (1-n₀)/exp(ϵᵥᵉ)`,
+deliberately **not** read from `Point.n` (which tracks total, not purely-elastic,
+deformation — see `planned-improvements.md` for why the two porosity notions are kept
+separate). The deviatoric part is unaffected by porosity (paper's own §3, citing
+Zytynski et al. 1978: a variable-K/constant-G material is non-hyperelastic otherwise).
+Their `p'` is positive in tension; this repo's `p` is positive in compression, hence
+the sign flip.
+"""
+@inline function _trial_elastic_stress_improved(strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}, n₀::T) where {S,T,L}
+    ϵᵥᵉ = strain.vol
+    n   = T(1.0) - (T(1.0) - n₀) / exp(ϵᵥᵉ)
+    P   = -(cmp.Kc * ϵᵥᵉ / n) * (T(1.0) + (ϵᵥᵉ / (T(2.0) * n)) * (n - T(1.0)))
+    dev =  T(2.0) * cmp.Gc * strain.dev
+    return KirchhoffStress(P, dev)
+end
+
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Shared
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
