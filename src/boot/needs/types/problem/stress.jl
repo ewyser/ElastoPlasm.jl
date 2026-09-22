@@ -187,14 +187,14 @@ end
 end
 
 """
-    _trial_elastic_stress(strain::LogarithmicStrain, Kc, Gc) -> KirchhoffStress
+    _trial_elastic_stress(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel) -> KirchhoffStress
 
 Isotropic linear-elastic trial Kirchhoff stress: `p = -3·Kc·ϵvol` (positive in
 compression), `dev = 2·Gc·ϵdev`.
 """
-@inline function _trial_elastic_stress(strain::LogarithmicStrain{S,T,L}, Kc::T, Gc::T) where {S,T,L}
-    P   =         - Kc * strain.vol
-    dev =  T(2.0) * Gc * strain.dev
+@inline function _trial_elastic_stress(strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}) where {S,T,L}
+    P   =         - cmp.Kc * strain.vol
+    dev =  T(2.0) * cmp.Gc * strain.dev
     return KirchhoffStress(P, dev)
 end
 
