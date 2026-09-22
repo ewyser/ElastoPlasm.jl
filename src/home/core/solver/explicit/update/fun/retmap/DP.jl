@@ -122,7 +122,7 @@ Drucker-Prager plastic corrector, dispatched on both `CM` and `ST` — mirrors `
 existing `ST`-only dispatch pattern, extended to a second axis so `DP.jl`/`J2.jl` can
 both contribute methods to one shared kernel name (`retmap`) instead of each exposing
 separately-named `finite_*`/`infinitesimal_*` kernels that `init_update` had to pick
-between via a `plast.constitutive`/`strain.deform` string branch.
+between via a `material.plastic`/`material.elastic` string branch.
 """
 @kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM<:DruckerPrager,TM,TV,TS,ST<:LogarithmicStrain}
     p = @index(Global)

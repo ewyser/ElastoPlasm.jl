@@ -12,7 +12,7 @@ Return all possible values for each configuration field as vectors.
 ```julia
 opts = get_option()
 println(opts.basis.which)  # ["bsmpm", "gimpm", "smpm", "mlsmpm"]
-println(opts.strain.deform)  # ["finite", "infinitesimal"]
+println(opts.material.elastic)  # ["hencky", "improved hencky", "linear"]
 ```
 
 # Notes

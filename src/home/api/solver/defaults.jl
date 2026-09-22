@@ -17,11 +17,15 @@ println(cfg.basis.which)  # prints the default basis type
 # Configuration Keys
 - `:dtype`    — Arithmetic precision (e.g., 64 for Float64)
 - `:basis`    — Shape function type/options, and the P2G/G2P transfer scheme and its blend knob
-- `:strain`   — Strain formulation (finite/infinitesimal)
 - `:stab`     — Numerical stabilization (F-bar locking correction, damping, MUSL reprojection)
 - `:bcs`      — Boundary condition settings
 - `:grf`     — Gaussian Random Field generator options
-- `:plast`   — Plasticity onset and flow law
+- `:material` — Plastic constitutive model (`plastic`) and strain formulation/elastic
+  law (`elastic ∈ {"linear","hencky","improved hencky"}`) — `"linear"` alone implies
+  the infinitesimal-strain/Jaumann-Cauchy formulation; `"hencky"`/`"improved hencky"`
+  both imply finite/logarithmic strain and differ only in the volumetric elastic law.
+  `Point`'s `ST`/`SM` type parameters are both derived from this single key in
+  `build_solid_phase` — there is no separate strain-formulation config key.
 - `:nonloc`  — Non-local regularization options
 - `:plot`    — Plotting options
 - `:perf`    — Performance mode options

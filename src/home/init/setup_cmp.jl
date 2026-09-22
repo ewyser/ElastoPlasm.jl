@@ -119,10 +119,14 @@ from the (possibly spatially-heterogeneous, e.g. GRF-perturbed) per-particle coh
 friction fields already computed by `get_slump`/`get_thermal`/`get_collision`/
 `get_column`/`get_collapse`/`mpts_populate`, plus the uniform elastic constants derived once from
 `E`,`ν` via `get_elastic_stiffness`. Branches on `constitutive` (typically
-`solver.plast.constitutive`) to build `Vector{DruckerPrager}` (`"DP"`) or
+`solver.material.plastic`) to build `Vector{DruckerPrager}` (`"DP"`) or
 `Vector{VonMises}` (`"VM"`) — never `PerfectlyElastic`, see its docstring for why. An
 unrecognized `constitutive` string throws immediately here, at setup time, rather than
 deferring to a runtime error the first time the retmap kernel is invoked.
+
+Which elastic trial-stress law applies (`material.elastic`) is resolved separately, in
+`build_solid_phase`, onto `Point`'s own `SM<:AbstractSolid` type parameter — not here;
+`cmp` stays scoped purely to the plastic-model constants.
 
 # Arguments
 - `nmp`: Number of material points.

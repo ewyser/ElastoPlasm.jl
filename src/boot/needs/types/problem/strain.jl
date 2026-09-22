@@ -76,7 +76,7 @@ Eigen-decomposition of the reassembled (symmetric) strain tensor. Lets kernels w
 """
     InfinitesimalStrain{S,T,L} <: AbstractStrain{S,T,L}
 
-Small-strain tensor `ϵ = ½(ΔF + ΔFᵀ) - I`, used under `strain.deform == "infinitesimal"`.
+Small-strain tensor `ϵ = ½(ΔF + ΔFᵀ) - I`, used under `material.elastic == "linear"`.
 Built by `_infinitesimal_strain`.
 """
 struct InfinitesimalStrain{S,T,L} <: AbstractStrain{S,T,L}
@@ -129,7 +129,8 @@ end
 """
     LogarithmicStrain{S,T,L} <: AbstractStrain{S,T,L}
 
-Logarithmic (Hencky) elastic strain tensor, used under `strain.deform == "finite"`.
+Logarithmic (Hencky) elastic strain tensor, used under `material.elastic ∈
+{"hencky","improved hencky"}`.
 Built by `_trial_elastic_strain`.
 """
 struct LogarithmicStrain{S,T,L} <: AbstractStrain{S,T,L}

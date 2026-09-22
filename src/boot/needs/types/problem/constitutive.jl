@@ -8,7 +8,7 @@ export PerfectlyElastic,DruckerPrager,VonMises
 Purely elastic per-particle constitutive constants: shear modulus `Gc` and bulk
 modulus `Kc`. Not currently constructed anywhere in `setup_cmp` (no code path in this
 repo selects a non-plastic constitutive model, mirroring the already-unwired
-`plast.constitutive ∈ {"MC","camC"}` branches in `update.jl`'s `init_update`) — defined
+`material.plastic ∈ {"MC","camC"}` branches in `update.jl`'s `init_update`) — defined
 here as forward-looking scaffolding for whenever a genuine elastic-only workflow exists.
 """
 struct PerfectlyElastic{T2,D} <: AbstractConstitutiveModel{T2,D}
@@ -18,7 +18,7 @@ end
 @adapt_struct PerfectlyElastic
 
 """
-    DruckerPrager{T2,D} <: AbstractConstitutiveModel{T2,D}
+    DruckerPrager{T2,D,NSTR,L} <: AbstractConstitutiveModel{T2,D}
 
 Per-particle static (never mutated after init) constitutive constants for the
 Drucker-Prager plastic model: shear modulus `Gc`, bulk modulus `Kc`, elastic stiffness
@@ -27,12 +27,19 @@ matrix `Del`, softening modulus `Hp`, and initial/residual cohesion + friction a
 built by `setup_cmp`. Evolving plastic state (`Δλ`,`ϵpII`,`ϵpV`) stays on
 `PointSolidPhase` as flat mutable vectors, not in this bundle.
 
-Built by `setup_cmp` when `plast.constitutive == "DP"`. `VonMises` (below) is the
-sibling built for `plast.constitutive == "VM"` — the same field set minus `ϕ₀`, since
+Built by `setup_cmp` when `material.plastic == "DP"`. `VonMises` (below) is the
+sibling built for `material.plastic == "VM"` — the same field set minus `ϕ₀`, since
 J2/von Mises yield has no pressure dependence. Both `retmap/DP.jl` and `retmap/J2.jl`
 contribute methods to the shared `retmap` kernel, dispatched on `Point`'s `CM`
 (`DruckerPrager`/`VonMises`) type parameter together with `ST`
 (`LogarithmicStrain`/`InfinitesimalStrain`).
+
+Which elastic trial-stress law (`Hencky`/`ImprovedHencky`) applies is **not** encoded
+here — it lives on `Point`'s own `SM<:AbstractSolid` type parameter instead (see
+`lagrangian.jl`), since it's a solid-phase/kinematics concern, not a plastic-model
+constant. (An earlier version of this session's work put it here as a trailing `EL`
+type parameter; reverted in favor of the `SM`-on-`PointSolidPhase` design per user
+preference — kept `cmp` scoped purely to the plastic model.)
 
 Deviates from the plan's literal `Del::SMatrix{D,D,T2}` field spec: `Del` is the Voigt-
 notation elastic stiffness matrix, sized `nstr×nstr` (3×3 in 2D, 6×6 in 3D — see
@@ -59,7 +66,7 @@ modulus `Gc`, bulk modulus `Kc`, elastic stiffness matrix `Del`, softening modul
 and initial/residual cohesion `c₀`,`cᵣ`. Mirrors `DruckerPrager` exactly, minus the
 friction angle `ϕ₀` — J2/von Mises yield has no pressure dependence, so there is no
 friction angle to store. One instance per material point
-(`mpts.s.cmp::Vector{VonMises}`), built by `setup_cmp` when `plast.constitutive=="VM"`.
+(`mpts.s.cmp::Vector{VonMises}`), built by `setup_cmp` when `material.plastic=="VM"`.
 """
 struct VonMises{T2,D,NSTR,L} <: AbstractConstitutiveModel{T2,D}
     Gc ::T2

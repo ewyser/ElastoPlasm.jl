@@ -46,7 +46,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     update[:nonloc_qp!] = nonlocal_qp(CPU())
     # dispatch resolves at kernel launch from Point's CM (DruckerPrager/VonMises) and ST
     # (LogarithmicStrain/InfinitesimalStrain) type parameters — see DP.jl's `retmap`
-    # docstring. Unrecognized `plast.constitutive` strings now fail fast in `setup_cmp`
+    # docstring. Unrecognized `material.plastic` strings now fail fast in `setup_cmp`
     # (setup time), not here.
     update[:retmap!] = retmap(CPU())
 
