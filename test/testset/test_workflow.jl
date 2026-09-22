@@ -26,12 +26,12 @@ function generate_basis_cases()
 end
 
 """
-    generate_strain_cases() -> Vector{NamedTuple}
+    generate_material_cases() -> Vector{NamedTuple}
 
-Generate all `strain` config cases (deformation framework).
+Generate all `material.elastic` config cases (strain formulation / elastic law).
 """
-function generate_strain_cases()
-    return [(deform = d,) for d in ["finite", "infinitesimal"]]
+function generate_material_cases()
+    return [(plastic = "DP", elastic = e) for e in ["hencky", "linear"]]
 end
 
 """
@@ -65,7 +65,7 @@ end
 
     cfg_geom     = generate_geometry_cases()
     cfg_basis    = generate_basis_cases()
-    cfg_strain   = generate_strain_cases()
+    cfg_material = generate_material_cases()
     cfg_transfer = generate_transfer_cases()
     cfg_stab     = generate_stab_cases()
     cfg_nonloc   = generate_nonloc_cases()
@@ -76,20 +76,20 @@ end
     )
 
     sim  = 1
-    nsim = length(cfg_geom) * length(cfg_basis) * length(cfg_strain) * length(cfg_transfer) * length(cfg_stab) * length(cfg_nonloc)
+    nsim = length(cfg_geom) * length(cfg_basis) * length(cfg_material) * length(cfg_transfer) * length(cfg_stab) * length(cfg_nonloc)
     prog = ElastoPlasm.make_progress(nsim; desc="Executing $(basename(@__FILE__))")
     for (k, geom) in enumerate(cfg_geom)
         @testset "$(geom.dim)d geometry" verbose = true begin
             for (l, basis) in enumerate(cfg_basis)
                 @testset "$(basis.which) basis" verbose = true begin
-                    for strain in cfg_strain, transfer in cfg_transfer, stab in cfg_stab, nonloc in cfg_nonloc
-                        @testset "$(strain.deform), $(transfer.trsfr), locking=$(stab.locking), musl=$(stab.musl), nonloc=$(nonloc.status)" verbose = true begin
-                            name = "slump_$(geom.dim)d_$(basis.which)_$(strain.deform)_$(transfer.trsfr)_lock$(stab.locking)_musl$(stab.musl)_nl$(nonloc.status)"
+                    for material in cfg_material, transfer in cfg_transfer, stab in cfg_stab, nonloc in cfg_nonloc
+                        @testset "$(material.elastic), $(transfer.trsfr), locking=$(stab.locking), musl=$(stab.musl), nonloc=$(nonloc.status)" verbose = true begin
+                            name = "slump_$(geom.dim)d_$(basis.which)_$(material.elastic)_$(transfer.trsfr)_lock$(stab.locking)_musl$(stab.musl)_nl$(nonloc.status)"
                             status = false
                             try
                                 @suppress begin
                                     basiscfg = merge(basis, transfer)
-                                    jld2     = slump_problem(geom.L, geom.nel; fid="test/$(name)", grf=cfg_grf, basis=basiscfg, strain=strain, stab=stab, nonloc=nonloc)
+                                    jld2     = slump_problem(geom.L, geom.nel; fid="test/$(name)", grf=cfg_grf, basis=basiscfg, material=material, stab=stab, nonloc=nonloc)
                                     status   = elastoplasm!(jld2; workflows=[elastodynamic!, elastoplastic!]).success
                                 end
                             catch e

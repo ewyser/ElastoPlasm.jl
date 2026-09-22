@@ -11,7 +11,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
         update[:domain!] = Uᵢᵢ(CPU())
         #=
         update[:domain!] = undeformed(CPU())
-        if instr[:strain][:deform] == "finite"
+        if instr[:material][:elastic] != "linear"
             if instr[:basis][:how] == "detFij"
                 update[:domain!] = detFᵢᵢ(CPU())
             elseif instr[:basis][:how] == "Fii"
@@ -19,7 +19,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
             elseif instr[:basis][:how] == "Uii#
                 update[:domain!] = Uᵢᵢ(CPU())
             end
-        elseif instr[:strain][:deform] == "infinitesimal"
+        elseif instr[:material][:elastic] == "linear"
             if instr[:basis][:how] == "detΔFij"
                 update[:domain!] = detΔFᵢᵢ(CPU())
             elseif instr[:basis][:how] == "ΔFii"

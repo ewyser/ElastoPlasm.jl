@@ -11,14 +11,14 @@ Prepare mesh and material points for all simulation configurations.
 - `nsim`: Total number of simulations prepared
 """
 function prepare_simulations!(L, nel, fid, paths)
-    basis, deforms, trfrs = ["mlsmpm","bsmpm","gimpm","smpm"], ["finite", "infinitesimal"], ["std", "tpic", "apic"]
-    sim, nsim = 1, length(basis) * length(deforms) * length(trfrs)
-    
+    basis, elastics, trfrs = ["mlsmpm","bsmpm","gimpm","smpm"], ["hencky", "linear"], ["std", "tpic", "apic"]
+    sim, nsim = 1, length(basis) * length(elastics) * length(trfrs)
+
     @info "Running metanalysis for $(length(L))d slump problem"
     prog = make_progress(nsim; desc="Preparing simulation(s)")
-    
+
     for (h, shp) ∈ enumerate(basis)
-        for (i, deform) ∈ enumerate(deforms)
+        for (i, elastic) ∈ enumerate(elastics)
             for (j, trsfr) ∈ enumerate(trfrs)
                 basis = (;
                     which = shp,
@@ -26,8 +26,9 @@ function prepare_simulations!(L, nel, fid, paths)
                     trsfr = trsfr,
                     C_pf = 1.0,
                 )
-                strain = (;
-                    deform = deform,
+                material = (;
+                    plastic = get_default().material.plastic,
+                    elastic = elastic,
                 )
                 stab = (;
                     locking = false,
@@ -41,7 +42,7 @@ function prepare_simulations!(L, nel, fid, paths)
                     what = [(; mpts=(name="epII", cblim=(0.0, 1.5)),),],
                 )
                 @suppress begin
-                    _ = slump_problem(L, nel; fid="$fid/sim_$sim", basis=basis, strain=strain, stab=stab, plot=plot)
+                    _ = slump_problem(L, nel; fid="$fid/sim_$sim", basis=basis, material=material, stab=stab, plot=plot)
                 end
                 next!(prog; desc="Preparing simulation(s) $sim/$nsim...")
                 sim += 1

@@ -102,7 +102,7 @@ function elastoplasm_log(solver::S; msg::String="elastodynamic") where {T1<:Inte
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "└ $(nthreads()) active thread(s)",
         "- solver: $(solver.solution)",
-        "- $(solver.strain.deform) strain formulation",
+        "- $(solver.material.elastic) strain formulation",
         "- $(solver.basis.trsfr) mapping scheme",
         "- $(solver.basis.which) calculation cycle",
     ]

@@ -40,9 +40,6 @@ function get_default()
             trsfr = "std",
             C_pf = 1.0,
         ),
-        strain   = (;
-            deform = "finite",
-        ),
         stab     = (;
             locking = true,
             damping = 0.1,
@@ -57,15 +54,15 @@ function get_default()
         grf   = (;
             status = false,
             covariance = "gaussian",
-            param = (; 
-                Iₓ= [2.5,2.5,2.5], 
-                Nₕ = 5000, 
+            param = (;
+                Iₓ= [2.5,2.5,2.5],
+                Nₕ = 5000,
                 kₘ = 100,
             ),
         ),
-        plast = (;
-            status = false,
-            constitutive = "DP",
+        material = (;
+            plastic = "DP",
+            elastic = "hencky",
         ),
         nonloc = (;
             status=true,
