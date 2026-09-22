@@ -20,13 +20,17 @@ one genuinely doesn't.
 # volumetric/deviatoric split naturally belongs now that it is what actually gets stored.
 
 """
-    elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {ST<:LogarithmicStrain}
+    elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST,SM}) where {SM<:HenckySolid}
 
-Finite-strain elastic predictor: push the stored logarithmic strain forward through
-`ΔFᵢⱼ` and evaluate the trial Kirchhoff stress from it. Writes a `LogarithmicStrain`
-into `mpts.s.ϵᵢⱼ[p]` and a `KirchhoffStress` into `mpts.s.τᵢⱼ[p]`.
+Finite-strain elastic predictor, linear-Hencky law: push the stored logarithmic
+strain forward through `ΔFᵢⱼ` and evaluate the trial Kirchhoff stress from it. Writes
+a `LogarithmicStrain` into `mpts.s.ϵᵢⱼ[p]` and a `KirchhoffStress` into
+`mpts.s.τᵢⱼ[p]`. Which of this method / the `SM<:ImprovedHenckySolid` method below
+runs is picked by `Point`'s own `SM` type parameter (`solver.material.elastic`, see
+`AbstractSolid` in `lagrangian.jl`) — no branch anywhere, same pattern `retmap`
+already uses for `Point`'s `CM` type parameter.
 """
-@kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM,TM,TV,TS,ST<:LogarithmicStrain}
+@kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST,SM}) where {T1,T2,D,CM,TM,TV,TS,ST<:LogarithmicStrain,SM<:HenckySolid}
     p = @index(Global)
     if p ≤ mpts.nmp
         cmp           = mpts.s.cmp[p]

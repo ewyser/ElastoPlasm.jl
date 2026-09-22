@@ -189,8 +189,10 @@ end
 """
     _trial_elastic_stress(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel) -> KirchhoffStress
 
-Isotropic linear-elastic trial Kirchhoff stress: `p = -3·Kc·ϵvol` (positive in
-compression), `dev = 2·Gc·ϵdev`.
+Isotropic linear-elastic trial Kirchhoff stress: `p = -Kc·ϵvol` (positive in
+compression), `dev = 2·Gc·ϵdev`. Called from `elast.jl`'s `SM<:HenckySolid` kernel
+method — which law runs is picked by `Point`'s own `SM` type parameter (see
+`AbstractSolid` in `lagrangian.jl`), not by branching here.
 """
 @inline function _trial_elastic_stress(strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}) where {S,T,L}
     P   =         - cmp.Kc * strain.vol
