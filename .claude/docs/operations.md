@@ -122,7 +122,7 @@ knob and its out-of-the-box value.
 - `grf` — Gaussian random field generator for heterogeneous cohesion/friction fields
   (`status` toggles it on; see `GRF.jl`)
 - `material` — `elastic` (`"hencky"`/`"improved_hencky"`/`"hypoelastic"` — picks both
-  the strain kinematics and the elastic law, see `AbstractSolid` in `lagrangian.jl`;
+  the strain kinematics and the elastic law, see `AbstractElasticLaw` in `lagrangian.jl`;
   `"hypoelastic"` is the small-strain Jaumann-rate path, the two Hencky laws are finite
   strain) and `plastic` (`"DP"`/`"VM"`/`"MC"`/`"camC"` — not all are
   wired up, check `setup_cmp`'s branch before relying on one; the `retmap` kernel

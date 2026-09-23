@@ -78,10 +78,9 @@
   `types/problem/tensor.jl` alongside their concrete subtypes — `tensor.jl` is
   deliberately included before `types/problem/lagrangian.jl` in `boot.jl`'s explicit
   list (see the main `CLAUDE.md`'s "Project shape" section), since `Point`/
-  `PointSolidPhase` there constrain their `ST`/`SC`/`SK` type parameters against these
-  abstracts. `PointSolidPhase`/`Point`/`MechanicalProblem` carry `ST`/`SC`/`SK` as
-  **trailing** type parameters specifically so pre-existing `Point{T1,T2,D}`-pattern
-  kernel signatures needed no edit.
+  `PointSolidPhase` there constrain `ST` against `AbstractStrain` and spell their stress
+  fields as `CauchyStress{D,T2,L}`/`KirchhoffStress{D,T2,L}` (no separate `SC`/`SK`
+  parameters — they never varied).
 
   Two things worth knowing before touching this:
   - **The stored split is representational, not canonical.** The only invariant

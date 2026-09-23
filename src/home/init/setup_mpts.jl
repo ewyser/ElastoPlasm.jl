@@ -1,26 +1,25 @@
 
 """
-    build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,TM,TV,TS) -> (s, cmp, CM, ST, SM, SC, SK)
+    build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0) -> PointSolidPhase
 
 Build the per-particle solid-phase state (`PointSolidPhase`) — per-particle
 constitutive-model bundle (`cmp`, via `setup_cmp`), and all mechanical state fields,
-zero-initialized except `v`/`ρ`. `CM`/`ST`/`SM`/`SC`/`SK` are also returned since the
-caller needs them to build `Point`'s type parameters.
+zero-initialized except `v`/`ρ`.
 
-`ST` (the typed strain storage of `ϵᵢⱼ`/`ϵn`, see `strain.jl`) and `SM`
-(`Point`'s solid-formulation dispatch tag, see `AbstractSolid` in `lagrangian.jl`) are
+`ST` (the typed strain storage of `ϵᵢⱼ`/`ϵn`, see `strain.jl`) and `EL`
+(`Point`'s elastic law, see `AbstractElasticLaw` in `lagrangian.jl`) are
 both picked here, together, purely from `solver.material.elastic` — there is no
 separate strain-formulation config key. `"hypoelastic"` → `InfinitesimalStrain`+
 `HypoelasticSolid`; `"hencky"`/`"improved_hencky"` → `LogarithmicStrain`+
-(`HenckySolid`/`ImprovedHenckySolid`). `SC`/`SK` (`σᵢⱼ`/`σn` and `τᵢⱼ`) are always
-`CauchyStress`/`KirchhoffStress` regardless of the elastic law, exactly as both field
-families existed unconditionally before the port. `CM` (the constitutive-model type
+(`HenckySolid`/`ImprovedHenckySolid`). `CM` (the constitutive-model type
 of `cmp`) is picked by `solver.material.plastic`: `DruckerPrager` for `"DP"`,
 `VonMises` for `"VM"` — see `setup_cmp`.
 """
-function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0,TM,TV,TS)
-    L = D*D
-    ST,SM = if solver.material.elastic == "hypoelastic"
+function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0)
+    L  = D*D
+    TM = SMatrix{D,D,T2,L}
+    TV = SVector{D,T2}
+    ST,EL = if solver.material.elastic == "hypoelastic"
         InfinitesimalStrain{D,T2,L}, HypoelasticSolid
     elseif solver.material.elastic == "hencky"
         LogarithmicStrain{D,T2,L}, HenckySolid
@@ -29,13 +28,10 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0,TM,TV,TS)
     else
         throw(error("InvalidElasticLaw: $(solver.material.elastic) (expected \"hypoelastic\", \"hencky\" or \"improved_hencky\")"))
     end
-    SC = CauchyStress{D,T2,L}
-    SK = KirchhoffStress{D,T2,L}
-
     cmp = setup_cmp(nmp,T2.(vec(copy(geom.coh0))),T2.(vec(copy(geom.cohr))),T2.(vec(copy(geom.phi))); E=T2(mat[:E]),ν=T2(mat[:ν]),Hp=T2(mat[:Hp]),D=Int(D),constitutive=solver.material.plastic)
     CM  = eltype(cmp)
 
-    s = PointSolidPhase{T1,T2,D,CM,TM,TV,TS,ST,SM,SC,SK}(
+    s = PointSolidPhase{T1,T2,D,CM,ST,EL,L}(
         [zero(TV)  for _ in 1:nmp]                         , # u
         [TV(T2.(vp[:,p])) for p in 1:nmp]                  , # v
         # mechanical properties
@@ -45,9 +41,9 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0,TM,TV,TS)
         [zero(SVector{2,T2}) for _ in 1:nmp]               , # ϵpII
         T2.(zeros(nmp))                                    , # ϵpV
         # typed stress tensors (stress.jl)
-        [zero(SC) for _ in 1:nmp]                          , # σᵢⱼ
-        [zero(SC) for _ in 1:nmp]                          , # σn
-        [zero(SK) for _ in 1:nmp]                          , # τᵢⱼ
+        [zero(CauchyStress{D,T2,L}) for _ in 1:nmp]       , # σᵢⱼ
+        [zero(CauchyStress{D,T2,L}) for _ in 1:nmp]       , # σn
+        [zero(KirchhoffStress{D,T2,L}) for _ in 1:nmp]    , # τᵢⱼ
         # tensor in matrix notation
         [zero(TM) for _ in 1:nmp]                          , # ∇vᵢⱼ
         [zero(TM) for _ in 1:nmp]                          , # ∇uᵢⱼ
@@ -60,7 +56,7 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0,TM,TV,TS)
         # per-particle constitutive-model constants
         cmp                                                  , # cmp::Vector{CM}
     )
-    return s, cmp, CM, ST, SM, SC, SK
+    return s
 end
 
 """
@@ -131,22 +127,11 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
     # initial velocity (if provided)
     vp = haskey(geom, :vp) ? geom.vp : zeros(size(xp))
 
-    # static array types for the new AoS memory layout
-    if D == 2
-        TM = SMatrix{2,2,T2,4}
-        TV = SVector{2,T2}
-        TS = SVector{3,T2}
-    else
-        TM = SMatrix{3,3,T2,9}
-        TV = SVector{3,T2}
-        TS = SVector{6,T2}
-    end
-
     # constructor - create components
-    s, cmp, CM, ST, SM, SC, SK = build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0,TM,TV,TS)
+    s = build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0)
     t = build_thermal_phase(T1,T2,D,geom,nmp; thermal=thermal)
 
-    mpts = Point{T1,T2,D,CM,TM,TV,TS,ST,SM,SC,SK}(
+    mpts = Point(                              # type parameters inferred from `s`
         # general information
         T1(D)                              , # ndim
         T1(nmp)                              , # nmp
@@ -154,9 +139,9 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
         # connectivity
         T1(props.nn)                          , # nn
         # material point properties
-        [TV(T2.(xp[:,i])) for i in 1:nmp]           , # x
-        [TV(T2.(l0[:,i])) for i in 1:nmp]           , # ℓ₀
-        [TV(T2.(l0[:,i])) for i in 1:nmp]           , # ℓ
+        [SVector{D,T2}(xp[:,i]) for i in 1:nmp]           , # x
+        [SVector{D,T2}(l0[:,i]) for i in 1:nmp]     , # ℓ₀
+        [SVector{D,T2}(l0[:,i]) for i in 1:nmp]     , # ℓ
         T2.(copy(n0))                        , # n₀
         T2.(copy(n0))                        , # n
         T2.(vec(copy(v0)))                   , # Ω₀

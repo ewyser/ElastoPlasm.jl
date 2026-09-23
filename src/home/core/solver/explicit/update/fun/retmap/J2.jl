@@ -93,8 +93,8 @@ end
 end
 
 """
-    retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {CM<:VonMises, ST<:LogarithmicStrain}
-    retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {CM<:VonMises, ST<:InfinitesimalStrain}
+    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:VonMises, ST<:LogarithmicStrain}
+    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:VonMises, ST<:InfinitesimalStrain}
 
 J2/von Mises plastic corrector — contributes the `CM<:VonMises` methods to the shared
 `retmap` kernel name (see `DP.jl`'s `retmap` docstring for the `CM`+`ST` dispatch
@@ -106,7 +106,7 @@ kernels below just call `von_mises` with no `ftol`/`ηmax` at all, relying on it
 defaults — matching the values `finite_J2`/`infinitesimal_J2` always ran with in
 practice, since their call site never passed these explicitly either.
 """
-@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM<:VonMises,TM,TV,TS,ST<:LogarithmicStrain}
+@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,ST}) where {T1,T2,D,CM<:VonMises,ST<:LogarithmicStrain}
     p = @index(Global)
     if p≤mpts.nmp
         ϵᵢⱼ,τᵢⱼ,Δλ,ϵpII = von_mises(mpts.s.τᵢⱼ[p],mpts.s.ϵᵢⱼ[p],MVector{2,T2}(mpts.s.ϵpII[p]),mpts.s.cmp[p])
@@ -120,7 +120,7 @@ practice, since their call site never passed these explicitly either.
         end
     end
 end
-@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM<:VonMises,TM,TV,TS,ST<:InfinitesimalStrain}
+@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,ST}) where {T1,T2,D,CM<:VonMises,ST<:InfinitesimalStrain}
     p = @index(Global)
     if p≤mpts.nmp
         ϵᵢⱼ,σᵢⱼ,Δλ,ϵpII = von_mises(mpts.s.σᵢⱼ[p],mpts.s.ϵᵢⱼ[p],MVector{2,T2}(mpts.s.ϵpII[p]),mpts.s.cmp[p])

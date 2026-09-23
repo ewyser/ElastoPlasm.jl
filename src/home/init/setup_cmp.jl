@@ -125,7 +125,7 @@ unrecognized `constitutive` string throws immediately here, at setup time, rathe
 deferring to a runtime error the first time the retmap kernel is invoked.
 
 Which elastic trial-stress law applies (`material.elastic`) is resolved separately, in
-`build_solid_phase`, onto `Point`'s own `SM<:AbstractSolid` type parameter — not here;
+`build_solid_phase`, onto `Point`'s own `EL<:AbstractElasticLaw` type parameter — not here;
 `cmp` stays scoped purely to the plastic-model constants.
 
 # Arguments

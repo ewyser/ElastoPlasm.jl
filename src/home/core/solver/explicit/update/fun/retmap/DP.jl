@@ -115,8 +115,8 @@ end
 end
 
 """
-    retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {CM<:DruckerPrager, ST<:LogarithmicStrain}
-    retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {CM<:DruckerPrager, ST<:InfinitesimalStrain}
+    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:DruckerPrager, ST<:LogarithmicStrain}
+    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:DruckerPrager, ST<:InfinitesimalStrain}
 
 Drucker-Prager plastic corrector, dispatched on both `CM` and `ST` — mirrors `elast!`'s
 existing `ST`-only dispatch pattern, extended to a second axis so `DP.jl`/`J2.jl` can
@@ -124,7 +124,7 @@ both contribute methods to one shared kernel name (`retmap`) instead of each exp
 separately-named `finite_*`/`infinitesimal_*` kernels that `init_update` had to pick
 between via a `material.plastic`/`material.elastic` string branch.
 """
-@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM<:DruckerPrager,TM,TV,TS,ST<:LogarithmicStrain}
+@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,ST}) where {T1,T2,D,CM<:DruckerPrager,ST<:LogarithmicStrain}
     p = @index(Global)
     if p≤mpts.nmp
         # reset the plastic multiplier on every step: it is *the* activity gate read by
@@ -140,7 +140,7 @@ between via a `material.plastic`/`material.elastic` string branch.
         end
     end
 end
-@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM<:DruckerPrager,TM,TV,TS,ST<:InfinitesimalStrain}
+@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,ST}) where {T1,T2,D,CM<:DruckerPrager,ST<:InfinitesimalStrain}
     p = @index(Global)
     if p≤mpts.nmp
         mpts.s.Δλ[p] = T2(0.0)
