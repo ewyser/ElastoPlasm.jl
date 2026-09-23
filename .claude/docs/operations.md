@@ -131,8 +131,6 @@ knob and its out-of-the-box value.
 - `nonloc` — non-local plastic strain regularization (`status`, `ls` length scale)
 - `plot` — `status`, `freq` (plot every N `Time` checkpoints), `dpi`, `what` (list of
   field specs to plot, keyed by name via `get_mpts_variable_config()`)
-- `perf` — `status`; when true, forces `material.elastic="hypoelastic"` and disables `nonloc`
-  and swaps in the `_fast` kernel variants for a lighter-weight run
 - `backend` — `select` (execution backend, `"host"`/GPU target) and `distributed`
 
 Two ways to change solver behaviour:
