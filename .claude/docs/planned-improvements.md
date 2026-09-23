@@ -217,10 +217,9 @@
   default — `ΔJp!` rescales `ΔFᵢⱼ`, never `Fᵢⱼ`/`J`) or plastic flow is dilatant. The paper
   has no F-bar, so the combination is off-paper. Follow-up: the `stress.jl` docstring still
   says the two agree "while plastic flow is isochoric", which leaves out F-bar.
-- **DP apex branch looks wrong, unverified.** `_druckerprager_return_map` (`retmap/DP.jl`)
-  sets `Pn = σm - P` in the apex return. `σn` adds `Pn` directly to the diagonal as the mean
-  stress, and the smooth-cone branch passes a mean stress (`P - Kc·ηB·Δλ`), so the apex value
-  should presumably be `σm`. Needs a direct unit test on a past-apex state before changing.
+- **DP apex `ϵpII` increment misses the shear-flow part** — deferred follow-up of the fixed
+  apex return (`.claude/bug/fixed/dp-apex-return-wrong-pressure.md`). Needs a corner-return
+  source (de Souza Neto, Perić & Owen 2008 §8.3) added to `refs/` first.
 - **Dead or drifting code worth removing, one small verified step at a time:** the unwired
   `"MC"` offered by `get_option().material.plastic`; the seven `#= … =#` blocks under `src/`
   (e.g. `update.jl`'s domain-update branch, `DP.jl`'s WIP tangent block); `setup_mpts`'s unused

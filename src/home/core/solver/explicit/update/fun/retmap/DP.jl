@@ -52,20 +52,21 @@ history) is mutated in place, matching the pre-existing `MVector` scratch conven
     end
     P,τ0,τII = σTr(σᵢ)
     η,ηB,ξ   = materialParam(ϕ₀,ψ,c,nstr)
-    σm,τP    = ξ/η,ξ-η*(ξ/η)
-    fs,ft    = τII+η*P-ξ,P-σm
-    αP,h     = sqrt(T(1.0)+η^2)-η,τII-τP-(sqrt(T(1.0)+η^2))*(P-σm)
+    σm       = ξ/η
+    fs       = τII+η*P-ξ
     σout     = σᵢ
-    if fs>T(0.0) && P<σm || h>T(0.0) && P≥σm
+    if fs>T(0.0) && P<σm
         Δλ       = fs/(cmp.Gc+cmp.Kc*η*ηB)
         Pn,τn    = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
         σout     = σn(Pn,τ0,τn,τII)
         ϵpII[1] += Δλ*sqrt(T(1/3)+T(2/9)*ηB^2)
     end
-    if h≤T(0.0) && P≥σm
+    # tension cutoff sits at the apex (σt = σm = ξ/η, Huang et al. 2015 Eq. 19 with σt = σt_max),
+    # so the apex σm·I is the only admissible state for P ≥ σm (fs ≤ 0 forces τ = 0, ft ≤ 0 forces
+    # mean ≤ σm): return there, Δλ from Eq. 54, ϵpII increment from Eq. 56
+    if P≥σm
         Δλ       = (P-σm)/cmp.Kc
-        Pn       = σm-P
-        σout     = σn(Pn,τ0,T(0.0),τII)
+        σout     = σn(σm,τ0,T(0.0),T(1.0))   # σm·I; τII may be 0 for a hydrostatic trial state
         ϵpII[1] += sqrt(T(2.0))*Δλ/T(3.0)
     end
     return Δλ,σout
