@@ -220,8 +220,7 @@
 - **DP apex `ϵpII` increment misses the shear-flow part** — deferred follow-up of the fixed
   apex return (`.claude/bug/fixed/dp-apex-return-wrong-pressure.md`). Needs a corner-return
   source (de Souza Neto, Perić & Owen 2008 §8.3) added to `refs/` first.
-- **Dead or drifting code worth removing, one small verified step at a time:** the unwired
-  `"MC"` offered by `get_option().material.plastic`; the seven `#= … =#` blocks under `src/`
+- **Dead or drifting code worth removing, one small verified step at a time:** the seven `#= … =#` blocks under `src/`
   (e.g. `update.jl`'s domain-update branch, `DP.jl`'s WIP tangent block); `setup_mpts`'s unused
   `nstr`. See also `PerfectlyElastic` and `DynamicRelaxationSolver` above.
 - **`_fast` kernels and the `perf` config section — removed.** `deform_fast`/`elast_fast`
@@ -233,6 +232,13 @@
   *total* `J`, no clamp). Default-path results were bit-identical before/after removal.
   Possible follow-up: speed up the generic `deform` (its `MMatrix` accumulation is the likely
   gap), measured, rather than reintroducing a second implementation.
+- **GPU execution is unwired — decide whether it's a goal.** `get_solver` resolves
+  `backend.exec` from `backend.select`, but nothing reads it: every kernel factory in
+  `init_ignite`/`init_mapsto`/`init_update` and every `sync(...)` call is a literal `CPU()`
+  (61 occurrences under `explicit/` and `common/`). `get_dt` also reduces over particles in a
+  host loop with scalar indexing, which device arrays don't allow. Wiring it is broad,
+  mechanical work (thread one backend object through the factories and syncs, verified
+  bit-identical on `CPU()` first), only worth doing if GPU runs are actually wanted.
 - **`@adapt_struct PointSolidPhase` likely can't rebuild the struct on GPU, unverified.**
   `Adapt` reconstructs a struct from its adapted field values, which needs every type parameter
   to be inferable from the fields. `PointSolidPhase`'s `T1` and `EL` appear in no field.

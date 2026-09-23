@@ -50,7 +50,7 @@ function get_option()
                 ),
             ),
             material = (
-                plastic = ("Select plastic constitutive model",["DP", "MC", "VM"]),
+                plastic = ("Select plastic constitutive model",["DP", "VM"]),
                 elastic = ("Select strain formulation / elastic law",["hencky", "improved_hencky", "hypoelastic"]),
             ),
             nonloc = (
