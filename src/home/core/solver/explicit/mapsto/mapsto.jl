@@ -11,7 +11,7 @@ Initialize mapping, solving and transfering kernels for MPM cycle based on dimen
 - `Dict`: Dictionary of mapping and augmentation kernels.
 """
 function init_mapsto(instr::NamedTuple; mapsto::Dict = Dict(:map => Dict{Symbol,Cairn}(),:augm => Dict{Symbol,Cairn}()))
-    if instr.strain.deform == "finite"
+    if instr.material.elastic != "hypoelastic"
         mapsto[:map][:σᵢⱼ!] = transform(CPU())
     end
     # dispatch resolves at kernel launch from Basis's TR (StdTransfer/TpicTransfer/
@@ -46,7 +46,7 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 """
 function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Vector{T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     # get cauchy stress
-    if solver.strain.deform == "finite"
+    if solver.material.elastic != "hypoelastic"
         solver.cairn.mapsto.map.σᵢⱼ!(ndrange=mpts.nmp,mpts);sync(CPU())
     end
     # reset nodal quantities

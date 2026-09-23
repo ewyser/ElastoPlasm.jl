@@ -84,10 +84,10 @@ function run_column_convergence_tests(solver, fwrk)
     plot_path = ""
     for (k, nel) ∈ enumerate(nels)
         @testset "- nel = $nel" verbose = true begin
-            strain = (; deform = fwrk.deform)
-            basis  = merge(get_default().basis, (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf))
-            stab   = (; locking = fwrk.locking, damping = fwrk.damping, musl = fwrk.musl)
-            sim = column_problem(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/column", strain=strain, basis=basis, stab=stab)
+            material = (; plastic = get_default().material.plastic, elastic = fwrk.elastic)
+            basis    = merge(get_default().basis, (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf))
+            stab     = (; locking = fwrk.locking, damping = fwrk.damping, musl = fwrk.musl)
+            sim = column_problem(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/column", material=material, basis=basis, stab=stab)
 
             setup = load_simulation_setup(sim)
             err = compute_column_error(sim, l0, solver)
@@ -113,18 +113,18 @@ plot_path = ""
 fwrks = [
     #=
     (;
-        deform = "infinitesimal",
+        elastic = "hypoelastic",
         trsfr = "std",
-        C_pf = 1.0, 
+        C_pf = 1.0,
         musl = false,
         locking = false,
         damping = 0.0
     ),
     =#
     (;
-        deform = "finite",
+        elastic = "hencky",
         trsfr = "std",
-        C_pf = 1.0, 
+        C_pf = 1.0,
         musl = false,
         locking = false,
         damping = 0.0
@@ -140,7 +140,7 @@ for fwrk in fwrks
         plot_path = sim_plot_path
         push!(all_errors, errors)
         push!(all_hs, hs)
-        push!(all_labels, "$(string(solver)), $(fwrk.deform))")
+        push!(all_labels, "$(string(solver)), $(fwrk.elastic))")
     end
 end
 

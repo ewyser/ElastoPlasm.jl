@@ -20,13 +20,17 @@ one genuinely doesn't.
 # volumetric/deviatoric split naturally belongs now that it is what actually gets stored.
 
 """
-    elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {ST<:LogarithmicStrain}
+    elast(mpts::Point{T1,T2,D,CM,ST,EL}) where {EL<:HenckySolid}
 
-Finite-strain elastic predictor: push the stored logarithmic strain forward through
-`ΔFᵢⱼ` and evaluate the trial Kirchhoff stress from it. Writes a `LogarithmicStrain`
-into `mpts.s.ϵᵢⱼ[p]` and a `KirchhoffStress` into `mpts.s.τᵢⱼ[p]`.
+Finite-strain elastic predictor, linear-Hencky law: push the stored logarithmic
+strain forward through `ΔFᵢⱼ` and evaluate the trial Kirchhoff stress from it. Writes
+a `LogarithmicStrain` into `mpts.s.ϵᵢⱼ[p]` and a `KirchhoffStress` into
+`mpts.s.τᵢⱼ[p]`. Which of this method / the `EL<:ImprovedHenckySolid` method below
+runs is picked by `Point`'s own `EL` type parameter (`solver.material.elastic`, see
+`AbstractElasticLaw` in `lagrangian.jl`) — no branch anywhere, same pattern `retmap`
+already uses for `Point`'s `CM` type parameter.
 """
-@kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM,TM,TV,TS,ST<:LogarithmicStrain}
+@kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,ST,EL}) where {T1,T2,D,CM,ST<:LogarithmicStrain,EL<:HenckySolid}
     p = @index(Global)
     if p ≤ mpts.nmp
         cmp           = mpts.s.cmp[p]
@@ -38,7 +42,25 @@ into `mpts.s.ϵᵢⱼ[p]` and a `KirchhoffStress` into `mpts.s.τᵢⱼ[p]`.
 end
 
 """
-    elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {ST<:InfinitesimalStrain}
+    elast(mpts::Point{T1,T2,D,CM,ST,EL}) where {EL<:ImprovedHenckySolid}
+
+Finite-strain elastic predictor, porosity-weighted "improved Hencky" law (see
+`_trial_elastic_stress_improved` in `stress.jl`). Otherwise identical to the
+`EL<:HenckySolid` method above.
+"""
+@kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,ST,EL}) where {T1,T2,D,CM,ST<:LogarithmicStrain,EL<:ImprovedHenckySolid}
+    p = @index(Global)
+    if p ≤ mpts.nmp
+        cmp           = mpts.s.cmp[p]
+        ϵᵢⱼ           = _trial_elastic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.ϵᵢⱼ[p])
+        τᵢⱼ           = _trial_elastic_stress_improved(ϵᵢⱼ, cmp, mpts.n₀[p])
+        mpts.s.ϵᵢⱼ[p] = ϵᵢⱼ
+        mpts.s.τᵢⱼ[p] = τᵢⱼ
+    end
+end
+
+"""
+    elast(mpts::Point{T1,T2,D,CM,ST}) where {ST<:InfinitesimalStrain}
 
 Infinitesimal (small-strain) elastic update at material points: Jaumann-rate Cauchy
 stress increment `σ ← σ + Del·ϵ + (σω' + σ'ω)`. Writes an `InfinitesimalStrain` into
@@ -49,7 +71,7 @@ engineering-Voigt strain vector, which `get_voigt(InfinitesimalStrain(ϵ))` now
 produces directly (see `strain.jl`) — `ϵ` itself stays a raw tensor-shear `SMatrix`
 until wrapped, same as before.
 """
-@kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM,TM,TV,TS,ST<:InfinitesimalStrain}
+@kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,ST}) where {T1,T2,D,CM,ST<:InfinitesimalStrain}
     p = @index(Global)
     if p ≤ mpts.nmp
         Del = mpts.s.cmp[p].Del
@@ -66,7 +88,7 @@ until wrapped, same as before.
     end
 end
 
-@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,2,CM,TM,TV,TS,ST}) where {T1,T2,CM,TM,TV,TS,ST<:InfinitesimalStrain}
+@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,2,CM,ST}) where {T1,T2,CM,ST<:InfinitesimalStrain}
     p = @index(Global)
     if p ≤ mpts.nmp
         Del = mpts.s.cmp[p].Del
@@ -84,7 +106,7 @@ end
         ))
     end
 end
-@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,3,CM,TM,TV,TS,ST}) where {T1,T2,CM,TM,TV,TS,ST<:InfinitesimalStrain}
+@kernel inbounds = true function elast_fast(mpts::Point{T1,T2,3,CM,ST}) where {T1,T2,CM,ST<:InfinitesimalStrain}
     p = @index(Global)
     if p ≤ mpts.nmp
         Del = mpts.s.cmp[p].Del

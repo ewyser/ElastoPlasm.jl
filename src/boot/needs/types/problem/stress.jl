@@ -189,11 +189,36 @@ end
 """
     _trial_elastic_stress(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel) -> KirchhoffStress
 
-Isotropic linear-elastic trial Kirchhoff stress: `p = -3·Kc·ϵvol` (positive in
-compression), `dev = 2·Gc·ϵdev`.
+Isotropic linear-elastic trial Kirchhoff stress: `p = -Kc·ϵvol` (positive in
+compression), `dev = 2·Gc·ϵdev`. Called from `elast.jl`'s `EL<:HenckySolid` kernel
+method — which law runs is picked by `Point`'s own `EL` type parameter (see
+`AbstractElasticLaw` in `lagrangian.jl`), not by branching here.
 """
 @inline function _trial_elastic_stress(strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}) where {S,T,L}
     P   =         - cmp.Kc * strain.vol
+    dev =  T(2.0) * cmp.Gc * strain.dev
+    return KirchhoffStress(P, dev)
+end
+
+"""
+    _trial_elastic_stress_improved(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel, n₀) -> KirchhoffStress
+
+Porosity-weighted "improved Hencky" trial Kirchhoff stress (Pretti, Coombs, Augarde,
+Marchena Puigvert, Reyna Gutiérrez, *Mechanics of Materials* 192 (2024) 104958, Eqs.
+33/34 — elastic part only; no fluid/Terzaghi term, no plastic hardening term). Called
+from `elast.jl`'s `EL<:ImprovedHenckySolid` kernel method. `n` is recomputed here from
+the elastic volumetric strain via their Eq. (23), `n = 1 - (1-n₀)/exp(ϵᵥᵉ)`. The
+paper's `n` is the total-`J` porosity (Eqs. 22-23, 45) — this equals it only while
+plastic flow is isochoric, which holds today (`DP.jl` runs with dilatancy `ψ=0`, J2 is
+isochoric); a dilatant flow rule would need the total porosity here instead. The deviatoric part is unaffected by porosity (paper's own §3, citing
+Zytynski et al. 1978: a variable-K/constant-G material is non-hyperelastic otherwise).
+Their `p'` is positive in tension; this repo's `p` is positive in compression, hence
+the sign flip.
+"""
+@inline function _trial_elastic_stress_improved(strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}, n₀::T) where {S,T,L}
+    ϵᵥᵉ = strain.vol
+    n   = T(1.0) - (T(1.0) - n₀) / exp(ϵᵥᵉ)
+    P   = -(cmp.Kc * ϵᵥᵉ / n) * (T(1.0) + (ϵᵥᵉ / (T(2.0) * n)) * (n - T(1.0)))
     dev =  T(2.0) * cmp.Gc * strain.dev
     return KirchhoffStress(P, dev)
 end

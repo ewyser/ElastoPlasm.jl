@@ -12,7 +12,7 @@ Return all possible values for each configuration field as vectors.
 ```julia
 opts = get_option()
 println(opts.basis.which)  # ["bsmpm", "gimpm", "smpm", "mlsmpm"]
-println(opts.strain.deform)  # ["finite", "infinitesimal"]
+println(opts.material.elastic)  # ["hencky", "improved_hencky", "hypoelastic"]
 ```
 
 # Notes
@@ -35,9 +35,6 @@ function get_option()
                 trsfr = ("Select the mapping scheme",["std", "tpic", "apic"]),
                 C_pf = ("Select picflip ratio",[1.0, 0.99, 0.95]),
             ),
-            strain   = (
-                deform = ("Select the deformation framework",["finite", "infinitesimal"]),
-            ),
             stab     = (
                 locking = ("Enable volumetric locking mitigation",[true, false]),
                 damping = ("Select damping coefficient",[0.0, 0.1, 0.2, 0.4]),
@@ -52,9 +49,9 @@ function get_option()
                     kₘ = ("Select maximum wavenumber",[50, 100, 200]),
                 ),
             ),
-            plast = (
-                status = ("Enable plasticity",[true, false]),
-                constitutive = ("Select constitutive model",["DP", "MC", "VM"]),
+            material = (
+                plastic = ("Select plastic constitutive model",["DP", "MC", "VM"]),
+                elastic = ("Select strain formulation / elastic law",["hencky", "improved_hencky", "hypoelastic"]),
             ),
             nonloc = (
                 status = ("Enable nonlocal effects",[true, false]),

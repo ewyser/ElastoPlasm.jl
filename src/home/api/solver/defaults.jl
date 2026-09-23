@@ -17,11 +17,15 @@ println(cfg.basis.which)  # prints the default basis type
 # Configuration Keys
 - `:dtype`    — Arithmetic precision (e.g., 64 for Float64)
 - `:basis`    — Shape function type/options, and the P2G/G2P transfer scheme and its blend knob
-- `:strain`   — Strain formulation (finite/infinitesimal)
 - `:stab`     — Numerical stabilization (F-bar locking correction, damping, MUSL reprojection)
 - `:bcs`      — Boundary condition settings
 - `:grf`     — Gaussian Random Field generator options
-- `:plast`   — Plasticity onset and flow law
+- `:material` — Plastic constitutive model (`plastic`) and strain formulation/elastic
+  law (`elastic ∈ {"hypoelastic","hencky","improved_hencky"}`) — `"hypoelastic"` alone implies
+  the infinitesimal-strain/Jaumann-Cauchy formulation; `"hencky"`/`"improved_hencky"`
+  both imply finite/logarithmic strain and differ only in the volumetric elastic law.
+  `Point`'s `ST`/`EL` type parameters are both derived from this single key in
+  `build_solid_phase` — there is no separate strain-formulation config key.
 - `:nonloc`  — Non-local regularization options
 - `:plot`    — Plotting options
 - `:perf`    — Performance mode options
@@ -40,9 +44,6 @@ function get_default()
             trsfr = "std",
             C_pf = 1.0,
         ),
-        strain   = (;
-            deform = "finite",
-        ),
         stab     = (;
             locking = true,
             damping = 0.1,
@@ -57,15 +58,15 @@ function get_default()
         grf   = (;
             status = false,
             covariance = "gaussian",
-            param = (; 
-                Iₓ= [2.5,2.5,2.5], 
-                Nₕ = 5000, 
+            param = (;
+                Iₓ= [2.5,2.5,2.5],
+                Nₕ = 5000,
                 kₘ = 100,
             ),
         ),
-        plast = (;
-            status = false,
-            constitutive = "DP",
+        material = (;
+            plastic = "DP",
+            elastic = "hencky",
         ),
         nonloc = (;
             status=true,

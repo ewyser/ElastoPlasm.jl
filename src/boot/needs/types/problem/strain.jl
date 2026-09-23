@@ -76,7 +76,7 @@ Eigen-decomposition of the reassembled (symmetric) strain tensor. Lets kernels w
 """
     InfinitesimalStrain{S,T,L} <: AbstractStrain{S,T,L}
 
-Small-strain tensor `ϵ = ½(ΔF + ΔFᵀ) - I`, used under `strain.deform == "infinitesimal"`.
+Small-strain tensor `ϵ = ½(ΔF + ΔFᵀ) - I`, used under `material.elastic == "hypoelastic"`.
 Built by `_infinitesimal_strain`.
 """
 struct InfinitesimalStrain{S,T,L} <: AbstractStrain{S,T,L}
@@ -90,7 +90,7 @@ end
 """
     _infinitesimal_strain(ΔFᵢⱼ::SMatrix{S,S,T,L}) -> InfinitesimalStrain
 
-Small-strain tensor `ϵ = ½(ΔF + ΔFᵀ) - I`, split into `vol = tr(ϵ)/3` and `dev = ϵ - vol·I`.
+Small-strain tensor `ϵ = ½(ΔF + ΔFᵀ) - I`, split into `vol = tr(ϵ)` and `dev = ϵ - (vol/3)·I`.
 """
 @inline function InfinitesimalStrain(ϵᵢⱼ::SMatrix{S,S,T,L}) where {S,T,L}
     vol = tr(ϵᵢⱼ)
@@ -129,7 +129,8 @@ end
 """
     LogarithmicStrain{S,T,L} <: AbstractStrain{S,T,L}
 
-Logarithmic (Hencky) elastic strain tensor, used under `strain.deform == "finite"`.
+Logarithmic (Hencky) elastic strain tensor, used under `material.elastic ∈
+{"hencky","improved_hencky"}`.
 Built by `_trial_elastic_strain`.
 """
 struct LogarithmicStrain{S,T,L} <: AbstractStrain{S,T,L}
@@ -163,7 +164,7 @@ end
 """
     LogarithmicStrain(ϵᵢⱼ::SMatrix{S,S,T,L})
 
-Split a full logarithmic strain tensor into `vol = tr(ϵ)/3` + `dev = ϵ - vol·I`.
+Split a full logarithmic strain tensor into `vol = tr(ϵ)` + `dev = ϵ - (vol/3)·I`.
 """
 @inline function LogarithmicStrain(ϵᵢⱼ::SMatrix{S,S,T,L}) where {S,T,L}
     vol = tr(ϵᵢⱼ)
@@ -173,7 +174,7 @@ end
 """
     LogarithmicStrain(ϵ::SVector{3,T}) / LogarithmicStrain(ϵ::SVector{6,T})
 
-Build directly from a full engineering-Voigt strain vector. `vol = tr(ϵ)/3` (same
+Build directly from a full engineering-Voigt strain vector. `vol = tr(ϵ)`, `dev = ϵ - (vol/3)·I` (same
 plane-strain convention as the `SMatrix` constructor above — not stress's `tr/S`).
 Exact inverse of `get_voigt`.
 """

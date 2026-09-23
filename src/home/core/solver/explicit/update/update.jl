@@ -11,7 +11,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
         update[:domain!] = Uᵢᵢ(CPU())
         #=
         update[:domain!] = undeformed(CPU())
-        if instr[:strain][:deform] == "finite"
+        if instr[:material][:elastic] != "hypoelastic"
             if instr[:basis][:how] == "detFij"
                 update[:domain!] = detFᵢᵢ(CPU())
             elseif instr[:basis][:how] == "Fii"
@@ -19,7 +19,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
             elseif instr[:basis][:how] == "Uii#
                 update[:domain!] = Uᵢᵢ(CPU())
             end
-        elseif instr[:strain][:deform] == "infinitesimal"
+        elseif instr[:material][:elastic] == "hypoelastic"
             if instr[:basis][:how] == "detΔFij"
                 update[:domain!] = detΔFᵢᵢ(CPU())
             elseif instr[:basis][:how] == "ΔFii"
@@ -46,7 +46,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     update[:nonloc_qp!] = nonlocal_qp(CPU())
     # dispatch resolves at kernel launch from Point's CM (DruckerPrager/VonMises) and ST
     # (LogarithmicStrain/InfinitesimalStrain) type parameters — see DP.jl's `retmap`
-    # docstring. Unrecognized `plast.constitutive` strings now fail fast in `setup_cmp`
+    # docstring. Unrecognized `material.plastic` strings now fail fast in `setup_cmp`
     # (setup time), not here.
     update[:retmap!] = retmap(CPU())
 
