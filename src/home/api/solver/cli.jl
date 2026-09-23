@@ -63,9 +63,6 @@ function get_option()
                 dpi    = ("Select plot resolution",[100, 300, 500, 1000]),
                 what   = ("Select plot variable(s)", get_variable_plot_options()),
             ),
-            perf  = (
-                status = ("Enable optimized implementation",[true, false]),
-            ),
             backend = (
                 select = ("Select backend",["host", "cuda", "rocm"]),
                 distributed = ("Enable distributed computing",[true, false])

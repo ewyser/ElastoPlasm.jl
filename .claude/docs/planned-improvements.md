@@ -93,8 +93,7 @@
     `get_voigt`/`get_tensor`, never by reading `.dev`/`.p` directly.**
   - **Return-mapping kernels stay in Voigt space internally** (`DP.jl`/`J2.jl` read
     `get_voigt(...)` once, run the closed-form/CPA algebra on `SVector`s, wrap once at
-    the store) — deliberate, keeps numerics bit-identical to the pre-port code and
-    preserves `elast_fast`'s hand-inlined performance.
+    the store) — deliberate, keeps numerics bit-identical to the pre-port code.
   - Numerically verified bit-identical predictor math; the storage round-trip itself
     costs ≤1 ulp of the largest component. `test_performance.jl` measured -12.1%
     memory/-5.4% allocs/0.0% time vs. the pre-port baseline (this repo's typed-tensor
@@ -225,10 +224,16 @@
 - **Dead or drifting code worth removing, one small verified step at a time:** the unwired
   `"MC"` offered by `get_option().material.plastic`; the seven `#= … =#` blocks under `src/`
   (e.g. `update.jl`'s domain-update branch, `DP.jl`'s WIP tangent block); `setup_mpts`'s unused
-  `nstr`; and the `_fast` kernels, which have already drifted from their main versions
-  (`deform` sets `ρ = (1-n)ρ₀` and clamps `n`, `deform_fast` does `ρ/ΔJ` with no clamp) —
-  either measure that they're worth keeping or drop them. See also `PerfectlyElastic` and
-  `DynamicRelaxationSolver` above.
+  `nstr`. See also `PerfectlyElastic` and `DynamicRelaxationSolver` above.
+- **`_fast` kernels and the `perf` config section — removed.** `deform_fast`/`elast_fast`
+  (hand-unrolled 2D/3D scalar versions, a legacy port of the original C code) were only
+  selected by `perf.status`, which also forced `material.elastic="hypoelastic"` and
+  `nonloc.status=false`. Measured before removal: 1.8–2.7× faster per kernel, but
+  `deform!`+`elast!` are only ~3–5% of a timestep, so the whole-step cost of removal is small;
+  `deform_fast` had also drifted into a wrong porosity update (`n = 1-(1-n_prev)/J` with the
+  *total* `J`, no clamp). Default-path results were bit-identical before/after removal.
+  Possible follow-up: speed up the generic `deform` (its `MMatrix` accumulation is the likely
+  gap), measured, rather than reintroducing a second implementation.
 - **`@adapt_struct PointSolidPhase` likely can't rebuild the struct on GPU, unverified.**
   `Adapt` reconstructs a struct from its adapted field values, which needs every type parameter
   to be inferable from the fields. `PointSolidPhase`'s `T1` and `EL` appear in no field.

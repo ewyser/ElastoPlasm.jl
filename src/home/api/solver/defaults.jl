@@ -28,7 +28,6 @@ println(cfg.basis.which)  # prints the default basis type
   `build_solid_phase` — there is no separate strain-formulation config key.
 - `:nonloc`  — Non-local regularization options
 - `:plot`    — Plotting options
-- `:perf`    — Performance mode options
 """
 function get_default()
     default = (;
@@ -77,9 +76,6 @@ function get_default()
             freq   = 1.0,
             dpi    = 500,
             what   = [(;mpts=get_mpts_variable_config()["P"]),],
-        ),
-        perf  = (;
-            status=false,
         ),
         backend = (;
             select="host",

@@ -1,9 +1,5 @@
 function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol,Cairn}())
-    if instr[:perf][:status]
-        update[:deform!] = deform_fast(CPU())
-    else
-        update[:deform!] = deform(CPU())
-    end
+    update[:deform!] = deform(CPU())
     
     update[:heat!] = heatflux(CPU())
     if instr[:basis][:which] == "gimpm"
@@ -35,11 +31,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
         update[:ΔJp!] = ΔJp(CPU())
     end
     
-    if instr[:perf][:status]
-        update[:elast!] = elast_fast(CPU())
-    else
-        update[:elast!] = elast(CPU())
-    end
+    update[:elast!] = elast(CPU())
 
 
     update[:nonloc_pq!] = nonlocal_pq(CPU())
