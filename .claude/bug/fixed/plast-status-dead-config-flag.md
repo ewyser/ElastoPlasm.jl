@@ -1,6 +1,9 @@
 # `solver.plast.status` is dead config in the explicit solver path — it gates nothing
 
-**Status: open** (design decision needed, not a crash).
+**Status: fixed** — resolved by removal. The `plast` config section was replaced by
+`material` (`material.plastic`/`material.elastic`) on the `material-elastic-law-dispatch`
+branch, and `status` was dropped rather than wired up: whether plasticity runs stays
+decided by the workflow passed to `elastoplasm!` (`elastodynamic!` vs `elastoplastic!`).
 
 Found while investigating 3D conformity: `elastoplastic!` (one of the two
 built-in explicit workflows) calls `elastoplast()`

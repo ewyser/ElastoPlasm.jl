@@ -113,7 +113,7 @@ plot_path = ""
 fwrks = [
     #=
     (;
-        elastic = "linear",
+        elastic = "hypoelastic",
         trsfr = "std",
         C_pf = 1.0,
         musl = false,

@@ -12,7 +12,7 @@ Return all possible values for each configuration field as vectors.
 ```julia
 opts = get_option()
 println(opts.basis.which)  # ["bsmpm", "gimpm", "smpm", "mlsmpm"]
-println(opts.material.elastic)  # ["hencky", "improved hencky", "linear"]
+println(opts.material.elastic)  # ["hencky", "improved_hencky", "hypoelastic"]
 ```
 
 # Notes
@@ -51,7 +51,7 @@ function get_option()
             ),
             material = (
                 plastic = ("Select plastic constitutive model",["DP", "MC", "VM"]),
-                elastic = ("Select strain formulation / elastic law",["hencky", "improved hencky", "linear"]),
+                elastic = ("Select strain formulation / elastic law",["hencky", "improved_hencky", "hypoelastic"]),
             ),
             nonloc = (
                 status = ("Enable nonlocal effects",[true, false]),

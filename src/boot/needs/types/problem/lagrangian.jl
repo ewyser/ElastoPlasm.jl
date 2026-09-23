@@ -7,14 +7,14 @@ abstract type AbstractMaterialPoint{T1, T2} <: AbstractLagrangian end
 abstract type AbstractMaterialPointPhase{T1, T2} <: AbstractMaterialPoint{T1,T2} end
 
 export Point,PointSolidPhase,PointFluidPhase,PointThermalPhase
-export AbstractSolid,LinearSolid,HenckySolid,ImprovedHenckySolid
+export AbstractSolid,HypoelasticSolid,HenckySolid,ImprovedHenckySolid
 
 """
     AbstractSolid
 
 Dispatch tag for the solid-phase elasto-kinematic formulation, carried as `Point`'s
 own `SM` type parameter (see `PointSolidPhase` below). A run-wide choice, resolved
-entirely from `solver.material.elastic` (`"linear"`/`"hencky"`/`"improved hencky"` —
+entirely from `solver.material.elastic` (`"hypoelastic"`/`"hencky"`/`"improved_hencky"` —
 there is no separate strain-formulation config key), never per-particle, resolved
 once by `build_solid_phase`. `elast.jl`'s three kernel methods dispatch on `SM`
 directly instead of branching on a config string, mirroring how `retmap` already
@@ -26,18 +26,18 @@ per-instantiation — confirmed empirically before adding this), so `ST<:Abstrac
 (the actual `ϵᵢⱼ`/`ϵn` storage type) stays a real, independent type parameter
 alongside `SM` rather than being derived from it. The two are always built together,
 consistently, by the single construction site (`build_solid_phase`) — `HenckySolid`/
-`ImprovedHenckySolid` always pair with `ST=LogarithmicStrain`, `LinearSolid` always
+`ImprovedHenckySolid` always pair with `ST=LogarithmicStrain`, `HypoelasticSolid` always
 with `ST=InfinitesimalStrain`.
 """
 abstract type AbstractSolid end
 
 """
-    LinearSolid <: AbstractSolid
+    HypoelasticSolid <: AbstractSolid
 
-Infinitesimal-strain solid: Jaumann-rate Cauchy stress update (`elast.jl`'s
+Small-strain hypoelastic solid: Jaumann-rate Cauchy stress update (`elast.jl`'s
 `ST<:InfinitesimalStrain` kernel). Always paired with `ST=InfinitesimalStrain`.
 """
-struct LinearSolid <: AbstractSolid end
+struct HypoelasticSolid <: AbstractSolid end
 
 """
     HenckySolid <: AbstractSolid
@@ -66,10 +66,10 @@ introduced by the tensor port (see `AbstractStrain` in `strain.jl` /
 `AbstractStress` in `stress.jl`) plus the solid-formulation dispatch tag:
 
 - `ST<:AbstractStrain` — `ϵᵢⱼ`/`ϵn`. One parameter for both, since the field pair is
-  dual-purpose: `InfinitesimalStrain` under `material.elastic="linear"`,
-  `LogarithmicStrain` under `material.elastic∈{"hencky","improved hencky"}`. Resolved
+  dual-purpose: `InfinitesimalStrain` under `material.elastic="hypoelastic"`,
+  `LogarithmicStrain` under `material.elastic∈{"hencky","improved_hencky"}`. Resolved
   in `build_solid_phase` by the `solver.material.elastic` branch.
-- `SM<:AbstractSolid` — `LinearSolid`/`HenckySolid`/`ImprovedHenckySolid`, see
+- `SM<:AbstractSolid` — `HypoelasticSolid`/`HenckySolid`/`ImprovedHenckySolid`, see
   `AbstractSolid`'s docstring. Always consistent with `ST` by construction.
 - `SC<:AbstractStress` — `σᵢⱼ`/`σn`, always `CauchyStress`.
 - `SK<:AbstractStress` — `τᵢⱼ`, always `KirchhoffStress`.

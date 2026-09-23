@@ -207,10 +207,10 @@ Porosity-weighted "improved Hencky" trial Kirchhoff stress (Pretti, Coombs, Auga
 Marchena Puigvert, Reyna Gutiérrez, *Mechanics of Materials* 192 (2024) 104958, Eqs.
 33/34 — elastic part only; no fluid/Terzaghi term, no plastic hardening term). Called
 from `elast.jl`'s `SM<:ImprovedHenckySolid` kernel method. `n` is recomputed here from
-the elastic volumetric strain via their Eq. (23), `n = 1 - (1-n₀)/exp(ϵᵥᵉ)`,
-deliberately **not** read from `Point.n` (which tracks total, not purely-elastic,
-deformation — see `planned-improvements.md` for why the two porosity notions are kept
-separate). The deviatoric part is unaffected by porosity (paper's own §3, citing
+the elastic volumetric strain via their Eq. (23), `n = 1 - (1-n₀)/exp(ϵᵥᵉ)`. The
+paper's `n` is the total-`J` porosity (Eqs. 22-23, 45) — this equals it only while
+plastic flow is isochoric, which holds today (`DP.jl` runs with dilatancy `ψ=0`, J2 is
+isochoric); a dilatant flow rule would need the total porosity here instead. The deviatoric part is unaffected by porosity (paper's own §3, citing
 Zytynski et al. 1978: a variable-K/constant-G material is non-hyperelastic otherwise).
 Their `p'` is positive in tension; this repo's `p` is positive in compression, hence
 the sign flip.

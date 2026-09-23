@@ -2,7 +2,7 @@
 
 - `Mesh{T1,T2,D}` — Eulerian background grid. Carries no connectivity (`e2n`/`e2e` live
   on `Basis`).
-- `Point{T1,T2,D,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,SC<:AbstractStress,SK<:AbstractStress}`
+- `Point{T1,T2,D,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,SM<:AbstractSolid,SC<:AbstractStress,SK<:AbstractStress}`
   — material points (Lagrangian). `ST`/`SC`/`SK` are the typed strain/stress storage on
   `mpts.s` (see "Typed strain/stress tensor storage" in `planned-improvements.md`);
   `mpts.s.σᵢⱼ[p]` returns a `CauchyStress`, **not** an `SVector` — read it with
@@ -11,9 +11,11 @@
   iterate, never `x[i, :]`. `mpts.s.cmp::Vector{CM}` is the per-particle
   constitutive-model bundle (see "Typed constitutive-model abstraction" in
   `planned-improvements.md`). `CM` resolves to `DruckerPrager` or `VonMises` depending
-  on `plast.constitutive` (see "DP/J2 retmap kernel unification"); `ST` to
-  `LogarithmicStrain`/`InfinitesimalStrain` depending on `strain.deform`.
-- `MechanicalProblem{T1,T2,D,CM,TM,TV,TS,ST,SC,SK} <: AbstractProblem{T1,T2,D,SP}`
+  on `material.plastic` (see "DP/J2 retmap kernel unification"). `ST` (`LogarithmicStrain`/
+  `InfinitesimalStrain`) and `SM<:AbstractSolid` (`HenckySolid`/`ImprovedHenckySolid`/
+  `HypoelasticSolid`, the elastic-law dispatch tag `elast.jl` dispatches on) are both
+  picked together from `material.elastic` by `build_solid_phase`.
+- `MechanicalProblem{T1,T2,D,CM,TM,TV,TS,ST,SM,SC,SK} <: AbstractProblem{T1,T2,D,SP}`
   (`src/boot/needs/types/problem/problem.jl`) — bundles `mesh::Mesh`+
   `mpts::Point`+`time::Time` as the IC-defining part of a simulation, built via
   `setup_problem` (see "`Problem` type decoupling..." in `planned-improvements.md`).

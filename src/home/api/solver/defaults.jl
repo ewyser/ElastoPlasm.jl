@@ -21,8 +21,8 @@ println(cfg.basis.which)  # prints the default basis type
 - `:bcs`      — Boundary condition settings
 - `:grf`     — Gaussian Random Field generator options
 - `:material` — Plastic constitutive model (`plastic`) and strain formulation/elastic
-  law (`elastic ∈ {"linear","hencky","improved hencky"}`) — `"linear"` alone implies
-  the infinitesimal-strain/Jaumann-Cauchy formulation; `"hencky"`/`"improved hencky"`
+  law (`elastic ∈ {"hypoelastic","hencky","improved_hencky"}`) — `"hypoelastic"` alone implies
+  the infinitesimal-strain/Jaumann-Cauchy formulation; `"hencky"`/`"improved_hencky"`
   both imply finite/logarithmic strain and differ only in the volumetric elastic law.
   `Point`'s `ST`/`SM` type parameters are both derived from this single key in
   `build_solid_phase` — there is no separate strain-formulation config key.
@@ -66,7 +66,7 @@ function get_default()
         ),
         material = (;
             plastic = "DP",
-            elastic = "hencky",
+            elastic = "improved_hencky",
         ),
         nonloc = (;
             status=true,

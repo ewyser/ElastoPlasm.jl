@@ -32,7 +32,7 @@ Use `elastoplasm!` (not `elastoplasm`) whenever you need to inspect post-run
   setup_mpts → setup_time → MechanicalProblem → setup_basis` pipeline (not the
   `setup_problem` wrapper), since it needs custom `ρ0`/`E`/`ν`/`ϕ`/`c0` that
   `setup_problem`'s fixed `(mesh,mat,solver)` geometry-helper signature can't pass
-  through. Defaults `plast.status=true`/`plast.constitutive="DP"`, and — unlike the
+  through. Defaults `material.plastic="DP"`, and — unlike the
   package default (`:roller`, frictionless normal-only slip) — a `:fixed` (sticky/
   no-slip) base boundary, needed for the material to actually pile up instead of
   sliding indefinitely; matches MaterialPointSolver.jl's own boundary treatment.
@@ -115,21 +115,23 @@ knob and its out-of-the-box value.
   rather than a separate `transfer` section since `Basis` (the struct) owns both
   `kind` and `transfer` as sibling fields — see "Transfer scheme dispatch" in
   `architecture.md`.
-- `strain` — `deform` (`"finite"`/`"infinitesimal"`)
 - `stab` — `locking` (F-bar volumetric locking correction on/off), `damping`, `musl`
   (MUSL velocity reprojection on/off — lives here rather than under `basis`/`transfer`
   since it's a stabilization technique applied regardless of transfer scheme).
 - `bcs` — `dirichlet` boundary condition matrix, one `[lower upper]` row per dimension
 - `grf` — Gaussian random field generator for heterogeneous cohesion/friction fields
   (`status` toggles it on; see `GRF.jl`)
-- `plast` — `status`, `constitutive` (`"DP"`/`"VM"`/`"MC"`/`"camC"` — not all are
+- `material` — `elastic` (`"hencky"`/`"improved_hencky"`/`"hypoelastic"` — picks both
+  the strain kinematics and the elastic law, see `AbstractSolid` in `lagrangian.jl`;
+  `"hypoelastic"` is the small-strain Jaumann-rate path, the two Hencky laws are finite
+  strain) and `plastic` (`"DP"`/`"VM"`/`"MC"`/`"camC"` — not all are
   wired up, check `setup_cmp`'s branch before relying on one; the `retmap` kernel
   dispatch lives on `Point`'s `CM` type parameter, not a runtime string — see "DP/J2
   retmap kernel unification" in `planned-improvements.md`)
 - `nonloc` — non-local plastic strain regularization (`status`, `ls` length scale)
 - `plot` — `status`, `freq` (plot every N `Time` checkpoints), `dpi`, `what` (list of
   field specs to plot, keyed by name via `get_mpts_variable_config()`)
-- `perf` — `status`; when true, forces `deform="infinitesimal"` and disables `nonloc`
+- `perf` — `status`; when true, forces `material.elastic="hypoelastic"` and disables `nonloc`
   and swaps in the `_fast` kernel variants for a lighter-weight run
 - `backend` — `select` (execution backend, `"host"`/GPU target) and `distributed`
 
@@ -147,7 +149,7 @@ Two ways to change solver behaviour:
    `test_basis.jl`'s own hardcoded `basis=(;which=...)` overrides silently dropped
    `trsfr`/`C_pf` until fixed to spread `get_default().basis...` first). Example:
    ```julia
-   slump_problem(L, nel; basis=(;which="gimpm",how="Uii",trsfr="apic",C_pf=1.0), strain=(;deform="finite"), stab=(;locking=true,damping=0.1,musl=true))
+   slump_problem(L, nel; basis=(;which="gimpm",how="Uii",trsfr="apic",C_pf=1.0), material=(;plastic="DP",elastic="hencky"), stab=(;locking=true,damping=0.1,musl=true))
    ```
 2. **Change the package-wide default** — edit the literal value in `get_default()`
    directly. Do this only for a genuine change of the shipped default behaviour, not
@@ -180,5 +182,5 @@ kwargs suitable for splatting into `slump_problem`/`get_solver` as `cli()...`.
   first then override afterward — later kwargs win. Same shallow-merge caveat applies.
 - `get_option()` is a reference for valid values per key (e.g.
   `get_option().basis.trsfr` → `["std", "tpic", "apic"]`) — some tunables (e.g.
-  `plast.constitutive`) accept values it doesn't fully enumerate; check `init_update`'s
+  `material.plastic`) accept values it doesn't fully enumerate; check `init_update`'s
   dispatch in `update/update.jl` if in doubt whether a value is actually wired up.

@@ -26,7 +26,7 @@ function get_solver(; dim::Number=2, kwargs...)
     end
     #
     if instr[:perf][:status]
-        instr = merge(instr, (; material = merge(instr[:material], (; elastic = "linear",)),))
+        instr = merge(instr, (; material = merge(instr[:material], (; elastic = "hypoelastic",)),))
         instr = merge(instr, (; nonloc = merge(instr[:nonloc], (; status = false,)),))
     end
     # Add cairns to instr     

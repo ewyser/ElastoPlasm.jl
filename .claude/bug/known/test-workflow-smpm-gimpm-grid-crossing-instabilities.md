@@ -112,7 +112,7 @@ e.g. `-123.7`, `-567.6`), plus 3 `BoundsError`s (`attempt to access
 basis-kind/transfer-scheme/locking/musl configuration space this sweep
 covers — no new 3D-specific failure category turned up. Plasticity *does*
 actually run in this sweep in both dimensions, despite `plast.status` staying
-at its `false` default — see `.claude/bug/known/plast-status-dead-config-flag.md`:
+at its `false` default — see `.claude/bug/fixed/plast-status-dead-config-flag.md`:
 `elastoplast()` (invoked by the `elastoplastic!` workflow, which every case
 here runs) calls `retmap!` unconditionally, with no `if solver.plast.status`
 gate at that or any call site in `src/home/` — `plast.status` is read nowhere

@@ -24,7 +24,7 @@
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task, rather than one monolithic kernel body.
   `update.jl`'s `elastoplast`/`elasto` dispatch functions (branch on
-  `strain.deform`/`basis.how` inline) would benefit from the same split.
+  `material.elastic`/`basis.how` inline) would benefit from the same split.
 - **Typed constitutive-model abstraction — done.** `mpts.s.cmp::Vector{CM} where
   CM<:AbstractConstitutiveModel` (`constitutive.jl`) bundles the *static* elastic+
   plastic material constants (`Gc`, `Kc`, `Del`, `Hp`, `c₀`, `cᵣ`, `ϕ₀`) into one typed
@@ -35,7 +35,7 @@
   full-struct reconstruction on every write.
   - `PerfectlyElastic` is defined but has **no construction path** — dead scaffolding.
     `DruckerPrager`/`VonMises` both **do** have construction paths, branched on
-    `plast.constitutive` — see "DP/J2 retmap kernel unification" below.
+    `material.plastic` — see "DP/J2 retmap kernel unification" below.
   - `PointSolidPhase.rheo::R`/`AbstractRheology` — a parallel, never-read earlier
     attempt at the same per-particle constitutive-data problem — was retired entirely,
     since `cmp` already supersedes it.
@@ -63,14 +63,14 @@
   bit-for-bit.
 
   **Gotcha**: `slump_problem` only plots `"phi0"` (friction angle) in its initial-
-  condition figure when `plast.constitutive=="DP"` — `VonMises` genuinely has no `ϕ₀`
+  condition figure when `material.plastic=="DP"` — `VonMises` genuinely has no `ϕ₀`
   field, so plotting it unconditionally used to crash under `"VM"`. Don't fake a value;
   the field just isn't applicable for a pressure-independent yield surface.
 - **Typed strain/stress tensor storage — done.** `mpts.s.ϵᵢⱼ`/`.ϵn`/`.σᵢⱼ`/`.σn`/`.τᵢⱼ`
   hold typed tensor objects from `src/boot/needs/types/problem/tensor.jl`, each
   storing a volumetric+deviatoric additive split:
   - `LogarithmicStrain{S,T,L}` / `InfinitesimalStrain{S,T,L}` (`vol::T`,
-    `dev::SMatrix{S,S,T,L}`) — `ϵᵢⱼ`/`ϵn`, picked by `solver.strain.deform`.
+    `dev::SMatrix{S,S,T,L}`) — `ϵᵢⱼ`/`ϵn`, picked by `solver.material.elastic`.
   - `CauchyStress{S,T,L}` / `KirchhoffStress{S,T,L}` (`p::T` positive in compression,
     `dev::SMatrix{S,S,T,L}`) — `σᵢⱼ`/`σn` are always Cauchy, `τᵢⱼ` always Kirchhoff.
 

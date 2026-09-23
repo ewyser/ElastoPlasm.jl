@@ -11,7 +11,7 @@ Prepare mesh and material points for all simulation configurations.
 - `nsim`: Total number of simulations prepared
 """
 function prepare_simulations!(L, nel, fid, paths)
-    basis, elastics, trfrs = ["mlsmpm","bsmpm","gimpm","smpm"], ["hencky", "linear"], ["std", "tpic", "apic"]
+    basis, elastics, trfrs = ["mlsmpm","bsmpm","gimpm","smpm"], ["hencky", "hypoelastic"], ["std", "tpic", "apic"]
     sim, nsim = 1, length(basis) * length(elastics) * length(trfrs)
 
     @info "Running metanalysis for $(length(L))d slump problem"

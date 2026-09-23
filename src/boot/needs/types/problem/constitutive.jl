@@ -37,9 +37,7 @@ contribute methods to the shared `retmap` kernel, dispatched on `Point`'s `CM`
 Which elastic trial-stress law (`Hencky`/`ImprovedHencky`) applies is **not** encoded
 here — it lives on `Point`'s own `SM<:AbstractSolid` type parameter instead (see
 `lagrangian.jl`), since it's a solid-phase/kinematics concern, not a plastic-model
-constant. (An earlier version of this session's work put it here as a trailing `EL`
-type parameter; reverted in favor of the `SM`-on-`PointSolidPhase` design per user
-preference — kept `cmp` scoped purely to the plastic model.)
+constant.
 
 Deviates from the plan's literal `Del::SMatrix{D,D,T2}` field spec: `Del` is the Voigt-
 notation elastic stiffness matrix, sized `nstr×nstr` (3×3 in 2D, 6×6 in 3D — see

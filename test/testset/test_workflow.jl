@@ -31,7 +31,7 @@ end
 Generate all `material.elastic` config cases (strain formulation / elastic law).
 """
 function generate_material_cases()
-    return [(plastic = "DP", elastic = e) for e in ["hencky", "linear"]]
+    return [(plastic = "DP", elastic = e) for e in ["hencky", "hypoelastic"]]
 end
 
 """

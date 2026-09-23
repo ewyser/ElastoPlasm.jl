@@ -10,8 +10,8 @@ caller needs them to build `Point`'s type parameters.
 `ST` (the typed strain storage of `ϵᵢⱼ`/`ϵn`, see `strain.jl`) and `SM`
 (`Point`'s solid-formulation dispatch tag, see `AbstractSolid` in `lagrangian.jl`) are
 both picked here, together, purely from `solver.material.elastic` — there is no
-separate strain-formulation config key. `"linear"` → `InfinitesimalStrain`+
-`LinearSolid`; `"hencky"`/`"improved hencky"` → `LogarithmicStrain`+
+separate strain-formulation config key. `"hypoelastic"` → `InfinitesimalStrain`+
+`HypoelasticSolid`; `"hencky"`/`"improved_hencky"` → `LogarithmicStrain`+
 (`HenckySolid`/`ImprovedHenckySolid`). `SC`/`SK` (`σᵢⱼ`/`σn` and `τᵢⱼ`) are always
 `CauchyStress`/`KirchhoffStress` regardless of the elastic law, exactly as both field
 families existed unconditionally before the port. `CM` (the constitutive-model type
@@ -20,14 +20,14 @@ of `cmp`) is picked by `solver.material.plastic`: `DruckerPrager` for `"DP"`,
 """
 function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0,TM,TV,TS)
     L = D*D
-    ST,SM = if solver.material.elastic == "linear"
-        InfinitesimalStrain{D,T2,L}, LinearSolid
+    ST,SM = if solver.material.elastic == "hypoelastic"
+        InfinitesimalStrain{D,T2,L}, HypoelasticSolid
     elseif solver.material.elastic == "hencky"
         LogarithmicStrain{D,T2,L}, HenckySolid
-    elseif solver.material.elastic == "improved hencky"
+    elseif solver.material.elastic == "improved_hencky"
         LogarithmicStrain{D,T2,L}, ImprovedHenckySolid
     else
-        throw(error("InvalidElasticLaw: $(solver.material.elastic) (expected \"linear\", \"hencky\" or \"improved hencky\")"))
+        throw(error("InvalidElasticLaw: $(solver.material.elastic) (expected \"hypoelastic\", \"hencky\" or \"improved_hencky\")"))
     end
     SC = CauchyStress{D,T2,L}
     SK = KirchhoffStress{D,T2,L}

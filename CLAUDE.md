@@ -37,7 +37,7 @@ position; it is NOT picked up automatically the way `home/` files are.
   `Basis` (owns all connectivity + shape-function kind + transfer-scheme dispatch).
   Full field-by-field detail, transfer-scheme dispatch, and the explicit vs.
   dynamic_relaxation solver split: `.claude/docs/architecture.md`.
-- Config/behavior knobs (`basis.which`, `strain.deform`, `stab.locking`, `plast.*`,
+- Config/behavior knobs (`basis.which`, `material.elastic`, `material.plastic`, `stab.locking`,
   `nonloc.*`, ...) live on one `NamedTuple` built by `get_default()`/`get_solver` and
   merged shallowly per-section. Full reference and the standard end-to-end run:
   `.claude/docs/operations.md`.
