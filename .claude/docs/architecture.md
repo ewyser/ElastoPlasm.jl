@@ -16,7 +16,7 @@
   `planned-improvements.md`). `CM` resolves to `DruckerPrager` or `VonMises` depending
   on `material.plastic` (see "DP/J2 retmap kernel unification"). `ST` (`LogarithmicStrain`/
   `InfinitesimalStrain`) and `EL<:AbstractElasticLaw` (`HenckySolid`/`ImprovedHenckySolid`/
-  `HypoelasticSolid`, the elastic-law dispatch tag `elast.jl` dispatches on) are both
+  `HypoelasticSolid`, the elastic-law tag `elast.jl` and `get_dt`'s `_Ktan` dispatch on) are both
   picked together from `material.elastic` by `build_solid_phase`.
 - `MechanicalProblem{T1,T2,D,CM,ST,EL,L} <: AbstractProblem{T1,T2,D,SP}`
   (`src/boot/needs/types/problem/problem.jl`) — bundles `mesh::Mesh`+

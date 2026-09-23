@@ -209,3 +209,34 @@
   `bake()`). Writing the export is only half the feature — a companion loader/plotter
   for the saved time series would need to be built alongside it, not as a separate
   follow-up.
+- **Improved Hencky's porosity is its own elastic-strain measure — decided, keep.**
+  `_trial_elastic_stress_improved` (`stress.jl`) and `_Ktan` (`explicit/get.jl`) compute
+  `n = 1-(1-n₀)/exp(ϵᵥᵉ)`, i.e. Eqs. 22-23 of Pretti et al. (2024) written in the stored
+  elastic log strain, rather than reading `mpts.n`. This keeps `n` and `ϵᵥ` on the same
+  measure, which is what makes Eq. 34 the derivative of Eq. 33. `mpts.n`/`ρ`/`Ω` come from the
+  raw `J = det(F)` in `deform.jl`, so the two porosities differ whenever F-bar is on (the
+  default — `ΔJp!` rescales `ΔFᵢⱼ`, never `Fᵢⱼ`/`J`) or plastic flow is dilatant. The paper
+  has no F-bar, so the combination is off-paper. Follow-up: the `stress.jl` docstring still
+  says the two agree "while plastic flow is isochoric", which leaves out F-bar.
+- **DP apex branch looks wrong, unverified.** `_druckerprager_return_map` (`retmap/DP.jl`)
+  sets `Pn = σm - P` in the apex return. `σn` adds `Pn` directly to the diagonal as the mean
+  stress, and the smooth-cone branch passes a mean stress (`P - Kc·ηB·Δλ`), so the apex value
+  should presumably be `σm`. Needs a direct unit test on a past-apex state before changing.
+- **Dead or drifting code worth removing, one small verified step at a time:** the unwired
+  `"MC"` offered by `get_option().material.plastic`; the seven `#= … =#` blocks under `src/`
+  (e.g. `update.jl`'s domain-update branch, `DP.jl`'s WIP tangent block); `setup_mpts`'s unused
+  `nstr`; and the `_fast` kernels, which have already drifted from their main versions
+  (`deform` sets `ρ = (1-n)ρ₀` and clamps `n`, `deform_fast` does `ρ/ΔJ` with no clamp) —
+  either measure that they're worth keeping or drop them. See also `PerfectlyElastic` and
+  `DynamicRelaxationSolver` above.
+- **`@adapt_struct PointSolidPhase` likely can't rebuild the struct on GPU, unverified.**
+  `Adapt` reconstructs a struct from its adapted field values, which needs every type parameter
+  to be inferable from the fields. `PointSolidPhase`'s `T1` and `EL` appear in no field.
+  (`Point` had the same problem through the phantom `TS` parameter until the type-parameter
+  cleanup removed it.) Not testable on the CPU-only setup used so far.
+- **`ExplicitSolver`/`ImplicitSolver` are two identical 15-parameter structs kept in lockstep
+  by hand**, one parameter per config section. A single solver struct holding the config
+  `NamedTuple` as one field plus an explicit/implicit tag would remove most of that, at the
+  cost of touching every `solver.xxx` access.
+- **`test_workflow.jl` doesn't cover `material.elastic="improved_hencky"`** — add it once
+  `.claude/bug/known/improved-hencky-explicit-admissibility-crossing.md` is fixed.
