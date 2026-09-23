@@ -1,12 +1,12 @@
 # NOTE ON NAMING: these two `_yield_normal` methods used to be called `get_J2`, which
-# collided semantically with `get_J2(::AbstractStress)` in `tensor.jl` — same
+# collided semantically with `get_J2(::AbstractStress)` in `stress.jl` — same
 # name, different return value (this one returns `(‖ξ‖, n̂)`, the yield-surface normal
 # and the norm of the deviator; that one returns the scalar invariant J₂). They were
 # deliberately NOT merged during the tensor port: unifying them would have meant either
 # silently changing what one call site gets back, or reformulating the return mapping in
 # terms of the stored (p,dev) split, which is not canonically trace-free (see the
-# `AbstractTensor` docstring). Renamed instead, so the collision is gone and each name
-# means one thing.
+# `AbstractStrain`/`AbstractStress` docstrings in `strain.jl`/`stress.jl`). Renamed
+# instead, so the collision is gone and each name means one thing.
 @inline function _yield_normal(σ0::SVector{3,T}) where {T}
     P  = (σ0[1]+σ0[2])/T(2.0)
     ξ  = σ0 .- SVector{3,T}(P,P,zero(T))
@@ -73,7 +73,7 @@ J2/von Mises return mapping, dispatched on stress/strain type — mirrors `DP.jl
 `_vonmises_return_map` rather than duplicating the iterative loop (Borja (1990); De
 Souza Neto (2008)). The finite-strain method additionally rebuilds the strain on yield
 via `LogarithmicStrain(cmp.Del\\σ0)` (`Del\\σ0` is already an engineering-Voigt strain
-vector — see `tensor.jl`); the infinitesimal-strain method never touches strain,
+vector — see `strain.jl`); the infinitesimal-strain method never touches strain,
 matching `elast!`'s incremental infinitesimal-strain tracking.
 """
 @inline function von_mises(τᵢⱼ::KirchhoffStress{S,T,L},ϵᵢⱼ::LogarithmicStrain{S,T,L},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel;ftol::Real=1e-9,ηmax::Int=20) where {S,T,L}
@@ -93,8 +93,8 @@ end
 end
 
 """
-    retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {CM<:VonMises, ST<:LogarithmicStrain}
-    retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {CM<:VonMises, ST<:InfinitesimalStrain}
+    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:VonMises, ST<:LogarithmicStrain}
+    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:VonMises, ST<:InfinitesimalStrain}
 
 J2/von Mises plastic corrector — contributes the `CM<:VonMises` methods to the shared
 `retmap` kernel name (see `DP.jl`'s `retmap` docstring for the `CM`+`ST` dispatch
@@ -106,7 +106,7 @@ kernels below just call `von_mises` with no `ftol`/`ηmax` at all, relying on it
 defaults — matching the values `finite_J2`/`infinitesimal_J2` always ran with in
 practice, since their call site never passed these explicitly either.
 """
-@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM<:VonMises,TM,TV,TS,ST<:LogarithmicStrain}
+@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,ST}) where {T1,T2,D,CM<:VonMises,ST<:LogarithmicStrain}
     p = @index(Global)
     if p≤mpts.nmp
         ϵᵢⱼ,τᵢⱼ,Δλ,ϵpII = von_mises(mpts.s.τᵢⱼ[p],mpts.s.ϵᵢⱼ[p],MVector{2,T2}(mpts.s.ϵpII[p]),mpts.s.cmp[p])
@@ -120,7 +120,7 @@ practice, since their call site never passed these explicitly either.
         end
     end
 end
-@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM<:VonMises,TM,TV,TS,ST<:InfinitesimalStrain}
+@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,ST}) where {T1,T2,D,CM<:VonMises,ST<:InfinitesimalStrain}
     p = @index(Global)
     if p≤mpts.nmp
         ϵᵢⱼ,σᵢⱼ,Δλ,ϵpII = von_mises(mpts.s.σᵢⱼ[p],mpts.s.ϵᵢⱼ[p],MVector{2,T2}(mpts.s.ϵpII[p]),mpts.s.cmp[p])

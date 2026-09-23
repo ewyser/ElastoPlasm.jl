@@ -24,11 +24,6 @@ function get_solver(; dim::Number=2, kwargs...)
         exec  = select_execution_backend(ElastoPlasm.self.bckd, instr[:backend][:select]; distributed=instr[:backend][:distributed], prompt=ElastoPlasm.self.bckd.prompt)
         instr = merge(instr, (; backend = merge(instr[:backend], (; exec = exec,)),))
     end
-    # 
-    if instr[:perf][:status]
-        instr = merge(instr, (; strain = merge(instr[:strain], (; deform = "infinitesimal",)),))
-        instr = merge(instr, (; nonloc = merge(instr[:nonloc], (; status = false,)),))
-    end
     # Add cairns to instr     
     cairn = (;
         ignite   = init_ignite(instr),
@@ -50,14 +45,12 @@ function get_solver(; dim::Number=2, kwargs...)
         instr[:solution],
         instr[:dtype],
         instr[:basis],
-        instr[:strain],
         instr[:stab],
         instr[:bcs],
         instr[:grf],
-        instr[:plast],
+        instr[:material],
         instr[:nonloc],
         instr[:plot],
-        instr[:perf],
         instr[:backend],
         instr[:cairn],
     )

@@ -8,7 +8,8 @@ get_epII(mpts) = getindex.(mpts.s.ϵpII, 1)
 # included, divided by nstr), kept verbatim through the typed-tensor port — it is NOT
 # `stress.p`, and swapping it would silently change every published pressure plot.
 get_P(mpts)    = [(σv = get_voigt(σ); -sum(σv)/length(σv)) for σ in mpts.s.σᵢⱼ]
-get_J(mpts)    = @views vec(mpts.J)
+get_J(mpts)    = mpts.J
+get_n(mpts)    = mpts.n
 get_v(mpts)    = [sqrt(v[1]^2 + v[2]^2) for v in mpts.s.v]
 get_Δu(mpts)   = [sqrt(u[1]^2 + u[2]^2) for u in mpts.s.u]
 get_coh0(mpts) = [cmp.c₀ for cmp in mpts.s.cmp]
@@ -53,6 +54,15 @@ function get_mpts_variable_config()
             name="Deformation determinant",
             cb=:viridis,
             cblim=(0.5, 1.5)
+        ),
+        "n" => (
+            data=get_n,
+            label=L"n",
+            unit = "[-]",
+            scale = 1.0,
+            name="Porosity",
+            cb=:vik,
+            cblim=(-1.0, 1.0)
         ),
         "Δu" => (
             data=get_Δu,

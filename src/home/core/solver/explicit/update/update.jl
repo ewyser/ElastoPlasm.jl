@@ -1,52 +1,23 @@
 function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol,Cairn}())
-    if instr[:perf][:status]
-        update[:deform!] = deform_fast(CPU())
-    else
-        update[:deform!] = deform(CPU())
-    end
+    update[:deform!] = deform(CPU())
     
     update[:heat!] = heatflux(CPU())
     if instr[:basis][:which] == "gimpm"
-        #update[:domain!] = undeformed(CPU())
         update[:domain!] = Uᵢᵢ(CPU())
-        #=
-        update[:domain!] = undeformed(CPU())
-        if instr[:strain][:deform] == "finite"
-            if instr[:basis][:how] == "detFij"
-                update[:domain!] = detFᵢᵢ(CPU())
-            elseif instr[:basis][:how] == "Fii"
-                update[:domain!] = Fᵢᵢ(CPU())
-            elseif instr[:basis][:how] == "Uii#
-                update[:domain!] = Uᵢᵢ(CPU())
-            end
-        elseif instr[:strain][:deform] == "infinitesimal"
-            if instr[:basis][:how] == "detΔFij"
-                update[:domain!] = detΔFᵢᵢ(CPU())
-            elseif instr[:basis][:how] == "ΔFii"
-                update[:domain!] = ΔFᵢᵢ(CPU())
-            elseif instr[:basis][:how] == "ΔUii"
-                update[:domain!] = ΔUᵢᵢ(CPU())
-            end
-        end
-        =#
     end
     if instr[:stab][:locking]
         update[:ΔJn!] = ΔJn(CPU())
         update[:ΔJp!] = ΔJp(CPU())
     end
     
-    if instr[:perf][:status]
-        update[:elast!] = elast_fast(CPU())
-    else
-        update[:elast!] = elast(CPU())
-    end
+    update[:elast!] = elast(CPU())
 
 
     update[:nonloc_pq!] = nonlocal_pq(CPU())
     update[:nonloc_qp!] = nonlocal_qp(CPU())
     # dispatch resolves at kernel launch from Point's CM (DruckerPrager/VonMises) and ST
     # (LogarithmicStrain/InfinitesimalStrain) type parameters — see DP.jl's `retmap`
-    # docstring. Unrecognized `plast.constitutive` strings now fail fast in `setup_cmp`
+    # docstring. Unrecognized `material.plastic` strings now fail fast in `setup_cmp`
     # (setup time), not here.
     update[:retmap!] = retmap(CPU())
 
