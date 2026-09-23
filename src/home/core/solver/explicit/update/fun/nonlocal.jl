@@ -61,7 +61,7 @@ end
     p = @index(Global)
 
     if p ≤ mpts.nmp && mpts.s.Δλ[p] != T2(0.0)
-        if isapprox(W[p]>T2(1e-16),T2(0.0),atol=T2(1e-16))
+        if !(W[p] > T2(1e-16))   # no neighbour weight: keep the local value
             mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], mpts.s.ϵpII[p][1])
         else
             acc = mpts.s.ϵpII[p][2]

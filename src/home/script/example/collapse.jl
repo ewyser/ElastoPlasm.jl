@@ -23,7 +23,7 @@ old `collapse_problem`, see `src/home/script/example/column.jl`).
 - `kwargs...`: Additional keyword arguments for simulation configuration (see
   `get_solver`), plus overrides for `L`,`w0`,`h0`,`ρ0`,`E`,`ν`,`ϕ`,`c0` if ever needed —
   all hardcoded to the MaterialPointSolver.jl-matching values above by default.
-  `plast.status=true`/`plast.constitutive="DP"` are set by default so the example
+  `material.plastic="DP"` is set by default so the example
   demonstrates plasticity out of the box; base boundary is `:fixed` (sticky/no-slip
   floor) rather than the package default `:roller` (frictionless normal-only slip) —
   a granular collapse needs a rough/rigid floor for the material to actually pile up
@@ -47,7 +47,7 @@ function collapse_problem(nel;
     @info "Setting up mesh & material point system for $(length(L))d granular collapse problem"
     # get solver and paths
     solver = get_solver(; dim=length(L),
-        (; plast=(;status=true,constitutive="DP"),
+        (; material=(;plastic="DP",elastic="hencky"),
            bcs=(;dirichlet=[:roller :roller; :fixed :roller]))..., kwargs...)
     paths  = mkpaths(fid,self.sys.dump;interactive=false)
     # mesh, mpts, mat & time initial conditions

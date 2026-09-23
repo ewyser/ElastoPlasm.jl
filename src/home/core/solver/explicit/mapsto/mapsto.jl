@@ -11,7 +11,7 @@ Initialize mapping, solving and transfering kernels for MPM cycle based on dimen
 - `Dict`: Dictionary of mapping and augmentation kernels.
 """
 function init_mapsto(instr::NamedTuple; mapsto::Dict = Dict(:map => Dict{Symbol,Cairn}(),:augm => Dict{Symbol,Cairn}()))
-    if instr.strain.deform == "finite"
+    if instr.material.elastic != "hypoelastic"
         mapsto[:map][:σᵢⱼ!] = transform(CPU())
     end
     # dispatch resolves at kernel launch from Basis's TR (StdTransfer/TpicTransfer/
@@ -46,15 +46,15 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 """
 function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Vector{T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     # get cauchy stress
-    if solver.strain.deform == "finite"
+    if solver.material.elastic != "hypoelastic"
         solver.cairn.mapsto.map.σᵢⱼ!(ndrange=mpts.nmp,mpts);sync(CPU())
     end
     # reset nodal quantities
-    fill!(mesh.s.m  ,T2(0.0))
-    fill!(mesh.s.mv  ,T2(0.0))
-    fill!(mesh.s.oobf,T2(0.0))
-    fill!(mesh.s.a   , zero(eltype(mesh.s.a)))
-    fill!(mesh.s.v   , zero(eltype(mesh.s.v)))
+    fill!(mesh.s.m   , zero(eltype(mesh.s.m   )))
+    fill!(mesh.s.mv  , zero(eltype(mesh.s.mv  )))
+    fill!(mesh.s.oobf, zero(eltype(mesh.s.oobf)))
+    fill!(mesh.s.a   , zero(eltype(mesh.s.a   )))
+    fill!(mesh.s.v   , zero(eltype(mesh.s.v   )))
     # mapping to mesh
     solver.cairn.mapsto.map.p2n!(mpts,mesh,basis,g; ndrange=mpts.nmp);sync(CPU())
     # solve Eulerian momentum equation
@@ -64,8 +64,8 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Vect
     # (if musl) reproject nodal velocities
     if solver.stab.musl
         # reset nodal quantities
-        fill!(mesh.s.mv, T2(0.0))
-        fill!(mesh.s.v , zero(eltype(mesh.s.v)))
+        fill!(mesh.s.mv, zero(eltype(mesh.s.mv)))
+        fill!(mesh.s.v , zero(eltype(mesh.s.v )))
         # accumulate material point contributions
         solver.cairn.mapsto.augm.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
         # solve for nodal incremental displacement

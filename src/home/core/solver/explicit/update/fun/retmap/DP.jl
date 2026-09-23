@@ -52,20 +52,21 @@ history) is mutated in place, matching the pre-existing `MVector` scratch conven
     end
     P,τ0,τII = σTr(σᵢ)
     η,ηB,ξ   = materialParam(ϕ₀,ψ,c,nstr)
-    σm,τP    = ξ/η,ξ-η*(ξ/η)
-    fs,ft    = τII+η*P-ξ,P-σm
-    αP,h     = sqrt(T(1.0)+η^2)-η,τII-τP-(sqrt(T(1.0)+η^2))*(P-σm)
+    σm       = ξ/η
+    fs       = τII+η*P-ξ
     σout     = σᵢ
-    if fs>T(0.0) && P<σm || h>T(0.0) && P≥σm
+    if fs>T(0.0) && P<σm
         Δλ       = fs/(cmp.Gc+cmp.Kc*η*ηB)
         Pn,τn    = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
         σout     = σn(Pn,τ0,τn,τII)
         ϵpII[1] += Δλ*sqrt(T(1/3)+T(2/9)*ηB^2)
     end
-    if h≤T(0.0) && P≥σm
+    # tension cutoff sits at the apex (σt = σm = ξ/η, Huang et al. 2015 Eq. 19 with σt = σt_max),
+    # so the apex σm·I is the only admissible state for P ≥ σm (fs ≤ 0 forces τ = 0, ft ≤ 0 forces
+    # mean ≤ σm): return there, Δλ from Eq. 54, ϵpII increment from Eq. 56
+    if P≥σm
         Δλ       = (P-σm)/cmp.Kc
-        Pn       = σm-P
-        σout     = σn(Pn,τ0,T(0.0),τII)
+        σout     = σn(σm,τ0,T(0.0),T(1.0))   # σm·I; τII may be 0 for a hydrostatic trial state
         ϵpII[1] += sqrt(T(2.0))*Δλ/T(3.0)
     end
     return Δλ,σout
@@ -79,13 +80,13 @@ Drucker-Prager return mapping, dispatched on stress/strain type — one method p
 `(stress,strain)` pair, sharing the closed-form `_druckerprager_return_map` core rather
 than duplicating it. Both methods do the algebra in Voigt space (`get_voigt`) using the
 pre-existing `σTr`/`σn` helpers — the stored `(p,dev)` split is representational rather
-than canonically trace-free (see the `AbstractTensor` docstring), so the invariants are
-re-derived from the Voigt view.
+than canonically trace-free (see the `AbstractStrain`/`AbstractStress` docstrings in
+`strain.jl`/`stress.jl`), so the invariants are re-derived from the Voigt view.
 
 The finite-strain (`KirchhoffStress`/`LogarithmicStrain`) method additionally updates
 the strain when yielding, built directly by `LogarithmicStrain(cmp.Del\\τᵢ)` — the
 compliance solve `Del\\τᵢ` is already an engineering-Voigt strain vector, and that
-constructor (`tensor.jl`) does the engineering→tensor conversion and vol/dev split in
+constructor (`strain.jl`) does the engineering→tensor conversion and vol/dev split in
 one step. The infinitesimal-strain (`CauchyStress`/`InfinitesimalStrain`) method never
 updates the strain — infinitesimal strain is tracked incrementally by `elast!` itself,
 not re-derived from the return-mapped stress.
@@ -95,6 +96,14 @@ not re-derived from the return-mapped stress.
     if Δλ > T(0.0)
         τᵢⱼ = KirchhoffStress(τᵢ)
         ϵᵢⱼ = LogarithmicStrain(cmp.Del\τᵢ)
+
+
+#= WIP 
+        Dalg = StressStrainStiffness{3,T}()
+        Dalg = cmp.Kc*Dalg.vol + 2.0*cmp.Gc*Dalg.dev
+        ϵᵢⱼ = LogarithmicStrain(Dalg\τᵢ)
+        #Kt  = cmp.Kc/(T(2.0)*n^3)*(n^2*(ϵᵢⱼ.vol^2+T(4.0)*ϵᵢⱼ.vol+2)-ϵᵢⱼ.vol*n*(T(3.0)*ϵᵢⱼ.vol+T(4.0))+T(2.0)*ϵᵢⱼ.vol^2)
+=#        
     end
     return ϵᵢⱼ,τᵢⱼ,Δλ,ϵpII
 end
@@ -107,16 +116,16 @@ end
 end
 
 """
-    retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {CM<:DruckerPrager, ST<:LogarithmicStrain}
-    retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {CM<:DruckerPrager, ST<:InfinitesimalStrain}
+    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:DruckerPrager, ST<:LogarithmicStrain}
+    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:DruckerPrager, ST<:InfinitesimalStrain}
 
 Drucker-Prager plastic corrector, dispatched on both `CM` and `ST` — mirrors `elast!`'s
 existing `ST`-only dispatch pattern, extended to a second axis so `DP.jl`/`J2.jl` can
 both contribute methods to one shared kernel name (`retmap`) instead of each exposing
 separately-named `finite_*`/`infinitesimal_*` kernels that `init_update` had to pick
-between via a `plast.constitutive`/`strain.deform` string branch.
+between via a `material.plastic`/`material.elastic` string branch.
 """
-@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM<:DruckerPrager,TM,TV,TS,ST<:LogarithmicStrain}
+@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,ST}) where {T1,T2,D,CM<:DruckerPrager,ST<:LogarithmicStrain}
     p = @index(Global)
     if p≤mpts.nmp
         # reset the plastic multiplier on every step: it is *the* activity gate read by
@@ -132,7 +141,7 @@ between via a `plast.constitutive`/`strain.deform` string branch.
         end
     end
 end
-@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,TM,TV,TS,ST}) where {T1,T2,D,CM<:DruckerPrager,TM,TV,TS,ST<:InfinitesimalStrain}
+@kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,ST}) where {T1,T2,D,CM<:DruckerPrager,ST<:InfinitesimalStrain}
     p = @index(Global)
     if p≤mpts.nmp
         mpts.s.Δλ[p] = T2(0.0)

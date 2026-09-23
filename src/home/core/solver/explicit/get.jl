@@ -1,3 +1,12 @@
+@inline function _Ktan(::Type{<:AbstractElasticLaw}, strain::AbstractStrain, cmp::AbstractConstitutiveModel{T}, n₀::T) where {T}
+    return cmp.Kc
+end
+@inline function _Ktan(::Type{<:ImprovedHenckySolid}, strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}, n₀::T) where {S,T,L}
+    ϵ = strain.vol
+    n = T(1.0) - (T(1.0) - n₀) / exp(ϵ)
+    return cmp.Kc / (T(2.0)*n^3) * (n^2*(ϵ^2 + T(4.0)*ϵ + T(2.0)) - ϵ*n*(T(3.0)*ϵ + T(4.0)) + T(2.0)*ϵ^2)
+end
+
 """
     get_dt(mpts, mesh, time, ΔT) -> Float64
 
@@ -18,13 +27,13 @@ Compute the adaptive time step for the simulation based on mesh spacing and mate
 dt = get_dt(mpts, mesh, time, ΔT)
 ```
 """
-function get_dt(mpts::Point{T1,T2,D,CM},props::MeshProperties{T1,T2,D},time::Time{T1,T2},ΔT::T2) where {T1,T2,D,CM}
+function get_dt(mpts::Point{T1,T2,D,CM,ST,EL},props::MeshProperties{T1,T2,D},time::Time{T1,T2},ΔT::T2) where {T1,T2,D,CM,ST,EL}
     # per-particle elastic wave speed, max over particles (real correctness improvement
     # over the old single global `cmpr.c` scalar if `cmp`/`ρ` ever become heterogeneous)
     cwave = T2(0.0)
     @inbounds for p ∈ 1:mpts.nmp
         cmp   = mpts.s.cmp[p]
-        cwave = max(cwave, sqrt((cmp.Kc+T2(4.0/3.0)*cmp.Gc)/mpts.s.ρ[p]))
+        cwave = max(cwave, sqrt((_Ktan(EL,mpts.s.ϵᵢⱼ[p],cmp,mpts.n₀[p])+T2(4.0/3.0)*cmp.Gc)/mpts.s.ρ[p]))
     end
     # calculte dt
     cmax = props.h./(mpts.vmax.+cwave); mpts.vmax.=T2(0.0)

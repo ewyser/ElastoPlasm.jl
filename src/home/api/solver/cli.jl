@@ -12,7 +12,7 @@ Return all possible values for each configuration field as vectors.
 ```julia
 opts = get_option()
 println(opts.basis.which)  # ["bsmpm", "gimpm", "smpm", "mlsmpm"]
-println(opts.strain.deform)  # ["finite", "infinitesimal"]
+println(opts.material.elastic)  # ["hencky", "improved_hencky", "hypoelastic"]
 ```
 
 # Notes
@@ -31,12 +31,8 @@ function get_option()
             ),
             basis = (
                 which = ("Select basis type",["bsmpm", "gimpm", "smpm", "mlsmpm"]),
-                how = ("Select material point domain update",[nothing]),
                 trsfr = ("Select the mapping scheme",["std", "tpic", "apic"]),
                 C_pf = ("Select picflip ratio",[1.0, 0.99, 0.95]),
-            ),
-            strain   = (
-                deform = ("Select the deformation framework",["finite", "infinitesimal"]),
             ),
             stab     = (
                 locking = ("Enable volumetric locking mitigation",[true, false]),
@@ -52,9 +48,9 @@ function get_option()
                     kₘ = ("Select maximum wavenumber",[50, 100, 200]),
                 ),
             ),
-            plast = (
-                status = ("Enable plasticity",[true, false]),
-                constitutive = ("Select constitutive model",["DP", "MC", "VM"]),
+            material = (
+                plastic = ("Select plastic constitutive model",["DP", "VM"]),
+                elastic = ("Select strain formulation / elastic law",["hencky", "improved_hencky", "hypoelastic"]),
             ),
             nonloc = (
                 status = ("Enable nonlocal effects",[true, false]),
@@ -65,9 +61,6 @@ function get_option()
                 freq   = ("Select plot frequency",[0.1, 0.5, 1.0, 5.0]),
                 dpi    = ("Select plot resolution",[100, 300, 500, 1000]),
                 what   = ("Select plot variable(s)", get_variable_plot_options()),
-            ),
-            perf  = (
-                status = ("Enable optimized implementation",[true, false]),
             ),
             backend = (
                 select = ("Select backend",["host", "cuda", "rocm"]),

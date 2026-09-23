@@ -20,7 +20,7 @@ end
     end
 end
 
-@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,CM,TM,TV,TS,ST},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},g::Vector{T2},dt::T2,Del) where {T1,T2,CM,TM,TV,TS,ST<:InfinitesimalStrain}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,CM,ST},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},g::Vector{T2},dt::T2,Del) where {T1,T2,CM,ST<:InfinitesimalStrain}
     p = @index(Global)
     if p ≤ mpts.nmp
         # compute velocity & displacement gradients
@@ -69,7 +69,7 @@ end
     end
 end
 
-@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,CM,TM,TV,TS,ST},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},g::Vector{T2},dt::T2,Kc::T2,Gc::T2) where {T1,T2,CM,TM,TV,TS,ST<:LogarithmicStrain}
+@kernel inbounds = true function oobf_assembly(mpts::Point{T1,T2,2,CM,ST},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2},g::Vector{T2},dt::T2,Kc::T2,Gc::T2) where {T1,T2,CM,ST<:LogarithmicStrain}
     mp = @index(Global)
     if mp ≤ mpts.nmp
         # Compute velocity & displacement gradients
