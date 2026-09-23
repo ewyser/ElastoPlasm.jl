@@ -24,7 +24,7 @@
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task, rather than one monolithic kernel body.
   `update.jl`'s `elastoplast`/`elasto` dispatch functions (branch on
-  `material.elastic`/`basis.how` inline) would benefit from the same split.
+  `basis.which`/`stab.locking`/`nonloc.status` inline) would benefit from the same split.
 - **Typed constitutive-model abstraction — done.** `mpts.s.cmp::Vector{CM} where
   CM<:AbstractConstitutiveModel` (`constitutive.jl`) bundles the *static* elastic+
   plastic material constants (`Gc`, `Kc`, `Del`, `Hp`, `c₀`, `cᵣ`, `ϕ₀`) into one typed
@@ -150,11 +150,12 @@
   `.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md` for the full
   results (149/192 passed overall, 3D not meaningfully less stable than 2D) and the
   related `plast.status` finding.
-- **`basis.how`/`basis.ghost` are GIMP-specific concepts living in the generic `basis`
-  config section.** `how` is read unconditionally in `update.jl`'s dispatch regardless
-  of basis kind; worth moving both onto `GimpBasis` itself (construction-time fields
-  co-located with the kind that actually uses them) rather than basis-kind-agnostic
-  top-level knobs `bsmpm`/`smpm`/`mlsmpm` silently ignore.
+- **`basis.how` and the alternative GIMP domain updates — removed.** GIMP's particle domain
+  is always updated by `Uᵢᵢ` (stretch `U` from `F`, `domain.jl`). The six alternatives
+  (`undeformed`, `detFᵢᵢ`, `Fᵢᵢ`, `detΔFᵢᵢ`, `ΔFᵢᵢ`, `ΔUᵢᵢ`) and the `basis.how` knob meant to
+  pick between them were only ever referenced from a commented-out block, so `how` was read
+  nowhere. `test_workflow.jl`'s GIMP case passed `how="undeformed"` while actually running
+  `Uᵢᵢ`. (`basis.ghost` no longer exists either.)
 - **`Basis.N`/`∂N` storage rework**: currently plain `Matrix{T2}`/`Array{T2,3}`
   specifically to dodge the StaticArrays allocation-elision limits (see `gotchas.md`)
   — correct and fast, but a workaround rather than a considered data-layout design.
@@ -217,12 +218,10 @@
   default — `ΔJp!` rescales `ΔFᵢⱼ`, never `Fᵢⱼ`/`J`) or plastic flow is dilatant. The paper
   has no F-bar, so the combination is off-paper. Follow-up: the `stress.jl` docstring still
   says the two agree "while plastic flow is isochoric", which leaves out F-bar.
-- **DP apex branch looks wrong, unverified.** `_druckerprager_return_map` (`retmap/DP.jl`)
-  sets `Pn = σm - P` in the apex return. `σn` adds `Pn` directly to the diagonal as the mean
-  stress, and the smooth-cone branch passes a mean stress (`P - Kc·ηB·Δλ`), so the apex value
-  should presumably be `σm`. Needs a direct unit test on a past-apex state before changing.
-- **Dead or drifting code worth removing, one small verified step at a time:** the unwired
-  `"MC"` offered by `get_option().material.plastic`; the seven `#= … =#` blocks under `src/`
+- **DP apex `ϵpII` increment misses the shear-flow part** — deferred follow-up of the fixed
+  apex return (`.claude/bug/fixed/dp-apex-return-wrong-pressure.md`). Needs a corner-return
+  source (de Souza Neto, Perić & Owen 2008 §8.3) added to `refs/` first.
+- **Dead or drifting code worth removing, one small verified step at a time:** the seven `#= … =#` blocks under `src/`
   (e.g. `update.jl`'s domain-update branch, `DP.jl`'s WIP tangent block); `setup_mpts`'s unused
   `nstr`. See also `PerfectlyElastic` and `DynamicRelaxationSolver` above.
 - **`_fast` kernels and the `perf` config section — removed.** `deform_fast`/`elast_fast`
@@ -234,6 +233,13 @@
   *total* `J`, no clamp). Default-path results were bit-identical before/after removal.
   Possible follow-up: speed up the generic `deform` (its `MMatrix` accumulation is the likely
   gap), measured, rather than reintroducing a second implementation.
+- **GPU execution is unwired — decide whether it's a goal.** `get_solver` resolves
+  `backend.exec` from `backend.select`, but nothing reads it: every kernel factory in
+  `init_ignite`/`init_mapsto`/`init_update` and every `sync(...)` call is a literal `CPU()`
+  (61 occurrences under `explicit/` and `common/`). `get_dt` also reduces over particles in a
+  host loop with scalar indexing, which device arrays don't allow. Wiring it is broad,
+  mechanical work (thread one backend object through the factories and syncs, verified
+  bit-identical on `CPU()` first), only worth doing if GPU runs are actually wanted.
 - **`@adapt_struct PointSolidPhase` likely can't rebuild the struct on GPU, unverified.**
   `Adapt` reconstructs a struct from its adapted field values, which needs every type parameter
   to be inferable from the fields. `PointSolidPhase`'s `T1` and `EL` appear in no field.

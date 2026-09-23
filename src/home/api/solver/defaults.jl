@@ -39,7 +39,6 @@ function get_default()
         ),
         basis = (;
             which = "bsmpm",
-            how = nothing,
             trsfr = "std",
             C_pf = 1.0,
         ),

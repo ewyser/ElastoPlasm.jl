@@ -18,10 +18,10 @@ Generate all combinations of shape functions.
 """
 function generate_basis_cases()
     return [
-        (which = "smpm"  , how = nothing     ),
-        (which = "gimpm" , how = "undeformed"),
-        (which = "bsmpm" , how = nothing     ),
-        (which = "mlsmpm", how = nothing     ),
+        (which = "smpm"  ,),
+        (which = "gimpm" ,),
+        (which = "bsmpm" ,),
+        (which = "mlsmpm",),
     ]
 end
 

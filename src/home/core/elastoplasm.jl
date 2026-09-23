@@ -1,22 +1,14 @@
 export elastoplasm,elastoplasm!      
 
 """
-    elastoplasm(ic::NamedTuple, cfg::NamedTuple; mode::String="elastodynamic") -> NamedTuple
+    elastoplasm(sim::String; workflows=[elastodynamic!]) -> (; simulation, success)
 
-Run the main simulation workflow for the given initial conditions and configuration.
+Run each `workflow!(mpts, mesh, basis, time, solver)` in `workflows`, in order, on the problem
+saved at `sim` — the `.jld2` path returned by a setup function such as `slump_problem`.
+Built-in workflows: `elastodynamic!`, `elastoplastic!`, `elastoquasistatic!`,
+`thermodynamic!`. When `solver.plot.status` is on, a plot is saved after each workflow.
 
-# Arguments
-- `ic::NamedTuple`: Initial conditions (mesh, mpts, basis, time).
-- `cfg::NamedTuple`: Simulation configuration (instr, paths).
-- `mode::String`: (Optional) Workflow mode: "elastodynamic", "elastoplastic", or "all-in-one" (default: "elastodynamic").
-
-# Behavior
-- Runs the selected workflow problem, logging progress and saving results.
-- Handles postprocessing and output file naming.
-- Returns a named tuple with the input initial conditions and configuration.
-
-# Returns
-- `NamedTuple`: Contains the input `ic` and `cfg`.
+Opens `sim` read-only: the post-run state is discarded. Use `elastoplasm!` to keep it.
 """
 function elastoplasm(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <:String, F <: Function}
     jldopen(sim) do file
@@ -50,6 +42,12 @@ function elastoplasm(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <
     exit_log("(✓) Done! exiting...\n")
     return (; simulation=sim, success=true,)
 end
+"""
+    elastoplasm!(sim::String; workflows=[elastodynamic!]) -> (; simulation, success)
+
+Same as `elastoplasm`, but writes the post-run `ic/problem` and `ic/basis` back into `sim`
+after each workflow, so the results can be loaded and inspected afterwards.
+"""
 function elastoplasm!(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <:String, F <: Function}
     jldopen(sim,"r+") do file
         # unpack mesh, mpts, basis, instr, paths as aliases

@@ -109,8 +109,7 @@ knob and its out-of-the-box value.
   `ExplicitSolver` specifically. `ignite()` is the one place dispatching on the
   abstract `AbstractSolver` instead, since both paths call it regardless of `solution`.
 - `dtype` — arithmetic precision (`bits`, element types `T0`)
-- `basis` — `which` (`"bsmpm"`/`"gimpm"`/`"smpm"`/`"mlsmpm"`, see `get_basis`), `how`
-  (GIMP domain update mode), `trsfr` (P2G/G2P transfer scheme: `"std"`/`"tpic"`/
+- `basis` — `which` (`"bsmpm"`/`"gimpm"`/`"smpm"`/`"mlsmpm"`, see `get_basis`), `trsfr` (P2G/G2P transfer scheme: `"std"`/`"tpic"`/
   `"apic"`, see `get_transfer`), `C_pf` (PIC/FLIP blend). `trsfr`/`C_pf` live here
   rather than a separate `transfer` section since `Basis` (the struct) owns both
   `kind` and `transfer` as sibling fields — see "Transfer scheme dispatch" in
@@ -124,8 +123,8 @@ knob and its out-of-the-box value.
 - `material` — `elastic` (`"hencky"`/`"improved_hencky"`/`"hypoelastic"` — picks both
   the strain kinematics and the elastic law, see `AbstractElasticLaw` in `lagrangian.jl`;
   `"hypoelastic"` is the small-strain Jaumann-rate path, the two Hencky laws are finite
-  strain) and `plastic` (`"DP"`/`"VM"`/`"MC"`/`"camC"` — not all are
-  wired up, check `setup_cmp`'s branch before relying on one; the `retmap` kernel
+  strain) and `plastic` (`"DP"`/`"VM"` — the only two `setup_cmp` builds; any other value
+  throws at setup time; the `retmap` kernel
   dispatch lives on `Point`'s `CM` type parameter, not a runtime string — see "DP/J2
   retmap kernel unification" in `planned-improvements.md`)
 - `nonloc` — non-local plastic strain regularization (`status`, `ls` length scale)
@@ -141,13 +140,13 @@ Two ways to change solver behaviour:
    not an error), then merges them over `default` via `merge(ref, user)`. **This is a
    shallow-per-key merge** — to override one field of a nested `NamedTuple` block
    (e.g. just `basis.trsfr`) you must pass the *whole* section
-   (`basis = (; which=..., how=..., trsfr=..., C_pf=...)`), not just the one field,
+   (`basis = (; which=..., trsfr=..., C_pf=...)`), not just the one field,
    since `merge` replaces the whole `:basis` entry rather than recursing into it —
    this has caused real, previously-live bugs (`thermal_problem`'s and
    `test_basis.jl`'s own hardcoded `basis=(;which=...)` overrides silently dropped
    `trsfr`/`C_pf` until fixed to spread `get_default().basis...` first). Example:
    ```julia
-   slump_problem(L, nel; basis=(;which="gimpm",how="Uii",trsfr="apic",C_pf=1.0), material=(;plastic="DP",elastic="hencky"), stab=(;locking=true,damping=0.1,musl=true))
+   slump_problem(L, nel; basis=(;which="gimpm",trsfr="apic",C_pf=1.0), material=(;plastic="DP",elastic="hencky"), stab=(;locking=true,damping=0.1,musl=true))
    ```
 2. **Change the package-wide default** — edit the literal value in `get_default()`
    directly. Do this only for a genuine change of the shipped default behaviour, not
@@ -179,6 +178,6 @@ kwargs suitable for splatting into `slump_problem`/`get_solver` as `cli()...`.
 - To override specific options while using `cli()` for everything else, splat `cli()`
   first then override afterward — later kwargs win. Same shallow-merge caveat applies.
 - `get_option()` is a reference for valid values per key (e.g.
-  `get_option().basis.trsfr` → `["std", "tpic", "apic"]`) — some tunables (e.g.
-  `material.plastic`) accept values it doesn't fully enumerate; check `init_update`'s
-  dispatch in `update/update.jl` if in doubt whether a value is actually wired up.
+  `get_option().basis.trsfr` → `["std", "tpic", "apic"]`) — but not every listed value is
+  wired up: `backend.select` offers `"cuda"`/`"rocm"` while every kernel is hard-coded to
+  `CPU()` (see the GPU item in `planned-improvements.md`).

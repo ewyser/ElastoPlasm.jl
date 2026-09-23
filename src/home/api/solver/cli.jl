@@ -31,7 +31,6 @@ function get_option()
             ),
             basis = (
                 which = ("Select basis type",["bsmpm", "gimpm", "smpm", "mlsmpm"]),
-                how = ("Select material point domain update",[nothing]),
                 trsfr = ("Select the mapping scheme",["std", "tpic", "apic"]),
                 C_pf = ("Select picflip ratio",[1.0, 0.99, 0.95]),
             ),
@@ -50,7 +49,7 @@ function get_option()
                 ),
             ),
             material = (
-                plastic = ("Select plastic constitutive model",["DP", "MC", "VM"]),
+                plastic = ("Select plastic constitutive model",["DP", "VM"]),
                 elastic = ("Select strain formulation / elastic law",["hencky", "improved_hencky", "hypoelastic"]),
             ),
             nonloc = (

@@ -22,7 +22,6 @@ function prepare_simulations!(L, nel, fid, paths)
             for (j, trsfr) ∈ enumerate(trfrs)
                 basis = (;
                     which = shp,
-                    how = nothing,
                     trsfr = trsfr,
                     C_pf = 1.0,
                 )
