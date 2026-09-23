@@ -24,7 +24,7 @@
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task, rather than one monolithic kernel body.
   `update.jl`'s `elastoplast`/`elasto` dispatch functions (branch on
-  `material.elastic`/`basis.how` inline) would benefit from the same split.
+  `basis.which`/`stab.locking`/`nonloc.status` inline) would benefit from the same split.
 - **Typed constitutive-model abstraction — done.** `mpts.s.cmp::Vector{CM} where
   CM<:AbstractConstitutiveModel` (`constitutive.jl`) bundles the *static* elastic+
   plastic material constants (`Gc`, `Kc`, `Del`, `Hp`, `c₀`, `cᵣ`, `ϕ₀`) into one typed
@@ -150,11 +150,12 @@
   `.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md` for the full
   results (149/192 passed overall, 3D not meaningfully less stable than 2D) and the
   related `plast.status` finding.
-- **`basis.how`/`basis.ghost` are GIMP-specific concepts living in the generic `basis`
-  config section.** `how` is read unconditionally in `update.jl`'s dispatch regardless
-  of basis kind; worth moving both onto `GimpBasis` itself (construction-time fields
-  co-located with the kind that actually uses them) rather than basis-kind-agnostic
-  top-level knobs `bsmpm`/`smpm`/`mlsmpm` silently ignore.
+- **`basis.how` and the alternative GIMP domain updates — removed.** GIMP's particle domain
+  is always updated by `Uᵢᵢ` (stretch `U` from `F`, `domain.jl`). The six alternatives
+  (`undeformed`, `detFᵢᵢ`, `Fᵢᵢ`, `detΔFᵢᵢ`, `ΔFᵢᵢ`, `ΔUᵢᵢ`) and the `basis.how` knob meant to
+  pick between them were only ever referenced from a commented-out block, so `how` was read
+  nowhere. `test_workflow.jl`'s GIMP case passed `how="undeformed"` while actually running
+  `Uᵢᵢ`. (`basis.ghost` no longer exists either.)
 - **`Basis.N`/`∂N` storage rework**: currently plain `Matrix{T2}`/`Array{T2,3}`
   specifically to dodge the StaticArrays allocation-elision limits (see `gotchas.md`)
   — correct and fast, but a workaround rather than a considered data-layout design.
