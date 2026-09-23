@@ -2,9 +2,12 @@
 
 - `Mesh{T1,T2,D}` — Eulerian background grid. Carries no connectivity (`e2n`/`e2e` live
   on `Basis`).
-- `Point{T1,T2,D,CM<:AbstractConstitutiveModel,TM,TV,TS,ST<:AbstractStrain,SM<:AbstractSolid,SC<:AbstractStress,SK<:AbstractStress}`
-  — material points (Lagrangian). `ST`/`SC`/`SK` are the typed strain/stress storage on
-  `mpts.s` (see "Typed strain/stress tensor storage" in `planned-improvements.md`);
+- `Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L}`
+  — material points (Lagrangian). Every parameter but `L` is a real dispatch axis; `L == D*D`
+  only exists to keep the `D×D` tensor fields (`SMatrix{D,D,T2,L}`, `CauchyStress{D,T2,L}`,
+  `KirchhoffStress{D,T2,L}`) concrete, since Julia can't compute `D*D` in a field type —
+  kernels never dispatch on it and recover a field's type via `eltype`. `ST` is the typed
+  strain storage on `mpts.s` (see "Typed strain/stress tensor storage" in `planned-improvements.md`);
   `mpts.s.σᵢⱼ[p]` returns a `CauchyStress`, **not** an `SVector` — read it with
   `get_voigt(...)`. Carries no `NN` or connectivity (those live on `Basis`).
   `mpts.x :: Vector{SVector{D,T2}}` — NOT a matrix; index with `getindex.(x, i)` or
@@ -12,10 +15,10 @@
   constitutive-model bundle (see "Typed constitutive-model abstraction" in
   `planned-improvements.md`). `CM` resolves to `DruckerPrager` or `VonMises` depending
   on `material.plastic` (see "DP/J2 retmap kernel unification"). `ST` (`LogarithmicStrain`/
-  `InfinitesimalStrain`) and `SM<:AbstractSolid` (`HenckySolid`/`ImprovedHenckySolid`/
+  `InfinitesimalStrain`) and `EL<:AbstractElasticLaw` (`HenckySolid`/`ImprovedHenckySolid`/
   `HypoelasticSolid`, the elastic-law dispatch tag `elast.jl` dispatches on) are both
   picked together from `material.elastic` by `build_solid_phase`.
-- `MechanicalProblem{T1,T2,D,CM,TM,TV,TS,ST,SM,SC,SK} <: AbstractProblem{T1,T2,D,SP}`
+- `MechanicalProblem{T1,T2,D,CM,ST,EL,L} <: AbstractProblem{T1,T2,D,SP}`
   (`src/boot/needs/types/problem/problem.jl`) — bundles `mesh::Mesh`+
   `mpts::Point`+`time::Time` as the IC-defining part of a simulation, built via
   `setup_problem` (see "`Problem` type decoupling..." in `planned-improvements.md`).

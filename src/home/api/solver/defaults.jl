@@ -24,7 +24,7 @@ println(cfg.basis.which)  # prints the default basis type
   law (`elastic ∈ {"hypoelastic","hencky","improved_hencky"}`) — `"hypoelastic"` alone implies
   the infinitesimal-strain/Jaumann-Cauchy formulation; `"hencky"`/`"improved_hencky"`
   both imply finite/logarithmic strain and differ only in the volumetric elastic law.
-  `Point`'s `ST`/`SM` type parameters are both derived from this single key in
+  `Point`'s `ST`/`EL` type parameters are both derived from this single key in
   `build_solid_phase` — there is no separate strain-formulation config key.
 - `:nonloc`  — Non-local regularization options
 - `:plot`    — Plotting options
@@ -66,7 +66,7 @@ function get_default()
         ),
         material = (;
             plastic = "DP",
-            elastic = "improved_hencky",
+            elastic = "hencky",
         ),
         nonloc = (;
             status=true,

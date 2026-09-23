@@ -190,9 +190,9 @@ end
     _trial_elastic_stress(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel) -> KirchhoffStress
 
 Isotropic linear-elastic trial Kirchhoff stress: `p = -Kc·ϵvol` (positive in
-compression), `dev = 2·Gc·ϵdev`. Called from `elast.jl`'s `SM<:HenckySolid` kernel
-method — which law runs is picked by `Point`'s own `SM` type parameter (see
-`AbstractSolid` in `lagrangian.jl`), not by branching here.
+compression), `dev = 2·Gc·ϵdev`. Called from `elast.jl`'s `EL<:HenckySolid` kernel
+method — which law runs is picked by `Point`'s own `EL` type parameter (see
+`AbstractElasticLaw` in `lagrangian.jl`), not by branching here.
 """
 @inline function _trial_elastic_stress(strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}) where {S,T,L}
     P   =         - cmp.Kc * strain.vol
@@ -206,7 +206,7 @@ end
 Porosity-weighted "improved Hencky" trial Kirchhoff stress (Pretti, Coombs, Augarde,
 Marchena Puigvert, Reyna Gutiérrez, *Mechanics of Materials* 192 (2024) 104958, Eqs.
 33/34 — elastic part only; no fluid/Terzaghi term, no plastic hardening term). Called
-from `elast.jl`'s `SM<:ImprovedHenckySolid` kernel method. `n` is recomputed here from
+from `elast.jl`'s `EL<:ImprovedHenckySolid` kernel method. `n` is recomputed here from
 the elastic volumetric strain via their Eq. (23), `n = 1 - (1-n₀)/exp(ϵᵥᵉ)`. The
 paper's `n` is the total-`J` porosity (Eqs. 22-23, 45) — this equals it only while
 plastic flow is isochoric, which holds today (`DP.jl` runs with dilatancy `ψ=0`, J2 is

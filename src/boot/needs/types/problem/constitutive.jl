@@ -35,7 +35,7 @@ contribute methods to the shared `retmap` kernel, dispatched on `Point`'s `CM`
 (`LogarithmicStrain`/`InfinitesimalStrain`).
 
 Which elastic trial-stress law (`Hencky`/`ImprovedHencky`) applies is **not** encoded
-here — it lives on `Point`'s own `SM<:AbstractSolid` type parameter instead (see
+here — it lives on `Point`'s own `EL<:AbstractElasticLaw` type parameter instead (see
 `lagrangian.jl`), since it's a solid-phase/kinematics concern, not a plastic-model
 constant.
 
