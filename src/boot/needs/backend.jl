@@ -159,9 +159,9 @@ Arguments:
 Example:
 ---
 ```julia
-julia> select_execution_backend(info.bckd, "host")  # Direct CPU selection
-julia> select_execution_backend(info.bckd, "host", prompt=true)  # Choose which CPU core
-julia> select_execution_backend(info.bckd, "host", distributed=true)  # Choose multiple CPU cores
+julia> select_execution_backend(self.bckd, "host")  # Direct CPU selection
+julia> select_execution_backend(self.bckd, "host", prompt=true)  # Choose which CPU core
+julia> select_execution_backend(self.bckd, "host", distributed=true)  # Choose multiple CPU cores
 ```
 """
 function select_execution_backend(bckd::Execution, select::String="host"; prompt::Bool=false, distributed::Bool=false)

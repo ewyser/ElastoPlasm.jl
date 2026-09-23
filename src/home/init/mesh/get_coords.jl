@@ -1,13 +1,10 @@
 """
-    get_coords(ndim::T1, L::Vector{T2}, h::Vector{T2}; ghosts::Vector{T2}=[T2(0.0)]) where {T1,T2}
+    get_coords(geom::Geometry) -> (x, nel, nno)
 
 Generate nodal coordinates and mesh topology for 1D, 2D, or 3D domains.
 
 # Arguments
-- `ndim::T1`: Number of spatial dimensions.
-- `L::Vector{T2}`: Length of the domain in each spatial direction.
-- `h::Vector{T2}`: Element size in each direction.
-- `ghosts::Vector{T2}`: Optional, size of ghost cells to add at boundaries (default: `[T2(0.0)]`).
+- `geom::Geometry`: Geometry struct, must have `dim`, `h`, and `xB` (domain bounds).
 
 # Returns
 - `x::Matrix{T2}`: Matrix of nodal coordinates (each column is a node).
@@ -16,17 +13,16 @@ Generate nodal coordinates and mesh topology for 1D, 2D, or 3D domains.
 
 # Example
 ```julia
-x, nel, nno = get_coords(2, [1.0, 1.0], [0.1, 0.1])
+x, nel, nno = get_coords(geom)
 ```
 """
-function get_coords(geom)# where {T1,T2}
+function get_coords(geom)
     ndim, h, xB = geom.dim, geom.h, geom.xB
     T1,T2 = eltype(ndim), eltype(h)
 
-
     if ndim == 1
         x   = collect(xB[1,1]:h[1]:xB[1,2])
-        nno = [length(x),length(x)] 
+        nno = [length(x),length(x)]
         nel = [nno[1]-1 ,nno[1]-1 ]
         x   = vcat(vec(x))
     elseif ndim == 2
