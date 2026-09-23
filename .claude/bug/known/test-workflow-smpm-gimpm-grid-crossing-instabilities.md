@@ -2,6 +2,15 @@
 
 **Status: open** (root cause narrowed but not fully confirmed; `bsmpm`/`mlsmpm` pass cleanly).
 
+**Latest full-suite run** (`GITHUB_ACTIONS=true julia --project=. test/runtests.jl` on `dev`,
+2D sweep with the nonlocal axis, after the `_fast`/`perf` removal and the DP apex fix):
+**144/192 passed**. `smpm` 24/48 fail (unchanged), `gimpm` 24/48 fail (down from 27/48 at
+the 141/192 measurement below), `bsmpm`/`mlsmpm` 0/48. Failures split evenly across elastic
+law, transfer scheme and `nonloc.status`; 36 of the 48 have `locking=true`. The other test
+files (`test_basis`, `test_column`, `test_performance`) all pass. Measured on one macOS
+machine only: since these are instability-driven crashes, the exact failing set may differ
+on CI's Linux/Windows runners, so check CI's actual list before marking cases `@test_broken`.
+
 Originally a 96-case, 2D-only sweep; the 3D geometry case is now uncommented
 too (see "3D conformity check" below), making it 192 cases (96×2D + 96×3D).
 2D baseline (re-measured multiple times across major refactors, unchanged
