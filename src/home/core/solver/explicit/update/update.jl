@@ -3,28 +3,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     
     update[:heat!] = heatflux(CPU())
     if instr[:basis][:which] == "gimpm"
-        #update[:domain!] = undeformed(CPU())
         update[:domain!] = Uᵢᵢ(CPU())
-        #=
-        update[:domain!] = undeformed(CPU())
-        if instr[:material][:elastic] != "hypoelastic"
-            if instr[:basis][:how] == "detFij"
-                update[:domain!] = detFᵢᵢ(CPU())
-            elseif instr[:basis][:how] == "Fii"
-                update[:domain!] = Fᵢᵢ(CPU())
-            elseif instr[:basis][:how] == "Uii#
-                update[:domain!] = Uᵢᵢ(CPU())
-            end
-        elseif instr[:material][:elastic] == "hypoelastic"
-            if instr[:basis][:how] == "detΔFij"
-                update[:domain!] = detΔFᵢᵢ(CPU())
-            elseif instr[:basis][:how] == "ΔFii"
-                update[:domain!] = ΔFᵢᵢ(CPU())
-            elseif instr[:basis][:how] == "ΔUii"
-                update[:domain!] = ΔUᵢᵢ(CPU())
-            end
-        end
-        =#
     end
     if instr[:stab][:locking]
         update[:ΔJn!] = ΔJn(CPU())
