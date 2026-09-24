@@ -1,10 +1,10 @@
 
 """
-    build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0) -> PointSolidPhase
+    build_solid_phase(T1,T2,D,solver,mat,geom,nmp,v0,vp,ρ0,n0) -> PointSolidPhase
 
 Build the per-particle solid-phase state (`PointSolidPhase`) — per-particle
 constitutive-model bundle (`cmp`, via `setup_cmp`), and all mechanical state fields,
-zero-initialized except `v`/`ρ`.
+zero-initialized except `v`/`ρ`/`m` (`m = ρ·Ω₀`, the constant solid mass).
 
 `ST` (the typed strain storage of `ϵᵢⱼ`/`ϵn`, see `strain.jl`) and `EL`
 (`Point`'s elastic law, see `AbstractElasticLaw` in `lagrangian.jl`) are
@@ -15,8 +15,9 @@ separate strain-formulation config key. `"hypoelastic"` → `InfinitesimalStrain
 of `cmp`) is picked by `solver.material.plastic`: `DruckerPrager` for `"DP"`,
 `VonMises` for `"VM"` — see `setup_cmp`.
 """
-function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0)
+function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,v0,vp,ρ0,n0)
     L  = D*D
+    ρ  = T2.(vec(copy((1.0.-n0).*ρ0)))
     TM = SMatrix{D,D,T2,L}
     TV = SVector{D,T2}
     ST,EL = if solver.material.elastic == "hypoelastic"
@@ -36,7 +37,8 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0)
         [TV(T2.(vp[:,p])) for p in 1:nmp]                  , # v
         # mechanical properties
         T2.(vec(copy(ρ0)))                                 , # ρ₀
-        T2.(vec(copy((1.0.-n0).*ρ0)))                      , # ρ
+        ρ                                                  , # ρ
+        ρ .* T2.(vec(copy(v0)))                            , # m = ρ·Ω₀
         T2.(zeros(nmp))                                    , # Δλ
         [zero(SVector{2,T2}) for _ in 1:nmp]               , # ϵpII
         T2.(zeros(nmp))                                    , # ϵpV
@@ -128,7 +130,7 @@ function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTu
     vp = haskey(geom, :vp) ? geom.vp : zeros(size(xp))
 
     # constructor - create components
-    s = build_solid_phase(T1,T2,D,solver,mat,geom,nmp,xp,vp,ρ0,n0)
+    s = build_solid_phase(T1,T2,D,solver,mat,geom,nmp,v0,vp,ρ0,n0)
     t = build_thermal_phase(T1,T2,D,geom,nmp; thermal=thermal)
 
     mpts = Point(                              # type parameters inferred from `s`

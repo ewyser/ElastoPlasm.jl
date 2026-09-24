@@ -61,6 +61,9 @@ Per-particle solid-phase state. Beyond the index/float types `T1`/`T2` and dimen
   field type, so it is carried as a parameter to keep `SMatrix{D,D,T2,L}`,
   `CauchyStress{D,T2,L}` and `KirchhoffStress{D,T2,L}` concrete. Kernels never dispatch
   on it; recover a field's type with `eltype` instead.
+
+`m` is the solid mass `(1−n₀)ρ₀Ω₀`, set once at setup: `deform!` keeps `ρ·Ω` equal to it
+(solid mass conservation), so kernels read `m` rather than recomputing `ρ·Ω`.
 """
 struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L} <: AbstractMaterialPointPhase{T1,T2}
     u    ::Vector{SVector{D,T2}}   # displacement per MP
@@ -68,6 +71,7 @@ struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,
     # mechanical properties
     ρ₀   ::Vector{T2}
     ρ    ::Vector{T2}
+    m    ::Vector{T2}   # solid mass per MP, constant (solid mass conservation)
     Δλ   ::Vector{T2}
     ϵpII ::Vector{SVector{2,T2}}
     ϵpV  ::Vector{T2}

@@ -19,7 +19,7 @@ type parameter — see `Basis`'s docstring.
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
-        ms, Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        ms, Ω  = mpts.s.m[p], mpts.Ω[p]
         xp     = mpts.x[p]        
         vp, ∇v = mpts.s.v[p]          , mpts.s.∇vᵢⱼ[p]
         σ      = get_voigt(mpts.s.σᵢⱼ[p]) 
@@ -39,7 +39,7 @@ end
 @kernel inbounds = true function p2n!(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2,NN,K,TR},g::Vector{T2}) where {T1,T2,NN,K,TR<:TpicTransfer}
     p = @index(Global)
     if p ≤ mpts.nmp
-        ms, Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        ms, Ω  = mpts.s.m[p], mpts.Ω[p]
         xp     = mpts.x[p]        
         vp, ∇v = mpts.s.v[p]          , mpts.s.∇vᵢⱼ[p]
         σᵢⱼ    = get_tensor(mpts.s.σᵢⱼ[p])
@@ -61,7 +61,7 @@ end
 @kernel inbounds = true function p2n!(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3,NN,K,TR},g::Vector{T2}) where {T1,T2,NN,K,TR<:TpicTransfer}
     p = @index(Global)
     if p ≤ mpts.nmp
-        ms, Ω  = mpts.s.ρ[p]*mpts.Ω[p], mpts.Ω[p]
+        ms, Ω  = mpts.s.m[p], mpts.Ω[p]
         xp     = mpts.x[p]        
         vp, ∇v = mpts.s.v[p]          , mpts.s.∇vᵢⱼ[p]
         σᵢⱼ    = get_tensor(mpts.s.σᵢⱼ[p])

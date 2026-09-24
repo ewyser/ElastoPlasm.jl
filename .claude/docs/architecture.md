@@ -11,7 +11,9 @@
   `mpts.s.σᵢⱼ[p]` returns a `CauchyStress`, **not** an `SVector` — read it with
   `get_voigt(...)`. Carries no `NN` or connectivity (those live on `Basis`).
   `mpts.x :: Vector{SVector{D,T2}}` — NOT a matrix; index with `getindex.(x, i)` or
-  iterate, never `x[i, :]`. `mpts.s.cmp::Vector{CM}` is the per-particle
+  iterate, never `x[i, :]`. `mpts.s.m` is the constant solid mass `(1−n₀)ρ₀Ω₀`, set once
+  at setup; kernels read it instead of recomputing `ρ·Ω`, which `deform!` keeps equal to it
+  (a future fluid phase needs its own, separately evolving mass). `mpts.s.cmp::Vector{CM}` is the per-particle
   constitutive-model bundle (see "Typed constitutive-model abstraction" in
   `planned-improvements.md`). `CM` resolves to `DruckerPrager` or `VonMises` depending
   on `material.plastic` (see "DP/J2 retmap kernel unification"). `ST` (`LogarithmicStrain`/
