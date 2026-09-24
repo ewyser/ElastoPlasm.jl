@@ -16,7 +16,7 @@ source, Räss, Kolyukhin & Minakov (2019), *Computers & Geosciences* 131:158-169
 3. **`grf.param` ignored.** `Iₓ`, `Nₕ`, `kₘ` (offered by `get_default`/`cli`) were never read;
    `sf = 5e3`, `If = 2.5`, `Nh = 5000`, `k_m = 100` were hard-coded.
 
-Fix: `grf_gauss(xp, σ, I, Nh, kₘ)` implements Algorithm 2 at the material points' own coordinates
+Fix: `grf_gauss(xp, σ, I, Nh, kₘ)` (since renamed `random_field`, which also covers the exponential covariance) implements Algorithm 2 at the material points' own coordinates
 (D×N), called by `get_cohesion(xp, mat, solver)` on the particles each problem actually keeps
 (`get_slump`, `get_collision`), instead of on the candidate grid. `mpts_populate` now returns
 positions only. `grf.param` gains `σ` (default `5e3`, the old hard-coded value) and all

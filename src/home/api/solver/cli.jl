@@ -41,7 +41,7 @@ function get_option()
             ),
             grf   = (
                 status = ("Enable Gaussian Random Field ",[true, false]),
-                covariance = ("Select covariance function",["gaussian"]),
+                covariance = ("Select covariance function",["gaussian", "exponential"]),
                 param = ( 
                     σ  = ("Select standard deviation",[1.0e3, 5.0e3, 1.0e4]),
                     Iₓ = ("Select correlation length",[[1.0,1.0,1.0], [2.5,2.5,2.5], [5.0,5.0,5.0]]), 
