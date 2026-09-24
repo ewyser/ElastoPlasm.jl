@@ -28,15 +28,10 @@ function get_slump(mesh::Mesh{T1,T2,D}, mat, solver::S; ni = 2, lz = 12.80) wher
     keep    = [(xp[1,p]-xs)*a+(xp[end,p]-zs)*(-1.0) > 0 || xp[end,p] < wl for p ∈ axes(xp,2)]
     xp      = xp[:,keep]
     nmp    = size(xp,2)
-    coh0   = property_field(xp,mat[:c0],solver.grf; floor=mat[:cr])
-    cohr   = ones(nmp).*mat[:cr]
-    phi    = ones(nmp).*mat[:ϕ0]
-    phi[xp[end,:].<=2*wl] .= mat[:ϕr]
-
-    c      = ones(nmp).*mat[:specific_heat_capacity]
-    k      = ones(nmp).*mat[:thermal_conductivity]
-    T      = ones(nmp).*mat[:initial_temperature]
-    T[xp[end,:].<=2*wl] .= 3.0*mat[:initial_temperature]
-
-    return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,T=T,c=c,k=k,ni=ni,nmp=nmp)
+    f      = material_fields(mat, nmp; coh0=property_field(xp,mat[:c0],solver.grf; floor=mat[:cr]))
+    # weaker, warmer base layer
+    base   = xp[end,:] .<= 2*wl
+    f.phi[base] .= mat[:ϕr]
+    f.T[base]   .= 3.0*mat[:initial_temperature]
+    return (; xp, ni, nmp, f...)
 end

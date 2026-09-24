@@ -22,13 +22,5 @@ function get_thermal(mesh,mat,solver; ni = 2)
 
     nmp  = size(xp,2)
 
-    coh0 = ones(nmp).*mat[:c0]
-    cohr = ones(nmp).*mat[:cr]
-    phi  = ones(nmp).*mat[:ϕ0]
-
-    c    = ones(nmp).*mat[:specific_heat_capacity]
-    k    = ones(nmp).*mat[:thermal_conductivity]
-    T    = ones(nmp).*mat[:initial_temperature]
-
-    return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,T=T,c=c,k=k,ni=ni,nmp=nmp)
+    return (; xp, ni, nmp, material_fields(mat, nmp)...)
 end

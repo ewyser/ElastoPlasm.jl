@@ -16,7 +16,6 @@ Initialize geometry and material point fields for an elastic self-weight column 
 """
 function get_column(mesh::Mesh{T1,T2,D},mat,ni;ℓ₀=0.0) where {T1,T2,D}
     @info "Init elastic collumn geometry"
-    coh0,cohr,phi0= mat[:c0],mat[:cr],mat[:ϕ0]
     if D == 2
         x          = collect(mesh.prprt.xB[1,1]+(0.5*mesh.prprt.h[1]/ni):mesh.prprt.h[1]/ni:mesh.prprt.xB[1,2])
         z          = collect(mesh.prprt.xB[2,1]+(0.5*mesh.prprt.h[2]/ni):mesh.prprt.h[2]/ni:ℓ₀        )
@@ -41,14 +40,5 @@ function get_column(mesh::Mesh{T1,T2,D},mat,ni;ℓ₀=0.0) where {T1,T2,D}
         xp = vcat(vec(xp)',vec(yp)',vec(zp)')
     end
     nmp  = size(xp,2)
-    id   = shuffle(collect(1:nmp))
-    coh0 = ones(nmp).*coh0
-    cohr = ones(nmp).*cohr
-    phi  = ones(nmp).*phi0
-
-    c    = ones(nmp).*mat[:specific_heat_capacity]
-    k    = ones(nmp).*mat[:thermal_conductivity]
-    T    = ones(nmp).*mat[:initial_temperature]
-
-    return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,T=T,c=c,k=k,ni=ni,nmp=nmp)
+    return (; xp, ni, nmp, material_fields(mat, nmp)...)
 end
