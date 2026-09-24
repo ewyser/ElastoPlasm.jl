@@ -217,13 +217,17 @@
   raw `J = det(F)` in `deform.jl`, so the two porosities differ whenever F-bar is on (the
   default — `ΔJp!` rescales `ΔFᵢⱼ`, never `Fᵢⱼ`/`J`) or plastic flow is dilatant. The paper
   has no F-bar, so the combination is off-paper. Follow-up: the `stress.jl` docstring still
-  says the two agree "while plastic flow is isochoric", which leaves out F-bar.
+  says the two agree "while plastic flow is isochoric", which leaves out F-bar. Related, open:
+  `deform.jl` computes `ρ = (1-n)ρ₀` from the *unclamped* `n` but stores `mpts.n` clamped to
+  `[0,1]`, so once compaction crosses Pretti's Eq. 30a (`J < 1-n₀`), `mpts.n` sits at 0 while
+  `ρ` keeps growing past `ρ₀`. `ρ·Ω` (the solid mass) stays exact either way.
 - **DP apex `ϵpII` increment misses the shear-flow part** — deferred follow-up of the fixed
   apex return (`.claude/bug/fixed/dp-apex-return-wrong-pressure.md`). Needs a corner-return
   source (de Souza Neto, Perić & Owen 2008 §8.3) added to `refs/` first.
-- **Dead or drifting code worth removing, one small verified step at a time:** the seven `#= … =#` blocks under `src/`
-  (e.g. `update.jl`'s domain-update branch, `DP.jl`'s WIP tangent block); `setup_mpts`'s unused
-  `nstr`. See also `PerfectlyElastic` and `DynamicRelaxationSolver` above.
+- **Dead or drifting code worth removing, one small verified step at a time:** the five remaining
+  `#= … =#` blocks under `src/` (`dynamic_relaxation/fint.jl:1`, `dynamic_relaxation/implicit.jl:136`,
+  `update/fun/nonlocal.jl:1`, `retmap/DP.jl`'s WIP tangent block, `get_column.jl`'s 3D branch);
+  `setup_mpts`'s unused `nstr`. See also `PerfectlyElastic` and `DynamicRelaxationSolver` above.
 - **`_fast` kernels and the `perf` config section — removed.** `deform_fast`/`elast_fast`
   (hand-unrolled 2D/3D scalar versions, a legacy port of the original C code) were only
   selected by `perf.status`, which also forced `material.elastic="hypoelastic"` and
@@ -251,3 +255,45 @@
   cost of touching every `solver.xxx` access.
 - **`test_workflow.jl` doesn't cover `material.elastic="improved_hencky"`** — add it once
   `.claude/bug/known/improved-hencky-explicit-admissibility-crossing.md` is fixed.
+- **Lighter `src/home/init/` — in progress** (branches `refactor-lighter-init` →
+  `fix-grf-point-evaluation`). Each step verified bit-identical with a scratch harness that
+  builds every example's *initial problem* (slump 2D/3D/with random field, collapse, column,
+  thermal, collision), flattens `mesh`/`mpts`/`time`/`basis` to plain arrays, and compares field
+  by field, plus one full slump run. Setup-only comparison is fast and is the right check for
+  `init/` changes. Done:
+  - `Geometry`: one constructor for any dimension; the 1D "padding" is the general
+    `[nel..., prod(nel)]` rule.
+  - `get_slump`: the 200-sample slope loop reduced to one half-plane test (the samples all lie on
+    one line, so every iteration gave the same answer), written once for 2D/3D.
+  - `mpts_populate`: one grid construction for any dimension (vertical axis fastest); returns
+    positions only.
+  - `material_fields(mat, nmp; coh0, cr, ϕ)` (`init/mpts/material_fields.jl`): the per-particle
+    fields all five `get_*` helpers used to copy; callers keep only their specific tweaks and
+    choose explicitly whether cohesion is random.
+
+  Remaining:
+  - **Step 6, one construction path:** `setup_problem` takes material overrides so
+    `collapse_problem`/`column_problem` stop re-implementing the pipeline; `n₀ = 0.1`
+    (`setup_mpts.jl`) and the cohesion/friction/softening literals in
+    `setup_material_constants` become keyword defaults. That also closes the usability finding
+    that `slump_problem` can't change any material parameter.
+  - **Step 7, smaller signatures:** `build_solid_phase`'s 11 positional arguments; a clear error for
+    3D `column_problem`, whose branch is commented out (bare `UndefVarError` today).
+  - **Step 8:** `init/` docstrings to describe behaviour, not history.
+  - **Step 5b, per-property random fields (deferred until a second random property is needed):**
+    `material_fields` would take `xp` and a per-property `grf.fields` config and call
+    `property_field` for each listed property. Open questions: truncation at a floor vs lognormal
+    mapping for positive-only properties (needs a reference in `refs/`, e.g. Fenton & Griffiths
+    2008); whether problem tweaks (slump's `ϕr` base layer) override or centre the random value;
+    independent vs cross-correlated fields (shared harmonics).
+- **Random field (`GRF.jl`) open points**, none blocking: (a) the per-axis extension of the
+  Gaussian covariance is derived in-repo, not stated in Räss et al. (2019); Sabelfeld (1991) is
+  a candidate source. (b) Point sampling at particle centres vs local averaging over the
+  particle volume (Vanmarcke; Fenton & Griffiths), which matters more for the rougher
+  exponential covariance and when particle spacing approaches the correlation length.
+- **Usability findings (second `agent-user` pass), not yet addressed:** a mistyped nested config
+  key (e.g. `material=(;elastik=...)`) replaces the whole section and fails in `get_solver` with
+  a cryptic "NamedTuple has no field" error; reading typed tensors via `get_voigt` and the
+  `dump/` flush on `using` are undocumented in `README.md`/`docs/src`; `worflow.jl` is misspelled
+  in both solver folders.
+

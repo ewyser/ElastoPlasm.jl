@@ -5,7 +5,7 @@ Initialize geometry and material point fields for a slump test problem.
 
 # Arguments
 - `mesh::Mesh{T1,T2,D}`: Mesh object with geometry and boundary self.
-- `mat`: Material parameters (Dict or NamedTuple).
+- `mat`: Material parameters (NamedTuple, see `setup_material_constants`).
 - `solver::S`: Solver instance (e.g. `ExplicitSolver`, may include GRF options).
 - `ni`: Number of intervals per element (default: 2).
 - `lz`: Domain height (default: 12.80).
@@ -19,82 +19,19 @@ function get_slump(mesh::Mesh{T1,T2,D}, mat, solver::S; ni = 2, lz = 12.80) wher
     props = mesh.prprt
     out = mpts_populate(props,mat,solver; ni=ni)
     wl  = 0.15*lz
+    # keep points below the slump height lz (last coordinate is vertical)
     id  = findall(x -> x ≤ lz-(0.5*props.h[end]/ni), out.x[end,:])
-    if D == 2
-        xp,zp,c     = out.x[1,id],out.x[2,id],out.c0[id]
-        x           = LinRange(minimum(xp),maximum(xp),200)
-        a           = -1.25
-        x,z         = x.+0.5.*props.L[1],a.*x
-        xlt,zlt,clt = Float64[],Float64[],Float64[]
-        pos         = Float64
-        for mpts ∈ eachindex(xp)
-            for p ∈ eachindex(z)
-                Δx,Δz = xp[mpts]-x[p],zp[mpts]-z[p]
-                nx,nz = a,-1.0
-                if (Δx*nx+Δz*nz)>0
-                    pos = 1
-                else
-                    pos = 0
-                end
-                if zp[mpts]<wl
-                    pos = 1
-                end
-            end
-            if pos==1
-                push!(xlt, xp[mpts]) # push!(inArray, What), incremental construction of an array of arbitrary size
-                push!(zlt, zp[mpts]) # push!(inArray, What), incremental construction of an array of arbitrary size
-                push!(clt, c[mpts])
-            end
-        end
-    elseif D == 3
-        xp,yp,zp,c  = out.x[1,id],out.x[2,id],out.x[3,id],out.c0[id]
-        x           = LinRange(minimum(xp),maximum(xp),200)
-        a           = -1.25
-        x,z         = x.+0.5.*props.L[1],a.*x
-        xlt,ylt,zlt = Float64[],Float64[],Float64[]
-        clt         = Float64[]
-        pos         = Float64
-        for mpts ∈ eachindex(xp)
-            for p ∈ eachindex(z)
-                Δx = xp[mpts]-x[p]
-                Δz = zp[mpts]-z[p]
-                nx = a
-                nz = -1.0
-                s  = Δx*nx+Δz*nz
-                if s>0.0
-                    pos = 1
-                else
-                    pos = 0
-                end
-                if zp[mpts]<wl
-                    pos = 1
-                end
-            end
-            if pos==1
-                push!(xlt, xp[mpts])
-                push!(ylt, yp[mpts])
-                push!(zlt, zp[mpts])
-                push!(clt, c[mpts])
-            end
-        end
-    end
-
-    if D == 2
-        xp = vcat(xlt',zlt')
-    elseif D == 3
-        xp = vcat(xlt',ylt',zlt')
-    end
+    xp   = out.x[:,id]
+    # slope line z = a·(x - L/2) through (xs, zs); keep points on its inner side, plus the base layer z < wl
+    a       = -1.25
+    xs,zs   = maximum(xp[1,:])+0.5*props.L[1], a*maximum(xp[1,:])
+    keep    = [(xp[1,p]-xs)*a+(xp[end,p]-zs)*(-1.0) > 0 || xp[end,p] < wl for p ∈ axes(xp,2)]
+    xp      = xp[:,keep]
     nmp    = size(xp,2)
-    id     = shuffle(collect(1:nmp))
-    coh0   = clt
-    cohr   = ones(nmp).*mat[:cr]
-    phi    = ones(nmp).*mat[:ϕ0]
-    phi[xp[end,:].<=2*wl] .= mat[:ϕr]
-
-    c      = ones(nmp).*mat[:specific_heat_capacity]
-    k      = ones(nmp).*mat[:thermal_conductivity]
-    T      = ones(nmp).*mat[:initial_temperature]
-    T[xp[end,:].<=2*wl] .= 3.0*mat[:initial_temperature]
-
-    return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,T=T,c=c,k=k,ni=ni,nmp=nmp)
+    f      = material_fields(mat, nmp; coh0=property_field(xp,mat[:c0],solver.grf; floor=mat[:cr]))
+    # weaker, warmer base layer
+    base   = xp[end,:] .<= 2*wl
+    f.phi[base] .= mat[:ϕr]
+    f.T[base]   .= 3.0*mat[:initial_temperature]
+    return (; xp, ni, nmp, f...)
 end

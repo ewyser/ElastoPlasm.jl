@@ -46,7 +46,6 @@ function get_collision(mesh::Mesh{T1,T2,D}, mat, solver::S; ni=2, r=0.1, v=10.5)
 
     if D == 2
         xp, zp = out.x[1, id], out.x[2, id]
-        c = out.c0[id]
 
         # Disk 1 center (left disk)
         xc0 = 0.25 * (props.L[1])
@@ -69,7 +68,6 @@ function get_collision(mesh::Mesh{T1,T2,D}, mat, solver::S; ni=2, r=0.1, v=10.5)
         # Lists to store material points
         xlt, zlt = Float64[], Float64[]
         vxlt, vzlt = Float64[], Float64[]
-        clt = Float64[]
 
         # Generate particles for disk 1
         for mpts in eachindex(xp)
@@ -82,7 +80,6 @@ function get_collision(mesh::Mesh{T1,T2,D}, mat, solver::S; ni=2, r=0.1, v=10.5)
                 push!(zlt, zp[mpts])
                 push!(vxlt, v * vx)
                 push!(vzlt, v * vz)
-                push!(clt, c[mpts])
             end
         end
 
@@ -97,7 +94,6 @@ function get_collision(mesh::Mesh{T1,T2,D}, mat, solver::S; ni=2, r=0.1, v=10.5)
                 push!(zlt, zp[mpts])
                 push!(vxlt, -v * vx)
                 push!(vzlt, -v * vz)
-                push!(clt, c[mpts])
             end
         end
 
@@ -107,7 +103,6 @@ function get_collision(mesh::Mesh{T1,T2,D}, mat, solver::S; ni=2, r=0.1, v=10.5)
 
     elseif D == 3
         xp, yp, zp = out.x[1, id], out.x[2, id], out.x[3, id]
-        c = out.c0[id]
 
         # Disk 1 center (left disk)
         xc0 = 0.4 * (props.L[1])
@@ -134,7 +129,6 @@ function get_collision(mesh::Mesh{T1,T2,D}, mat, solver::S; ni=2, r=0.1, v=10.5)
         # Lists to store material points
         xlt, ylt, zlt = Float64[], Float64[], Float64[]
         vxlt, vylt, vzlt = Float64[], Float64[], Float64[]
-        clt = Float64[]
 
         # Generate particles for disk 1 (sphere in 3D)
         for mpts in eachindex(xp)
@@ -150,7 +144,6 @@ function get_collision(mesh::Mesh{T1,T2,D}, mat, solver::S; ni=2, r=0.1, v=10.5)
                 push!(vxlt, v * vx)
                 push!(vylt, v * vy)
                 push!(vzlt, v * vz)
-                push!(clt, c[mpts])
             end
         end
 
@@ -168,7 +161,6 @@ function get_collision(mesh::Mesh{T1,T2,D}, mat, solver::S; ni=2, r=0.1, v=10.5)
                 push!(vxlt, -v * vx)
                 push!(vylt, -v * vy)
                 push!(vzlt, -v * vz)
-                push!(clt, c[mpts])
             end
         end
 
@@ -180,15 +172,6 @@ function get_collision(mesh::Mesh{T1,T2,D}, mat, solver::S; ni=2, r=0.1, v=10.5)
     # Number of material points
     nmp = size(xp, 2)
 
-    # Material properties
-    coh0 = clt
-    cohr = ones(nmp) .* mat[:cr]
-    phi = ones(nmp) .* mat[:ϕ0]
-
-    # Thermal properties
-    c = ones(nmp) .* mat[:specific_heat_capacity]
-    k = ones(nmp) .* mat[:thermal_conductivity]
-    T = ones(nmp) .* mat[:initial_temperature]
-
-    return (;xp=xp, vp=vp, coh0=coh0, cohr=cohr, phi=phi, T=T, c=c, k=k, ni=ni, nmp=nmp)
+    f = material_fields(mat, nmp; coh0=property_field(xp, mat[:c0], solver.grf; floor=mat[:cr]))
+    return (; xp, vp, ni, nmp, f...)
 end

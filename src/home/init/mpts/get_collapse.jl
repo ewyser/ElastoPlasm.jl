@@ -34,13 +34,7 @@ function get_collapse(mesh::Mesh{T1,T2,D},mat,solver::S; ni=2, w0=0.0, h0=0.0, �
     xp   = out.x[:,id]
     nmp  = length(id)
 
-    coh0 = fill(c0,nmp)
-    cohr = fill(c0,nmp)
-    phi  = fill(ϕ,nmp)
-
-    c    = fill(mat[:specific_heat_capacity],nmp)
-    k    = fill(mat[:thermal_conductivity],nmp)
-    T    = fill(mat[:initial_temperature],nmp)
-
-    return (;xp=xp,coh0=coh0,cohr=cohr,phi=phi,T=T,c=c,k=k,ni=ni,nmp=nmp)
+    # cohesionless granular block: no softening (residual = initial cohesion)
+    f    = material_fields(mat, nmp; coh0=fill(c0,nmp), cr=c0, ϕ=ϕ)
+    return (; xp, ni, nmp, f...)
 end
