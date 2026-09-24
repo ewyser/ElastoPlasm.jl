@@ -1,5 +1,5 @@
 """
-    Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=...) where {S<:AbstractSolver}
+    Geometry(L::Vector, nel::Vector, solver::AbstractSolver{T1,T2,D}; x₀=zeros(length(L))) -> Geometry{T1,T2,D}
 
 Constructor for the `Geometry` type. Computes mesh geometry parameters and returns a `Geometry` struct containing mesh and domain information, based on the number of elements, domain size, and basis type.
 
@@ -24,63 +24,16 @@ geom = Geometry([1.0, 1.0], [10, 10], solver)
 ```
 """
 
-function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0,]) where {T1<:Integer,T2<:Real, S<:AbstractSolver{T1,T2,1}}
-    # Calculate problem dimensionality & node spacing
-    dim,h = length(L),L ./ nel
-
-    nel = [nel[1], nel[1],]
-    xB  = [x₀[1] L[1]]
-
-    # Create nno vector
-    nno = [nel[1]+1, nel[1]+1,]
-
-    return Geometry{T1,T2,1}(
-        T1(dim),
-        T2.(h),
-        T1.(nel),
-        T1.(nno),
+function Geometry(L::Vector, nel::Vector, solver::AbstractSolver{T1,T2,D}; x₀::Vector=zeros(length(L))) where {T1,T2,D}
+    # per-axis counts followed by their product (the total); in 1D this gives [n, n]
+    nno = nel .+ 1
+    return Geometry{T1,T2,D}(
+        T1(length(L)),
+        T2.(L ./ nel),
+        T1.(vcat(nel, prod(nel))),
+        T1.(vcat(nno, prod(nno))),
         T2.(L),
-        T2.(xB),
-    )
-end
-
-function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0, 0.0,]) where {T1<:Integer,T2<:Real, S<:AbstractSolver{T1,T2,2}}
-    # Calculate problem dimensionality & node spacing
-    dim,h = length(L),L ./ nel
-
-    nel = [nel[1], nel[2], nel[1]*nel[2],]
-    xB  = vcat([x₀[1] L[1]], [x₀[2] L[2]])
-
-    # Create nno vector
-    nno = [nel[1]+1, nel[2]+1, (nel[1]+1) * (nel[2]+1),]
-
-    return Geometry{T1,T2,2}(
-        T1(dim),
-        T2.(h),
-        T1.(nel),
-        T1.(nno),
-        T2.(L),
-        T2.(xB),
-    )
-end
-
-function Geometry(L::Vector, nel::Vector, solver::S; x₀::Vector=[0.0, 0.0, 0.0]) where {T1<:Integer,T2<:Real, S<:AbstractSolver{T1,T2,3}}
-    # Calculate problem dimensionality & node spacing
-    dim,h = length(L),L ./ nel
-
-    nel = [nel[1], nel[2], nel[3], nel[1]*nel[2]*nel[3],]
-    xB  = vcat([x₀[1] L[1]], [x₀[2] L[2]], [x₀[3] L[3]])
-
-    # Create nno vector
-    nno = [nel[1]+1, nel[2]+1, nel[3]+1, (nel[1]+1) * (nel[2]+1) * (nel[3]+1),]
-
-    return Geometry{T1,T2,3}(
-        T1(dim),
-        T2.(h),
-        T1.(nel),
-        T1.(nno),
-        T2.(L),
-        T2.(xB),
+        T2.(hcat(x₀, L)),
     )
 end
 
