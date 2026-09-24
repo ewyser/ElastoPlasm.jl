@@ -57,6 +57,7 @@ function get_default()
             status = false,
             covariance = "gaussian",
             param = (;
+                σ  = 5.0e3,
                 Iₓ= [2.5,2.5,2.5],
                 Nₕ = 5000,
                 kₘ = 100,

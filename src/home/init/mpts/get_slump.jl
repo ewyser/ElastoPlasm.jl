@@ -21,14 +21,14 @@ function get_slump(mesh::Mesh{T1,T2,D}, mat, solver::S; ni = 2, lz = 12.80) wher
     wl  = 0.15*lz
     # keep points below the slump height lz (last coordinate is vertical)
     id  = findall(x -> x ≤ lz-(0.5*props.h[end]/ni), out.x[end,:])
-    xp,c = out.x[:,id],out.c0[id]
+    xp   = out.x[:,id]
     # slope line z = a·(x - L/2) through (xs, zs); keep points on its inner side, plus the base layer z < wl
     a       = -1.25
     xs,zs   = maximum(xp[1,:])+0.5*props.L[1], a*maximum(xp[1,:])
     keep    = [(xp[1,p]-xs)*a+(xp[end,p]-zs)*(-1.0) > 0 || xp[end,p] < wl for p ∈ axes(xp,2)]
-    xp,clt  = xp[:,keep],c[keep]
+    xp      = xp[:,keep]
     nmp    = size(xp,2)
-    coh0   = clt
+    coh0   = get_cohesion(xp,mat,solver)
     cohr   = ones(nmp).*mat[:cr]
     phi    = ones(nmp).*mat[:ϕ0]
     phi[xp[end,:].<=2*wl] .= mat[:ϕr]
