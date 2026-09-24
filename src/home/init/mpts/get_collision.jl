@@ -173,7 +173,7 @@ function get_collision(mesh::Mesh{T1,T2,D}, mat, solver::S; ni=2, r=0.1, v=10.5)
     nmp = size(xp, 2)
 
     # Material properties
-    coh0 = get_cohesion(xp, mat, solver)
+    coh0 = property_field(xp, mat[:c0], solver.grf; floor=mat[:cr])
     cohr = ones(nmp) .* mat[:cr]
     phi = ones(nmp) .* mat[:ϕ0]
 

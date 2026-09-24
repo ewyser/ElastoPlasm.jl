@@ -17,7 +17,7 @@ source, Räss, Kolyukhin & Minakov (2019), *Computers & Geosciences* 131:158-169
    `sf = 5e3`, `If = 2.5`, `Nh = 5000`, `k_m = 100` were hard-coded.
 
 Fix: `grf_gauss(xp, σ, I, Nh, kₘ)` (since renamed `random_field`, which also covers the exponential covariance) implements Algorithm 2 at the material points' own coordinates
-(D×N), called by `get_cohesion(xp, mat, solver)` on the particles each problem actually keeps
+(D×N), called by `get_cohesion(xp, mat, solver)` (since generalised to `property_field(xp, μ, grf; floor)`) on the particles each problem actually keeps
 (`get_slump`, `get_collision`), instead of on the candidate grid. `mpts_populate` now returns
 positions only. `grf.param` gains `σ` (default `5e3`, the old hard-coded value) and all
 parameters are read from it. `"exponential"` is no longer offered by `get_option` and errors

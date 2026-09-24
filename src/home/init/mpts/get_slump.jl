@@ -28,7 +28,7 @@ function get_slump(mesh::Mesh{T1,T2,D}, mat, solver::S; ni = 2, lz = 12.80) wher
     keep    = [(xp[1,p]-xs)*a+(xp[end,p]-zs)*(-1.0) > 0 || xp[end,p] < wl for p ∈ axes(xp,2)]
     xp      = xp[:,keep]
     nmp    = size(xp,2)
-    coh0   = get_cohesion(xp,mat,solver)
+    coh0   = property_field(xp,mat[:c0],solver.grf; floor=mat[:cr])
     cohr   = ones(nmp).*mat[:cr]
     phi    = ones(nmp).*mat[:ϕ0]
     phi[xp[end,:].<=2*wl] .= mat[:ϕr]

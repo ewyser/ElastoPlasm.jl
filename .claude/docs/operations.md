@@ -121,7 +121,7 @@ knob and its out-of-the-box value.
 - `grf` — Gaussian random field for heterogeneous initial cohesion (`status` toggles it on;
   `covariance` `"gaussian"` or `"exponential"`; `param`: standard deviation `σ`, per-axis correlation lengths
   `Iₓ`, harmonics `Nₕ`, max wave number `kₘ`). Evaluated at the material points' own coordinates
-  by `get_cohesion`/`random_field` (`init/mpts/GRF.jl`), following Räss et al. (2019), in
+  by `property_field`/`random_field` (`init/mpts/GRF.jl`), following Räss et al. (2019), in
   `refs/ElastoPlasm/grf/`.
 - `material` — `elastic` (`"hencky"`/`"improved_hencky"`/`"hypoelastic"` — picks both
   the strain kinematics and the elastic law, see `AbstractElasticLaw` in `lagrangian.jl`;

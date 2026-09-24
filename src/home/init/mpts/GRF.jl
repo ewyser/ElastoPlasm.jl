@@ -1,55 +1,4 @@
 """
-    RFS(xp, zp, coh0, cohr, phi0, phir)
-
-Generate random fields for cohesion and friction angle using exponential covariance.
-
-# Arguments
-- `xp`, `zp`: Coordinates of material points.
-- `coh0`, `cohr`: Mean and residual cohesion values.
-- `phi0`, `phir`: Mean and residual friction angle values.
-
-# Returns
-- `c`: Cohesion field (vector).
-- `ϕ`: Friction angle field (vector).
-"""
-function RFS(xp,zp,coh0,cohr,phi0,phir)
-    # parameters
-    θx,θz     = 20.0,2.0
-    β         = 45.0*π/180
-    μc,σc     = coh0, coh0/5.0
-    μϕ,σϕ     = phi0,phi0/10.0
-    # vector format
-    xp,zp,nmp = vec(xp),vec(zp),length(vec(xp))
-    # relative distance
-    Δx,Δz     = (xp.-xp'),zp.-zp'
-    # exponential covariance matrix
-    if β != 0.0
-        C = real.(exp.(-sqrt.(complex.((( Δx.*cos(β).+Δz.*sin(β))./θx).^2+((-Δx.*cos(β).+Δz.*sin(β))./θz).^2))))
-    else
-        C = real.(exp.(-sqrt.(complex.((Δx./θx).^2+(Δz./θz).^2))))  
-    end
-    C[diagind(C)].= 1.0    
-    cϕ   = cholesky(C).L*randn(Float64,nmp,2)
-    p    = 0.5
-    R    = [1.0 0.0;p sqrt(1.0-p^2)]
-    cϕ   = R*cϕ'
-    c    = μc.+σc.*cϕ[1,:]
-    ϕ    = μϕ.+σϕ.*cϕ[2,:]
-
-    p    = findall(x->x<=cohr, c)
-    c[p].= cohr
-	return c,ϕ
-end
-
-    #=
-    #ρ  = exp.(-sqrt.(complex.((  Δx                     ./θx).^2+(  Δz                     ./θz).^2)))
-    ρ  = exp.(-(complex.((Δx./θx).^2+(Δz./θz).^2)))
-    C  = real.(ρ)
-    Q  = eigvecs(C)
-    Λ  = diagm(eigvals(C))
-    c  = (Q*Λ.^(0.5)*randn(Float64,nmp)).+μ    
-    =#
-"""
     random_field(xp, σ, I, Nh, kₘ; covariance="gaussian") -> Vector
 
 Zero-mean Gaussian random field of standard deviation `σ`, evaluated at the points `xp` (D×N; 2D
@@ -100,14 +49,17 @@ function random_field(xp::AbstractMatrix, σ, I, Nh, kₘ; covariance::String="g
 end
 
 """
-    get_cohesion(xp, mat, solver) -> Vector
+    property_field(xp, μ, grf; floor=-Inf) -> Vector
 
-Initial cohesion at the points `xp` (D×N): uniform `mat[:c0]`, or, with `solver.grf.status`,
-`mat[:c0]` plus a Gaussian random field (`random_field`, covariance and parameters from `solver.grf`),
-bounded below by the residual cohesion `mat[:cr]`.
+Per-point values of a material property at `xp` (D×N): uniform `μ`, or, when `grf.status`,
+`μ` plus a random field (`random_field`, with `grf.covariance` and `grf.param`), bounded below
+by `floor`.
 """
-function get_cohesion(xp, mat, solver)
-    solver.grf.status || return fill(mat[:c0], size(xp,2))
-    g = solver.grf.param
-    return max.(mat[:c0] .+ random_field(xp, g.σ, g.Iₓ, g.Nₕ, g.kₘ; covariance=solver.grf.covariance), mat[:cr])
+function property_field(xp, μ, grf; floor=-Inf)
+    if !grf.status
+        return fill(μ, size(xp,2))
+    else
+        g = grf.param
+        return max.(μ .+ random_field(xp, g.σ, g.Iₓ, g.Nₕ, g.kₘ; covariance=grf.covariance), floor)
+    end
 end
