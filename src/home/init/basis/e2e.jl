@@ -1,61 +1,32 @@
 """
-    e2e(ndim::T1, nel::Vector{T1}, h::Vector{T2}, solver::S) where {T1,T2,S<:AbstractSolver}
+    e2e(nel::Vector{T1}, h::Vector{T2}, solver::S) where {T1,T2,S<:AbstractSolver}
 
-Construct the element-to-element connectivity matrix for a structured mesh.
+Construct the element-to-element connectivity matrix for a structured mesh, in any dimension:
+column `el` holds, as row indices, every element within `ceil(nonloc.ls/h)` elements of `el` along
+each axis (itself included). Only the sparsity pattern is read (`nzrange`/`rowvals` in
+`nonlocal.jl`). Built in one `sparse(I, J, V)` call: filling a `SparseMatrixCSC` entry by entry
+costs `O(nnz)` per insertion.
 
 # Arguments
-- `ndim::T1`: Number of spatial dimensions.
-- `nel::Vector{T1}`: Number of elements in each direction.
+- `nel::Vector{T1}`: Number of elements in each direction, then the total.
 - `h::Vector{T2}`: Element size in each direction.
 - `solver::S`: Solver instance (e.g. `ExplicitSolver`), must have `nonloc.ls` (nonlocal support length scale).
 
 # Returns
-- `e2e::SparseMatrixCSC{T1}`: Element-to-element connectivity matrix.
+- `e2e::SparseMatrixCSC{T1,T1}`: Element-to-element connectivity matrix.
 
 # Example
 ```julia
-e2e_mat = e2e(2, [10, 10], [0.1, 0.1], solver)
+e2e_mat = e2e([10, 10, 100], [0.1, 0.1], solver)
 ```
 """
-function e2e(ndim::T1,nel::Vector{T1},h::Vector{T2},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
-    e2e  = spzeros(T1,nel[end],nel[end])
-    nnel = ceil.(T1,solver.nonloc.ls./h)
-    gnum = collect(T1(1):nel[end])
-    if ndim == 1
-        iel  = 0
-        for i ∈ 1:nel[1]#nelx
-            iel = iel+1
-            I   = max(1,i-nnel[1]):min(nel[1],i+nnel[1])
-            els = vec(gnum[I])
-            e2e[iel,els] = els
-        end
-    elseif ndim == 2
-        gnum = reshape(gnum,Int(nel[1]),Int(nel[2]))  # (nx, ny)
-        iel  = 0
-        for j ∈ 1:nel[2] # nely (outer loop)
-            for i ∈ 1:nel[1] # nelx (inner loop)
-                iel = iel+1
-                I   = max(1,i-nnel[1]):min(nel[1],i+nnel[1])
-                J   = max(1,j-nnel[2]):min(nel[2],j+nnel[2])
-                els = vec(gnum[I,J])
-                e2e[els,iel] = els
-            end
-        end
-    elseif ndim == 3
-        gnum = reshape(gnum,Int(nel[1]),Int(nel[2]),Int(nel[3]))  # (nx, ny, nz)
-        iel  = 0
-        for k ∈ 1:nel[3] #nelz
-            for j ∈ 1:nel[2] #nely
-                for i ∈ 1:nel[1] #nelx
-                    iel = iel+1
-                    I   = max(1,i-nnel[1]):min(nel[1],i+nnel[1])
-                    J   = max(1,j-nnel[2]):min(nel[2],j+nnel[2])
-                    K   = max(1,k-nnel[3]):min(nel[3],k+nnel[3])
-                    els = vec(gnum[I,J,K])
-                    e2e[iel,els] = els
-                end
-            end
-        end
+function e2e(nel::Vector{T1},h::Vector{T2},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+    n    = ntuple(d -> Int(nel[d]), D)
+    r    = CartesianIndex(ntuple(d -> ceil(Int, solver.nonloc.ls / h[d]), D))
+    C, L = CartesianIndices(n), LinearIndices(n)
+    I, J = sizehint!(T1[], prod(2 .* Tuple(r) .+ 1) * length(C)), sizehint!(T1[], prod(2 .* Tuple(r) .+ 1) * length(C))
+    for c ∈ C, c′ ∈ max(c - r, first(C)):min(c + r, last(C))
+        push!(I, T1(L[c′])); push!(J, T1(L[c]))
     end
-    return e2e
+    return sparse(I, J, I, T1(nel[end]), T1(nel[end]))
 end

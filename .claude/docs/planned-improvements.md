@@ -302,6 +302,15 @@
     mapping for positive-only properties (needs a reference in `refs/`, e.g. Fenton & Griffiths
     2008); whether problem tweaks (slump's `ϕr` base layer) override or centre the random value;
     independent vs cross-correlated fields (shared harmonics).
+- **Setup cost — `e2e` fixed; IC plot and export are what's left.** `e2e` (`init/basis/e2e.jl`)
+  filled a `SparseMatrixCSC` entry by entry; in 1D/3D each row insert shifted all later storage, so
+  the build was quadratic (3D slump `[40,10,10]`: 2.4 s; `[60,15,15]`: 28 s; 32,000 elements:
+  174 s). It is now one `sparse(I, J, V)` call over `CartesianIndices`, one code path for every
+  dimension: 4 ms and 17 ms for those meshes, near-linear up to ~1e6 elements. Same sparsity
+  pattern (the only thing `nonlocal.jl` reads); 2D and 3D slumps bit-identical. Whole setup
+  (compilation excluded): 3D `[40,10,10]` 4.6 → 2.7 s, `[60,15,15]` 36.6 → 8.5 s. What remains is
+  the IC plot (`slump_problem` with `plot.status`, 2.1 s / 5.2 s) and `export_problem` (0.3 s /
+  2.1 s); both linear, not yet looked at.
 - **Random field (`GRF.jl`) open points**, none blocking: (a) the per-axis extension of the
   Gaussian covariance is derived in-repo, not stated in Räss et al. (2019); Sabelfeld (1991) is
   a candidate source. (b) Point sampling at particle centres vs local averaging over the
