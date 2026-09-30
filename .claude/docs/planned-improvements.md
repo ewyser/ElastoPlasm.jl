@@ -249,6 +249,9 @@
   *total* `J`, no clamp). Default-path results were bit-identical before/after removal.
   Possible follow-up: speed up the generic `deform` (its `MMatrix` accumulation is the likely
   gap), measured, rather than reintroducing a second implementation.
+  The removal also silently dropped the hypoelastic Jaumann rotation, which only the `_fast`
+  kernels applied (the generic term was identically zero); see
+  `.claude/bug/fixed/hypoelastic-jaumann-rotation-is-zero.md`.
 - **GPU execution is unwired — decide whether it's a goal.** `get_solver` resolves
   `backend.exec` from `backend.select`, but nothing reads it: every kernel factory in
   `init_ignite`/`init_mapsto`/`init_update` and every `sync(...)` call is a literal `CPU()`
