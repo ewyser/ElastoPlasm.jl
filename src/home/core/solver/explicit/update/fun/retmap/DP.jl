@@ -1,28 +1,9 @@
-@inline function σTr(σ0::SVector{3,T}) where {T}
-    P   = (σ0[1]+σ0[2])/T(2.0)
-    τ0  = σ0 .- SVector{3,T}(P,P,zero(T))
-    τII = sqrt(T(0.5) * (τ0[1]^2 + τ0[2]^2) + τ0[3]^2)
-    return P,τ0,τII
-end
-# 2D plane strain, full stress (xx, yy, zz, xy): mean stress and J₂ include σzz (Huang et al. 2015, Eqs 15-16)
-@inline function σTr(σ0::SVector{4,T}) where {T}
-    P   = (σ0[1]+σ0[2]+σ0[3])/T(3.0)
-    τ0  = σ0 .- SVector{4,T}(P,P,P,zero(T))
-    τII = sqrt(T(0.5)*(τ0[1]^2+τ0[2]^2+τ0[3]^2)+τ0[4]^2)
-    return P,τ0,τII
-end
-@inline function σTr(σ0::SVector{6,T}) where {T}
-    P   = (σ0[1]+σ0[2]+σ0[3])/T(3.0)
-    τ0  = σ0 .- SVector{6,T}(P,P,P,zero(T),zero(T),zero(T))
-    τII = sqrt(T(0.5)*(τ0[1]^2+τ0[2]^2+τ0[3]^2)+τ0[4]^2+τ0[5]^2+τ0[6]^2)
-    return P,τ0,τII
-end
-@inline function materialParam(ϕ::T2,ψ::T2,c::T2,nstr::T1) where {T1,T2}
-    if nstr == T1(3) || nstr == T1(4)   # 2D: plane-strain match to Mohr-Coulomb
+@inline function materialParam(ϕ::T2,ψ::T2,c::T2,D::Int) where {T2}
+    if D == 2   # plane strain: plane-strain match to Mohr-Coulomb
         η   = T2(3.0)*tan(ϕ)/(sqrt(T2(9.0)+T2(12.0)*tan(ϕ)*tan(ϕ)))
         ηB  = T2(3.0)*tan(ψ)/(sqrt(T2(9.0)+T2(12.0)*tan(ψ)*tan(ψ)))
         ξ   = T2(3.0)*c     /(sqrt(T2(9.0)+T2(12.0)*tan(ϕ)*tan(ϕ)))
-    elseif nstr == T1(6)
+    else
         η   = T2(6.0)*sin(ϕ)/(sqrt(T2(3.0))*(T2(3.0)+sin(ϕ)))
         ηB  = T2(6.0)*sin(ψ)/(sqrt(T2(3.0))*(T2(3.0)+sin(ψ)))
         ξ   = T2(6.0)*c*cos(ϕ)/(sqrt(T2(3.0))*(T2(3.0)+sin(ϕ)))
@@ -30,29 +11,19 @@ end
     return η,ηB,ξ
 end
 
-@inline function σn(Pn::T,τ0::SVector{3,T},τn::T,τII::T) where {T}
-    return τ0 .* (τn / τII) .+ SVector{3,T}(Pn,Pn,zero(T))
-end
-@inline function σn(Pn::T,τ0::SVector{4,T},τn::T,τII::T) where {T}
-    return τ0 .* (τn / τII) .+ SVector{4,T}(Pn,Pn,Pn,zero(T))
-end
-@inline function σn(Pn::T,τ0::SVector{6,T},τn::T,τII::T) where {T}
-    return τ0 .* (τn / τII) .+ SVector{6,T}(Pn,Pn,Pn,zero(T),zero(T),zero(T))
-end
-
 """
-    _druckerprager_return_map(σᵢ::SVector, ϵpII::MVector{2,T}, cmp) -> (Δλ, σᵢ)
+    _druckerprager_return_map(σ::AbstractStress, ϵpII::MVector{2,T}, cmp) -> (Δλ, p, dev)
 
-Closed-form Drucker-Prager return mapping, in Voigt space — shared by both
-`drucker_prager` methods below, since the yield-surface algebra itself doesn't care
-whether the input Voigt vector came from a `CauchyStress` or a `KirchhoffStress`.
-Returns `σᵢ` unchanged (elastic) unless yielding, in which case it's the return-mapped
-deviator+pressure reconstructed via `σn`. `ϵpII` (the non-local-regularized hardening
-history) is mutated in place, matching the pre-existing `MVector` scratch convention.
+Closed-form Drucker-Prager return mapping on the stored pressure/deviator split — shared by both
+`drucker_prager` methods below, since the yield-surface algebra doesn't care whether the stress is
+Cauchy or Kirchhoff. Returns `σ`'s own `(p, dev)` (elastic) unless yielding, in which case the
+pressure is returned along the flow direction and the deviator scaled radially onto the cone.
+`ϵpII` (the non-local-regularized hardening history) is mutated in place, matching the
+pre-existing `MVector` scratch convention.
 """
-@inline function _druckerprager_return_map(σᵢ::SVector{N,T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel) where {N,T}
+@inline function _druckerprager_return_map(σ::AbstractStress{T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel{T,D}) where {T,D}
     Δλ       = T(0.0)
-    ψ,nstr   = T(0.0*π/180.0),length(σᵢ)
+    ψ        = T(0.0*π/180.0)
     ϕ₀,c₀,cᵣ = cmp.ϕ₀,cmp.c₀,cmp.cᵣ
 
     # closed-form solution return-mapping for D-P
@@ -60,15 +31,15 @@ history) is mutated in place, matching the pre-existing `MVector` scratch conven
     if c<cᵣ
         c = cᵣ
     end
-    P,τ0,τII = σTr(σᵢ)
-    η,ηB,ξ   = materialParam(ϕ₀,ψ,c,nstr)
+    P,τII    = -σ.p,get_τII(σ)   # mean stress (positive in tension) and deviator norm √J₂
+    η,ηB,ξ   = materialParam(ϕ₀,ψ,c,D)
     σm       = ξ/η
     fs       = τII+η*P-ξ
-    σout     = σᵢ
+    p,dev    = σ.p,σ.dev
     if fs>T(0.0) && P<σm
         Δλ       = fs/(cmp.Gc+cmp.Kc*η*ηB)
         Pn,τn    = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
-        σout     = σn(Pn,τ0,τn,τII)
+        p,dev    = -Pn,σ.dev*(τn/τII)
         ϵpII[1] += Δλ*sqrt(T(1/3)+T(2/9)*ηB^2)
     end
     # tension cutoff sits at the apex (σt = σm = ξ/η, Huang et al. 2015 Eq. 19 with σt = σt_max),
@@ -76,70 +47,39 @@ history) is mutated in place, matching the pre-existing `MVector` scratch conven
     # mean ≤ σm): return there, Δλ from Eq. 54, ϵpII increment from Eq. 56
     if P≥σm
         Δλ       = (P-σm)/cmp.Kc
-        σout     = σn(σm,τ0,T(0.0),T(1.0))   # σm·I; τII may be 0 for a hydrostatic trial state
+        p,dev    = -σm,zero(σ.dev)
         ϵpII[1] += sqrt(T(2.0))*Δλ/T(3.0)
     end
-    return Δλ,σout
+    return Δλ,p,dev
 end
 
 """
-    drucker_prager(τᵢⱼ::KirchhoffStress, ϵᵢⱼ::LogarithmicStrain, ϵzz, ϵpII, cmp) -> (ϵᵢⱼ, τᵢⱼ, ϵzz, Δλ, ϵpII)
-    drucker_prager(σᵢⱼ::CauchyStress, ϵᵢⱼ::InfinitesimalStrain, ϵpII, cmp) -> (ϵᵢⱼ, σᵢⱼ, Δλ, ϵpII)
+    drucker_prager(τᵢ::KirchhoffStress, ϵᵢ::LogarithmicStrain, ϵpII, cmp) -> (ϵᵢ, τᵢ, Δλ, ϵpII)
+    drucker_prager(σᵢ::CauchyStress, ϵᵢ::InfinitesimalStrain, ϵpII, cmp) -> (ϵᵢ, σᵢ, Δλ, ϵpII)
 
 Drucker-Prager return mapping, dispatched on stress/strain type — one method per
 `(stress,strain)` pair, sharing the closed-form `_druckerprager_return_map` core rather
-than duplicating it. Both methods do the algebra in Voigt space (`get_voigt`) using the
-pre-existing `σTr`/`σn` helpers — the stored `(p,dev)` split is representational rather
-than canonically trace-free (see the `AbstractStrain`/`AbstractStress` docstrings in
-`strain.jl`/`stress.jl`), so the invariants are re-derived from the Voigt view.
+than duplicating it.
 
-The finite-strain (`KirchhoffStress`/`LogarithmicStrain`) method additionally updates
-the strain when yielding, built directly by `LogarithmicStrain(cmp.Del\\τᵢ)` — the
-compliance solve `Del\\τᵢ` is already an engineering-Voigt strain vector, and that
-constructor (`strain.jl`) does the engineering→tensor conversion and vol/dev split in
-one step. The infinitesimal-strain (`CauchyStress`/`InfinitesimalStrain`) method never
+The finite-strain (`KirchhoffStress`/`LogarithmicStrain`) method additionally rebuilds the
+elastic strain when yielding, with `_elastic_strain` (`stress.jl`). The infinitesimal-strain (`CauchyStress`/`InfinitesimalStrain`) method never
 updates the strain — infinitesimal strain is tracked incrementally by `elast!` itself,
 not re-derived from the return-mapped stress.
 """
-@inline function drucker_prager(τᵢⱼ::KirchhoffStress{S,T,L},ϵᵢⱼ::LogarithmicStrain{S,T,L},ϵzz::T,ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel) where {S,T,L}
-    Δλ, τᵢ  = _druckerprager_return_map(get_voigt(τᵢⱼ),ϵpII,cmp)
+@inline function drucker_prager(τᵢ::KirchhoffStress{T},ϵᵢ::LogarithmicStrain{T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel) where {T}
+    Δλ,p,dev = _druckerprager_return_map(τᵢ,ϵpII,cmp)
     if Δλ > T(0.0)
-        τᵢⱼ = KirchhoffStress(τᵢ)
-        ϵᵢⱼ = LogarithmicStrain(cmp.Del\τᵢ)
-
-
-#= WIP 
-        Dalg = StressStrainStiffness{3,T}()
-        Dalg = cmp.Kc*Dalg.vol + 2.0*cmp.Gc*Dalg.dev
-        ϵᵢⱼ = LogarithmicStrain(Dalg\τᵢ)
-        #Kt  = cmp.Kc/(T(2.0)*n^3)*(n^2*(ϵᵢⱼ.vol^2+T(4.0)*ϵᵢⱼ.vol+2)-ϵᵢⱼ.vol*n*(T(3.0)*ϵᵢⱼ.vol+T(4.0))+T(2.0)*ϵᵢⱼ.vol^2)
-=#        
+        τᵢ = KirchhoffStress(p,dev)
+        ϵᵢ = _elastic_strain(τᵢ,cmp)
     end
-    return ϵᵢⱼ,τᵢⱼ,ϵzz,Δλ,ϵpII
+    return ϵᵢ,τᵢ,Δλ,ϵpII
 end
-# 2D plane strain: the invariants include τzz, which follows from the elastic strain (xx, yy, zz)
-# through the linear Hencky law, as in `J2.jl`'s plane-strain `von_mises`.
-@inline function drucker_prager(τᵢⱼ::KirchhoffStress{2,T,L},ϵᵢⱼ::LogarithmicStrain{2,T,L},ϵzz::T,ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel) where {T,L}
-    Del = _plane_strain_Del(cmp)
-    ϵ   = get_voigt(ϵᵢⱼ)
-    τ   = get_voigt(τᵢⱼ)
-    τzz = Del[3,1]*ϵ[1] + Del[3,2]*ϵ[2] + Del[3,3]*ϵzz
-    Δλ,τᵢ = _druckerprager_return_map(SVector{4,T}(τ[1],τ[2],τzz,τ[3]),ϵpII,cmp)
+@inline function drucker_prager(σᵢ::CauchyStress{T},ϵᵢ::InfinitesimalStrain{T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel) where {T}
+    Δλ,p,dev = _druckerprager_return_map(σᵢ,ϵpII,cmp)
     if Δλ > T(0.0)
-        ϵ₄  = Del\τᵢ
-        P   = -(τᵢ[1]+τᵢ[2]+τᵢ[3])/T(3.0)
-        τᵢⱼ = KirchhoffStress(P, SVector{3,T}(τᵢ[1]+P, τᵢ[2]+P, τᵢ[4]))
-        ϵᵢⱼ = LogarithmicStrain(SVector{3,T}(ϵ₄[1], ϵ₄[2], ϵ₄[4]))
-        ϵzz = ϵ₄[3]
+        σᵢ = CauchyStress(p,dev)
     end
-    return ϵᵢⱼ,τᵢⱼ,ϵzz,Δλ,ϵpII
-end
-@inline function drucker_prager(σᵢⱼ::CauchyStress{S,T,L},ϵᵢⱼ::InfinitesimalStrain{S,T,L},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel) where {S,T,L}
-    Δλ,σᵢ = _druckerprager_return_map(get_voigt(σᵢⱼ),ϵpII,cmp)
-    if Δλ > T(0.0)
-        σᵢⱼ = CauchyStress(σᵢ)
-    end
-    return ϵᵢⱼ,σᵢⱼ,Δλ,ϵpII
+    return ϵᵢ,σᵢ,Δλ,ϵpII
 end
 
 """
@@ -159,11 +99,10 @@ between via a `material.plastic`/`material.elastic` string branch.
         # `nonlocal.jl` (`mpts.s.Δλ[p] != 0`), so leaving last step's value in place on an
         # elastic step keeps a particle spuriously "yielding" forever.
         mpts.s.Δλ[p] = T2(0.0)
-        ϵᵢⱼ,τᵢⱼ,ϵzz,Δλ,ϵpII = drucker_prager(mpts.s.τᵢⱼ[p],mpts.s.ϵᵢⱼ[p],mpts.s.ϵzz[p],MVector{2,T2}(mpts.s.ϵpII[p]),mpts.s.cmp[p])
+        ϵᵢ,τᵢ,Δλ,ϵpII = drucker_prager(mpts.s.τᵢ[p],mpts.s.ϵᵢ[p],MVector{2,T2}(mpts.s.ϵpII[p]),mpts.s.cmp[p])
         if Δλ > T2(0.0)
-            mpts.s.ϵᵢⱼ[p]  = ϵᵢⱼ
-            mpts.s.ϵzz[p]  = ϵzz
-            mpts.s.τᵢⱼ[p]  = τᵢⱼ
+            mpts.s.ϵᵢ[p]  = ϵᵢ
+            mpts.s.τᵢ[p]  = τᵢ
             mpts.s.Δλ[p]   = Δλ
             mpts.s.ϵpII[p] = SVector{2,T2}(ϵpII)
         end
@@ -173,9 +112,9 @@ end
     p = @index(Global)
     if p≤mpts.nmp
         mpts.s.Δλ[p] = T2(0.0)
-        ϵᵢⱼ,σᵢⱼ,Δλ,ϵpII = drucker_prager(mpts.s.σᵢⱼ[p],mpts.s.ϵᵢⱼ[p],MVector{2,T2}(mpts.s.ϵpII[p]),mpts.s.cmp[p])
+        ϵᵢ,σᵢ,Δλ,ϵpII = drucker_prager(mpts.s.σᵢ[p],mpts.s.ϵᵢ[p],MVector{2,T2}(mpts.s.ϵpII[p]),mpts.s.cmp[p])
         if Δλ > T2(0.0)
-            mpts.s.σᵢⱼ[p]  = σᵢⱼ
+            mpts.s.σᵢ[p]  = σᵢ
             mpts.s.Δλ[p]   = Δλ
             mpts.s.ϵpII[p] = SVector{2,T2}(ϵpII)
         end

@@ -4,10 +4,8 @@ export get_mpts_variable_config, get_variable_plot_options
 # Variable extraction functions for metanalysis. All return raw (SI) values;
 # unit conversion for display is applied afterwards via each entry's `scale`.
 get_epII(mpts) = getindex.(mpts.s.ϵpII, 1)
-# NB: this is the pre-existing "mean of all stored Voigt components" definition (shear
-# included, divided by nstr), kept verbatim through the typed-tensor port — it is NOT
-# `stress.p`, and swapping it would silently change every published pressure plot.
-get_P(mpts)    = [(σv = get_voigt(σ); -sum(σv)/length(σv)) for σ in mpts.s.σᵢⱼ]
+# mean pressure of the full 3×3 stress, positive in compression (in 2D, σzz included)
+get_P(mpts)    = getfield.(mpts.s.σᵢ, :p)
 get_J(mpts)    = mpts.J
 get_n(mpts)    = mpts.n
 get_v(mpts)    = [sqrt(v[1]^2 + v[2]^2) for v in mpts.s.v]

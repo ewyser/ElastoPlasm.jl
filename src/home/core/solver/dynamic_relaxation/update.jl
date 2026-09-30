@@ -10,7 +10,7 @@ stays equal to `mpts.s.m`.
     p = @index(Global)
     if p ≤ mpts.nmp
         mpts.s.Fn[p] = mpts.s.Fᵢⱼ[p]
-        mpts.s.ϵn[p] = mpts.s.ϵᵢⱼ[p]
+        mpts.s.ϵn[p] = mpts.s.ϵᵢ[p]
         Δu = zero(SVector{D,T2})
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
@@ -21,7 +21,7 @@ stays equal to `mpts.s.m`.
         mpts.x[p]  += Δu
         J             = det(mpts.s.Fᵢⱼ[p])
         mpts.J[p]     = J
-        mpts.s.σᵢⱼ[p] = CauchyStress(mpts.s.τᵢⱼ[p], T2(1.0)/J)
+        mpts.s.σᵢ[p] = CauchyStress(mpts.s.τᵢ[p], T2(1.0)/J)
         mpts.Ω[p]     = J * mpts.Ω₀[p]
         n             = T2(1.0) - T2(1.0)/J*(T2(1.0)-mpts.n₀[p])
         mpts.s.ρ[p]   = (T2(1.0)-n)*mpts.s.ρ₀[p]

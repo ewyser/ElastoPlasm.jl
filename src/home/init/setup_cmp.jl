@@ -1,49 +1,11 @@
 """
-    get_elastic_stiffness(E, ν, ndim) -> Kc, Gc, D
+    get_elastic_moduli(E, ν) -> Kc, Gc
 
-Compute the bulk modulus, shear modulus, and elastic stiffness matrix for a given Young's modulus, Poisson's ratio, and spatial dimension.
-
-# Arguments
-- `E`: Young's modulus (Pa).
-- `ν`: Poisson's ratio.
-- `ndim`: Number of spatial dimensions (1, 2, or 3).
-
-# Returns
-- `Kc`: Bulk modulus.
-- `Gc`: Shear modulus.
-- `Del`: Elastic stiffness matrix (Voigt notation).
-
-# Example
-```julia
-Kc, Gc, D = get_elastic_stiffness(1.0e6, 0.3, 2)
-```
+Bulk and shear moduli from Young's modulus and Poisson's ratio. The Voigt stiffness `Del` is built
+from them on the fly by `get_Del` (`stiffness.jl`).
 """
-function get_elastic_stiffness(E::T2,ν::T2,ndim::T1) where {T1,T2}
-    Kc,Gc = E/(3.0*(1.0-2.0*ν)),E/(2.0*(1.0+ν))
-    i ,I  = 1.0-ν              ,(1.0-2.0*ν)/2.0                              # bulk & shear modulus               [Pa]
-    if ndim == 1
-        D = SMatrix{2,2,T2,4}(
-            i  ,0.0,
-            0.0,I  ,
-        )
-    elseif ndim == 2
-        D = SMatrix{3,3,T2,9}(
-            i   ,ν   ,0.0,
-            ν   ,i   ,0.0,
-            0.0 ,0.0 ,I  ,
-        )
-    elseif ndim == 3
-        D = SMatrix{6,6,T2,36}(
-            i   ,ν   ,ν   ,0.0 ,0.0 ,0.0,
-            ν   ,i   ,ν   ,0.0 ,0.0 ,0.0,
-            ν   ,ν   ,i   ,0.0 ,0.0 ,0.0,
-            0.0 ,0.0 ,0.0 ,I   ,0.0 ,0.0,
-            0.0 ,0.0 ,0.0 ,0.0 ,I   ,0.0,
-            0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,I  ,
-        )
-    end
-    Del = E/((1.0+ν)*(1.0-2.0*ν)).*D
-    return T2(Kc),T2(Gc),T2.(Del)
+function get_elastic_moduli(E::T2,ν::T2) where {T2}
+    return T2(E/(3.0*(1.0-2.0*ν))), T2(E/(2.0*(1.0+ν)))
 end
 
 """
@@ -83,7 +45,7 @@ function setup_material_constants(solver::AbstractSolver{T1,T2,D};
     ρ0::T2= T2(2700.0),
     ) where {T1,T2,D}
     # independant physical constant
-    K,G,Del = get_elastic_stiffness(E,ν,T1(D))                                  # elastic matrix D(E,ν) Young's mod. [Pa] + Poisson's ratio [-]
+    K,G     = get_elastic_moduli(E,ν)                                           # bulk & shear modulus [Pa] from Young's mod. + Poisson's ratio
     c       = sqrt((K+4.0/3.0*G)/ρ0)                                            # elastic wave speed [m/s]
     c0,cr   = 20.0e3,4.0e3                                                      # cohesion [Pa]
     ϕ0,ϕr,ψ0= 20.0*π/180,7.5*π/180,0.0                                          # friction angle [Rad], dilation angle [Rad]
@@ -95,7 +57,6 @@ function setup_material_constants(solver::AbstractSolver{T1,T2,D};
         ν   = T2(ν),
         Kc  = T2(K),
         Gc  = T2(G),
-        Del = T2.(Del),
         Hp  = T2(Hp),
         c0  = T2(c0),
         cr  = T2(cr),
@@ -118,7 +79,7 @@ Build one per-particle `AbstractConstitutiveModel` instance for every material p
 from the (possibly spatially-heterogeneous, e.g. GRF-perturbed) per-particle cohesion/
 friction fields already computed by `get_slump`/`get_thermal`/`get_collision`/
 `get_column`/`get_collapse`/`mpts_populate`, plus the uniform elastic constants derived once from
-`E`,`ν` via `get_elastic_stiffness`. Branches on `constitutive` (typically
+`E`,`ν` via `get_elastic_moduli`. Branches on `constitutive` (typically
 `solver.material.plastic`) to build `Vector{DruckerPrager}` (`"DP"`) or
 `Vector{VonMises}` (`"VM"`) — never `PerfectlyElastic`, see its docstring for why. An
 unrecognized `constitutive` string throws immediately here, at setup time, rather than
@@ -133,7 +94,7 @@ Which elastic trial-stress law applies (`material.elastic`) is resolved separate
 - `coh0`,`cohr`,`phi`: Per-particle initial cohesion, residual cohesion, friction angle.
   `phi` is ignored when `constitutive=="VM"` (von Mises has no friction angle) — still
   required positionally so callers don't need to conditionally omit it.
-- `E`,`ν`: Young's modulus, Poisson's ratio (used to derive `Kc`,`Gc`,`Del`).
+- `E`,`ν`: Young's modulus, Poisson's ratio (used to derive `Kc`,`Gc`).
 - `Hp`: Softening modulus (uniform across particles).
 - `D`: Spatial dimension.
 - `constitutive`: `"DP"` or `"VM"`, selects the concrete `AbstractConstitutiveModel`.
@@ -141,11 +102,11 @@ Which elastic trial-stress law applies (`material.elastic`) is resolved separate
 function setup_cmp(nmp::Integer,coh0::AbstractVector{T2},cohr::AbstractVector{T2},phi::AbstractVector{T2};
     E::T2,ν::T2,Hp::T2,D::Integer,constitutive::String,
     ) where {T2}
-    Kc,Gc,Del = get_elastic_stiffness(E,ν,D)
+    Kc,Gc = get_elastic_moduli(E,ν)
     if constitutive == "DP"
-        return [DruckerPrager{T2,D,size(Del,1),length(Del)}(Gc,Kc,Del,Hp,T2(coh0[p]),T2(cohr[p]),T2(phi[p])) for p ∈ 1:nmp]
+        return [DruckerPrager{T2,D}(Gc,Kc,Hp,T2(coh0[p]),T2(cohr[p]),T2(phi[p])) for p ∈ 1:nmp]
     elseif constitutive == "VM"
-        return [VonMises{T2,D,size(Del,1),length(Del)}(Gc,Kc,Del,Hp,T2(coh0[p]),T2(cohr[p])) for p ∈ 1:nmp]
+        return [VonMises{T2,D}(Gc,Kc,Hp,T2(coh0[p]),T2(cohr[p])) for p ∈ 1:nmp]
     else
         throw(error("InvalidConstitutiveModel: $(constitutive) (expected \"DP\" or \"VM\")"))
     end

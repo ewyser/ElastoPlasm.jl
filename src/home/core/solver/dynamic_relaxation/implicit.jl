@@ -18,14 +18,13 @@ Diagonal fictitious mass `M̃ᵥᵥ = ζ_M ΔT²/4 Σₚ (U_est/h)² M′ₚ V�
 over the material points whose support contains node `v`, with the Hencky P-wave modulus
 `M′ₚ = exp(−ε_III)/det F · (K + 4G/3)` (Eqs 38, 50). Assembled at the start of the load step,
 where `ΔF = I`, so `U_est = 1` (Eq 36). `ε_III` is the smallest principal logarithmic strain;
-in 2D plane strain the elastic out-of-plane strain `ϵzz` takes part in the minimum.
+the stored strain is 3×3, so in 2D plane strain the out-of-plane strain takes part.
 """
 function fictitious_mass(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D}; ζM::T2=T2(2.0)) where {T1,T2,D}
     h⁻² = inv(minimum(mesh.prprt.h))^2
     M̃   = zeros(T2, mesh.prprt.nno[end])
     for p ∈ 1:mpts.nmp
-        λ    = eigen(mpts.s.ϵn[p]).values
-        ϵIII = D == 2 ? min(minimum(λ), mpts.s.ϵzz[p]) : minimum(λ)
+        ϵIII = minimum(eigen(mpts.s.ϵn[p]).values)
         cmp  = mpts.s.cmp[p]
         M′   = exp(-ϵIII) / mpts.J[p] * (cmp.Kc + T2(4.0/3.0)*cmp.Gc)
         for no ∈ basis.p2n[p]
@@ -46,8 +45,9 @@ picks the critical damping factor `α` (Eq 40), and advances the fictitious velo
 with the midpoint rule (Eqs 32-33, `ΔT = 1`; the denominator is `2 + αΔT`, as in Eq 44),
 until `‖R‖/‖fᵉˣᵗ‖ < tol` over the free degrees of freedom. With `plastic=true` the stress
 goes through `retmap!` after `elast!`, each iteration starting again from the load step's
-converged plastic strain (the same `ϵpII[2] ← ϵpII[1]` seeding as the explicit path) and
-out-of-plane elastic strain `ϵzz`, so no plastic state carries from one iteration to the next.
+converged plastic strain (the same `ϵpII[2] ← ϵpII[1]` seeding as the explicit path) — the
+elastic strain itself is reset by `dr_kinematics` — so no plastic state carries from one
+iteration to the next.
 """
 function relax!(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::Vector{T2},instr::S; tol::T2=T2(1e-9), itmax::Int=1_000_000, plastic::Bool=false, sf=nothing) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     # reset grid, lumped mass and external force fᵉˣᵗ = Σ S m g (Eq 22)
@@ -65,12 +65,10 @@ function relax!(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g
     oobf₀ = similar(mesh.s.oobf)
     α     = T2(0.0)
     ϵpIIₙ = [SVector{2,T2}(ϵ[1], ϵ[1]) for ϵ ∈ mpts.s.ϵpII]
-    ϵzzₙ  = copy(mpts.s.ϵzz)
     for it ∈ 0:itmax
         # stress and out-of-balance force for the current Δu
         fill!(mesh.s.oobf, T2(0.0))
         instr.cairn.implicit.kinematics!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
-        plastic && copyto!(mpts.s.ϵzz, ϵzzₙ)
         instr.cairn.update.elast!(mpts; ndrange=mpts.nmp);sync(CPU())
         if plastic
             copyto!(mpts.s.ϵpII, ϵpIIₙ)

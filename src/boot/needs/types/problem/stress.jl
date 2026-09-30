@@ -3,69 +3,37 @@
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 export AbstractStress, CauchyStress, KirchhoffStress
-export get_tensor, get_voigt, get_J2, get_τII
+export get_tensor, get_J2, get_τII
 
 """
-    AbstractStress{S,T,L}
+    AbstractStress{T}
 
-Second-order stress tensor stored on `PointSolidPhase` (`σᵢⱼ`/`σn`/`τᵢⱼ`) as
-`p::T` (pressure, **positive in compression**) + `dev::SMatrix{S,S,T,L}` (deviatoric
-part), so the full tensor is `dev - p·I`. `strain.jl`'s `AbstractStrain` follows the
-same `(vol, dev)`-split convention for strains (see its docstring for the full note
-on `dev` not being canonically trace-free and always reading via `get_voigt`/
-`get_tensor`).
-"""
-abstract type AbstractStress{S,T,L} end
+Second-order stress tensor stored on `PointSolidPhase` (`σᵢ`/`σn`/`τᵢ`) as its pressure
+`p::T = -tr/3` (positive in compression) and its trace-free deviator `dev::SVector{6,T}`, a 3D
+Voigt vector `(xx, yy, zz, yz, xz, xy)` in every dimension, like `AbstractStrain` (`strain.jl`) but
+without shear doubling: in 2D plane strain `σzz` is carried.
 
+As for strain, tensors meet the split in one place each way: `get_tensor(σ) = dev - p·I` (symmetric
+3×3; `get_tensor(σ, Val(D))` is its in-plane `D×D` block, for force assembly) and the 3×3
+constructor. Other readers: `get_J2`/`get_τII`.
+Code that builds `(p, dev)` directly (the elastic laws, the return maps) passes a trace-free `dev`.
 """
-    get_tensor(stress::AbstractStress{S,T,L}) -> SMatrix{S,S,T,L}
+abstract type AbstractStress{T} end
 
-Reassemble the full stress tensor `dev - p·I` (`p` positive in compression).
-"""
-@inline function get_tensor(stress::AbstractStress{S,T,L}) where {S,T,L}
-    return stress.dev - stress.p * SMatrix{S,S,T,L}(I)
+@inline function get_tensor(t::AbstractStress{T}) where {T}
+    d, p = t.dev, t.p
+    return SMatrix{3,3,T,9}(d[1] - p, d[6], d[5], d[6], d[2] - p, d[4], d[5], d[4], d[3] - p)
 end
-
-"""
-    get_voigt(stress::AbstractStress) -> SVector{3,T} (2D) / SVector{6,T} (3D)
-
-Voigt stress vector `(σxx,σyy,σxy)` / `(σxx,σyy,σzz,σyz,σxz,σxy)` — no shear doubling
-(unlike strain).
-"""
-@inline function get_voigt(stress::AbstractStress{2,T,L}) where {T,L}
-    return SVector{3,T}(
-        stress.dev[1,1] - stress.p,
-        stress.dev[2,2] - stress.p,
-        stress.dev[1,2],
-    )
-end
-@inline function get_voigt(stress::AbstractStress{3,T,L}) where {T,L}
-    return SVector{6,T}(
-        stress.dev[1,1] - stress.p,
-        stress.dev[2,2] - stress.p,
-        stress.dev[3,3] - stress.p,
-        stress.dev[2,3],
-        stress.dev[1,3],
-        stress.dev[1,2],
-    )
-end
+@inline get_tensor(t::AbstractStress, ::Val{D}) where {D} = get_tensor(t)[SOneTo(D), SOneTo(D)]
 
 """
     get_J2(stress::AbstractStress) -> T
 
-Second deviatoric stress invariant `J₂ = ½ sᵢⱼsᵢⱼ`, re-derived from `get_voigt` (see
-`AbstractStrain`/`AbstractStress`'s shared-convention notes) rather than trusting the
-stored `dev`.
+Second deviatoric stress invariant `J₂ = ½ sᵢⱼsᵢⱼ` of the full 3D stress.
 """
-@inline function get_J2(stress::AbstractStress{2,T,L}) where {T,L}
-    σ = get_voigt(stress)
-    P = (σ[1] + σ[2]) / T(2.0)
-    return T(0.5) * ((σ[1] - P)^2 + (σ[2] - P)^2) + σ[3]^2
-end
-@inline function get_J2(stress::AbstractStress{3,T,L}) where {T,L}
-    σ = get_voigt(stress)
-    P = (σ[1] + σ[2] + σ[3]) / T(3.0)
-    return T(0.5) * ((σ[1] - P)^2 + (σ[2] - P)^2 + (σ[3] - P)^2) + σ[4]^2 + σ[5]^2 + σ[6]^2
+@inline function get_J2(t::AbstractStress{T}) where {T}
+    s = t.dev
+    return T(0.5) * (s[1]^2 + s[2]^2 + s[3]^2) + s[4]^2 + s[5]^2 + s[6]^2
 end
 
 """
@@ -73,134 +41,71 @@ end
 
 Second invariant `τII = √J₂` of the deviatoric stress.
 """
-@inline function get_τII(stress::AbstractStress)
-    return sqrt(get_J2(stress))
-end
-
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# CauchyStress
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+@inline get_τII(t::AbstractStress) = sqrt(get_J2(t))
 
 """
-    CauchyStress{S,T,L} <: AbstractStress{S,T,L}
+    CauchyStress{T} <: AbstractStress{T}
 
-Cauchy (true) stress. Stored by `mpts.s.σᵢⱼ`/`mpts.s.σn`.
+Cauchy (true) stress. Stored by `mpts.s.σᵢ`/`mpts.s.σn`.
 """
-struct CauchyStress{S,T,L} <: AbstractStress{S,T,L}
+struct CauchyStress{T} <: AbstractStress{T}
     p  ::T
-    dev::SMatrix{S,S,T,L}
-    function CauchyStress{S,T,L}(p::T, dev::SMatrix{S,S,T,L}) where {S,T,L}
-        return new{S,T,L}(p, dev)
-    end
-    function CauchyStress(p::T, dev::SMatrix{S,S,T,L}) where {S,T,L}
-        return new{S,T,L}(p, dev)
-    end
+    dev::SVector{6,T}
 end
 @adapt_struct CauchyStress
 
-# dev given as a Voigt deviator only (no pressure part)
-@inline function CauchyStress(p::T, dev::SVector{3,T}) where {T}
-    return CauchyStress(p, SMatrix{2,2,T,4}(
-        dev[1], dev[3],
-        dev[3], dev[2],
-    ))
-end
-# 3D: SMatrix fills column-major — dev = [dev1 dev4 dev5; dev4 dev2 dev6; dev5 dev6 dev3].
-@inline function CauchyStress(p::T, dev::SVector{6,T}) where {T}
-    return CauchyStress(p, SMatrix{3,3,T,9}(
-        dev[1], dev[4], dev[5],
-        dev[4], dev[2], dev[6],
-        dev[5], dev[6], dev[3],
-    ))
-end
-# full Voigt stress vector (not a deviator) — 2D, p = -tr(σ)/2
-@inline function CauchyStress(σ::SVector{3,T}) where {T}
-    p = -(σ[1] + σ[2]) / T(2.0)
-    return CauchyStress(p, SMatrix{2,2,T,4}(
-        σ[1] + p, σ[3],
-        σ[3],     σ[2] + p,
-    ))
-end
-# full Voigt stress vector (not a deviator) — 3D, p = -tr(σ)/3
-@inline function CauchyStress(σ::SVector{6,T}) where {T}
-    p = -(σ[1] + σ[2] + σ[3]) / T(3.0)
-    return CauchyStress(p, SMatrix{3,3,T,9}(
-        σ[1] + p, σ[6],     σ[5],
-        σ[6],     σ[2] + p, σ[4],
-        σ[5],     σ[4],     σ[3] + p,
-    ))
-end
-
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# KirchhoffStress
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 """
-    KirchhoffStress{S,T,L} <: AbstractStress{S,T,L}
+    KirchhoffStress{T} <: AbstractStress{T}
 
-Kirchhoff stress `τ = J·σ`. Stored by `mpts.s.τᵢⱼ`; `transform` divides by `J` to get
-`mpts.s.σᵢⱼ`.
+Kirchhoff stress `τ = J·σ`. Stored by `mpts.s.τᵢ`; `transform` divides by `J` to get
+`mpts.s.σᵢ`.
 """
-struct KirchhoffStress{S,T,L} <: AbstractStress{S,T,L}
+struct KirchhoffStress{T} <: AbstractStress{T}
     p  ::T
-    dev::SMatrix{S,S,T,L}
-    function KirchhoffStress{S,T,L}(p::T, dev::SMatrix{S,S,T,L}) where {S,T,L}
-        return new{S,T,L}(p, dev)
-    end
-    function KirchhoffStress(p::T, dev::SMatrix{S,S,T,L}) where {S,T,L}
-        return new{S,T,L}(p, dev)
-    end
+    dev::SVector{6,T}
 end
 @adapt_struct KirchhoffStress
 
-# dev given as a Voigt deviator only (no pressure part)
-@inline function KirchhoffStress(p::T, dev::SVector{3,T}) where {T}
-    return KirchhoffStress(p, SMatrix{2,2,T,4}(
-        dev[1], dev[3],
-        dev[3], dev[2],
-    ))
+# from a symmetric 3×3 stress tensor: `p = -tr/3`, `dev = M + p·I`
+@inline function CauchyStress(M::SMatrix{3,3,T,9}) where {T}
+    p = -(M[1,1] + M[2,2] + M[3,3]) / T(3.0)
+    return CauchyStress(p, SVector{6,T}(M[1,1] + p, M[2,2] + p, M[3,3] + p, M[2,3], M[1,3], M[1,2]))
 end
-# 3D: SMatrix fills column-major — dev = [dev1 dev4 dev5; dev4 dev2 dev6; dev5 dev6 dev3].
-@inline function KirchhoffStress(p::T, dev::SVector{6,T}) where {T}
-    return KirchhoffStress(p, SMatrix{3,3,T,9}(
-        dev[1], dev[4], dev[5],
-        dev[4], dev[2], dev[6],
-        dev[5], dev[6], dev[3],
-    ))
-end
-# full Voigt stress vector (not a deviator) — 2D, p = -tr(τ)/2
-@inline function KirchhoffStress(τ::SVector{3,T}) where {T}
-    p = -(τ[1] + τ[2]) / T(2.0)
-    return KirchhoffStress(p, SMatrix{2,2,T,4}(
-        τ[1] + p, τ[3],
-        τ[3],     τ[2] + p,
-    ))
-end
-# full Voigt stress vector (not a deviator) — 3D, p = -tr(τ)/3
-@inline function KirchhoffStress(τ::SVector{6,T}) where {T}
-    p = -(τ[1] + τ[2] + τ[3]) / T(3.0)
-    return KirchhoffStress(p, SMatrix{3,3,T,9}(
-        τ[1] + p, τ[6],     τ[5],
-        τ[6],     τ[2] + p, τ[4],
-        τ[5],     τ[4],     τ[3] + p,
-    ))
+# from a D×D in-plane block with zero out-of-plane components (see the strain counterpart)
+@inline CauchyStress(M::SMatrix{D,D,T}) where {D,T} = CauchyStress(_block3(M))
+
+"""
+    CauchyStress(τ::KirchhoffStress, J⁻¹) -> CauchyStress
+
+`σ = τ/J`, used by `transform` and the dynamic-relaxation `update`.
+"""
+@inline CauchyStress(τ::KirchhoffStress{T}, J⁻¹::T) where {T} = CauchyStress(τ.p * J⁻¹, τ.dev * J⁻¹)
+
+# maps an engineering-shear strain deviator to `σ_dev / G`: 2 on the normals, 1 on the shears
+@inline _shear_weights(::Type{T}) where {T} = SVector{6,T}(2, 2, 2, 1, 1, 1)
+
+"""
+    _trial_elastic_stress(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel) -> KirchhoffStress
+
+Isotropic linear-elastic trial Kirchhoff stress `τ = Kc·tr(ϵ)·I + 2·Gc·dev(ϵ)`: pressure
+`p = -Kc·ϵᵥ`, deviator `2Gc` on the normals and `Gc·γ` on the (engineering) shears. Called from `elast.jl`'s
+`EL<:HenckySolid` kernel method — which law runs is picked by `Point`'s own `EL` type parameter
+(see `AbstractElasticLaw` in `lagrangian.jl`), not by branching here.
+"""
+@inline function _trial_elastic_stress(strain::LogarithmicStrain{T}, cmp::AbstractConstitutiveModel{T}) where {T}
+    return KirchhoffStress(-cmp.Kc * strain.vol, cmp.Gc * strain.dev .* _shear_weights(T))
 end
 
 """
-    _trial_elastic_stress(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel, ϵzz=0) -> KirchhoffStress
+    _elastic_strain(τ::KirchhoffStress, cmp::AbstractConstitutiveModel) -> LogarithmicStrain
 
-Isotropic linear-elastic trial Kirchhoff stress: `p = -Kc·ϵvol` (positive in
-compression), `dev = 2·Gc·ϵdev`. In 2D plane strain `ϵzz` is the elastic out-of-plane
-strain, which is nonzero once plastic flow has an out-of-plane part: `ϵvol = tr(ϵ) + ϵzz`,
-and the in-plane deviator is taken from the full 3D strain. Called from `elast.jl`'s `EL<:HenckySolid` kernel
-method — which law runs is picked by `Point`'s own `EL` type parameter (see
-`AbstractElasticLaw` in `lagrangian.jl`), not by branching here.
+Inverse of `_trial_elastic_stress`: `vol = -p/Kc`, and the deviator divided by `2Gc` on the
+normals and by `Gc` on the (engineering) shears. Used by the return maps to rebuild the elastic
+strain from the returned stress, under improved Hencky too (where it is the linear-Hencky
+approximation).
 """
-@inline function _trial_elastic_stress(strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}, ϵzz::T=zero(T)) where {S,T,L}
-    P   =         - cmp.Kc * (strain.vol + ϵzz)
-    dev =  T(2.0) * cmp.Gc * (strain.dev - ϵzz / T(3.0) * SMatrix{S,S,T,L}(I))
-    return KirchhoffStress(P, dev)
-end
+@inline _elastic_strain(τ::KirchhoffStress{T}, cmp::AbstractConstitutiveModel{T}) where {T} =
+    LogarithmicStrain(-τ.p / cmp.Kc, τ.dev ./ (cmp.Gc * _shear_weights(T)))
 
 """
     _trial_elastic_stress_improved(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel, n₀) -> KirchhoffStress
@@ -217,32 +122,12 @@ Zytynski et al. 1978: a variable-K/constant-G material is non-hyperelastic other
 Their `p'` is positive in tension; this repo's `p` is positive in compression, hence
 the sign flip.
 """
-@inline function _trial_elastic_stress_improved(strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}, n₀::T, ϵzz::T=zero(T)) where {S,T,L}
-    ϵᵥᵉ = strain.vol + ϵzz
-    n   = T(1.0) - (T(1.0) - n₀) / exp(ϵᵥᵉ)
-    P   = -(cmp.Kc * ϵᵥᵉ / n) * (T(1.0) + (ϵᵥᵉ / (T(2.0) * n)) * (n - T(1.0)))
-    dev =  T(2.0) * cmp.Gc * (strain.dev - ϵzz / T(3.0) * SMatrix{S,S,T,L}(I))
-    return KirchhoffStress(P, dev)
+@inline function _trial_elastic_stress_improved(strain::LogarithmicStrain{T}, cmp::AbstractConstitutiveModel{T}, n₀::T) where {T}
+    ϵᵥᵉ  = strain.vol
+    n    = T(1.0) - (T(1.0) - n₀) / exp(ϵᵥᵉ)
+    P    = -(cmp.Kc * ϵᵥᵉ / n) * (T(1.0) + (ϵᵥᵉ / (T(2.0) * n)) * (n - T(1.0)))
+    return KirchhoffStress(P, cmp.Gc * strain.dev .* _shear_weights(T))
 end
 
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Shared
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-Base.zero(::Type{CauchyStress{S,T,L}})    where {S,T,L} = CauchyStress(   zero(T), zero(SMatrix{S,S,T,L}))
-Base.zero(::Type{KirchhoffStress{S,T,L}}) where {S,T,L} = KirchhoffStress(zero(T), zero(SMatrix{S,S,T,L}))
-
-"""
-    CauchyStress(τ::KirchhoffStress, J⁻¹) -> CauchyStress
-    KirchhoffStress(σ::CauchyStress) -> KirchhoffStress
-
-Cross-type conversions (`τ ↔ σ`), used by `transform` and the u-P `dynamic_relaxation`
-path. Defined outside both structs since `CauchyStress`'s version needs `KirchhoffStress`,
-which isn't defined until later in the file.
-"""
-@inline function CauchyStress(τ::KirchhoffStress{S,T,L}, J⁻¹::T) where {S,T,L}
-    return CauchyStress(τ.p * J⁻¹, τ.dev * J⁻¹)
-end
-@inline function KirchhoffStress(σ::CauchyStress{S,T,L}) where {S,T,L}
-    return KirchhoffStress(σ.p, σ.dev)
-end
+Base.zero(::Type{CauchyStress{T}})    where {T} = CauchyStress(zero(T), zero(SVector{6,T}))
+Base.zero(::Type{KirchhoffStress{T}}) where {T} = KirchhoffStress(zero(T), zero(SVector{6,T}))

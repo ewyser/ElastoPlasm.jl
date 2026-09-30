@@ -4,17 +4,22 @@
   on `Basis`).
 - `Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L}`
   — material points (Lagrangian). Every parameter but `L` is a real dispatch axis; `L == D*D`
-  only exists to keep the `D×D` tensor fields (`SMatrix{D,D,T2,L}`, `CauchyStress{D,T2,L}`,
-  `KirchhoffStress{D,T2,L}`) concrete, since Julia can't compute `D*D` in a field type —
+  only exists to keep the `D×D` kinematic fields (`SMatrix{D,D,T2,L}`: `F`, `ΔF`, `∇v`, ...)
+  concrete, since Julia can't compute `D*D` in a field type —
   kernels never dispatch on it and recover a field's type via `eltype`. `ST` is the typed
   strain storage on `mpts.s` (see "Typed strain/stress tensor storage" in `planned-improvements.md`);
-  `mpts.s.σᵢⱼ[p]` returns a `CauchyStress`, **not** an `SVector` — read it with
-  `get_voigt(...)`. Carries no `NN` or connectivity (those live on `Basis`).
+  `mpts.s.σᵢ[p]` returns a `CauchyStress`, **not** an `SVector` — read it with
+  `get_tensor(...)`, or its `.p`/`.dev` split. Stress and strain are full 3D
+  tensors in every dimension (plane strain in 2D), stored as pressure/volumetric plus a trace-free
+  Voigt deviator, while kinematic fields (`F`, `ΔF`, `∇v`, `ω`) stay `D×D`; see
+  "Typed strain/stress tensor storage" in `planned-improvements.md`. Carries no `NN` or
+  connectivity (those live on `Basis`).
   `mpts.x :: Vector{SVector{D,T2}}` — NOT a matrix; index with `getindex.(x, i)` or
   iterate, never `x[i, :]`. `mpts.s.m` is the constant solid mass `(1−n₀)ρ₀Ω₀`, set once
   at setup; kernels read it instead of recomputing `ρ·Ω`, which `deform!` keeps equal to it
   (a future fluid phase needs its own, separately evolving mass). `mpts.s.cmp::Vector{CM}` is the per-particle
-  constitutive-model bundle (see "Typed constitutive-model abstraction" in
+  constitutive-model bundle (moduli and plastic constants only; the elastic stiffness `Del` is
+  built on the fly by `get_Del(cmp)`, `stiffness.jl`) (see "Typed constitutive-model abstraction" in
   `planned-improvements.md`). `CM` resolves to `DruckerPrager` or `VonMises` depending
   on `material.plastic` (see "DP/J2 retmap kernel unification"). `ST` (`LogarithmicStrain`/
   `InfinitesimalStrain`) and `EL<:AbstractElasticLaw` (`HenckySolid`/`ImprovedHenckySolid`/
@@ -118,7 +123,7 @@ commit to be the *only* behavior change from this refactor; not a regression.
   IJNME 127:e70384), Algorithm 1 without aggregation. Gravity is applied in `lstps`
   uniform load steps (keyword, default 10, up to 9.81); each step is solved by `relax!`
   (`implicit.jl`) with nodal `Δu` as the primary variable, held in `mesh.s.v`. One DR
-  iteration is `dr_kinematics` (ΔF, F, and `ϵᵢⱼ ← ϵn` so no state carries between
+  iteration is `dr_kinematics` (ΔF, F, and `ϵᵢ ← ϵn` so no state carries between
   iterations) → the explicit path's `elast!` → `dr_fint` (Eqs 19-22); then the Underwood
   critical damping (Eq 40, capped at 1.9) and the midpoint update (Eqs 32-33, with Eq 44's
   `2+αΔT` denominator; Eq 32's `2+ΔT` is a typo). The fictitious mass is the diagonal
@@ -136,7 +141,7 @@ commit to be the *only* behavior change from this refactor; not a regression.
   ~100–1500 iterations per load step.
 
   `plastic=true` runs `retmap!` after `elast!` in every iteration, restoring the step's
-  converged `ϵpII` (with `ϵpII[2] ← ϵpII[1]`, as the explicit path seeds it) and `ϵzz` first;
+  converged `ϵpII` (with `ϵpII[2] ← ϵpII[1]`, as the explicit path seeds it) first;
   `G` sets the final gravity. On the §4.3 von Mises collapse (2² MPs/cell, 10 load steps) the
   run-out is 5.74 m against the paper's ~5.6–5.8 m (Fig 17a), **reading the paper's `ρ_y` as a
   Lode radius** (`√(2J₂) = ρ_y`, i.e. this repo's `κ = c₀ = ρ_y`), not the `√J₂ = ρ_y` Eq 49

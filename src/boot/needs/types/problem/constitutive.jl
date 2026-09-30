@@ -18,11 +18,10 @@ end
 @adapt_struct PerfectlyElastic
 
 """
-    DruckerPrager{T2,D,NSTR,L} <: AbstractConstitutiveModel{T2,D}
+    DruckerPrager{T2,D} <: AbstractConstitutiveModel{T2,D}
 
 Per-particle static (never mutated after init) constitutive constants for the
-Drucker-Prager plastic model: shear modulus `Gc`, bulk modulus `Kc`, elastic stiffness
-matrix `Del`, softening modulus `Hp`, and initial/residual cohesion + friction angle
+Drucker-Prager plastic model: shear modulus `Gc`, bulk modulus `Kc`, softening modulus `Hp`, and initial/residual cohesion + friction angle
 `c₀`,`cᵣ`,`ϕ₀`. One instance per material point (`mpts.s.cmp::Vector{DruckerPrager}`),
 built by `setup_cmp`. Evolving plastic state (`Δλ`,`ϵpII`,`ϵpV`) stays on
 `PointSolidPhase` as flat mutable vectors, not in this bundle.
@@ -39,16 +38,13 @@ here — it lives on `Point`'s own `EL<:AbstractElasticLaw` type parameter inste
 `lagrangian.jl`), since it's a solid-phase/kinematics concern, not a plastic-model
 constant.
 
-Deviates from the plan's literal `Del::SMatrix{D,D,T2}` field spec: `Del` is the Voigt-
-notation elastic stiffness matrix, sized `nstr×nstr` (3×3 in 2D, 6×6 in 3D — see
-`get_elastic_stiffness`), not `D×D` (2×2/3×3) — using `D` directly would silently build
-the wrong-sized matrix. `NSTR`/`L` carry the actual Voigt size instead, with `D` kept
-as the second parameter purely to satisfy `AbstractConstitutiveModel{T2,D}`.
+The elastic stiffness is not stored: `get_Del(cmp)` (`stiffness.jl`) builds the 6×6 Voigt `Del`
+from `Kc`/`Gc` where needed. `D` is the problem dimension, which Drucker–Prager uses to pick its 2D
+(plane-strain) parameter fit.
 """
-struct DruckerPrager{T2,D,NSTR,L} <: AbstractConstitutiveModel{T2,D}
+struct DruckerPrager{T2,D} <: AbstractConstitutiveModel{T2,D}
     Gc ::T2
     Kc ::T2
-    Del::SMatrix{NSTR,NSTR,T2,L}
     Hp ::T2
     c₀ ::T2
     cᵣ ::T2
@@ -57,19 +53,18 @@ end
 @adapt_struct DruckerPrager
 
 """
-    VonMises{T2,D,NSTR,L} <: AbstractConstitutiveModel{T2,D}
+    VonMises{T2,D} <: AbstractConstitutiveModel{T2,D}
 
 Per-particle static constitutive constants for the J2/von Mises plastic model: shear
-modulus `Gc`, bulk modulus `Kc`, elastic stiffness matrix `Del`, softening modulus `Hp`,
+modulus `Gc`, bulk modulus `Kc`, softening modulus `Hp`,
 and initial/residual cohesion `c₀`,`cᵣ`. Mirrors `DruckerPrager` exactly, minus the
 friction angle `ϕ₀` — J2/von Mises yield has no pressure dependence, so there is no
 friction angle to store. One instance per material point
 (`mpts.s.cmp::Vector{VonMises}`), built by `setup_cmp` when `material.plastic=="VM"`.
 """
-struct VonMises{T2,D,NSTR,L} <: AbstractConstitutiveModel{T2,D}
+struct VonMises{T2,D} <: AbstractConstitutiveModel{T2,D}
     Gc ::T2
     Kc ::T2
-    Del::SMatrix{NSTR,NSTR,T2,L}
     Hp ::T2
     c₀ ::T2
     cᵣ ::T2

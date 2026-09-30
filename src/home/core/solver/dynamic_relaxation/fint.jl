@@ -4,7 +4,7 @@
 Trial kinematics of one dynamic-relaxation iteration (Sutcliffe et al. 2026, Eqs 14-15):
 `ΔF = I + Σ Δuᵥ ⊗ ∂Sᵥₚ/∂X̂`, `F = ΔF·Fₙ`, with the nodal displacement increment `Δu`
 held in `mesh.s.v` and `∂S/∂X̂` the shape-function gradients cached by `ignite` at the
-start of the load step. Resets `ϵᵢⱼ ← ϵn`, so that `elast!` pushes the *converged* strain
+start of the load step. Resets `ϵᵢ ← ϵn`, so that `elast!` pushes the *converged* strain
 forward (Eq 16) and no state carries over from one iteration to the next.
 """
 @kernel inbounds = true function dr_kinematics(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D}) where {T1,T2,D}
@@ -24,7 +24,7 @@ forward (Eq 16) and no state carries over from one iteration to the next.
         ΔFᵢⱼ           = TM(I) + TM(∇u)
         mpts.s.ΔFᵢⱼ[p] = ΔFᵢⱼ
         mpts.s.Fᵢⱼ[p]  = ΔFᵢⱼ * mpts.s.Fn[p]
-        mpts.s.ϵᵢⱼ[p]  = mpts.s.ϵn[p]
+        mpts.s.ϵᵢ[p]  = mpts.s.ϵn[p]
     end
 end
 
@@ -40,7 +40,7 @@ Eqs 19-22): `fⁱⁿᵗ = Σ ∇ₓS·τ/det(F)·V_p` with `∂S/∂x = ∂S/∂
     if p ≤ mpts.nmp
         ΔFᵢⱼ = mpts.s.ΔFᵢⱼ[p]
         ΔF⁻¹ = inv(ΔFᵢⱼ)
-        σᵢⱼ  = get_tensor(mpts.s.τᵢⱼ[p]) / det(mpts.s.Fᵢⱼ[p])
+        σᵢⱼ  = get_tensor(mpts.s.τᵢ[p], Val(D)) / det(mpts.s.Fᵢⱼ[p])
         Ω    = mpts.Ω[p] * det(ΔFᵢⱼ)
         m    = mpts.s.m[p]
         for nn ∈ 1:mesh.prprt.nn
