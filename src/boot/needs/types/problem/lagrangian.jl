@@ -77,7 +77,7 @@ struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,
     Δλ   ::Vector{T2}
     ϵpII ::Vector{SVector{2,T2}}
     ϵpV  ::Vector{T2}
-    # typed stress tensors (see stress.jl): pressure `.p` and deviator `.dev`; tensor via `get_tensor`
+    # typed stress tensors (see tensor.jl): pressure `.p` and deviator `.dev`; tensor via `get_tensor`
     σᵢ   ::Vector{CauchyStress{T2}}
     σn   ::Vector{CauchyStress{T2}}
     τᵢ   ::Vector{KirchhoffStress{T2}}

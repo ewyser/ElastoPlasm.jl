@@ -62,7 +62,7 @@ Drucker-Prager return mapping, dispatched on stress/strain type — one method p
 than duplicating it.
 
 The finite-strain (`KirchhoffStress`/`LogarithmicStrain`) method additionally rebuilds the
-elastic strain when yielding, with `_elastic_strain` (`stress.jl`). The infinitesimal-strain (`CauchyStress`/`InfinitesimalStrain`) method never
+elastic strain when yielding, with `_elastic_strain` (`elasticity.jl`). The infinitesimal-strain (`CauchyStress`/`InfinitesimalStrain`) method never
 updates the strain — infinitesimal strain is tracked incrementally by `elast!` itself,
 not re-derived from the return-mapped stress.
 """

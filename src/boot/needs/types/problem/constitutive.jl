@@ -38,8 +38,8 @@ here — it lives on `Point`'s own `EL<:AbstractElasticLaw` type parameter inste
 `lagrangian.jl`), since it's a solid-phase/kinematics concern, not a plastic-model
 constant.
 
-The elastic stiffness is not stored: `get_Del(cmp)` (`stiffness.jl`) builds the 6×6 Voigt `Del`
-from `Kc`/`Gc` where needed. `D` is the problem dimension, which Drucker–Prager uses to pick its 2D
+The elastic stiffness is not stored: the elastic laws apply `Kc`/`Gc` to the pressure/deviator split
+directly, and `get_Del(cmp)` (`elasticity.jl`) builds the 6×6 Voigt `Del` from them if needed. `D` is the problem dimension, which Drucker–Prager uses to pick its 2D
 (plane-strain) parameter fit.
 """
 struct DruckerPrager{T2,D} <: AbstractConstitutiveModel{T2,D}

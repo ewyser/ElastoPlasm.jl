@@ -1,5 +1,5 @@
 # `_yield_normal` returns `(‖ξ‖, n̂)` for a stress deviator `ξ` (Voigt, shear stored once):
-# ‖ξ‖ = √(2J₂) and the unit deviator n̂ = ξ/‖ξ‖. Not to be confused with `get_J2` (`stress.jl`),
+# ‖ξ‖ = √(2J₂) and the unit deviator n̂ = ξ/‖ξ‖. Not to be confused with `get_J2` (`tensor.jl`),
 # the scalar invariant.
 @inline function _yield_normal(ξ::SVector{6,T}) where {T}
     J2 = T(0.5)*(ξ[1]^2+ξ[2]^2+ξ[3]^2+T(2.0)*ξ[4]^2+T(2.0)*ξ[5]^2+T(2.0)*ξ[6]^2) # Borja (2013), p.33
@@ -52,7 +52,7 @@ J2/von Mises return mapping, dispatched on stress/strain type — mirrors `DP.jl
 `drucker_prager`: one method per `(stress,strain)` pair, sharing the CPA core
 `_vonmises_return_map` rather than duplicating the iterative loop (Borja (1990); De
 Souza Neto (2008)). The finite-strain method additionally rebuilds the elastic strain on yield
-with `_elastic_strain` (`stress.jl`); the infinitesimal-strain method never touches strain,
+with `_elastic_strain` (`elasticity.jl`); the infinitesimal-strain method never touches strain,
 matching `elast!`'s incremental infinitesimal-strain tracking.
 """
 @inline function von_mises(τᵢ::KirchhoffStress{T},ϵᵢ::LogarithmicStrain{T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel;ftol::Real=1e-9,ηmax::Int=20) where {T}

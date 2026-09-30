@@ -1,7 +1,7 @@
 
-# The elastic laws live with the typed tensors (`_trial_elastic_strain`/`_trial_elastic_stress`
-# in `strain.jl`/`stress.jl`). Stress and strain are full 3D tensors in every dimension; the
-# kinematics (`ΔF`, `ω`) stay D×D and enter through the tensor constructors (plane strain in 2D).
+# The Hencky push-forward and the elastic laws are in `elasticity.jl` (`_trial_elastic_strain`,
+# `_trial_elastic_stress`/`_trial_elastic_stress_improved`). Stress and strain
+# are full 3D tensors in every dimension; the kinematics (`ΔF`, `ω`) stay D×D and enter through the tensor constructors (plane strain in 2D).
 
 """
     elast(mpts::Point{T1,T2,D,CM,ST,EL}) where {EL<:HenckySolid}
@@ -28,7 +28,7 @@ end
     elast(mpts::Point{T1,T2,D,CM,ST,EL}) where {EL<:ImprovedHenckySolid}
 
 Finite-strain elastic predictor, porosity-weighted "improved Hencky" law (see
-`_trial_elastic_stress_improved` in `stress.jl`). Otherwise identical to the
+`_trial_elastic_stress_improved` in `elasticity.jl`). Otherwise identical to the
 `EL<:HenckySolid` method above.
 """
 @kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,ST,EL}) where {T1,T2,D,CM,ST<:LogarithmicStrain,EL<:ImprovedHenckySolid}

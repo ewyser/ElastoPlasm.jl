@@ -18,8 +18,8 @@
   iterate, never `x[i, :]`. `mpts.s.m` is the constant solid mass `(1−n₀)ρ₀Ω₀`, set once
   at setup; kernels read it instead of recomputing `ρ·Ω`, which `deform!` keeps equal to it
   (a future fluid phase needs its own, separately evolving mass). `mpts.s.cmp::Vector{CM}` is the per-particle
-  constitutive-model bundle (moduli and plastic constants only; the elastic stiffness `Del` is
-  built on the fly by `get_Del(cmp)`, `stiffness.jl`) (see "Typed constitutive-model abstraction" in
+  constitutive-model bundle (moduli and plastic constants only; the elastic laws use `Kc`/`Gc`
+  directly; `get_Del(cmp)` in `elasticity.jl` builds the Voigt stiffness when a matrix is needed) (see "Typed constitutive-model abstraction" in
   `planned-improvements.md`). `CM` resolves to `DruckerPrager` or `VonMises` depending
   on `material.plastic` (see "DP/J2 retmap kernel unification"). `ST` (`LogarithmicStrain`/
   `InfinitesimalStrain`) and `EL<:AbstractElasticLaw` (`HenckySolid`/`ImprovedHenckySolid`/

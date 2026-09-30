@@ -1,8 +1,8 @@
 """
     get_elastic_moduli(E, ν) -> Kc, Gc
 
-Bulk and shear moduli from Young's modulus and Poisson's ratio. The Voigt stiffness `Del` is built
-from them on the fly by `get_Del` (`stiffness.jl`).
+Bulk and shear moduli from Young's modulus and Poisson's ratio. The elastic laws use them directly;
+the Voigt stiffness `Del` can be built from them by `get_Del` (`elasticity.jl`).
 """
 function get_elastic_moduli(E::T2,ν::T2) where {T2}
     return T2(E/(3.0*(1.0-2.0*ν))), T2(E/(2.0*(1.0+ν)))

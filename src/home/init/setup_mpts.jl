@@ -6,7 +6,7 @@ Build the per-particle solid-phase state (`PointSolidPhase`) — per-particle
 constitutive-model bundle (`cmp`, via `setup_cmp`), and all mechanical state fields,
 zero-initialized except `v`/`ρ`/`m` (`m = ρ·Ω₀`, the constant solid mass).
 
-`ST` (the typed strain storage of `ϵᵢ`/`ϵn`, see `strain.jl`) and `EL`
+`ST` (the typed strain storage of `ϵᵢ`/`ϵn`, see `tensor.jl`) and `EL`
 (`Point`'s elastic law, see `AbstractElasticLaw` in `lagrangian.jl`) are
 both picked here, together, purely from `solver.material.elastic` — there is no
 separate strain-formulation config key. `"hypoelastic"` → `InfinitesimalStrain`+
@@ -42,7 +42,7 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,v0,vp,ρ0,n0)
         T2.(zeros(nmp))                                    , # Δλ
         [zero(SVector{2,T2}) for _ in 1:nmp]               , # ϵpII
         T2.(zeros(nmp))                                    , # ϵpV
-        # typed stress tensors (stress.jl)
+        # typed stress tensors (tensor.jl)
         [zero(CauchyStress{T2}) for _ in 1:nmp]           , # σᵢ
         [zero(CauchyStress{T2}) for _ in 1:nmp]           , # σn
         [zero(KirchhoffStress{T2}) for _ in 1:nmp]        , # τᵢ

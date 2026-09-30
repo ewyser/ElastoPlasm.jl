@@ -1,90 +1,32 @@
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Stress tensor supertype, concrete types and methods
+# The elastic step on the strain and stress objects (tensor.jl): the Hencky push-forward
+# (trial elastic strain), the linear and improved Hencky laws, the inverse used by the return maps,
+# and the isotropic stiffness in Voigt form
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-export AbstractStress, CauchyStress, KirchhoffStress
-export get_tensor, get_J2, get_τII
+export StressStrainStiffness, get_Del
 
 """
-    AbstractStress{T}
+    _trial_elastic_strain(ΔFᵢⱼ::SMatrix{D,D}, ϵᵢ::LogarithmicStrain) -> LogarithmicStrain
 
-Second-order stress tensor stored on `PointSolidPhase` (`σᵢ`/`σn`/`τᵢ`) as its pressure
-`p::T = -tr/3` (positive in compression) and its trace-free deviator `dev::SVector{6,T}`, a 3D
-Voigt vector `(xx, yy, zz, yz, xz, xy)` in every dimension, like `AbstractStrain` (`strain.jl`) but
-without shear doubling: in 2D plane strain `σzz` is carried.
-
-As for strain, tensors meet the split in one place each way: `get_tensor(σ) = dev - p·I` (symmetric
-3×3; `get_tensor(σ, Val(D))` is its in-plane `D×D` block, for force assembly) and the 3×3
-constructor. Other readers: `get_J2`/`get_τII`.
-Code that builds `(p, dev)` directly (the elastic laws, the return maps) passes a trace-free `dev`.
+Push the stored logarithmic strain forward through the incremental deformation gradient:
+`bᵉ = ΔF·exp(2ϵ)·ΔFᵀ`, `ϵ = ½ ln bᵉ`. Only the in-plane `D×D` block is pushed forward: in plane
+strain (2D) and uniaxial strain (1D) `ΔF` has no out-of-plane stretch or shear (`ΔF_zz = 1`), so
+`bᵉ` stays block-diagonal and the out-of-plane components are unchanged (`b_zz = exp(2ϵzz)`, hence
+`ϵzz` is kept as is); `LogarithmicStrain(ϵᵢⱼ, ϵᵢ)` builds the new strain from the pushed-forward
+block, carrying the out-of-plane components (the carry constructor, `tensor.jl`).
 """
-abstract type AbstractStress{T} end
-
-@inline function get_tensor(t::AbstractStress{T}) where {T}
-    d, p = t.dev, t.p
-    return SMatrix{3,3,T,9}(d[1] - p, d[6], d[5], d[6], d[2] - p, d[4], d[5], d[4], d[3] - p)
+@inline function _trial_elastic_strain(ΔFᵢⱼ::SMatrix{D,D,T}, ϵᵢ::LogarithmicStrain{T}) where {D,T}
+    # get the in-plane block of the previously-converged logarithmic strain
+    ϵᵢⱼ  = get_tensor(ϵᵢ, Val(D))
+    λ, n = eigen(Symmetric(ϵᵢⱼ))
+    # calculate left Cauchy-Green strain
+    bᵢⱼ  = ΔFᵢⱼ * (n * diagm(exp.(T(2.0) * λ)) * n') * ΔFᵢⱼ'
+    # update logarithmic strain tensor from the eigen-decomposition of bᵢⱼ
+    λ, n = eigen(Symmetric(bᵢⱼ))
+    ϵᵢⱼ  = T(0.5) * (n * diagm(log.(λ)) * n')
+    return LogarithmicStrain(ϵᵢⱼ, ϵᵢ)
 end
-@inline get_tensor(t::AbstractStress, ::Val{D}) where {D} = get_tensor(t)[SOneTo(D), SOneTo(D)]
-
-"""
-    get_J2(stress::AbstractStress) -> T
-
-Second deviatoric stress invariant `J₂ = ½ sᵢⱼsᵢⱼ` of the full 3D stress.
-"""
-@inline function get_J2(t::AbstractStress{T}) where {T}
-    s = t.dev
-    return T(0.5) * (s[1]^2 + s[2]^2 + s[3]^2) + s[4]^2 + s[5]^2 + s[6]^2
-end
-
-"""
-    get_τII(stress::AbstractStress) -> T
-
-Second invariant `τII = √J₂` of the deviatoric stress.
-"""
-@inline get_τII(t::AbstractStress) = sqrt(get_J2(t))
-
-"""
-    CauchyStress{T} <: AbstractStress{T}
-
-Cauchy (true) stress. Stored by `mpts.s.σᵢ`/`mpts.s.σn`.
-"""
-struct CauchyStress{T} <: AbstractStress{T}
-    p  ::T
-    dev::SVector{6,T}
-end
-@adapt_struct CauchyStress
-
-"""
-    KirchhoffStress{T} <: AbstractStress{T}
-
-Kirchhoff stress `τ = J·σ`. Stored by `mpts.s.τᵢ`; `transform` divides by `J` to get
-`mpts.s.σᵢ`.
-"""
-struct KirchhoffStress{T} <: AbstractStress{T}
-    p  ::T
-    dev::SVector{6,T}
-end
-@adapt_struct KirchhoffStress
-
-# from a symmetric 3×3 stress tensor: `p = -tr/3`, `dev = M + p·I`
-@inline function CauchyStress(M::SMatrix{3,3,T,9}) where {T}
-    p = -(M[1,1] + M[2,2] + M[3,3]) / T(3.0)
-    return CauchyStress(p, SVector{6,T}(M[1,1] + p, M[2,2] + p, M[3,3] + p, M[2,3], M[1,3], M[1,2]))
-end
-# new in-plane D×D block `M`, out-of-plane components carried from `t`, for any stress or strain type
-# (plane strain in 2D, uniaxial strain in 1D; in 3D `M` is the whole tensor): used by the Hencky
-# push-forward, the hypoelastic strain increment (carrying zeros) and the Jaumann rotation
-@inline function (::Type{S})(M::SMatrix{D,D,T}, t::S) where {S<:Union{AbstractStrain,AbstractStress},D,T}
-    E = get_tensor(t)
-    return S(SMatrix{3,3,T,9}(ntuple(k -> (i = (k - 1) % 3 + 1; j = (k - 1) ÷ 3 + 1; i ≤ D && j ≤ D ? M[i,j] : E[i,j]), Val(9))))
-end
-
-"""
-    CauchyStress(τ::KirchhoffStress, J⁻¹) -> CauchyStress
-
-`σ = τ/J`, used by `transform` and the dynamic-relaxation `update`.
-"""
-@inline CauchyStress(τ::KirchhoffStress{T}, J⁻¹::T) where {T} = CauchyStress(τ.p * J⁻¹, τ.dev * J⁻¹)
 
 # maps an engineering-shear strain deviator to its tensor components (1 on the normals, ½ on the
 # shears), so that `σ_dev = 2G·ϵ_dev` reads as the standard isotropic law
@@ -135,5 +77,50 @@ the sign flip.
     return KirchhoffStress(P, T(2.0) * cmp.Gc * strain.dev .* _shear_weights(T))
 end
 
-Base.zero(::Type{CauchyStress{T}})    where {T} = CauchyStress(zero(T), zero(SVector{6,T}))
-Base.zero(::Type{KirchhoffStress{T}}) where {T} = KirchhoffStress(zero(T), zero(SVector{6,T}))
+# ------------------------------------------------ stiffness
+
+"""
+    StressStrainStiffness{T}()
+
+Volumetric and deviatoric projections on a 6-component Voigt strain `(xx, yy, zz, γyz, γxz, γxy)`
+with engineering shear (`γ = 2ϵ`): `vol·ϵ` is `tr(ϵ)` on each normal component, and `dev·ϵ` is the
+deviatoric strain, with `½` on the shear diagonal so that `2G·dev` maps `γ` to the shear stress
+`G·γ`. Any isotropic stiffness is `K·vol + 2G·dev`; see `get_Del`.
+"""
+struct StressStrainStiffness{T}
+    vol::SMatrix{6,6,T,36}
+    dev::SMatrix{6,6,T,36}
+end
+@inline function StressStrainStiffness{T}() where {T}
+    a, b, h = T(2.0/3.0), T(-1.0/3.0), T(0.5)
+    vol = SMatrix{6,6,T,36}(
+        1, 1, 1, 0, 0, 0,
+        1, 1, 1, 0, 0, 0,
+        1, 1, 1, 0, 0, 0,
+        0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0,
+    )
+    dev = SMatrix{6,6,T,36}(
+        a, b, b, 0, 0, 0,
+        b, a, b, 0, 0, 0,
+        b, b, a, 0, 0, 0,
+        0, 0, 0, h, 0, 0,
+        0, 0, 0, 0, h, 0,
+        0, 0, 0, 0, 0, h,
+    )
+    return StressStrainStiffness{T}(vol, dev)
+end
+
+"""
+    get_Del(cmp::AbstractConstitutiveModel) -> SMatrix{6,6}
+
+Isotropic elastic stiffness `Del = Kc·vol + 2Gc·dev` of a constitutive model, built on the fly from
+its moduli (acts on engineering-shear Voigt strain, gives Voigt stress). Not stored per particle.
+The laws above do not use it: they apply `Kc`/`Gc` to the pressure/deviator split directly. It is
+kept for code that needs the matrix itself, e.g. a consistent tangent.
+"""
+@inline function get_Del(cmp::AbstractConstitutiveModel{T}) where {T}
+    P = StressStrainStiffness{T}()
+    return cmp.Kc * P.vol + T(2.0) * cmp.Gc * P.dev
+end

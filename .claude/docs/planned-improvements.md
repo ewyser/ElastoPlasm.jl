@@ -65,8 +65,9 @@
 - **Typed strain/stress tensor storage — done, as a scalar plus a 3D Voigt deviator.** `mpts.s.ϵᵢ`/
   `.ϵn` (`LogarithmicStrain{T}`/`InfinitesimalStrain{T}`, picked by `material.elastic`) hold `vol::T`
   (the trace) and `dev::SVector{6,T}`; `.σᵢ`/`.σn`/`.τᵢ` (`CauchyStress{T}`/`KirchhoffStress{T}`)
-  hold `p::T` (`-tr/3`, positive in compression) and `dev::SVector{6,T}` (`strain.jl`/`stress.jl`,
-  loaded before `lagrangian.jl` in `boot.jl`'s explicit list). `dev` is trace-free Voigt
+  hold `p::T` (`-tr/3`, positive in compression) and `dev::SVector{6,T}` (`tensor.jl`, loaded
+  before `lagrangian.jl` in `boot.jl`'s explicit list; the elastic step, i.e. the Hencky push-forward,
+  the laws and their inverse, sits in `elasticity.jl` right after it). `dev` is trace-free Voigt
   `(xx, yy, zz, yz, xz, xy)` in every dimension: a 2D problem is plane strain (`yz = xz = 0`, `zz`
   carried); 1D is uniaxial strain. Strain shears are **engineering** (`γ = 2ϵ`).
   - **All constitutive code runs on the split.** The Hencky laws: `p = -Kc·vol`,
@@ -119,14 +120,15 @@
   - `get_J2` (the invariant) and `retmap/J2.jl`'s `_yield_normal` (`(‖ξ‖, n̂)`) are different
     helpers on purpose.
   - **`Del` is not stored; it is built on the fly.** `get_Del(cmp) = Kc·vol + 2Gc·dev`
-    (`stiffness.jl`, `StressStrainStiffness{T}`: the 6×6 volumetric/deviatoric Voigt projections,
+    (`elasticity.jl`, `StressStrainStiffness{T}`: the 6×6 volumetric/deviatoric Voigt projections,
     `½` on the shear diagonal for engineering strain). `DruckerPrager`/`VonMises` are now
     `{T2,D}` with no stored `Del`, and `get_elastic_stiffness` became `get_elastic_moduli(E, ν) ->
     (Kc, Gc)`. Matches the old stored `Del` to ≤2.5e-16 relative; results: Drucker–Prager
     bit-identical, von Mises to round-off (≤1e-13 m DR with identical iterations, ≤8e-12 m explicit);
     per-particle `cmp` 328 → 40 bytes; von Mises `retmap!` time unchanged (~500 µs, within noise).
     A future non-constant stiffness (e.g. improved Hencky's tangent bulk modulus) only needs a
-    different `Kc` passed to the same projections.
+    different `Kc` passed to the same projections. Since the constitutive code moved onto the split, nothing calls
+    `get_Del`; it is kept on purpose for future use (e.g. a consistent tangent).
 - ~~`PointSolidPhase.elast::E`/`AbstractElasticity`/`FiniteElasticity`/
   `LinearElasticity`~~ — **removed**, along with the `E` type parameter. `E` had
   decayed into a pure dispatch tag duplicating what `ST` already encodes once the
@@ -223,13 +225,13 @@
   for the saved time series would need to be built alongside it, not as a separate
   follow-up.
 - **Improved Hencky's porosity is its own elastic-strain measure — decided, keep.**
-  `_trial_elastic_stress_improved` (`stress.jl`) and `_Ktan` (`explicit/get.jl`) compute
+  `_trial_elastic_stress_improved` (`elasticity.jl`) and `_Ktan` (`explicit/get.jl`) compute
   `n = 1-(1-n₀)/exp(ϵᵥᵉ)`, i.e. Eqs. 22-23 of Pretti et al. (2024) written in the stored
   elastic log strain, rather than reading `mpts.n`. This keeps `n` and `ϵᵥ` on the same
   measure, which is what makes Eq. 34 the derivative of Eq. 33. `mpts.n`/`ρ`/`Ω` come from the
   raw `J = det(F)` in `deform.jl`, so the two porosities differ whenever F-bar is on (the
   default — `ΔJp!` rescales `ΔFᵢⱼ`, never `Fᵢⱼ`/`J`) or plastic flow is dilatant. The paper
-  has no F-bar, so the combination is off-paper. Follow-up: the `stress.jl` docstring still
+  has no F-bar, so the combination is off-paper. Follow-up: the `elasticity.jl` docstring still
   says the two agree "while plastic flow is isochoric", which leaves out F-bar. Related, open:
   `deform.jl` computes `ρ = (1-n)ρ₀` from the *unclamped* `n` but stores `mpts.n` clamped to
   `[0,1]`, so once compaction crosses Pretti's Eq. 30a (`J < 1-n₀`), `mpts.n` sits at 0 while

@@ -57,7 +57,7 @@ function compute_column_error(jld2, l0, solver)
         ρ0   = (1 - mpts.n₀[1]) * mpts.s.ρ₀[1]   # effective density: mass is (1-n₀)ρ₀Ω₀
 
         # Numeric and analytic solution
-        # mpts.s.σᵢ holds CauchyStress objects (stress.jl): read σ_zz,zz (idx) from the tensor
+        # mpts.s.σᵢ holds CauchyStress objects (tensor.jl): read the vertical normal stress (idx = D)
         xnum = abs.(getindex.(get_tensor.(mpts.s.σᵢ), idx, idx))
         ynum = z0
         x    = abs.(ρ0 * 9.81 * (l0 .- z0))
