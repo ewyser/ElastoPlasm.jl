@@ -87,6 +87,7 @@ struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,
     Fn   ::Vector{SMatrix{D,D,T2,L}}
     ϵᵢⱼ  ::Vector{ST}
     ϵn   ::Vector{ST}
+    ϵzz  ::Vector{T2}   # elastic out-of-plane log strain (2D plane strain; zero in 3D)
     ωᵢⱼ  ::Vector{SMatrix{D,D,T2,L}}
     # per-particle static constitutive-model constants (Gc,Kc,Del,Hp,c₀,cᵣ,ϕ₀, ...)
     cmp  ::Vector{CM}

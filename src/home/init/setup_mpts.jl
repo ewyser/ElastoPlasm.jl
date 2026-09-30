@@ -54,6 +54,7 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,v0,vp,ρ0,n0)
         [TM(I)    for _ in 1:nmp]                          , # Fn
         [zero(ST) for _ in 1:nmp]                          , # ϵᵢⱼ
         [zero(ST) for _ in 1:nmp]                          , # ϵn
+        T2.(zeros(nmp))                                    , # ϵzz
         [zero(TM) for _ in 1:nmp]                          , # ωᵢⱼ
         # per-particle constitutive-model constants
         cmp                                                  , # cmp::Vector{CM}

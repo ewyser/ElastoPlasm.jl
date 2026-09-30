@@ -15,6 +15,15 @@
     n  = ξ./ξn
     return ξn,n
 end
+# 2D plane strain, full stress (xx, yy, zz, xy): J₂ includes the out-of-plane component
+@inline function _yield_normal(σ0::SVector{4,T}) where {T}
+    P  = (σ0[1]+σ0[2]+σ0[3])/T(3.0)
+    ξ  = σ0 .- SVector{4,T}(P,P,P,zero(T))
+    J2 = T(0.5)*(ξ[1]^2+ξ[2]^2+ξ[3]^2+T(2.0)*ξ[4]^2)
+    ξn = sqrt(T(2.0)*J2)
+    n  = ξ./ξn
+    return ξn,n
+end
 @inline function _yield_normal(σ0::SVector{6,T}) where {T}
     P  = (σ0[1]+σ0[2]+σ0[3])/T(3.0)
     ξ  = σ0 .- SVector{6,T}(P,P,P,zero(T),zero(T),zero(T))
@@ -23,6 +32,12 @@ end
     n  = ξ./ξn
     return ξn,n
 end
+# `n` above is the unit deviator in stress-Voigt form (shear stored once). `Del` acts on
+# engineering-Voigt strains, so the flow direction ∂f/∂σ must enter it with doubled shear
+# components; with that, Δσ = Δλ·Del·m is the radial return 2G·Δλ·n.
+@inline _engineering(n::SVector{3,T}) where {T} = SVector{3,T}(n[1], n[2], T(2.0)*n[3])
+@inline _engineering(n::SVector{4,T}) where {T} = SVector{4,T}(n[1], n[2], n[3], T(2.0)*n[4])
+@inline _engineering(n::SVector{6,T}) where {T} = SVector{6,T}(n[1], n[2], n[3], T(2.0)*n[4], T(2.0)*n[5], T(2.0)*n[6])
 @inline function yield_J2(σ,κ::T) where {T}
     ξn,n = _yield_normal(σ)
     f    = ξn-κ
@@ -40,7 +55,7 @@ multiplier. On yield, `ϵpII[1]` is set to the accumulated hardening variable `�
 (seeded from `ϵpII[2]`, the non-local-regularized value — NOT incremented from
 `ϵpII[1]`, unlike `DP.jl`'s convention); `ϵpII[2]` itself is never written here.
 """
-@inline function _vonmises_return_map(σᵢ::SVector{N,T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel,ftol::T,ηmax::Int) where {N,T}
+@inline function _vonmises_return_map(σᵢ::SVector{N,T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel,ftol::T,ηmax::Int,Del=cmp.Del) where {N,T}
     κ     = max(cmp.cᵣ,cmp.c₀+cmp.Hp*ϵpII[2])
     f,n   = yield_J2(σᵢ,κ)
     Δλacc = T(0.0)
@@ -48,9 +63,9 @@ multiplier. On yield, `ϵpII[1]` is set to the accumulated hardening variable `�
     if f>T(0.0)
         γ0,σ0,ηit = ϵpII[2],σᵢ,1
         while abs(f)>ftol && ηit<ηmax
-            ∂f∂σ   = n
-            Δλ     = f/(∂f∂σ'*cmp.Del*∂f∂σ)
-            Δσ     = Δλ .* (cmp.Del*∂f∂σ)
+            ∂f∂σ   = _engineering(n)
+            Δλ     = f/(∂f∂σ'*Del*∂f∂σ)
+            Δσ     = Δλ .* (Del*∂f∂σ)
             σ0     = σ0 .- Δσ
             γ0    += Δλ
             Δλacc += Δλ
@@ -65,7 +80,7 @@ multiplier. On yield, `ϵpII[1]` is set to the accumulated hardening variable `�
 end
 
 """
-    von_mises(τᵢⱼ::KirchhoffStress, ϵᵢⱼ::LogarithmicStrain, ϵpII, cmp; ftol, ηmax) -> (ϵᵢⱼ, τᵢⱼ, Δλ, ϵpII)
+    von_mises(τᵢⱼ::KirchhoffStress, ϵᵢⱼ::LogarithmicStrain, ϵzz, ϵpII, cmp; ftol, ηmax) -> (ϵᵢⱼ, τᵢⱼ, ϵzz, Δλ, ϵpII)
     von_mises(σᵢⱼ::CauchyStress, ϵᵢⱼ::InfinitesimalStrain, ϵpII, cmp; ftol, ηmax) -> (ϵᵢⱼ, σᵢⱼ, Δλ, ϵpII)
 
 J2/von Mises return mapping, dispatched on stress/strain type — mirrors `DP.jl`'s
@@ -76,13 +91,35 @@ via `LogarithmicStrain(cmp.Del\\σ0)` (`Del\\σ0` is already an engineering-Voig
 vector — see `strain.jl`); the infinitesimal-strain method never touches strain,
 matching `elast!`'s incremental infinitesimal-strain tracking.
 """
-@inline function von_mises(τᵢⱼ::KirchhoffStress{S,T,L},ϵᵢⱼ::LogarithmicStrain{S,T,L},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel;ftol::Real=1e-9,ηmax::Int=20) where {S,T,L}
+@inline function von_mises(τᵢⱼ::KirchhoffStress{S,T,L},ϵᵢⱼ::LogarithmicStrain{S,T,L},ϵzz::T,ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel;ftol::Real=1e-9,ηmax::Int=20) where {S,T,L}
     Δλ,τᵢ = _vonmises_return_map(get_voigt(τᵢⱼ),ϵpII,cmp,T(ftol),ηmax)
     if Δλ > T(0.0)
         τᵢⱼ = KirchhoffStress(τᵢ)
         ϵᵢⱼ = LogarithmicStrain(cmp.Del\τᵢ)
     end
-    return ϵᵢⱼ,τᵢⱼ,Δλ,ϵpII
+    return ϵᵢⱼ,τᵢⱼ,ϵzz,Δλ,ϵpII
+end
+# 2D plane strain: J₂ must include τzz. The out-of-plane stress follows from the elastic
+# strain (xx, yy, zz) through the linear Hencky law, like the strain recovered on yield.
+@inline function von_mises(τᵢⱼ::KirchhoffStress{2,T,L},ϵᵢⱼ::LogarithmicStrain{2,T,L},ϵzz::T,ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel;ftol::Real=1e-9,ηmax::Int=20) where {T,L}
+    Del = _plane_strain_Del(cmp)
+    ϵ   = get_voigt(ϵᵢⱼ)
+    τ   = get_voigt(τᵢⱼ)
+    τzz = Del[3,1]*ϵ[1] + Del[3,2]*ϵ[2] + Del[3,3]*ϵzz
+    Δλ,τᵢ = _vonmises_return_map(SVector{4,T}(τ[1],τ[2],τzz,τ[3]),ϵpII,cmp,T(ftol),ηmax,Del)
+    if Δλ > T(0.0)
+        ϵ₄  = Del\τᵢ
+        P   = -(τᵢ[1]+τᵢ[2]+τᵢ[3])/T(3.0)
+        τᵢⱼ = KirchhoffStress(P, SVector{3,T}(τᵢ[1]+P, τᵢ[2]+P, τᵢ[4]))
+        ϵᵢⱼ = LogarithmicStrain(SVector{3,T}(ϵ₄[1], ϵ₄[2], ϵ₄[4]))
+        ϵzz = ϵ₄[3]
+    end
+    return ϵᵢⱼ,τᵢⱼ,ϵzz,Δλ,ϵpII
+end
+# plane-strain isotropic stiffness on engineering-Voigt (xx, yy, zz, γxy)
+@inline function _plane_strain_Del(cmp::AbstractConstitutiveModel{T}) where {T}
+    a, b = cmp.Kc + T(4.0/3.0)*cmp.Gc, cmp.Kc - T(2.0/3.0)*cmp.Gc
+    return SMatrix{4,4,T,16}(a,b,b,0, b,a,b,0, b,b,a,0, 0,0,0,cmp.Gc)
 end
 @inline function von_mises(σᵢⱼ::CauchyStress{S,T,L},ϵᵢⱼ::InfinitesimalStrain{S,T,L},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel;ftol::Real=1e-9,ηmax::Int=20) where {S,T,L}
     Δλ,σᵢ = _vonmises_return_map(get_voigt(σᵢⱼ),ϵpII,cmp,T(ftol),ηmax)
@@ -109,9 +146,10 @@ practice, since their call site never passed these explicitly either.
 @kernel inbounds = true function retmap(mpts::Point{T1,T2,D,CM,ST}) where {T1,T2,D,CM<:VonMises,ST<:LogarithmicStrain}
     p = @index(Global)
     if p≤mpts.nmp
-        ϵᵢⱼ,τᵢⱼ,Δλ,ϵpII = von_mises(mpts.s.τᵢⱼ[p],mpts.s.ϵᵢⱼ[p],MVector{2,T2}(mpts.s.ϵpII[p]),mpts.s.cmp[p])
+        ϵᵢⱼ,τᵢⱼ,ϵzz,Δλ,ϵpII = von_mises(mpts.s.τᵢⱼ[p],mpts.s.ϵᵢⱼ[p],mpts.s.ϵzz[p],MVector{2,T2}(mpts.s.ϵpII[p]),mpts.s.cmp[p])
         if Δλ > T2(0.0)
             mpts.s.ϵᵢⱼ[p]  = ϵᵢⱼ
+            mpts.s.ϵzz[p]  = ϵzz
             mpts.s.τᵢⱼ[p]  = τᵢⱼ
             mpts.s.Δλ[p]   = Δλ
             mpts.s.ϵpII[p] = SVector{2,T2}(ϵpII)

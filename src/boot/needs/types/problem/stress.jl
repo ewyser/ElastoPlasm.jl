@@ -187,16 +187,18 @@ end
 end
 
 """
-    _trial_elastic_stress(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel) -> KirchhoffStress
+    _trial_elastic_stress(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel, ϵzz=0) -> KirchhoffStress
 
 Isotropic linear-elastic trial Kirchhoff stress: `p = -Kc·ϵvol` (positive in
-compression), `dev = 2·Gc·ϵdev`. Called from `elast.jl`'s `EL<:HenckySolid` kernel
+compression), `dev = 2·Gc·ϵdev`. In 2D plane strain `ϵzz` is the elastic out-of-plane
+strain, which is nonzero once plastic flow has an out-of-plane part: `ϵvol = tr(ϵ) + ϵzz`,
+and the in-plane deviator is taken from the full 3D strain. Called from `elast.jl`'s `EL<:HenckySolid` kernel
 method — which law runs is picked by `Point`'s own `EL` type parameter (see
 `AbstractElasticLaw` in `lagrangian.jl`), not by branching here.
 """
-@inline function _trial_elastic_stress(strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}) where {S,T,L}
-    P   =         - cmp.Kc * strain.vol
-    dev =  T(2.0) * cmp.Gc * strain.dev
+@inline function _trial_elastic_stress(strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}, ϵzz::T=zero(T)) where {S,T,L}
+    P   =         - cmp.Kc * (strain.vol + ϵzz)
+    dev =  T(2.0) * cmp.Gc * (strain.dev - ϵzz / T(3.0) * SMatrix{S,S,T,L}(I))
     return KirchhoffStress(P, dev)
 end
 
@@ -215,11 +217,11 @@ Zytynski et al. 1978: a variable-K/constant-G material is non-hyperelastic other
 Their `p'` is positive in tension; this repo's `p` is positive in compression, hence
 the sign flip.
 """
-@inline function _trial_elastic_stress_improved(strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}, n₀::T) where {S,T,L}
-    ϵᵥᵉ = strain.vol
+@inline function _trial_elastic_stress_improved(strain::LogarithmicStrain{S,T,L}, cmp::AbstractConstitutiveModel{T}, n₀::T, ϵzz::T=zero(T)) where {S,T,L}
+    ϵᵥᵉ = strain.vol + ϵzz
     n   = T(1.0) - (T(1.0) - n₀) / exp(ϵᵥᵉ)
     P   = -(cmp.Kc * ϵᵥᵉ / n) * (T(1.0) + (ϵᵥᵉ / (T(2.0) * n)) * (n - T(1.0)))
-    dev =  T(2.0) * cmp.Gc * strain.dev
+    dev =  T(2.0) * cmp.Gc * (strain.dev - ϵzz / T(3.0) * SMatrix{S,S,T,L}(I))
     return KirchhoffStress(P, dev)
 end
 

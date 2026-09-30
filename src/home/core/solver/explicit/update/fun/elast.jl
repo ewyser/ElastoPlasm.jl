@@ -35,7 +35,7 @@ already uses for `Point`'s `CM` type parameter.
     if p ≤ mpts.nmp
         cmp           = mpts.s.cmp[p]
         ϵᵢⱼ           = _trial_elastic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.ϵᵢⱼ[p])
-        τᵢⱼ           = _trial_elastic_stress(ϵᵢⱼ, cmp)
+        τᵢⱼ           = _trial_elastic_stress(ϵᵢⱼ, cmp, mpts.s.ϵzz[p])
         mpts.s.ϵᵢⱼ[p] = ϵᵢⱼ
         mpts.s.τᵢⱼ[p] = τᵢⱼ
     end
@@ -53,7 +53,7 @@ Finite-strain elastic predictor, porosity-weighted "improved Hencky" law (see
     if p ≤ mpts.nmp
         cmp           = mpts.s.cmp[p]
         ϵᵢⱼ           = _trial_elastic_strain(mpts.s.ΔFᵢⱼ[p], mpts.s.ϵᵢⱼ[p])
-        τᵢⱼ           = _trial_elastic_stress_improved(ϵᵢⱼ, cmp, mpts.n₀[p])
+        τᵢⱼ           = _trial_elastic_stress_improved(ϵᵢⱼ, cmp, mpts.n₀[p], mpts.s.ϵzz[p])
         mpts.s.ϵᵢⱼ[p] = ϵᵢⱼ
         mpts.s.τᵢⱼ[p] = τᵢⱼ
     end
