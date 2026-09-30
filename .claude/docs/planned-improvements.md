@@ -295,8 +295,8 @@
 
 - **Implicit dynamic-relaxation MPM (Sutcliffe et al. 2026) — Algorithm 1 and plasticity
   done**, see `architecture.md`. Remaining, in order:
-  1. Small cuts — now the limiting problem, measured on the §4.3 collapse (see
-     `architecture.md`): the paper's aggregation (Alg. 2) is **not** planned — it only applies to
+  1. Small cuts — addressed for DR by fixing low-solid-fraction nodes (see "Nodal solid fraction"
+     below). Original notes: the paper's aggregation (Alg. 2) is **not** planned — it only applies to
      linear-element bases, not `bsmpm`. The intended route is to evolve a solid fraction and
      drop empty or near-empty nodes from the residual assembly, after
      `refs/ElastoPlasm/fractional_step/s00366-026-02369-3.pdf`. Symptom it should remove:
@@ -320,3 +320,43 @@
     (2015) only give the inner-cone fit used in 3D. Add the FLAC manual (or an equivalent
     source) to `refs/` and check the fit's assumptions (it is derived for associated flow; the
     code runs `ψ = 0`).
+  - **Deferred simplification: drop `ϵzz` by storing the canonical 3D split.** Tried and
+    verified, then shelved by the user as too complex for now. Idea: plane strain has 4
+    independent components, and the 2D typed tensors already store 4 numbers; if `(vol|p, dev)`
+    is always the canonical 3D split, `dev_zz = -(dev_xx + dev_yy)` is implied. Two lossless
+    converters `to3`/`from3` (plus `_to3` to embed `ΔF`/`ω` as 3×3) then let every constitutive
+    kernel run the existing 3D code, removing `ϵzz`, `_plane_strain_Del` and all 3/4-component
+    methods (net −98 lines), and making the small-strain return maps plane-strain-correct too.
+    Measured: reproduced the `ϵzz` version to 1e-12 (DR) / 1e-8 m (explicit slump), identical DR
+    iteration counts; the hypoelastic plastic slump changed (in-plane → full invariants, up to
+    0.77 m) as intended. Cost: a 3×3 `eigen` made `elast!` 2.8× slower, recovered to +18%
+    (56 → 66 µs) by splitting plane-strain tensors (zero out-of-plane shears) into a 2×2 block
+    plus `zz`. Two catches found on the way: the 2D Voigt-3 constructors (`p = -tr/2`) break
+    the canonical split and must go; and `test_performance.jl` runs `elast!` on NaN state (it
+    never resets), which a 3×3 `eigen` handles ~4000× slower than 2×2, so that benchmark
+    would read ~36 ms — reset the state per benchmark before trusting it. The commits
+    (`c4a2a22`, `83add75`, `d67dd26`, branch deleted) may still be in `git reflog`.
+- **Nodal solid fraction, fixing small-cut nodes in DR — done, DR only.** `src/home/core/common/sfrac.jl`,
+  after Xie, Navas & López-Querol (2026, *Eng. Comput.* 42:146, `refs/ElastoPlasm/fractional_step/
+  s00366-026-02369-3.pdf`): nodal volume `V_I = Σ S_I,gp V_gp` over a completely filled grid (Eq 37,
+  quadrature points laid out like the material points, the problem's own basis; interior nodes get
+  exactly `hᴰ`, `Σ V_I` = domain volume), and relative solid fraction
+  `r_I = Σ_p S_Ip V_p (1−n_p)/(1−n₀_p) / V_I` (Eq 36 normalised by the initial solid fraction, so 1
+  inside the material; it equals `Σ S_Ip V⁰_p / V_I`). `relax!` fixes (`Δu = 0`) nodes with
+  `0 < r_I < stab.sfrac` (default `0.003`, `0` = off) for the load step — the paper's Eq 45
+  criterion, whose action there is `p = 0` on the water free surface; for a displacement solve the
+  analogue is fixing, which the user chose.
+  - **Effect** (§4.3 VM collapse, Lode reading, 2² MPs/cell, 10 load steps): 1,204,516 DR iterations
+    (one load step capped at 1e6) → 16,058; the √2-reading VM block 69,074 → 10,199; the DP block
+    41,384 → 6,284. `test_column` unchanged (4/4).
+  - **Bias: fixing holds the free surface back, in proportion to the threshold.** Run-out vs `ε`:
+    0 → 5.74 m, 0.001 → 5.74, 0.003 → 5.69, 0.01 → 5.46, 0.03 → 4.13 (iterations 1.2M, 49k, 16k,
+    15k, 11k); `0.003` is the chosen trade-off (<1% run-out bias). Locally the bias can be larger:
+    in the √2-reading VM block one particle's stress changed by 42% of the peak stress (positions by
+    ≤3.4 cm), most likely a surface particle beside a fixed node.
+  - **Not used by the explicit solver**: tried and reverted. Fixing nodes in a flowing explicit run
+    made the slump crash after ~3,400 steps (a particle's `b` lost positive-definiteness) —
+    hypothesis, not proven: surface particles get a spurious velocity gradient from the fixed nodes
+    every step, which accumulates. The explicit runs were stable without it.
+  - Follow-ups: an extrapolated (not zero) displacement at fixed nodes would remove the surface bias
+    but needs a reference; this stays open alongside the paper's aggregation, which is not planned.

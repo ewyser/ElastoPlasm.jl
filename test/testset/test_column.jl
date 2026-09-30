@@ -86,7 +86,7 @@ function run_column_convergence_tests(solver, fwrk)
         @testset "- nel = $nel" verbose = true begin
             material = (; plastic = get_default().material.plastic, elastic = fwrk.elastic)
             basis    = merge(get_default().basis, (; which = "gimpm", trsfr = fwrk.trsfr, C_pf = fwrk.C_pf))
-            stab     = (; locking = fwrk.locking, damping = fwrk.damping, musl = fwrk.musl)
+            stab     = merge(get_default().stab, (; locking = fwrk.locking, damping = fwrk.damping, musl = fwrk.musl))
             sim = column_problem(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/column", material=material, basis=basis, stab=stab)
 
             setup = load_simulation_setup(sim)

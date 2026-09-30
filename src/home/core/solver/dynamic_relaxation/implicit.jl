@@ -37,7 +37,7 @@ function fictitious_mass(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T
 end
 
 """
-    relax!(mpts, mesh, basis, g, instr; tol=1e-9, itmax=1_000_000, plastic=false) -> Int
+    relax!(mpts, mesh, basis, g, instr; tol=1e-9, itmax=1_000_000, plastic=false, sf=nothing) -> Int
 
 Solve one quasi-static load step (Algorithm 1) and return the number of DR iterations. The
 nodal displacement increment `Δu` is the primary variable and is held in `mesh.s.v`. Each
@@ -49,13 +49,15 @@ goes through `retmap!` after `elast!`, each iteration starting again from the lo
 converged plastic strain (the same `ϵpII[2] ← ϵpII[1]` seeding as the explicit path) and
 out-of-plane elastic strain `ϵzz`, so no plastic state carries from one iteration to the next.
 """
-function relax!(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::Vector{T2},instr::S; tol::T2=T2(1e-9), itmax::Int=1_000_000, plastic::Bool=false) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function relax!(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::Vector{T2},instr::S; tol::T2=T2(1e-9), itmax::Int=1_000_000, plastic::Bool=false, sf=nothing) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     # reset grid, lumped mass and external force fᵉˣᵗ = Σ S m g (Eq 22)
     fill!(mesh.s.m, T2(0.0))
     fill!(mesh.s.v, zero(eltype(mesh.s.v)))
     instr.cairn.implicit.mass_assembly!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
     M̃    = fictitious_mass(mpts,mesh,basis)
     free = .!mesh.s.bcs.status .& (M̃ .> T2(0.0))'
+    # (if stab.sfrac > 0) fix ill-conditioned nodes: exclude them from the update, residual and damping
+    sf === nothing || (free .&= .!inactive_nodes!(sf.inactive,sf.r,mpts,mesh,basis,sf.V,instr)')
     fᵉˣᵗ = g .* mesh.s.m'
     nfᵉˣᵗ = norm(fᵉˣᵗ)
     # midpoint starter v₋½ = −½ΔT M̃⁻¹ fᵉˣᵗ

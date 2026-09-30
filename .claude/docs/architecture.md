@@ -146,8 +146,9 @@ commit to be the *only* behavior change from this refactor; not a regression.
   **small cuts**: the slow mode lives on nodes just beyond the free face whose lumped mass is
   1e-5–1e-4 of the maximum but whose fictitious mass is 12–25% of it (Eq 35 has no `N`
   weight), so they are over-massed ~10⁴× relative to their stiffness. The paper's own fix is
-  aggregation; this repo's planned fix is solid-fraction node exclusion (see
-  `planned-improvements.md`). Re-assembling `M̃` every iteration (§4.3's variants, with
+  aggregation; this repo fixes nodes with a low nodal solid fraction instead (`stab.sfrac`,
+  `common/sfrac.jl`, DR only — see "Nodal solid fraction" in `planned-improvements.md`), which
+  brings this run to ~16k iterations at a <1% run-out bias. Re-assembling `M̃` every iteration (§4.3's variants, with
   Eq 51's `M_p = K` for yielding points) was tried and did not help, so the mass stays
   assembled once per load step.
 

@@ -46,6 +46,7 @@ function get_default()
             locking = true,
             damping = 0.1,
             musl = true,
+            sfrac = 0.003,  # dynamic relaxation only: fix nodes whose relative solid fraction is below this (0 = off), see sfrac.jl
         ),
         bcs   = (;
             dirichlet = [

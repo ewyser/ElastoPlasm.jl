@@ -14,11 +14,12 @@ iteration (non-local regularization is not applied). Finite strain only. To chan
 function elastoquasistatic!(mpts::Point{T1,T2,D,CM,ST},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S; lstps::Int=10, tol::Real=1e-9, plastic::Bool=false, G::Real=9.81) where {T1,T2,D,CM,ST,S<:AbstractSolver{T1,T2,D}}
     ST <: LogarithmicStrain || throw(ArgumentError("elastoquasistatic! is finite-strain only: material.elastic=\"hypoelastic\" is not supported"))
     its  = zeros(Int, lstps)
+    sf   = node_exclusion(mpts,mesh,instr)
     prog = Progress(lstps;dt=0.5,desc="Solving elastoquasistatic...",barlen=10)
     for k ∈ 1:lstps
         g  = get_g(mesh.prprt; G=T2(G*k/lstps))
         ignite(mpts,mesh,basis,instr)
-        its[k] = it = relax!(mpts,mesh,basis,g,instr; tol=T2(tol), plastic=plastic)
+        its[k] = it = relax!(mpts,mesh,basis,g,instr; tol=T2(tol), plastic=plastic, sf=sf)
         instr.cairn.implicit.update!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
         if instr.basis.which == "gimpm"
             instr.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())

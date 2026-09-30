@@ -16,6 +16,8 @@ function init_ignite(instr::NamedTuple; ignite::Dict{Symbol,Cairn} = Dict{Symbol
     ignite[:tplgy!]  = p2e2n(CPU())
     # cache shape values/gradients for all basis kinds, once per particle per timestep
     ignite[:shpfun!] = shpfun!(CPU())
+    # nodal solid fraction, for excluding ill-conditioned nodes (`sfrac.jl`)
+    ignite[:sfrac!]  = solid_fraction(CPU())
     if instr[:basis][:trsfr] == "apic"
         ignite[:Dᵢⱼ!] = Dij_nd(CPU()) 
     end    
