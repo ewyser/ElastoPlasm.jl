@@ -9,8 +9,8 @@
 Generate all combinations of element numbers.
 """
 function generate_nels_cases()
-    return [[5, 5], [5, 10], [5, 20], [5, 40],]
-    #return [[5, 10], [5, 20],]
+    # one element wide with square elements, as in Sutcliffe et al. (2026), Fig 4a
+    return [[1, 5], [1, 10], [1, 20], [1, 40],]
 end
 
 # Helper Functions
@@ -54,7 +54,7 @@ function compute_column_error(jld2, l0, solver)
         problem = file["ic/problem"]
         mesh = problem.mesh
         mpts = problem.mpts
-        ρ0   = mpts.s.ρ₀[1]
+        ρ0   = (1 - mpts.n₀[1]) * mpts.s.ρ₀[1]   # effective density: mass is (1-n₀)ρ₀Ω₀
 
         # Numeric and analytic solution
         # mpts.s.σᵢⱼ holds typed CauchyStress objects (see concrete/tensor.jl), so pull the
@@ -85,7 +85,7 @@ function run_column_convergence_tests(solver, fwrk)
     for (k, nel) ∈ enumerate(nels)
         @testset "- nel = $nel" verbose = true begin
             material = (; plastic = get_default().material.plastic, elastic = fwrk.elastic)
-            basis    = merge(get_default().basis, (; trsfr = fwrk.trsfr, C_pf = fwrk.C_pf))
+            basis    = merge(get_default().basis, (; which = "gimpm", trsfr = fwrk.trsfr, C_pf = fwrk.C_pf))
             stab     = (; locking = fwrk.locking, damping = fwrk.damping, musl = fwrk.musl)
             sim = column_problem(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/column", material=material, basis=basis, stab=stab)
 

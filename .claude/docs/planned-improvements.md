@@ -39,10 +39,6 @@
   - `PointSolidPhase.rheo::R`/`AbstractRheology` — a parallel, never-read earlier
     attempt at the same per-particle constitutive-data problem — was retired entirely,
     since `cmp` already supersedes it.
-  - `dynamic_relaxation`'s `cmp`-rerouted reads are confirmed working for the plain
-    (non-u-P) path via `test_column.jl`'s convergence sweep, including its
-    correctness assertions. The u-P variant remains unverified (and throws immediately
-    if exercised regardless — see `.claude/bug/known/dynamic-relaxation-uP-fint-p2n-missing.md`).
 - **DP/J2 retmap kernel unification — done.** `retmap/DP.jl`/`retmap/J2.jl`'s four
   separately-named kernels (`finite_DP`/`infinitesimal_DP`/`finite_J2`/
   `infinitesimal_J2`, picked between via a `plast.constitutive`/`strain.deform` string
@@ -193,7 +189,7 @@
 - **Consider a persistent Julia session for iteration (Kaimon/Revise pattern, seen in
   sibling repo FEMTools.jl).** A `slump_problem`→`elastoplasm!` smoke test costs full
   Julia startup+precompile every invocation today (~30-40s), and
-  `elastoquasistatic!` is worse (~1 minute) — exactly the kind of loop a persistent
+  a finely meshed `elastoquasistatic!` run adds more — exactly the kind of loop a persistent
   `Revise`-backed session amortizes. FEMTools.jl's `.agents/`-documented setup
   (`kaimon -r`, exposing `julia_eval`/`julia_list_sessions`/`julia_restart` over MCP,
   restarting only on `Project.toml`/`struct`/include-order changes Revise can't track)
@@ -225,9 +221,9 @@
   apex return (`.claude/bug/fixed/dp-apex-return-wrong-pressure.md`). Needs a corner-return
   source (de Souza Neto, Perić & Owen 2008 §8.3) added to `refs/` first.
 - **Dead or drifting code worth removing, one small verified step at a time:** the five remaining
-  `#= … =#` blocks under `src/` (`dynamic_relaxation/fint.jl:1`, `dynamic_relaxation/implicit.jl:136`,
-  `update/fun/nonlocal.jl:1`, `retmap/DP.jl`'s WIP tangent block, `get_column.jl`'s 3D branch);
-  `setup_mpts`'s unused `nstr`. See also `PerfectlyElastic` and `DynamicRelaxationSolver` above.
+  `#= … =#` blocks under `src/` (`update/fun/nonlocal.jl:1`, `retmap/DP.jl`'s WIP tangent
+  block, `get_column.jl`'s 3D branch); `setup_mpts`'s unused `nstr`; `MeshSolidPhase.oobp`
+  and `.p`, used only by the removed dynamic-relaxation u-P path. See also `PerfectlyElastic` and `DynamicRelaxationSolver` above.
 - **`_fast` kernels and the `perf` config section — removed.** `deform_fast`/`elast_fast`
   (hand-unrolled 2D/3D scalar versions, a legacy port of the original C code) were only
   selected by `perf.status`, which also forced `material.elastic="hypoelastic"` and
@@ -297,3 +293,17 @@
   `dump/` flush on `using` are undocumented in `README.md`/`docs/src`; `worflow.jl` is misspelled
   in both solver folders.
 
+- **Implicit dynamic-relaxation MPM (Sutcliffe et al. 2026) — Algorithm 1 done**, see
+  `architecture.md`. Remaining, in order:
+  1. Von Mises plasticity inside the DR loop (§4.3): restore `ϵpII`/`Δλ` from the converged
+     step before each iteration's `retmap!`, elastic/plastic P-wave `K+4G/3` vs `K`
+     (Eqs 50-51), verify on the §4.3 collapse (run-out, Fig 17a; iteration counts, Fig 11).
+     Check first that `VonMises`'s `c₀` means the paper's `√J₂ − ρ_y` yield (a √3 factor).
+  2. Small cuts: the paper's aggregation (Alg. 2) is **not** planned — it only applies to
+     linear-element bases, not `bsmpm`. The intended route is to evolve a solid fraction and
+     drop empty or near-empty nodes from the residual assembly, after
+     `refs/ElastoPlasm/fractional_step/s00366-026-02369-3.pdf`. Symptom it should remove:
+     occasional DR iteration spikes when the column's top surface crosses a cell edge.
+  3. Open reading choices, recorded when implemented: the starter `v₋½ = −½M̃⁻¹fᵉˣᵗₙ` is
+     taken literally (full load, not the increment); `ε_III` in 2D includes the zero
+     out-of-plane strain; `‖R‖` is over free DOFs only.

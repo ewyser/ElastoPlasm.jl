@@ -1,31 +1,31 @@
-export elastoquasistatic!  
+export elastoquasistatic!
 
-function elastoquasistatic!(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,CM,S<:AbstractSolver{T1,T2,D}}
-    it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.te)))
-    prog = Progress(length(checks);dt=0.5,desc="Solving elastoquasistatic...",barlen=10)
-    lstps = collect(range(0, 9.8; length=10))
-    for (it,lstp) ∈ enumerate(lstps)
+"""
+    elastoquasistatic!(mpts, mesh, basis, time, solver; lstps=10, tol=1e-9)
 
-        tic      = time_ns()
-
-
-        dt = T2(1.0)
-        g  = T2[T2(0), -lstp]
-
+Quasi-static self-weight loading by implicit dynamic relaxation (Sutcliffe et al. 2026,
+Algorithm 1): gravity is applied in `lstps` uniform load steps, `g = (k/lstps)·9.81` at step
+`k`, each solved to `‖R‖/‖fᵉˣᵗ‖ < tol` by `relax!`. Returns the DR iteration count of each
+load step. Finite strain only. To change `lstps` or
+`tol` from `elastoplasm`, pass a closure, e.g.
+`workflows = [(a...) -> elastoquasistatic!(a...; lstps=40)]`.
+"""
+function elastoquasistatic!(mpts::Point{T1,T2,D,CM,ST},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S; lstps::Int=10, tol::Real=1e-9) where {T1,T2,D,CM,ST,S<:AbstractSolver{T1,T2,D}}
+    ST <: LogarithmicStrain || throw(ArgumentError("elastoquasistatic! is finite-strain only: material.elastic=\"hypoelastic\" is not supported"))
+    its  = zeros(Int, lstps)
+    prog = Progress(lstps;dt=0.5,desc="Solving elastoquasistatic...",barlen=10)
+    for k ∈ 1:lstps
+        g  = get_g(mesh.prprt; G=T2(9.81*k/lstps))
         ignite(mpts,mesh,basis,instr)
-        relax(mpts,mesh,basis,g,dt,instr)
-        instr.cairn.implicit.update!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
-
-        time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
-
+        its[k] = it = relax!(mpts,mesh,basis,g,instr; tol=T2(tol))
+        instr.cairn.implicit.update!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+        if instr.basis.which == "gimpm"
+            instr.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())
+        end
+        time.t[1] += T2(1.0)
         bake(mpts,mesh,time.t[1],instr)
-        next!(prog;showvalues = get_vals(mesh,mpts,it))
+        next!(prog;showvalues = [("load step",k),("DR iterations",it)])
     end
     finish!(prog)
-    return nothing
+    return its
 end
-
-# how to operate end-to-end simulation with elastoquasistatic! workflow
-# L,nel  = [64.1584,64.1584/4.0],[40,10];
-# jld2   = slump_problem(L,nel;cli()...);
-# out    = elastoplasm(jld2; workflows = [elastoquasistatic!]);
