@@ -306,9 +306,17 @@
      taken literally (full load, not the increment); `ε_III` in 2D includes the zero
      out-of-plane strain (now the stored elastic `ϵzz`); `‖R‖` is over free DOFs only; the
      paper's `ρ_y` is read as a Lode radius (`√(2J₂)`), which is what reproduces Fig 17a.
-- **2D plane-strain invariants — von Mises finite strain done, the rest not.** 2D von Mises
-  with `LogarithmicStrain` now carries the elastic out-of-plane log strain `mpts.s.ϵzz` and
-  returns the full `(xx, yy, zz, xy)` stress with the plane-strain stiffness, so J₂ includes
-  `τzz` (matches the 3D return to 1e-11). Still in-plane only: Drucker–Prager (`DP.jl`, both
-  strain types) and the infinitesimal-strain von Mises method. Converting them needs the same
-  `ϵzz` treatment; DP additionally needs the full 3D mean stress in its pressure term.
+- **2D plane-strain invariants — finite-strain von Mises and Drucker–Prager done.** Both
+  carry the elastic out-of-plane log strain `mpts.s.ϵzz` and return the full
+  `(xx, yy, zz, xy)` stress with the plane-strain stiffness (`_plane_strain_Del`, `J2.jl`), so
+  J₂ and, for DP, the mean stress include `τzz` (Huang et al. 2015, Eqs 15-16). Von Mises
+  matches the 3D return to 1e-11; DP satisfies the full-invariant yield function to 1e-12 with
+  a radial deviator and returns to the apex under tension. `τzz` comes from the linear Hencky
+  law, so under `improved_hencky` it is an approximation of the same kind as the existing
+  `Del\τ` strain recovery. Still in-plane only: both infinitesimal-strain methods.
+  - **DP's 2D parameter fit is not yet grounded in `refs/`.** 2D keeps the plane-strain match
+    to Mohr–Coulomb (`q_ϕ = 3 tan ϕ/√(9+12 tan²ϕ)`, `k_ϕ = 3c/√(9+12 tan²ϕ)`, FLAC theory
+    manual), chosen because it is meant for full invariants under plane strain; Huang et al.
+    (2015) only give the inner-cone fit used in 3D. Add the FLAC manual (or an equivalent
+    source) to `refs/` and check the fit's assumptions (it is derived for associated flow; the
+    code runs `ψ = 0`).
