@@ -40,5 +40,5 @@
   on `.p`/`.vol`/`.dev` directly and must pass a trace-free `dev` when it builds one. Kinematics
   meets the split only through the 3×3 constructors (tensor → split) and `get_tensor`
   (split → tensor). Write constitutive code once, in 3D: kinematics stays D×D and enters
-  through the constructors (a D×D block is zero out of plane; `LogarithmicStrain(M, ϵ)` carries
-  the out-of-plane components from `ϵ`), and never add a 2D-specific constitutive method.
+  through one carry constructor, `S(M, t)` (new in-plane D×D block `M`, out-of-plane components
+  carried from `t`, for any stress or strain type), and never add a 2D-specific constitutive method.

@@ -71,8 +71,13 @@ end
     p = -(M[1,1] + M[2,2] + M[3,3]) / T(3.0)
     return CauchyStress(p, SVector{6,T}(M[1,1] + p, M[2,2] + p, M[3,3] + p, M[2,3], M[1,3], M[1,2]))
 end
-# from a D×D in-plane block with zero out-of-plane components (see the strain counterpart)
-@inline CauchyStress(M::SMatrix{D,D,T}) where {D,T} = CauchyStress(_block3(M))
+# new in-plane D×D block `M`, out-of-plane components carried from `t`, for any stress or strain type
+# (plane strain in 2D, uniaxial strain in 1D; in 3D `M` is the whole tensor): used by the Hencky
+# push-forward, the hypoelastic strain increment (carrying zeros) and the Jaumann rotation
+@inline function (::Type{S})(M::SMatrix{D,D,T}, t::S) where {S<:Union{AbstractStrain,AbstractStress},D,T}
+    E = get_tensor(t)
+    return S(SMatrix{3,3,T,9}(ntuple(k -> (i = (k - 1) % 3 + 1; j = (k - 1) ÷ 3 + 1; i ≤ D && j ≤ D ? M[i,j] : E[i,j]), Val(9))))
+end
 
 """
     CauchyStress(τ::KirchhoffStress, J⁻¹) -> CauchyStress
@@ -81,8 +86,9 @@ end
 """
 @inline CauchyStress(τ::KirchhoffStress{T}, J⁻¹::T) where {T} = CauchyStress(τ.p * J⁻¹, τ.dev * J⁻¹)
 
-# maps an engineering-shear strain deviator to `σ_dev / G`: 2 on the normals, 1 on the shears
-@inline _shear_weights(::Type{T}) where {T} = SVector{6,T}(2, 2, 2, 1, 1, 1)
+# maps an engineering-shear strain deviator to its tensor components (1 on the normals, ½ on the
+# shears), so that `σ_dev = 2G·ϵ_dev` reads as the standard isotropic law
+@inline _shear_weights(::Type{T}) where {T} = SVector{6,T}(1, 1, 1, 0.5, 0.5, 0.5)
 
 """
     _trial_elastic_stress(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel) -> KirchhoffStress
@@ -93,7 +99,7 @@ Isotropic linear-elastic trial Kirchhoff stress `τ = Kc·tr(ϵ)·I + 2·Gc·dev
 (see `AbstractElasticLaw` in `lagrangian.jl`), not by branching here.
 """
 @inline function _trial_elastic_stress(strain::LogarithmicStrain{T}, cmp::AbstractConstitutiveModel{T}) where {T}
-    return KirchhoffStress(-cmp.Kc * strain.vol, cmp.Gc * strain.dev .* _shear_weights(T))
+    return KirchhoffStress(-cmp.Kc * strain.vol, T(2.0) * cmp.Gc * strain.dev .* _shear_weights(T))
 end
 
 """
@@ -105,7 +111,7 @@ strain from the returned stress, under improved Hencky too (where it is the line
 approximation).
 """
 @inline _elastic_strain(τ::KirchhoffStress{T}, cmp::AbstractConstitutiveModel{T}) where {T} =
-    LogarithmicStrain(-τ.p / cmp.Kc, τ.dev ./ (cmp.Gc * _shear_weights(T)))
+    LogarithmicStrain(-τ.p / cmp.Kc, τ.dev ./ (T(2.0) * cmp.Gc * _shear_weights(T)))
 
 """
     _trial_elastic_stress_improved(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel, n₀) -> KirchhoffStress
@@ -126,7 +132,7 @@ the sign flip.
     ϵᵥᵉ  = strain.vol
     n    = T(1.0) - (T(1.0) - n₀) / exp(ϵᵥᵉ)
     P    = -(cmp.Kc * ϵᵥᵉ / n) * (T(1.0) + (ϵᵥᵉ / (T(2.0) * n)) * (n - T(1.0)))
-    return KirchhoffStress(P, cmp.Gc * strain.dev .* _shear_weights(T))
+    return KirchhoffStress(P, T(2.0) * cmp.Gc * strain.dev .* _shear_weights(T))
 end
 
 Base.zero(::Type{CauchyStress{T}})    where {T} = CauchyStress(zero(T), zero(SVector{6,T}))

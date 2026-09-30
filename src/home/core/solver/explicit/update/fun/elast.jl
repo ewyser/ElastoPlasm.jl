@@ -49,8 +49,8 @@ stress increment `σ ← σ + Del·ϵ + (Δω·σ − σ·Δω)` (Borja 2013, Eq
 `ϵ = ½(ΔF + ΔFᵀ) − I` and the spin increment `Δω = ½(ΔF − ΔFᵀ)`, both built on the in-plane D×D
 block (zero out of plane). Writes an `InfinitesimalStrain` into `mpts.s.ϵᵢ[p]` and a
 `CauchyStress` into `mpts.s.σᵢ[p]`; the increment is summed on the pressure/deviator split,
-where `Del·ϵ` is `-Kc·vol` on the pressure and `Gc` times the (engineering) strain deviator,
-doubled on the normals.
+where `Del·ϵ` is `-Kc·vol` on the pressure and `2Gc` times the strain deviator, its engineering
+shears halved to tensor components.
 """
 @kernel inbounds = true function elast(mpts::Point{T1,T2,D,CM,ST}) where {T1,T2,D,CM,ST<:InfinitesimalStrain}
     p = @index(Global)
@@ -59,17 +59,17 @@ doubled on the normals.
         ∇v  = mpts.s.∇vᵢⱼ[p]
         ω   = T2(0.5) .* (∇v - ∇v')
         # plane strain (2D) / uniaxial strain (1D): no out-of-plane stretch (ΔF_zz = 1) or spin, so
-        # the strain increment and the Jaumann term are zero out of plane and are built in-plane
+        # the strain increment and the Jaumann rotation act on the in-plane block only
         ΔF  = mpts.s.ΔFᵢⱼ[p]
-        ϵ   = InfinitesimalStrain(T2(0.5) .* (ΔF + ΔF') .- SMatrix{D,D,T2}(I))
+        ϵ   = InfinitesimalStrain(T2(0.5) .* (ΔF + ΔF') .- SMatrix{D,D,T2}(I), zero(InfinitesimalStrain{T2}))
         # spin increment Δt·w = ½(ΔF − ΔFᵀ), since ΔF = I + Δt·∇v; Jaumann rotation Δt·(w·σ − σ·w)
         # (Borja 2013, Eq 5.46; Huang et al. 2015, Eq 32)
         Δω  = T2(0.5) .* (ΔF - ΔF')
-        σJ  = get_tensor(mpts.s.σᵢ[p], Val(D))
-        jaumann       = CauchyStress(Δω * σJ - σJ * Δω)
+        σ   = mpts.s.σᵢ[p]
+        σJ  = get_tensor(σ, Val(D))
+        σR  = CauchyStress(σJ + Δω * σJ - σJ * Δω, σ)
         mpts.s.ϵᵢ[p] = ϵ
         mpts.s.ωᵢⱼ[p] = eltype(mpts.s.ωᵢⱼ)(ω)
-        σ             = mpts.s.σᵢ[p]
-        mpts.s.σᵢ[p] = CauchyStress(σ.p + jaumann.p - cmp.Kc * ϵ.vol, σ.dev + jaumann.dev + cmp.Gc * ϵ.dev .* _shear_weights(T2))
+        mpts.s.σᵢ[p] = CauchyStress(σR.p - cmp.Kc * ϵ.vol, σR.dev + T2(2.0) * cmp.Gc * ϵ.dev .* _shear_weights(T2))
     end
 end

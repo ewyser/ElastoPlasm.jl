@@ -70,7 +70,7 @@
   `(xx, yy, zz, yz, xz, xy)` in every dimension: a 2D problem is plane strain (`yz = xz = 0`, `zz`
   carried); 1D is uniaxial strain. Strain shears are **engineering** (`γ = 2ϵ`).
   - **All constitutive code runs on the split.** The Hencky laws: `p = -Kc·vol`,
-    `dev_τ = Gc·dev_ϵ` doubled on the normals (`_shear_weights`); their inverse `_elastic_strain`
+    `dev_τ = 2Gc·dev_ϵ`, the engineering shears halved to tensor components (`_shear_weights`); their inverse `_elastic_strain`
     rebuilds the strain on yield in both return maps; the hypoelastic increment is the same law
     applied to `ϵ`. Drucker–Prager reads and returns `(p, dev)`. The von Mises CPA moves only
     `dev` (`Del·n̂ = 2G·n̂` for a deviatoric `n̂`, so the pressure is unchanged).
@@ -97,7 +97,8 @@
     that commit 3D von Mises already matches this branch to 5e-13 m, so no later storage change
     alters 3D results.
   - Constitutive code runs once, in 3D: `elast!` keeps the kinematics D×D (the hypoelastic strain
-    increment and Jaumann term are built in-plane, zero out of plane, via the D×D constructors);
+    increment carries zeros, the Jaumann-rotated stress carries `σzz`, both via the carry
+    constructor `S(M, t)`);
     both return maps work on the 3D split; Drucker–Prager keys its
     2D fit on the model's `D`. Hencky's push-forward (`_trial_elastic_strain`) works on the
     in-plane D×D block only and carries the out-of-plane components through unchanged: with

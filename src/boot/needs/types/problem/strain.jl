@@ -36,9 +36,6 @@ Eigen-decomposition of the (symmetric) 3×3 strain tensor.
 """
 @inline LinearAlgebra.eigen(t::AbstractStrain) = eigen(Symmetric(get_tensor(t)))
 
-# a D×D in-plane block embedded as 3×3, zero out of plane
-@inline _block3(M::SMatrix{D,D,T}) where {D,T} =
-    SMatrix{3,3,T,9}(ntuple(k -> (i = (k - 1) % 3 + 1; j = (k - 1) ÷ 3 + 1; i ≤ D && j ≤ D ? M[i,j] : zero(T)), Val(9)))
 """
     InfinitesimalStrain{T} <: AbstractStrain{T}
 
@@ -72,22 +69,6 @@ end
     return S(vol, SVector{6,T}(M[1,1] - m, M[2,2] - m, M[3,3] - m, T(2.0)*M[2,3], T(2.0)*M[1,3], T(2.0)*M[1,2]))
 end
 
-# from a D×D in-plane block with zero out-of-plane components (an increment under plane strain in
-# 2D, uniaxial strain in 1D), for either strain type
-@inline (::Type{S})(M::SMatrix{D,D,T}) where {S<:AbstractStrain,D,T} = S(_block3(M))
-
-# new in-plane block `M`, out-of-plane components carried from `ϵ` (plane strain in 2D, uniaxial
-# strain in 1D; in 3D `M` is the whole tensor)
-@inline LogarithmicStrain(M::SMatrix{3,3,T,9}, ϵ::LogarithmicStrain{T}) where {T} = LogarithmicStrain(M)
-@inline function LogarithmicStrain(M::SMatrix{2,2,T,4}, ϵ::LogarithmicStrain{T}) where {T}
-    E = get_tensor(ϵ)
-    return LogarithmicStrain(SMatrix{3,3,T,9}(M[1,1], M[2,1], E[3,1], M[1,2], M[2,2], E[3,2], E[1,3], E[2,3], E[3,3]))
-end
-@inline function LogarithmicStrain(M::SMatrix{1,1,T,1}, ϵ::LogarithmicStrain{T}) where {T}
-    E = get_tensor(ϵ)
-    return LogarithmicStrain(SMatrix{3,3,T,9}(M[1,1], E[2,1], E[3,1], E[1,2], E[2,2], E[3,2], E[1,3], E[2,3], E[3,3]))
-end
-
 """
     _trial_elastic_strain(ΔFᵢⱼ::SMatrix{D,D}, ϵᵢ::LogarithmicStrain) -> LogarithmicStrain
 
@@ -96,7 +77,7 @@ Push the stored logarithmic strain forward through the incremental deformation g
 strain (2D) and uniaxial strain (1D) `ΔF` has no out-of-plane stretch or shear (`ΔF_zz = 1`), so
 `bᵉ` stays block-diagonal and the out-of-plane components are unchanged (`b_zz = exp(2ϵzz)`, hence
 `ϵzz` is kept as is); `LogarithmicStrain(ϵᵢⱼ, ϵᵢ)` builds the new strain from the pushed-forward
-block, carrying the out-of-plane components.
+block, carrying the out-of-plane components (`stress.jl`).
 """
 @inline function _trial_elastic_strain(ΔFᵢⱼ::SMatrix{D,D,T}, ϵᵢ::LogarithmicStrain{T}) where {D,T}
     # get the in-plane block of the previously-converged logarithmic strain
