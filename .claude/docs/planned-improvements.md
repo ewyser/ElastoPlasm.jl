@@ -293,17 +293,22 @@
   `dump/` flush on `using` are undocumented in `README.md`/`docs/src`; `worflow.jl` is misspelled
   in both solver folders.
 
-- **Implicit dynamic-relaxation MPM (Sutcliffe et al. 2026) — Algorithm 1 done**, see
-  `architecture.md`. Remaining, in order:
-  1. Von Mises plasticity inside the DR loop (§4.3): restore `ϵpII`/`Δλ` from the converged
-     step before each iteration's `retmap!`, elastic/plastic P-wave `K+4G/3` vs `K`
-     (Eqs 50-51), verify on the §4.3 collapse (run-out, Fig 17a; iteration counts, Fig 11).
-     Check first that `VonMises`'s `c₀` means the paper's `√J₂ − ρ_y` yield (a √3 factor).
-  2. Small cuts: the paper's aggregation (Alg. 2) is **not** planned — it only applies to
+- **Implicit dynamic-relaxation MPM (Sutcliffe et al. 2026) — Algorithm 1 and plasticity
+  done**, see `architecture.md`. Remaining, in order:
+  1. Small cuts — now the limiting problem, measured on the §4.3 collapse (see
+     `architecture.md`): the paper's aggregation (Alg. 2) is **not** planned — it only applies to
      linear-element bases, not `bsmpm`. The intended route is to evolve a solid fraction and
      drop empty or near-empty nodes from the residual assembly, after
      `refs/ElastoPlasm/fractional_step/s00366-026-02369-3.pdf`. Symptom it should remove:
-     occasional DR iteration spikes when the column's top surface crosses a cell edge.
-  3. Open reading choices, recorded when implemented: the starter `v₋½ = −½M̃⁻¹fᵉˣᵗₙ` is
+     occasional DR iteration spikes when the column's top surface crosses a cell edge, and
+     the collapse's 10k–1M-iteration load steps.
+  2. Open reading choices, recorded when implemented: the starter `v₋½ = −½M̃⁻¹fᵉˣᵗₙ` is
      taken literally (full load, not the increment); `ε_III` in 2D includes the zero
-     out-of-plane strain; `‖R‖` is over free DOFs only.
+     out-of-plane strain (now the stored elastic `ϵzz`); `‖R‖` is over free DOFs only; the
+     paper's `ρ_y` is read as a Lode radius (`√(2J₂)`), which is what reproduces Fig 17a.
+- **2D plane-strain invariants — von Mises finite strain done, the rest not.** 2D von Mises
+  with `LogarithmicStrain` now carries the elastic out-of-plane log strain `mpts.s.ϵzz` and
+  returns the full `(xx, yy, zz, xy)` stress with the plane-strain stiffness, so J₂ includes
+  `τzz` (matches the 3D return to 1e-11). Still in-plane only: Drucker–Prager (`DP.jl`, both
+  strain types) and the infinitesimal-strain von Mises method. Converting them needs the same
+  `ϵzz` treatment; DP additionally needs the full 3D mean stress in its pressure term.

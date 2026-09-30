@@ -133,7 +133,23 @@ commit to be the *only* behavior change from this refactor; not a regression.
   `‖R‖/‖fᵉˣᵗ‖≈1e-8` for tens of thousands of iterations. Use square cells, as the paper
   does. On the paper's §4.1 column (gimpm, one element wide) it reproduces the Fig 5
   trend (stress error 1.3e-2 → 3.8e-4 for h = 6.25 → 0.78 with 40 load steps) at
-  ~100–1500 iterations per load step. Plasticity inside the DR loop is not wired yet.
+  ~100–1500 iterations per load step.
+
+  `plastic=true` runs `retmap!` after `elast!` in every iteration, restoring the step's
+  converged `ϵpII` (with `ϵpII[2] ← ϵpII[1]`, as the explicit path seeds it) and `ϵzz` first;
+  `G` sets the final gravity. On the §4.3 von Mises collapse (2² MPs/cell, 10 load steps) the
+  run-out is 5.74 m against the paper's ~5.6–5.8 m (Fig 17a), **reading the paper's `ρ_y` as a
+  Lode radius** (`√(2J₂) = ρ_y`, i.e. this repo's `κ = c₀ = ρ_y`), not the `√J₂ = ρ_y` Eq 49
+  prints: with `√J₂` the block barely slumps (2.2 m), since a smooth-base heap can stand up to
+  `H = 4c_u/γ`, which is then exactly the 8 m block height. Convergence is far slower than
+  the paper's (1.2M iterations; one load step hits the 1e6 cap), and the cause is identified as
+  **small cuts**: the slow mode lives on nodes just beyond the free face whose lumped mass is
+  1e-5–1e-4 of the maximum but whose fictitious mass is 12–25% of it (Eq 35 has no `N`
+  weight), so they are over-massed ~10⁴× relative to their stiffness. The paper's own fix is
+  aggregation; this repo's planned fix is solid-fraction node exclusion (see
+  `planned-improvements.md`). Re-assembling `M̃` every iteration (§4.3's variants, with
+  Eq 51's `M_p = K` for yielding points) was tried and did not help, so the mass stays
+  assembled once per load step.
 
 ## Open/resolved issues
 
