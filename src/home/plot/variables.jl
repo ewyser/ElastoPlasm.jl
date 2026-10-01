@@ -31,7 +31,7 @@ function get_mpts_variable_config()
             label=L"\epsilon_{\mathrm{II}}^{\mathrm{acc}}",
             unit = "[-]",
             scale = 1.0,
-            name="Plastic strain",
+            name="plastic strain",
             cb=:viridis,
             cblim=(0.0, 1.5)
         ),
@@ -40,7 +40,7 @@ function get_mpts_variable_config()
             label=L"p",
             unit = "[kPa]",
             scale = 1/1e3,
-            name="Pressure",
+            name="pressure",
             cb=:viridis,
             cblim=(0.0, 150)
         ),
@@ -49,7 +49,7 @@ function get_mpts_variable_config()
             label=L"J",
             unit = "[-]",
             scale = 1.0,
-            name="Deformation determinant",
+            name="deformation determinant",
             cb=:viridis,
             cblim=(0.5, 1.5)
         ),
@@ -58,7 +58,7 @@ function get_mpts_variable_config()
             label=L"n",
             unit = "[-]",
             scale = 1.0,
-            name="Porosity",
+            name="porosity",
             cb=:vik,
             cblim=(-1.0, 1.0)
         ),
@@ -67,7 +67,7 @@ function get_mpts_variable_config()
             label=L"\Delta u",
             unit = "[m]",
             scale = 1.0,
-            name="Displacement magnitude",
+            name="displacement magnitude",
             cb=:viridis,
             cblim=(0.0, 5.0)
         ),
@@ -76,7 +76,7 @@ function get_mpts_variable_config()
             label=L"v",
             unit = "[m/s]",
             scale = 1.0,
-            name="Velocity magnitude",
+            name="velocity magnitude",
             cb=:viridis,
             cblim=(0.0, 5.0)
         ),
@@ -85,7 +85,7 @@ function get_mpts_variable_config()
             label=L"c_{0}",
             unit = "[kPa]",
             scale = 1/1e3,
-            name="Initial cohesion",
+            name="initial cohesion",
             cb = :vik,
             cblim=(10.0, 30.0)
         ),
@@ -94,7 +94,7 @@ function get_mpts_variable_config()
             label=L"\phi_{0}",
             unit = "[deg.]",
             scale = 180.0/π,
-            name="Initial friction angle",
+            name="initial friction angle",
             cb = :viridis,
             cblim=(20.0, 40.0)
         ),
@@ -103,7 +103,7 @@ function get_mpts_variable_config()
             label = L"\ell",
             unit  = "[-]",
             scale = 1.0,
-            name  = "Domain",
+            name  = "domain",
             cb    = nothing,
             cblim = nothing,
         ),
@@ -112,7 +112,7 @@ function get_mpts_variable_config()
             label=L"T",
             unit = "[K]",
             scale = 1.0,
-            name="Temperature",
+            name="temperature",
             cb=:thermal,
             cblim=(20.0, 293.15)
         ),
