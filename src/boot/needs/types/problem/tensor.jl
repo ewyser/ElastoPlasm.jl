@@ -69,8 +69,8 @@ end
 # (shears doubled to engineering)
 @inline function (::Type{S})(M::SMatrix{3,3,T,9}) where {S<:AbstractStrain,T}
     vol = M[1,1] + M[2,2] + M[3,3]
-    m   = vol / T(3.0)
-    return S(vol, SVector{6,T}(M[1,1] - m, M[2,2] - m, M[3,3] - m, T(2.0)*M[2,3], T(2.0)*M[1,3], T(2.0)*M[1,2]))
+    sph = vol / T(3.0)
+    return S(vol, SVector{6,T}(M[1,1] - sph, M[2,2] - sph, M[3,3] - sph, T(2.0)*M[2,3], T(2.0)*M[1,3], T(2.0)*M[1,2]))
 end
 
 Base.zero(::Type{InfinitesimalStrain{T}}) where {T} = InfinitesimalStrain(zero(T), zero(SVector{6,T}))

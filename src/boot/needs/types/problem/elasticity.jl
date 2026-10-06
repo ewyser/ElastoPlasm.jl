@@ -52,8 +52,9 @@ normals and by `Gc` on the (engineering) shears. Used by the return maps to rebu
 strain from the returned stress, under improved Hencky too (where it is the linear-Hencky
 approximation).
 """
-@inline _elastic_strain(τ::KirchhoffStress{T}, cmp::AbstractConstitutiveModel{T}) where {T} =
-    LogarithmicStrain(-τ.p / cmp.Kc, τ.dev ./ (T(2.0) * cmp.Gc * _shear_weights(T)))
+@inline function _elastic_strain(τ::KirchhoffStress{T}, cmp::AbstractConstitutiveModel{T}) where {T}
+    return LogarithmicStrain(-τ.p / cmp.Kc, τ.dev ./ (T(2.0) * cmp.Gc * _shear_weights(T)))
+end
 
 """
     _trial_elastic_stress_improved(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel, n₀) -> KirchhoffStress
