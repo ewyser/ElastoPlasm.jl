@@ -1,11 +1,11 @@
 ## Conventions / house rules
 
-- **Unicode subscripts encode tensor rank**: a full 2nd-order tensor field/variable
-  (stress, strain, deformation gradient, ...) uses the double-index `ᵢⱼ` suffix (e.g.
-  `σᵢⱼ`, `τᵢⱼ`, `ϵᵢⱼ`, `Fᵢⱼ`, `Bᵢⱼ`, `Dᵢⱼ`); a genuine vector quantity (velocity,
-  displacement component, a Voigt-notation vector like `get_voigt(...)`'s result)
-  uses the single-index `ᵢ` suffix. Never use `ᵢ` on a field that actually stores a
-  full tensor, or `ᵢⱼ` on a plain Voigt vector — both misread as the wrong rank.
+- **Unicode subscripts reflect how the data is stored**: `ᵢ` for anything stored as a vector —
+  including stress and strain, stored as a scalar plus a 3D Voigt deviator (`σᵢ`, `τᵢ`, `ϵᵢ`) — and
+  `ᵢⱼ` for anything stored as a matrix (`Fᵢⱼ`, `ΔFᵢⱼ`, `∇vᵢⱼ`, `Bᵢⱼ`, `Dᵢⱼ`, or a local
+  `σᵢⱼ = get_tensor(...)`). This replaced an earlier rule tied to physical tensor rank. Don't
+  give a temporary, differently-shaped object a stored field's name (e.g. a 3×3 embedding of
+  `ΔFᵢⱼ`); convert visibly inside the function, under a comment saying what it models.
 - `NN` (nodes-per-element count) belongs to `Basis`, never to `Point` or `Mesh` — it's
   topology, not point/mesh state.
 - Prefer `SVector`/`SMatrix` (StaticArrays.jl) over runtime-sized arrays for per-point
@@ -34,3 +34,11 @@
   things that only textually match but mean something different (see the `σᵢ`/`τᵢ`
   entry in `planned-improvements.md` for a concrete example: local Voigt-vector
   variables getting swept up in a tensor-field rename).
+- **Stress and strain are full 3D tensors in every dimension, stored split.** Stress is `p`
+  (pressure, positive in compression) plus a trace-free Voigt `dev`; strain is `vol` (trace) plus
+  a trace-free Voigt `dev` (engineering shear). Constitutive code (elastic laws, return maps) works
+  on `.p`/`.vol`/`.dev` directly and must pass a trace-free `dev` when it builds one. Kinematics
+  meets the split only through the 3×3 constructors (tensor → split) and `get_tensor`
+  (split → tensor). Write constitutive code once, in 3D: kinematics stays D×D and enters
+  through one carry constructor, `S(M, t)` (new in-plane D×D block `M`, out-of-plane components
+  carried from `t`, for any stress or strain type), and never add a 2D-specific constitutive method.

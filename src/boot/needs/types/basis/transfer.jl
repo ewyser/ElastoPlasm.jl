@@ -29,7 +29,7 @@ inertia-like normalization matrix) — moved here from `Point` since they are 10
 APIC-exclusive (see `shpfun.jl`'s `Dij_nd` and `mapsto/fun/Bij.jl`'s `Bij`, both only
 registered/called under `basis.trsfr=="apic"`). Needs `nmp` at construction time to
 size its vectors, unlike `StdTransfer`/`TpicTransfer`'s zero-arg constructors. `L=D*D`
-is a separate type parameter (matching `DruckerPrager{T2,D,NSTR,L}`'s pattern) since
+is a separate type parameter since
 `SMatrix{D,D,T,D*D}` — computing the length inline from `D` — isn't valid inside a
 struct's own field-type declaration (`D*D` on a bare `TypeVar`); `L` is only computed
 once `D` is a concrete value, inside the inner constructor.

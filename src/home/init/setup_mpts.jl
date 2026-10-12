@@ -6,7 +6,7 @@ Build the per-particle solid-phase state (`PointSolidPhase`) — per-particle
 constitutive-model bundle (`cmp`, via `setup_cmp`), and all mechanical state fields,
 zero-initialized except `v`/`ρ`/`m` (`m = ρ·Ω₀`, the constant solid mass).
 
-`ST` (the typed strain storage of `ϵᵢⱼ`/`ϵn`, see `strain.jl`) and `EL`
+`ST` (the typed strain storage of `ϵᵢ`/`ϵn`, see `tensor.jl`) and `EL`
 (`Point`'s elastic law, see `AbstractElasticLaw` in `lagrangian.jl`) are
 both picked here, together, purely from `solver.material.elastic` — there is no
 separate strain-formulation config key. `"hypoelastic"` → `InfinitesimalStrain`+
@@ -21,11 +21,11 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,v0,vp,ρ0,n0)
     TM = SMatrix{D,D,T2,L}
     TV = SVector{D,T2}
     ST,EL = if solver.material.elastic == "hypoelastic"
-        InfinitesimalStrain{D,T2,L}, HypoelasticSolid
+        InfinitesimalStrain{T2}, HypoelasticSolid
     elseif solver.material.elastic == "hencky"
-        LogarithmicStrain{D,T2,L}, HenckySolid
+        LogarithmicStrain{T2}, HenckySolid
     elseif solver.material.elastic == "improved_hencky"
-        LogarithmicStrain{D,T2,L}, ImprovedHenckySolid
+        LogarithmicStrain{T2}, ImprovedHenckySolid
     else
         throw(error("InvalidElasticLaw: $(solver.material.elastic) (expected \"hypoelastic\", \"hencky\" or \"improved_hencky\")"))
     end
@@ -42,17 +42,17 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,v0,vp,ρ0,n0)
         T2.(zeros(nmp))                                    , # Δλ
         [zero(SVector{2,T2}) for _ in 1:nmp]               , # ϵpII
         T2.(zeros(nmp))                                    , # ϵpV
-        # typed stress tensors (stress.jl)
-        [zero(CauchyStress{D,T2,L}) for _ in 1:nmp]       , # σᵢⱼ
-        [zero(CauchyStress{D,T2,L}) for _ in 1:nmp]       , # σn
-        [zero(KirchhoffStress{D,T2,L}) for _ in 1:nmp]    , # τᵢⱼ
+        # typed stress tensors (tensor.jl)
+        [zero(CauchyStress{T2}) for _ in 1:nmp]           , # σᵢ
+        [zero(CauchyStress{T2}) for _ in 1:nmp]           , # σn
+        [zero(KirchhoffStress{T2}) for _ in 1:nmp]        , # τᵢ
         # tensor in matrix notation
         [zero(TM) for _ in 1:nmp]                          , # ∇vᵢⱼ
         [zero(TM) for _ in 1:nmp]                          , # ∇uᵢⱼ
         [zero(TM) for _ in 1:nmp]                          , # ΔFᵢⱼ
         [TM(I)    for _ in 1:nmp]                          , # Fᵢⱼ
         [TM(I)    for _ in 1:nmp]                          , # Fn
-        [zero(ST) for _ in 1:nmp]                          , # ϵᵢⱼ
+        [zero(ST) for _ in 1:nmp]                          , # ϵᵢ
         [zero(ST) for _ in 1:nmp]                          , # ϵn
         [zero(TM) for _ in 1:nmp]                          , # ωᵢⱼ
         # per-particle constitutive-model constants
@@ -111,14 +111,6 @@ println(mpts.nmp)  # Number of material points
 """
 function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTuple=(;), thermal::Bool=false) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     props = mesh.prprt
-    # non-dimensional constant
-    if D == 2
-        nstr = 3
-    elseif D == 3
-        nstr = 6
-    else
-        error("Unsupported dimension: $D")
-    end
     # unpack material geometry
     ni,nmp,xp = geom.ni,geom.nmp,geom.xp
     # scalars & vectors

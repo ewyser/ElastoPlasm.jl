@@ -4,17 +4,22 @@
   on `Basis`).
 - `Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L}`
   — material points (Lagrangian). Every parameter but `L` is a real dispatch axis; `L == D*D`
-  only exists to keep the `D×D` tensor fields (`SMatrix{D,D,T2,L}`, `CauchyStress{D,T2,L}`,
-  `KirchhoffStress{D,T2,L}`) concrete, since Julia can't compute `D*D` in a field type —
+  only exists to keep the `D×D` kinematic fields (`SMatrix{D,D,T2,L}`: `F`, `ΔF`, `∇v`, ...)
+  concrete, since Julia can't compute `D*D` in a field type —
   kernels never dispatch on it and recover a field's type via `eltype`. `ST` is the typed
   strain storage on `mpts.s` (see "Typed strain/stress tensor storage" in `planned-improvements.md`);
-  `mpts.s.σᵢⱼ[p]` returns a `CauchyStress`, **not** an `SVector` — read it with
-  `get_voigt(...)`. Carries no `NN` or connectivity (those live on `Basis`).
+  `mpts.s.σᵢ[p]` returns a `CauchyStress`, **not** an `SVector` — read it with
+  `get_tensor(...)`, or its `.p`/`.dev` split. Stress and strain are full 3D
+  tensors in every dimension (plane strain in 2D), stored as pressure/volumetric plus a trace-free
+  Voigt deviator, while kinematic fields (`F`, `ΔF`, `∇v`, `ω`) stay `D×D`; see
+  "Typed strain/stress tensor storage" in `planned-improvements.md`. Carries no `NN` or
+  connectivity (those live on `Basis`).
   `mpts.x :: Vector{SVector{D,T2}}` — NOT a matrix; index with `getindex.(x, i)` or
   iterate, never `x[i, :]`. `mpts.s.m` is the constant solid mass `(1−n₀)ρ₀Ω₀`, set once
   at setup; kernels read it instead of recomputing `ρ·Ω`, which `deform!` keeps equal to it
   (a future fluid phase needs its own, separately evolving mass). `mpts.s.cmp::Vector{CM}` is the per-particle
-  constitutive-model bundle (see "Typed constitutive-model abstraction" in
+  constitutive-model bundle (moduli and plastic constants only; the elastic laws use `Kc`/`Gc`
+  directly; `get_Del(cmp)` in `elasticity.jl` builds the Voigt stiffness when a matrix is needed) (see "Typed constitutive-model abstraction" in
   `planned-improvements.md`). `CM` resolves to `DruckerPrager` or `VonMises` depending
   on `material.plastic` (see "DP/J2 retmap kernel unification"). `ST` (`LogarithmicStrain`/
   `InfinitesimalStrain`) and `EL<:AbstractElasticLaw` (`HenckySolid`/`ImprovedHenckySolid`/
@@ -47,8 +52,9 @@
   (`src/home/core/common/shpfun.jl`). Every P2G/G2P/update kernel reads `basis.N[nn,p]` /
   `∂Nrow(basis.∂N,nn,p,Val(D))` (a small helper in `basis.jl` extracting a gradient row
   via a `Val`-unrolled `ntuple`, since `M[nn,:]` on an `SMatrix` allocates for a runtime
-  `nn`) instead of calling `eval_basis` inline. `dynamic_relaxation`'s ~14 call sites are
-  the one exception — no ignite phase there, so they call `eval_basis` directly.
+  `nn`) instead of calling `eval_basis` inline. `dynamic_relaxation` does the same: its
+  shape functions are cached by `ignite` once per load step, which is valid because
+  particles only move after the step has converged.
 - `MLSBasis` (`basis/mlsmpm.jl`) is a fourth kind implementing structured-grid Moving
   Least Squares shape functions (Cao et al. 2025, *Comput. Mech.* 75:655–678, §2.3.1 —
   only the structured-grid case). Needs no boundary node-type correction (`basis.type`)
@@ -112,12 +118,44 @@ commit to be the *only* behavior change from this refactor; not a regression.
   `init_ignite`/`init_mapsto`/`init_update`/`init_implicit` in `get_solver.jl`. Every
   kernel/function in this path takes `basis::Basis` as its 3rd positional arg after
   `(mpts, mesh, ...)`.
-- `src/home/core/solver/dynamic_relaxation/` — quasi-static path (`elastoquasistatic!`,
-  plus the not-fully-wired u-P variant `elastoquasistaticuP!`/`elastouP!`). Runs
-  end-to-end through the same `slump_problem`/`elastoplasm(jld2; workflows=[...])`
-  pipeline as the explicit solver — but is much slower to smoke-test (a full
-  `elastoquasistatic!` run takes ~1 minute vs. seconds for `elastodynamic!`/
-  `elastoplastic!`), so budget for that when verifying a change touches this path.
+- `src/home/core/solver/dynamic_relaxation/` — implicit quasi-static path
+  (`elastoquasistatic!`), the dynamic-relaxation (DR) MPM of Sutcliffe et al. (2026,
+  IJNME 127:e70384), Algorithm 1 without aggregation. Gravity is applied in `lstps`
+  uniform load steps (keyword, default 10, up to 9.81); each step is solved by `relax!`
+  (`implicit.jl`) with nodal `Δu` as the primary variable, held in `mesh.s.v`. One DR
+  iteration is `dr_kinematics` (ΔF, F, and `ϵᵢ ← ϵn` so no state carries between
+  iterations) → the explicit path's `elast!` → `dr_fint` (Eqs 19-22); then the Underwood
+  critical damping (Eq 40, capped at 1.9) and the midpoint update (Eqs 32-33, with Eq 44's
+  `2+αΔT` denominator; Eq 32's `2+ΔT` is a typo). The fictitious mass is the diagonal
+  Hencky P-wave estimate of Eqs 35/38/50 (`fictitious_mass`, `ζ_M=2`, no `N` weight),
+  assembled once per step where `ΔF=I`. Converges on `‖R‖/‖fᵉˣᵗ‖ < tol` (1e-9) over free
+  DOFs; the workflow returns the iteration count per load step. Finite strain only
+  (`hypoelastic` throws). Pass options through `elastoplasm` as a closure:
+  `workflows=[(a...)->elastoquasistatic!(a...; lstps=40)]`.
+
+  **Eq 35 takes one element size `h`**, so on elongated cells (`h = minimum(h)`) the
+  long direction is over-massed and the Rayleigh-quotient damping stalls near
+  `‖R‖/‖fᵉˣᵗ‖≈1e-8` for tens of thousands of iterations. Use square cells, as the paper
+  does. On the paper's §4.1 column (gimpm, one element wide) it reproduces the Fig 5
+  trend (stress error 1.3e-2 → 3.8e-4 for h = 6.25 → 0.78 with 40 load steps) at
+  ~100–1500 iterations per load step.
+
+  `plastic=true` runs `retmap!` after `elast!` in every iteration, restoring the step's
+  converged `ϵpII` (with `ϵpII[2] ← ϵpII[1]`, as the explicit path seeds it) first;
+  `G` sets the final gravity. On the §4.3 von Mises collapse (2² MPs/cell, 10 load steps) the
+  run-out is 5.74 m against the paper's ~5.6–5.8 m (Fig 17a), **reading the paper's `ρ_y` as a
+  Lode radius** (`√(2J₂) = ρ_y`, i.e. this repo's `κ = c₀ = ρ_y`), not the `√J₂ = ρ_y` Eq 49
+  prints: with `√J₂` the block barely slumps (2.2 m), since a smooth-base heap can stand up to
+  `H = 4c_u/γ`, which is then exactly the 8 m block height. Convergence is far slower than
+  the paper's (1.2M iterations; one load step hits the 1e6 cap), and the cause is identified as
+  **small cuts**: the slow mode lives on nodes just beyond the free face whose lumped mass is
+  1e-5–1e-4 of the maximum but whose fictitious mass is 12–25% of it (Eq 35 has no `N`
+  weight), so they are over-massed ~10⁴× relative to their stiffness. The paper's own fix is
+  aggregation; this repo fixes nodes with a low nodal solid fraction instead (`stab.sfrac`,
+  `common/sfrac.jl`, DR only — see "Nodal solid fraction" in `planned-improvements.md`), which
+  brings this run to ~16k iterations at a <1% run-out bias. Re-assembling `M̃` every iteration (§4.3's variants, with
+  Eq 51's `M_p = K` for yielding points) was tried and did not help, so the mass stays
+  assembled once per load step.
 
 ## Open/resolved issues
 

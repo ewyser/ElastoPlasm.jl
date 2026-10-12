@@ -14,3 +14,7 @@ predated the current three-key layout for a long stretch (undefined `kwargser`, 
 `cfg["instr"]`, matrix-style `mpts.x` indexing) but was fully fixed — see
 `.claude/bug/fixed/test-collapse-renamed-and-fixed.md` if picking that file up again ever
 surfaces a similar staleness.
+
+**Format change:** stress/strain storage switched to a scalar plus a 3D Voigt deviator
+(`feat-refactor-tensor-storage`), and the 2D `mpts.s.ϵzz` field was removed. `.jld2` files written before that don't load;
+regenerate them with the example's `*_problem(...)` call.

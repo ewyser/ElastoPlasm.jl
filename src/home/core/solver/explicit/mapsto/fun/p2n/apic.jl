@@ -25,7 +25,7 @@ accumulators from `basis.transfer.Bᵢⱼ`/`.Dᵢⱼ` (moved here from `Point`, 
         xp ,vp   = mpts.x[p]            , mpts.s.v[p]
         Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
         D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{1,1,T2}(I)
-        σ        = get_voigt(mpts.s.σᵢⱼ[p])
+        σxx      = get_tensor(mpts.s.σᵢ[p])[1,1]
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -35,7 +35,7 @@ accumulators from `basis.transfer.Bᵢⱼ`/`.Dᵢⱼ` (moved here from `Point`, 
             # accumulation
             @atom mesh.s.m[no]   += N * ms
             @atom mesh.s.mv[no]  += mv[1]
-            @atom mesh.s.oobf[no]-= Ω * (∂N[1] * σ[1]) - N * (ms * g[1])
+            @atom mesh.s.oobf[no]-= Ω * (∂N[1] * σxx) - N * (ms * g[1])
         end
     end
 end
@@ -47,7 +47,7 @@ end
         xp ,vp   = mpts.x[p]            , mpts.s.v[p]
         Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
         D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{2,2,T2}(I)
-        σᵢⱼ      = get_tensor(mpts.s.σᵢⱼ[p])
+        σᵢⱼ      = get_tensor(mpts.s.σᵢ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -71,7 +71,7 @@ end
         xp ,vp   = mpts.x[p]            , mpts.s.v[p]
         Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
         D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{3,3,T2}(I)
-        σᵢⱼ      = get_tensor(mpts.s.σᵢⱼ[p])
+        σᵢⱼ      = get_tensor(mpts.s.σᵢ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end

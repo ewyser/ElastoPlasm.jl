@@ -21,7 +21,7 @@ type parameter — see `Basis`'s docstring.
         # buffering
         ms,Ω = mpts.s.m[p],mpts.Ω[p]
         px   = ms*mpts.s.v[p][1]
-        σxx  = get_voigt(mpts.s.σᵢⱼ[p])[1]
+        σxx  = get_tensor(mpts.s.σᵢ[p])[1,1]
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -39,7 +39,7 @@ end
         # buffering
         ms, Ω = mpts.s.m[p], mpts.Ω[p]
         mv    = ms*mpts.s.v[p]
-        σᵢⱼ   = get_tensor(mpts.s.σᵢⱼ[p])
+        σᵢⱼ   = get_tensor(mpts.s.σᵢ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -59,7 +59,7 @@ end
         # buffering
         ms, Ω = mpts.s.m[p], mpts.Ω[p]
         mv    = ms*mpts.s.v[p]
-        σᵢⱼ   = get_tensor(mpts.s.σᵢⱼ[p])
+        σᵢⱼ   = get_tensor(mpts.s.σᵢ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end

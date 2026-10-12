@@ -53,14 +53,16 @@ Per-particle solid-phase state. Beyond the index/float types `T1`/`T2` and dimen
 
 - `CM<:AbstractConstitutiveModel` — plastic model (`DruckerPrager`/`VonMises`), from
   `material.plastic`.
-- `ST<:AbstractStrain` — `ϵᵢⱼ`/`ϵn` storage, from `material.elastic`:
+- `ST<:AbstractStrain` — `ϵᵢ`/`ϵn` storage, from `material.elastic`:
   `InfinitesimalStrain` for `"hypoelastic"`, `LogarithmicStrain` for the Hencky laws.
 - `EL<:AbstractElasticLaw` — elastic law, from `material.elastic`; see
   `AbstractElasticLaw`.
-- `L == D*D` — static length of the `D×D` tensor fields. Julia can't compute `D*D` in a
-  field type, so it is carried as a parameter to keep `SMatrix{D,D,T2,L}`,
-  `CauchyStress{D,T2,L}` and `KirchhoffStress{D,T2,L}` concrete. Kernels never dispatch
-  on it; recover a field's type with `eltype` instead.
+- `L == D*D` — static length of the `D×D` kinematic fields (`SMatrix{D,D,T2,L}`). Julia can't
+  compute `D*D` in a field type, so it is carried as a parameter. Kernels never dispatch on it;
+  recover a field's type with `eltype` instead.
+
+Stress and strain (`σᵢ`, `σn`, `τᵢ`, `ϵᵢ`, `ϵn`) are full 3D Voigt vectors in every dimension (plane
+strain in 2D), see `AbstractStrain`/`AbstractStress`.
 
 `m` is the solid mass `(1−n₀)ρ₀Ω₀`, set once at setup: `deform!` keeps `ρ·Ω` equal to it
 (solid mass conservation), so kernels read `m` rather than recomputing `ρ·Ω`.
@@ -75,17 +77,17 @@ struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,
     Δλ   ::Vector{T2}
     ϵpII ::Vector{SVector{2,T2}}
     ϵpV  ::Vector{T2}
-    # typed stress tensors (see stress.jl); Voigt view via `get_voigt`
-    σᵢⱼ  ::Vector{CauchyStress{D,T2,L}}
-    σn   ::Vector{CauchyStress{D,T2,L}}
-    τᵢⱼ  ::Vector{KirchhoffStress{D,T2,L}}
+    # typed stress tensors (see tensor.jl): pressure `.p` and deviator `.dev`; tensor via `get_tensor`
+    σᵢ   ::Vector{CauchyStress{T2}}
+    σn   ::Vector{CauchyStress{T2}}
+    τᵢ   ::Vector{KirchhoffStress{T2}}
     # tensor in matrix notation (SMatrix{ndim,ndim,T2} per MP)
     ∇vᵢⱼ ::Vector{SMatrix{D,D,T2,L}}
     ∇uᵢⱼ ::Vector{SMatrix{D,D,T2,L}}
     ΔFᵢⱼ ::Vector{SMatrix{D,D,T2,L}}
     Fᵢⱼ  ::Vector{SMatrix{D,D,T2,L}}
     Fn   ::Vector{SMatrix{D,D,T2,L}}
-    ϵᵢⱼ  ::Vector{ST}
+    ϵᵢ   ::Vector{ST}
     ϵn   ::Vector{ST}
     ωᵢⱼ  ::Vector{SMatrix{D,D,T2,L}}
     # per-particle static constitutive-model constants (Gc,Kc,Del,Hp,c₀,cᵣ,ϕ₀, ...)

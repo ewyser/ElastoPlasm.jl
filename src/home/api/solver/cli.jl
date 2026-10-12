@@ -38,6 +38,7 @@ function get_option()
                 locking = ("Enable volumetric locking mitigation",[true, false]),
                 damping = ("Select damping coefficient",[0.0, 0.1, 0.2, 0.4]),
                 musl = ("Enable musl update",[true, false]),
+                sfrac = ("Select solid-fraction threshold for fixing nodes in dynamic relaxation (0 = off)",[0.003, 0.0]),
             ),
             grf   = (
                 status = ("Enable Gaussian Random Field ",[true, false]),

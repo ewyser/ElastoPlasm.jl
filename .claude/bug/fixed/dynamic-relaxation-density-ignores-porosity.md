@@ -1,6 +1,6 @@
 # `dynamic_relaxation`'s density/porosity updates break solid mass conservation
 
-**Status: open** (found while storing the solid mass `mpts.s.m`; dynamic relaxation was
+**Status: fixed** on `feat-implicit-dr-sutcliffe` (found while storing the solid mass `mpts.s.m`; dynamic relaxation was
 deliberately left out of that change).
 
 The explicit path keeps `ρ·Ω = (1−n₀)ρ₀Ω₀` exactly (`deform.jl`: `Ω = J·Ω₀`,
@@ -18,3 +18,10 @@ The 4 dynamic-relaxation mass sites (`assembly.jl:5`, `fint.jl:13,55,133`) still
 `ρ[p]*Ω[p]`, so they see these drifting values. The likely fix is to read `mpts.s.m[p]`, as the
 explicit path does, and to make both updates use `ρ = (1−n)ρ₀` with `n = 1−(1−n₀)/J`, like
 `deform.jl`. That changes DR results, so it wasn't done alongside the explicit-path change.
+
+## Resolution
+
+Fixed in `refactor: Split dynamic-relaxation force assembly and reuse elast!`. The DR mass
+sites (`mass_assembly`, `dr_fint`) read `mpts.s.m`, and `update` computes `Ω = J·Ω₀`,
+`n = 1−(1−n₀)/J`, `ρ = (1−n)ρ₀` exactly as `deform.jl` does. As expected, results changed:
+the column now carries `(1−n₀)ρ₀Ω₀`, so `test_column.jl`'s analytic stress uses `(1−n₀)ρ₀`.

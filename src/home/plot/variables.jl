@@ -4,10 +4,8 @@ export get_mpts_variable_config, get_variable_plot_options
 # Variable extraction functions for metanalysis. All return raw (SI) values;
 # unit conversion for display is applied afterwards via each entry's `scale`.
 get_epII(mpts) = getindex.(mpts.s.ϵpII, 1)
-# NB: this is the pre-existing "mean of all stored Voigt components" definition (shear
-# included, divided by nstr), kept verbatim through the typed-tensor port — it is NOT
-# `stress.p`, and swapping it would silently change every published pressure plot.
-get_P(mpts)    = [(σv = get_voigt(σ); -sum(σv)/length(σv)) for σ in mpts.s.σᵢⱼ]
+# mean pressure of the full 3×3 stress, positive in compression (in 2D, σzz included)
+get_P(mpts)    = getfield.(mpts.s.σᵢ, :p)
 get_J(mpts)    = mpts.J
 get_n(mpts)    = mpts.n
 get_v(mpts)    = [sqrt(v[1]^2 + v[2]^2) for v in mpts.s.v]
@@ -33,7 +31,7 @@ function get_mpts_variable_config()
             label=L"\epsilon_{\mathrm{II}}^{\mathrm{acc}}",
             unit = "[-]",
             scale = 1.0,
-            name="Plastic strain",
+            name="plastic strain",
             cb=:viridis,
             cblim=(0.0, 1.5)
         ),
@@ -42,7 +40,7 @@ function get_mpts_variable_config()
             label=L"p",
             unit = "[kPa]",
             scale = 1/1e3,
-            name="Pressure",
+            name="pressure",
             cb=:viridis,
             cblim=(0.0, 150)
         ),
@@ -51,7 +49,7 @@ function get_mpts_variable_config()
             label=L"J",
             unit = "[-]",
             scale = 1.0,
-            name="Deformation determinant",
+            name="deformation determinant",
             cb=:viridis,
             cblim=(0.5, 1.5)
         ),
@@ -60,7 +58,7 @@ function get_mpts_variable_config()
             label=L"n",
             unit = "[-]",
             scale = 1.0,
-            name="Porosity",
+            name="porosity",
             cb=:vik,
             cblim=(-1.0, 1.0)
         ),
@@ -69,7 +67,7 @@ function get_mpts_variable_config()
             label=L"\Delta u",
             unit = "[m]",
             scale = 1.0,
-            name="Displacement magnitude",
+            name="displacement magnitude",
             cb=:viridis,
             cblim=(0.0, 5.0)
         ),
@@ -78,7 +76,7 @@ function get_mpts_variable_config()
             label=L"v",
             unit = "[m/s]",
             scale = 1.0,
-            name="Velocity magnitude",
+            name="velocity magnitude",
             cb=:viridis,
             cblim=(0.0, 5.0)
         ),
@@ -87,7 +85,7 @@ function get_mpts_variable_config()
             label=L"c_{0}",
             unit = "[kPa]",
             scale = 1/1e3,
-            name="Initial cohesion",
+            name="initial cohesion",
             cb = :vik,
             cblim=(10.0, 30.0)
         ),
@@ -96,7 +94,7 @@ function get_mpts_variable_config()
             label=L"\phi_{0}",
             unit = "[deg.]",
             scale = 180.0/π,
-            name="Initial friction angle",
+            name="initial friction angle",
             cb = :viridis,
             cblim=(20.0, 40.0)
         ),
@@ -105,7 +103,7 @@ function get_mpts_variable_config()
             label = L"\ell",
             unit  = "[-]",
             scale = 1.0,
-            name  = "Domain",
+            name  = "domain",
             cb    = nothing,
             cblim = nothing,
         ),
@@ -114,7 +112,7 @@ function get_mpts_variable_config()
             label=L"T",
             unit = "[K]",
             scale = 1.0,
-            name="Temperature",
+            name="temperature",
             cb=:thermal,
             cblim=(20.0, 293.15)
         ),

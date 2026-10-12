@@ -128,15 +128,3 @@ end
     end
     return no, N, ∂N
 end
-
-
-@inline function get_ξηζ(xp::SVector{S,T}, xn::Vector{SVector{S,T}}, h::SVector{S,T},p2n::SVector{NN,Int}) where {S,T,NN}
-    nno = ntuple(i -> p2n[i], Val(NN))
-    ξηζ = ntuple(Val(NN)) do i
-        no = nno[i]
-        (
-            ntuple(j -> (xp[j] - xn[no][j]) / h[j], Val(S))
-        )
-    end # ξηζ = ((ξ₁, η₁, ζ₁), (ξ₂, η₂, ζ₂), ..., (ξn, ηn, ζn))
-    return nno, ξηζ
-end

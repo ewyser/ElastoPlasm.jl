@@ -22,7 +22,7 @@ type parameter — see `Basis`'s docstring.
         ms, Ω  = mpts.s.m[p], mpts.Ω[p]
         xp     = mpts.x[p]        
         vp, ∇v = mpts.s.v[p]          , mpts.s.∇vᵢⱼ[p]
-        σ      = get_voigt(mpts.s.σᵢⱼ[p]) 
+        σxx    = get_tensor(mpts.s.σᵢ[p])[1,1]
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -32,7 +32,7 @@ type parameter — see `Basis`'s docstring.
             # accumulation
             @atom mesh.s.m[no]   += N * ms
             @atom mesh.s.mv[no]  += mv[1]
-            @atom mesh.s.oobf[no]-= Ω * (∂N[1] * σ[1]) - N * (ms * g[1])
+            @atom mesh.s.oobf[no]-= Ω * (∂N[1] * σxx) - N * (ms * g[1])
         end
     end
 end
@@ -42,7 +42,7 @@ end
         ms, Ω  = mpts.s.m[p], mpts.Ω[p]
         xp     = mpts.x[p]        
         vp, ∇v = mpts.s.v[p]          , mpts.s.∇vᵢⱼ[p]
-        σᵢⱼ    = get_tensor(mpts.s.σᵢⱼ[p])
+        σᵢⱼ    = get_tensor(mpts.s.σᵢ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end
@@ -64,7 +64,7 @@ end
         ms, Ω  = mpts.s.m[p], mpts.Ω[p]
         xp     = mpts.x[p]        
         vp, ∇v = mpts.s.v[p]          , mpts.s.∇vᵢⱼ[p]
-        σᵢⱼ    = get_tensor(mpts.s.σᵢⱼ[p])
+        σᵢⱼ    = get_tensor(mpts.s.σᵢ[p])
         for nn ∈ 1:mesh.prprt.nn
             no = basis.p2n[p][nn]
             if iszero(no) continue end

@@ -1,4 +1,3 @@
-#= =#
 """
     nonlocal_pq(W, mpts::Point{T1,T2}, basis::Basis{T1,T2}, ls::T2, ptr::Vector{T1}, idx::Vector{T1}) where {T1,T2}
     nonlocal_qp(W, mpts::Point{T1,T2}, basis::Basis{T1,T2}, ls::T2, ptr::Vector{T1}, idx::Vector{T1}) where {T1,T2}

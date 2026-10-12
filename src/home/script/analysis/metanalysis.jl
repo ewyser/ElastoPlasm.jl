@@ -30,6 +30,7 @@ function prepare_simulations!(L, nel, fid, paths)
                     elastic = elastic,
                 )
                 stab = (;
+                    sfrac = get_default().stab.sfrac,
                     locking = false,
                     damping = 0.1,
                     musl = true,
