@@ -40,6 +40,11 @@ Use `elastoplasm!` (not `elastoplasm`) whenever you need to inspect post-run
   renamed from the old `collapse_problem`) — a 1-D elastic self-weight column
   convergence test with no plasticity at all; see
   `.claude/bug/fixed/test-collapse-renamed-and-fixed.md` for that history.
+- `block_problem(nel=[16,9]; kwargs...)` (`src/home/script/example/block.jl`) is the 8 × 8 m
+  self-weight block of Sutcliffe et al. (2026) §4.3, a thin wrapper over `collapse_problem` with
+  the paper's values as overridable defaults (von Mises `c0 = 20 kPa` Lode reading, smooth base,
+  GIMP). Run it with `elastoquasistatic!(a...; lstps=10, G=10.0, plastic=false|true)`; elastic, the
+  base pressure is 37.7 kPa (~16 s).
 - `cli()` (`src/home/api/solver/cli.jl`) parses interactive/CLI overrides for solver
   config; `cli(; ui=true)` prompts interactively, `cli()` with no args picks defaults
   non-interactively — pass its result as `kwargs...` into `slump_problem`/`get_solver`.
