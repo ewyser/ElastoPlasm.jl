@@ -3,8 +3,8 @@
 
 End of a converged load step: accept `F`, the logarithmic strain and the stress as the new
 converged state, and move each material point by `Δu_p = Σ S_vp Δu_v` (Sutcliffe et al.
-2026, Eq 23). Volume, porosity and density follow `deform.jl`, so the solid mass `ρ·Ω`
-stays equal to `mpts.s.m`.
+2026, Eq 23), accumulating it into the total displacement `mpts.s.u`. Volume, porosity and
+density follow `deform.jl`, so the solid mass `ρ·Ω` stays equal to `mpts.s.m`.
 """
 @kernel inbounds = true function update(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D}) where {T1,T2,D}
     p = @index(Global)
@@ -17,7 +17,7 @@ stays equal to `mpts.s.m`.
             if iszero(no) continue end
             Δu += basis.N[nn,p] * mesh.s.v[no]
         end
-        mpts.s.u[p] = Δu
+        mpts.s.u[p] += Δu
         mpts.x[p]  += Δu
         J             = det(mpts.s.Fᵢⱼ[p])
         mpts.J[p]     = J

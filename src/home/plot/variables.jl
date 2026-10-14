@@ -8,8 +8,8 @@ get_epII(mpts) = getindex.(mpts.s.ϵpII, 1)
 get_P(mpts)    = getfield.(mpts.s.σᵢ, :p)
 get_J(mpts)    = mpts.J
 get_n(mpts)    = mpts.n
+get_u(mpts)    = [sqrt(u[1]^2 + u[2]^2) for u in mpts.s.u]
 get_v(mpts)    = [sqrt(v[1]^2 + v[2]^2) for v in mpts.s.v]
-get_Δu(mpts)   = [sqrt(u[1]^2 + u[2]^2) for u in mpts.s.u]
 get_coh0(mpts) = [cmp.c₀ for cmp in mpts.s.cmp]
 get_phi0(mpts) = [cmp.ϕ₀ for cmp in mpts.s.cmp]
 get_domain(mpts) = mpts.ℓ
@@ -62,14 +62,14 @@ function get_mpts_variable_config()
             cb=:vik,
             cblim=(-1.0, 1.0)
         ),
-        "Δu" => (
-            data=get_Δu,
-            label=L"\Delta u",
+        "u" => (
+            data=get_u,
+            label=L"u",
             unit = "[m]",
             scale = 1.0,
             name="displacement magnitude",
             cb=:viridis,
-            cblim=(0.0, 5.0)
+            cblim=(0.0, 0.25)
         ),
         "v" => (
             data=get_v,

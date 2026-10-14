@@ -129,7 +129,7 @@ commit to be the *only* behavior change from this refactor; not a regression.
   `2+αΔT` denominator; Eq 32's `2+ΔT` is a typo). The fictitious mass is the diagonal
   Hencky P-wave estimate of Eqs 35/38/50 (`fictitious_mass`, `ζ_M=2`, no `N` weight),
   assembled once per step where `ΔF=I`. Converges on `‖R‖/‖fᵉˣᵗ‖ < tol` (1e-9) over free
-  DOFs; the workflow returns the iteration count per load step. Finite strain only
+  DOFs; the workflow returns the iteration count per load step. `mpts.s.u` accumulates the total displacement over the workflow (the explicit path stores the per-step increment `dt·v` there instead). Finite strain only
   (`hypoelastic` throws). Pass options through `elastoplasm` as a closure:
   `workflows=[(a...)->elastoquasistatic!(a...; lstps=40)]`.
 
