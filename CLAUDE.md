@@ -17,7 +17,10 @@ includes every `.jl` file — files in a directory load before its subdirectorie
 sorted alphabetically, so load order is deterministic there. A failed include only
 `@warn`s, it doesn't crash — so a stale/broken file can silently go unused; always
 check for `@warn "Failed to include..."` after `using ElastoPlasm` when touching files
-under `home/`.
+under `home/`. The warning appears only while the package **precompiles** (the first
+`using` after an edit): later sessions load the cached image, which silently lacks the
+broken file's definitions (an `UndefVarError` for something that exists in the source).
+To see it again, `include` the file directly or force recompilation.
 
 `src/boot/needs/types/` is loaded differently: `boot.jl` includes its files through an
 explicit, hand-ordered list rather than `superInc`/`collect_and_include_jls`, because
@@ -39,7 +42,7 @@ position; it is NOT picked up automatically the way `home/` files are.
   dynamic_relaxation solver split: `.claude/docs/architecture.md`.
 - Config/behavior knobs (`basis.which`, `material.elastic`, `material.plastic`, `stab.locking`,
   `nonloc.*`, ...) live on one `NamedTuple` built by `get_default()`/`get_solver` and
-  merged shallowly per-section. Full reference and the standard end-to-end run:
+  merged per field (`merge_config`). Full reference and the standard end-to-end run:
   `.claude/docs/operations.md`.
 - Persistence layout (`ic["problem"]`/`ic["basis"]`/`cfg["solver"]` in JLD2):
   `.claude/docs/persistence.md`.

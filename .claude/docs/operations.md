@@ -144,17 +144,18 @@ Two ways to change solver behaviour:
 
 1. **Per-run override (preferred, no code change)** — pass any of these keys as
    keyword arguments through `slump_problem`/`get_solver`; `get_solver` only keeps
-   kwargs whose keys already exist in `default` (unrecognized kwargs get a `@warn`,
-   not an error), then merges them over `default` via `merge(ref, user)`. **This is a
-   shallow-per-key merge** — to override one field of a nested `NamedTuple` block
-   (e.g. just `basis.trsfr`) you must pass the *whole* section
-   (`basis = (; which=..., trsfr=..., C_pf=...)`), not just the one field,
-   since `merge` replaces the whole `:basis` entry rather than recursing into it —
-   this has caused real, previously-live bugs (`thermal_problem`'s and
-   `test_basis.jl`'s own hardcoded `basis=(;which=...)` overrides silently dropped
-   `trsfr`/`C_pf` until fixed to spread `get_default().basis...` first). Example:
+   kwargs whose top-level keys exist in `default` (unrecognized ones get a `@warn`, not
+   an error), then merges them over `default` field by field (`merge_config`): a partial
+   section changes only the fields it names (`basis=(; trsfr="apic")` keeps `which` and
+   `C_pf`), nested sections recurse (`grf=(; param=(; σ=1.0e4))`), and anything that is not
+   a section (values, vectors such as `plot.what`) replaces the default. A nested field
+   the defaults lack is an error naming the valid ones (`material=(; elastik=…)`); a
+   `dtype` with only `precision` gets its `T0`/`bits`. (Until the merge became per field,
+   a partial section silently dropped the other fields, a real bug twice:
+   `thermal_problem`'s and `test_basis.jl`'s `basis=(;which=...)` lost `trsfr`/`C_pf`;
+   full sections, as most callers still pass, merge exactly as before.) Example:
    ```julia
-   slump_problem(L, nel; basis=(;which="gimpm",trsfr="apic",C_pf=1.0), material=(;plastic="DP",elastic="hencky"), stab=(;locking=true,damping=0.1,musl=true))
+   slump_problem(L, nel; basis=(; which="gimpm", trsfr="apic"), stab=(; damping=0.1))
    ```
 2. **Change the package-wide default** — edit the literal value in `get_default()`
    directly. Do this only for a genuine change of the shipped default behaviour, not
@@ -184,7 +185,8 @@ kwargs suitable for splatting into `slump_problem`/`get_solver` as `cli()...`.
   to `get_default()`. Use only from a real terminal/REPL — blocks on
   `TerminalMenus.request`, never call from a non-interactive script or agent session.
 - To override specific options while using `cli()` for everything else, splat `cli()`
-  first then override afterward — later kwargs win. Same shallow-merge caveat applies.
+  first then override afterward — later kwargs win (a later section replaces the
+  earlier one in the kwargs, then merges per field over the defaults).
 - `get_option()` is a reference for valid values per key (e.g.
   `get_option().basis.trsfr` → `["std", "tpic", "apic"]`) — but not every listed value is
   wired up: `backend.select` offers `"cuda"`/`"rocm"` while every kernel is hard-coded to

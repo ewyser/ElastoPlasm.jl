@@ -91,7 +91,7 @@ time** on `test_performance.jl` vs. the pre-refactor baseline.
 (MUSL velocity reprojection) lives under `stab`, since it's a stabilization technique
 applied regardless of which transfer scheme ran, not transfer-scheme-specific. There is
 no `transfer` config section anymore. See `operations.md` for the full config layout and
-a real shallow-merge bug this reorganization surfaced twice.
+the per-field merge (a shallow merge caused a real bug twice during this reorganization).
 
 **Known, deliberate behavior change**: thermal-only workflows now work under any
 `basis.trsfr` (previously threw `MethodError` for `apic`/`tpic`) — that restriction was
