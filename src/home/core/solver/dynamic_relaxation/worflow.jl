@@ -31,3 +31,6 @@ function elastoquasistatic!(mpts::Point{T1,T2,D,CM,ST},mesh::Mesh{T1,T2,D},basis
     finish!(prog)
     return its
 end
+
+# the workflow on a whole problem (`elastoplasm(problem; workflows)`)
+elastoquasistatic!(p::Problem; kwargs...) = elastoquasistatic!(p.mpts, p.mesh, p.basis, p.time, p.solver; kwargs...)

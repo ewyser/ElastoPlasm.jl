@@ -25,11 +25,10 @@
   `InfinitesimalStrain`) and `EL<:AbstractElasticLaw` (`HenckySolid`/`ImprovedHenckySolid`/
   `HypoelasticSolid`, the elastic-law tag `elast.jl` and `get_dt`'s `_Ktan` dispatch on) are both
   picked together from `material.elastic` by `build_solid_phase`.
-- `MechanicalProblem{T1,T2,D,CM,ST,EL,L} <: AbstractProblem{T1,T2,D,SP}`
-  (`src/boot/needs/types/problem/problem.jl`) — bundles `mesh::Mesh`+
-  `mpts::Point`+`time::Time` as the IC-defining part of a simulation, built by
-  `setup_simulation` from a `Case`.
-  Deliberately excludes `Basis`/`Solver` — those stay independent types.
+- `Problem{T1,T2,D,P,B,S}` (`src/boot/needs/types/problem/problem.jl`) — everything a run needs:
+  `mpts`, `mesh`, `basis`, `time`, `solver`, built by `Problem(case)`; what a simulation's `.jld2`
+  stores and what workflows run on (`elastodynamic!(problem)`, `elastoplasm(problem; workflows)`).
+  The `Case` it was built from is not a field (see "`Problem`" in `planned-improvements.md`).
 - `Case` (`src/boot/needs/types/problem/case.jl`) — the plain-data description a problem is built from: domain, zones
   (`Zone` = shape `Polygon`/`Block`/`Ball`/`Region` + material overrides), default material
   (`MATERIAL`), boundary conditions, solver overrides, thermal flag, run settings. `case_points`
@@ -88,7 +87,7 @@ constructor, since `D*D` on a bare `TypeVar` isn't valid in a struct's own field
 declaration). These fields used to live on `Point` unconditionally (`Δnp`/`Bᵢⱼ`/`Dᵢⱼ`,
 100% APIC-exclusive, allocated on every particle even under `std`/`tpic`); `Δnp` was
 dead code and got deleted, `Bᵢⱼ`/`Dᵢⱼ` moved onto `ApicTransfer` (`basis.transfer.Bᵢⱼ`,
-not `mpts.Bᵢⱼ`). They persist as part of `ic["basis"]` now, not `ic["problem"]`. Removing
+not `mpts.Bᵢⱼ`). They persist with the basis (`problem.basis`), not on `mpts`. Removing
 this dead/wasted per-`Point` allocation measured **-18.3% memory / -5.4% allocs / 0.0%
 time** on `test_performance.jl` vs. the pre-refactor baseline.
 

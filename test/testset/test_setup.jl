@@ -9,7 +9,7 @@
     noplot = (; plot=(; get_default().plot..., status=false))
     L      = [64.1584, 64.1584/4]
     function flat(jld2)
-        pb, basis, solver = jldopen(f -> (f["ic/problem"], f["ic/basis"], f["cfg/solver"]), jld2, "r")
+        pb = load_problem(jld2); basis, solver = pb.basis, pb.solver
         m, c = pb.mpts, pb.mpts.s.cmp
         return Dict{String,Any}(
             "x" => reduce(hcat, m.x), "Omega" => m.Ω₀, "n0" => m.n₀, "rho0" => m.s.ρ₀, "rho" => m.s.ρ, "m" => m.s.m,

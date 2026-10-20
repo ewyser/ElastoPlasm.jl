@@ -51,11 +51,11 @@ function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","
     for w ∈ which
       @testset "- basis/$(w)" begin
         jld2  = slump_problem(L, nel; basis=(;get_default().basis...,which=w), plot=(;status=false,freq=1.0,dpi=300,what=[]), fid="test/basis_$(w)")
-        problem = load(jld2, "ic/problem")
+        problem = load_problem(jld2)
         mesh  = problem.mesh
         mpts  = problem.mpts
-        basis = load(jld2, "ic/basis")
-        solver= load(jld2, "cfg/solver")
+        basis = problem.basis
+        solver= problem.solver
 
         nxnodes    = mesh.prprt.nno[1]
         target_ids = Int64[1 + (c-1) + nxnodes*(row-1) for c ∈ cols]

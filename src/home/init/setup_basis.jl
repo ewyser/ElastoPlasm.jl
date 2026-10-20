@@ -1,15 +1,14 @@
 
 """
-    setup_basis(problem, solver) -> Basis
+    setup_basis(mesh, mpts, solver) -> Basis
 
-The connectivity and shape-function state linking `problem.mesh` and `problem.mpts`: the basis kind
+The connectivity and shape-function state linking `mesh` and `mpts`: the basis kind
 (`solver.basis.which`) and transfer scheme (`solver.basis.trsfr`), element-to-node (`e2n`) and
 element-to-element (`e2e`) connectivity, the nodes' boundary layers (`type`), and the per-point
 node and element indices (`p2n`, `p2e`) and shape values (`N`, `∂N`), zero here and filled every
 step by the `p2e2n` and `shpfun!` kernels.
 """
-function setup_basis(problem::MechanicalProblem{T1,T2,D}, solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
-    mesh, mpts = problem.mesh, problem.mpts
+function setup_basis(mesh::Mesh{T1,T2,D}, mpts::Point{T1,T2,D}, solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     nel, nno = mesh.prprt.nel, mesh.prprt.nno
     kind     = get_basis(solver.basis.which, T1, D)
     NN       = prod(length.(kind.stencils))

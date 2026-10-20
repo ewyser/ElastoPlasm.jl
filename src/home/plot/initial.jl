@@ -1,12 +1,13 @@
 export plot_initial_fields
 
 """
-    plot_initial_fields(problem, solver, paths)
+    plot_initial_fields(problem, paths)
 
 Plot the initial cohesion (and, for Drucker–Prager, friction angle) of the material points into
 `paths[:plot]`, as the example problems do when `solver.plot.status` is on.
 """
-function plot_initial_fields(problem, solver, paths)
+function plot_initial_fields(problem::Problem, paths)
+    solver = problem.solver
     @info "Plotting initial cohesion & friction fields..."
     dims  = solver.plot.dpi.*(problem.mesh.prprt.L[1]./problem.mesh.prprt.L)
     ms    = dims[1]/(problem.mesh.prprt.nel[1]*2)

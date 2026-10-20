@@ -5,9 +5,12 @@ Typical end-to-end run (this is also the standard smoke test after any refactor)
 ```julia
 using ElastoPlasm
 L,nel = [64.1584, 64.1584/4.0], [40,10]      # domain size, element counts (2D here; 3 entries = 3D)
-jld2  = slump_problem(L, nel; cli()...)           # builds mesh/mpts/basis/time, saves setup, returns the .jld2 path
+jld2  = slump_problem(L, nel; cli()...)           # builds the Problem, saves it, returns the .jld2 path
 out   = elastoplasm!(jld2; workflows = [elastodynamic!, elastoplastic!])
 @assert out.success
+p     = load_problem(jld2)                        # the post-run Problem: p.mpts, p.mesh, ...
+# or entirely in memory, no file:
+p     = elastoplasm(Problem(slump_case(L, nel; cli()...)); workflows=[elastodynamic!, elastoplastic!])
 ```
 
 Use `elastoplasm!` (not `elastoplasm`) whenever you need to inspect post-run
@@ -46,13 +49,14 @@ Use `elastoplasm!` (not `elastoplasm`) whenever you need to inspect post-run
 - `get_solver(; dim=2, kwargs...)` (`src/home/api/solver/get_solver.jl`) merges
   user kwargs over `get_default()`, resolves the execution backend, and builds the
   `Cairn` dispatch table (`cairn.ignite`/`.mapsto`/`.update`/`.implicit`).
-- `elastoplasm(jld2_path; workflows=[...])` reopens the `.jld2`, unpacks
-  `(mesh, mpts, basis, time, solver)`, and runs each workflow function in order as
-  `workflow!(mpts, mesh, basis, time, solver)`. `elastoplasm!` is the in-place variant
-  (opens `"r+"` so postprocessing can write back). Both accept any callable matching
-  that signature — the built-ins are `elastodynamic!`/`elastoplastic!` (explicit
-  solver) and `elastoquasistatic!` (dynamic_relaxation), freely composable in the
-  `workflows` vector since they share the same call signature.
+- `elastoplasm(problem::Problem; workflows=[...])` runs each workflow in order, in memory, and
+  returns the problem: `workflow!(problem)` when the workflow takes one (the built-ins
+  `elastodynamic!`/`elastoplastic!`/`thermodynamic!` (explicit) and `elastoquasistatic!`
+  (dynamic relaxation) do, and so do closures such as `(a...) -> elastoquasistatic!(a...;
+  lstps=40)`), otherwise `workflow!(mpts, mesh, basis, time, solver)` (`run_workflow!`).
+  `elastoplasm(jld2)` does the same on the problem saved in a file and discards the result;
+  `elastoplasm!(jld2)` writes the problem back after each workflow (`load_problem` to inspect it).
+  The workflows are freely composable in the `workflows` vector.
 - Plotting is opt-in via `solver.plot.status`; when on, `elastoplasm` auto-saves a PNG
   per workflow named `"$(dim)_$(basis.which)_$(solvertype)_$(deform)_$(workflow)_$(quantity).png"`
   under the run's `dump/.../plot` path.

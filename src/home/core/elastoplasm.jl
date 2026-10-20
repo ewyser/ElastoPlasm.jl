@@ -1,102 +1,59 @@
-export elastoplasm,elastoplasm!      
+export elastoplasm,elastoplasm!
+
+# a workflow on a problem: `workflow!(problem)` when it takes one (the built-ins, closures such as
+# `(a...) -> elastoquasistatic!(a...; lstps=10)`), else `workflow!(mpts, mesh, basis, time, solver)`
+run_workflow!(workflow!, p::Problem) = applicable(workflow!, p) ? workflow!(p) : workflow!(p.mpts, p.mesh, p.basis, p.time, p.solver)
+
+# the plot saved after a workflow when `solver.plot.status` (into `paths[:plot]`; none without paths)
+function save_workflow_plot(p::Problem, workflow!, paths)
+    (p.solver.plot.status && !isnothing(paths)) || return nothing
+    solver   = p.solver
+    quantity = join([v.mpts.name for v in solver.plot.what if haskey(v, :mpts)], "_")
+    name     = "$(solver.solution)_$(length(p.mesh.prprt.L))d_$(solver.basis.which)_$(solver.basis.trsfr)_" *
+               "$(solver.material.elastic)_$(workflow!)_$(quantity).png"
+    save_plot((; file=joinpath(paths[:plot], replace(name, " " => "_"))))
+end
 
 """
-    elastoplasm(sim::String; workflows=[elastodynamic!]) -> (; simulation, success)
+    elastoplasm(problem::Problem; workflows=[elastodynamic!], paths=nothing) -> Problem
+    elastoplasm(file; workflows=[elastodynamic!]) -> (; simulation, success)
+    elastoplasm!(file; workflows=[elastodynamic!]) -> (; simulation, success)
 
-Run each `workflow!(mpts, mesh, basis, time, solver)` in `workflows`, in order, on the problem
-saved at `sim` — the `.jld2` path returned by a setup function such as `slump_problem`.
-Built-in workflows: `elastodynamic!`, `elastoplastic!`, `elastoquasistatic!`,
-`thermodynamic!`. When `solver.plot.status` is on, a plot is saved after each workflow.
+Run each workflow of `workflows`, in order, on a problem: `workflow!(problem)`, or
+`workflow!(mpts, mesh, basis, time, solver)` for a workflow written that way. Built-in workflows:
+`elastodynamic!`, `elastoplastic!`, `elastoquasistatic!`, `thermodynamic!`. When
+`solver.plot.status` is on, a plot is saved after each workflow (into `paths[:plot]`).
 
-Opens `sim` read-only: the post-run state is discarded. Use `elastoplasm!` to keep it.
+`elastoplasm(problem)` runs in memory and returns the (changed) problem. On a `.jld2` file (from
+`setup_simulation` or a `*_problem` call), `elastoplasm` runs a copy and discards the result;
+`elastoplasm!` writes the problem back after each workflow, so the results can be loaded
+(`load_problem`) and inspected afterwards.
 """
-function elastoplasm(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <:String, F <: Function}
-    jldopen(sim) do file
-        # unpack mesh, mpts, basis, instr, paths as aliases
-        problem              = file["ic/problem"]
-        mesh,mpts,time       = problem.mesh, problem.mpts, problem.time
-        basis                = file["ic/basis"]
-        solver,paths,misc    = file["cfg/solver"], file["cfg/paths"], file["cfg/misc"]
-        # action
-        for (k,workflow!) ∈ enumerate(workflows)
-            @info elastoplasm_log(solver; msg = "$workflow!")
-            workflow!(mpts,mesh,basis,time,solver)
-            # postprocessing
-            if solver.plot.status
-                dimension   = string(Base.unwrap_unionall(typeof(solver)).parameters[3])
-                basisname   = solver.basis.which
-                transfer    = solver.basis.trsfr
-                solution    = solver.solution
-                deformation = solver.material.elastic
-                workflow    = string(workflow!)
-                quantity    = join([v.mpts.name for v in solver.plot.what if haskey(v, :mpts)], "_")
-                name        = "$(solution)_$(dimension)d_$(basisname)_$(transfer)_$(deformation)_$(workflow)_$(quantity).png"
-                path        = joinpath(paths[:plot],replace(name, " " => "_"))
-                opts = (; file = path, )
-                save_plot(opts)
-            end
-        end
-        sleep(1.0)
+function elastoplasm(p::Problem; workflows::Vector{<:Function}=Function[elastodynamic!], paths=nothing)
+    for workflow! ∈ workflows
+        @info elastoplasm_log(p.solver; msg = "$workflow!")
+        run_workflow!(workflow!, p)
+        save_workflow_plot(p, workflow!, paths)
     end
-    # return success message
+    return p
+end
+function elastoplasm(sim::String; workflows::Vector{<:Function}=Function[elastodynamic!])
+    p, paths = load(sim, "problem", "paths")
+    elastoplasm(p; workflows, paths)
+    sleep(1.0)
     exit_log("(✓) Done! exiting...\n")
     return (; simulation=sim, success=true,)
 end
-"""
-    elastoplasm!(sim::String; workflows=[elastodynamic!]) -> (; simulation, success)
-
-Same as `elastoplasm`, but writes the post-run `ic/problem` and `ic/basis` back into `sim`
-after each workflow, so the results can be loaded and inspected afterwards.
-"""
-function elastoplasm!(sim::S; workflows::Vector{F} = [elastodynamic!]) where {S <:String, F <: Function}
-    jldopen(sim,"r+") do file
-        # unpack mesh, mpts, basis, instr, paths as aliases
-        problem              = file["ic/problem"]
-        mesh,mpts,time       = problem.mesh, problem.mpts, problem.time
-        basis                = file["ic/basis"]
-        solver,paths,misc    = file["cfg/solver"], file["cfg/paths"], file["cfg/misc"]
-        # action
-        for (k,workflow!) ∈ enumerate(workflows)
-            @info elastoplasm_log(solver; msg = "$workflow!")
-            workflow!(mpts,mesh,basis,time,solver)
-            # postprocessing
-            if solver.plot.status
-                dimension   = string(Base.unwrap_unionall(typeof(solver)).parameters[3])
-                basisname   = solver.basis.which
-                transfer    = solver.basis.trsfr
-                solution    = solver.solution
-                deformation = solver.material.elastic
-                workflow    = string(workflow!)
-                quantity    = join([v.mpts.name for v in solver.plot.what if haskey(v, :mpts)], "_")
-                name        = "$(solution)_$(dimension)d_$(basisname)_$(transfer)_$(deformation)_$(workflow)_$(quantity).png"
-                path        = joinpath(paths[:plot],replace(name, " " => "_"))
-                opts = (; file = path, )
-                save_plot(opts)
-            end
-            # update initial conditions in jld2 file
-            delete!(file, "ic")
-            file["ic/problem"] = MechanicalProblem(mesh,mpts,time)
-            file["ic/basis"]   = basis
+function elastoplasm!(sim::String; workflows::Vector{<:Function}=Function[elastodynamic!])
+    p, paths = load(sim, "problem", "paths")
+    for workflow! ∈ workflows
+        elastoplasm(p; workflows=Function[workflow!], paths)
+        jldopen(sim, "r+") do f                               # the post-run state, after each workflow
+            delete!(f, "problem")
+            f["problem"] = p
         end
-        sleep(1.0)
     end
-    # return success message
+    sleep(1.0)
     exit_log("(✓) Done! exiting...\n")
     return (; simulation=sim, success=true,)
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

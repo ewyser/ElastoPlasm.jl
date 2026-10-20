@@ -63,11 +63,11 @@
         s = layered(; solver=(; plot=(; status=false)), run=(; fid="test/spec_dt"))
         c = check_case(s)
         @test isempty(c.errors) && isempty(c.warnings) && startswith(c.info[1], "480 material points, 200 elements (2D)")
-        pb = jldopen(f -> f["ic/problem"], setup_simulation(s), "r")
+        pb = load_problem(setup_simulation(s))
         @test pb.mpts.nmp == 480
         @test estimate_dt(s)[1] ≈ EP.get_dt(pb.mpts, pb.mesh.prprt, pb.time, Inf) rtol=1e-12   # = the solver's
         ex = layered(; width=4.0, nely=4, solver=(; plot=(; status=false)), run=(; fid="test/spec_dt3"))
-        pb3 = jldopen(f -> f["ic/problem"], setup_simulation(ex), "r")
+        pb3 = load_problem(setup_simulation(ex))
         @test startswith(check_case(ex).info[1], "$(pb3.mpts.nmp) material points, 800 elements (3D") && pb3.mpts.nmp == 480*8
         @test estimate_dt(ex)[1] ≈ EP.get_dt(pb3.mpts, pb3.mesh.prprt, pb3.time, Inf) rtol=1e-12
         none = Case(; L=[20, 10], nel=[20, 10], zones=[Zone("away", Polygon([[30, 0], [40, 0], [40, 5]]))])
@@ -85,7 +85,7 @@
                    zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7, nu=0.2, rho0=2900.0)],
                    solver=(; basis=(; which="gimpm", C_pf=0.37), stab=(; locking=false), material=(; plastic="VM"), plot=(; status=false)),
                    run=(; fid="test/case_zones"))
-        pb, solver = jldopen(f -> (f["ic/problem"], f["cfg/solver"]), setup_simulation(s), "r")
+        pb = load_problem(setup_simulation(s)); solver = pb.solver
         m = pb.mpts
         @test solver.basis == (; which="gimpm", trsfr=get_default().basis.trsfr, C_pf=0.37) && !solver.stab.locking &&
               solver.stab.damping == get_default().stab.damping && solver.material.plastic == "VM" && solver.bcs.dirichlet == s.bcs

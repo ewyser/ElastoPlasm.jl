@@ -100,7 +100,7 @@ function postprocess_fields(outputs, path)
 
     # Load reference data
     reference = load(outputs[1])
-    npts      = length(reference["ic/problem"].mpts.x)
+    npts      = length(reference["problem"].mpts.x)
     
     # Process each selected field
     for field in selection
@@ -132,7 +132,7 @@ function extract_field_data(outputs, get, npts, nsim)
     prog = make_progress(nsim; desc="Extracting $(get.name)")
     for (k, output) ∈ enumerate(outputs)
         jldopen(output,"r") do file
-            mpts    = file["ic/problem"].mpts
+            mpts    = file["problem"].mpts
             X[:, k] = getindex.(mpts.x, 1)
             Y[:, k] = getindex.(mpts.x, 2)
             D[:, k] = get.data(mpts) .* get.scale
@@ -166,9 +166,9 @@ Generate and save plots for field statistics.
 function plot_field_statistics(stats, field_info, reference, path, field_name, nsim)
     @info "Plotting averaged $(field_info.name) with standard deviation..."
     
-    solver = reference["cfg/solver"]
-    mesh = reference["ic/problem"].mesh
-    mpts = reference["ic/problem"].mpts
+    solver = reference["problem"].solver
+    mesh = reference["problem"].mesh
+    mpts = reference["problem"].mpts
 
     # Common plot settings
     common = (;

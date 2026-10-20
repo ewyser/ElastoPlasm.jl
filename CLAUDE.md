@@ -43,14 +43,15 @@ position; it is NOT picked up automatically the way `home/` files are.
 - Construction order is always **mesh → material points → basis** (basis depends on
   both). Function argument order is always **`(mpts, mesh, basis, ...)`**.
 - Three core types: `Mesh` (Eulerian grid), `Point` (Lagrangian material points),
-  `Basis` (owns all connectivity + shape-function kind + transfer-scheme dispatch).
+  `Basis` (owns all connectivity + shape-function kind + transfer-scheme dispatch); a `Problem`
+  bundles them with `Time` and the solver, built from a `Case` by `Problem(case)`.
   Full field-by-field detail, transfer-scheme dispatch, and the explicit vs.
   dynamic_relaxation solver split: `.claude/docs/architecture.md`.
 - Config/behavior knobs (`basis.which`, `material.elastic`, `material.plastic`, `stab.locking`,
   `nonloc.*`, ...) live on one `NamedTuple` built by `get_default()`/`get_solver` and
   merged per field (`merge_config`). Full reference and the standard end-to-end run:
   `.claude/docs/operations.md`.
-- Persistence layout (`ic["problem"]`/`ic["basis"]`/`cfg["solver"]` in JLD2):
+- Persistence layout (one `"problem"` key, the whole `Problem`, in JLD2):
   `.claude/docs/persistence.md`.
 - 32-bit precision and StaticArrays allocation-elision gotchas:
   `.claude/docs/gotchas.md`.

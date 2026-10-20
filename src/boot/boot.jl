@@ -22,7 +22,6 @@ for f ∈ [
     "problem/elasticity.jl",
     "problem/lagrangian.jl",
     "problem/time.jl",
-    "problem/problem.jl",
     "problem/case.jl",
     "basis/basis.jl",
     "basis/bsmpm.jl",
@@ -30,6 +29,7 @@ for f ∈ [
     "basis/mlsmpm.jl",
     "basis/smpm.jl",
     "basis/transfer.jl",
+    "problem/problem.jl",          # needs Point, Mesh, Basis, Time, Case
 ]
     include(joinpath(SRC,"boot/needs/types",f))
 end

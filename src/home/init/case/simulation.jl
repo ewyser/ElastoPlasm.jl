@@ -18,29 +18,23 @@ end
 """
     setup_simulation(case; fid=case.run.fid) -> String
 
-Build the problem of a case and save it for `elastoplasm`/`elastoplasm!`: the solver (`case_solver_options`), the
-mesh (`setup_mesh`), the material points (`case_points`), the time stages (`case.run`) and the basis; the initial
-fields are plotted when `solver.plot.status`. Writes `dump/<fid>/<name>_simulation.jld2` (`name` the
-last part of `fid`) with the case's TOML (`save_case`) beside it, and returns the `.jld2` path.
+Build the `Problem` of a case (`Problem(case)`) and save it for `elastoplasm`/`elastoplasm!`, the
+initial fields plotted when `solver.plot.status`. Writes `dump/<fid>/<name>_simulation.jld2` (`name`
+the last part of `fid`, `save_problem`) with the case's TOML (`save_case`) beside it, and returns the
+`.jld2` path.
 """
 function setup_simulation(s::Case; fid::AbstractString=s.run.fid)
-    L, nel  = domain(s)
-    @info "Setting up mesh & material point system for a $(length(L))d problem ($(length(s.zones)) zones)"
-    solver  = get_solver(; dim=length(L), case_solver_options(s)...)
+    @info "Setting up mesh & material point system for a $(length(domain(s)[1]))d problem ($(length(s.zones)) zones)"
+    problem = Problem(s)
     paths   = mkpaths(fid, self.sys.dump; interactive=false)
-    mesh    = setup_mesh(L, nel, solver; thermal=s.thermal)
-    mpts    = setup_mpts(mesh, solver, case_points(s, mesh, solver); thermal=s.thermal)
-    time    = setup_time(solver; te=s.run.te, tg=s.run.tg, tep=s.run.tep)
-    problem = MechanicalProblem(mesh, mpts, time)
-    basis   = setup_basis(problem, solver)
-    solver.plot.status && plot_initial_fields(problem, solver, paths)
+    problem.solver.plot.status && plot_initial_fields(problem, paths)
     name    = basename(fid)
     try
         save_case(joinpath(paths[:dat], "$(name)_case.toml"), s)
     catch e
-        @warn "Problem not written as TOML: $(sprint(showerror, e))"
+        @warn "Case not written as TOML: $(sprint(showerror, e))"
     end
-    return export_problem(problem, basis, solver, paths; file="$(name)_simulation")
+    return save_problem(joinpath(paths[:dat], "$(name)_simulation.jld2"), problem; paths)
 end
 
 """

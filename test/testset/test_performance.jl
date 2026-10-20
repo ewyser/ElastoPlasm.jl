@@ -1,13 +1,12 @@
-function define_benchs(ic,cfg)
+function define_benchs(problem)
     suite = BenchmarkGroup()
     suite["ignite"]      = BenchmarkGroup(["string", "unicode"])
     suite["mapsto"]      = BenchmarkGroup(["string", "unicode"])
     suite["elastoplast"] = BenchmarkGroup(["string", "unicode"])
     # unpack mesh, mpts, basis, instr, paths as aliases
-    problem        = ic["problem"]
     mesh,mpts,time = problem.mesh, problem.mpts, problem.time
-    basis          = ic["basis"]
-    instr          = cfg["solver"]
+    basis          = problem.basis
+    instr          = problem.solver
     g, dt, η, C_pf = [0.0, -9.81], 1e-3, 0.1, 0.99
     # calculate/update topology
     suite["ignite"]["tplgy!"] = @benchmarkable begin
@@ -59,9 +58,7 @@ end
 
 function run_bench(L,nel)
     simfile = slump_problem(L, nel; fid = "test/performance")
-    ic = load(simfile, "ic")
-    cfg = load(simfile, "cfg")
-    suite = define_benchs(ic, cfg)
+    suite = define_benchs(load_problem(simfile))
     if length(L) == 2
         dim = "2d" 
     elseif length(L) == 3

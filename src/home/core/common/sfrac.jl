@@ -17,7 +17,7 @@ function nodal_volume(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},solver::S) where 
     ni    = round(Int, mesh.prprt.h[1] / (T2(2.0) * mpts.ℓ₀[1][1]))
     x     = mpts_populate(mesh.prprt; ni=ni)
     gps   = setup_mpts(mesh, solver, PointData(x, ni))
-    basis = setup_basis(MechanicalProblem(mesh, gps, setup_time(solver)), solver)
+    basis = setup_basis(mesh, gps, solver)
     ignite(gps, mesh, basis, solver)
     V = zeros(T2, mesh.prprt.nno[end])
     for p ∈ 1:gps.nmp, nn ∈ 1:stencil_size(basis)

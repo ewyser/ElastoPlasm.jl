@@ -1,25 +1,17 @@
 ## Planned improvements (not bugs, just known follow-up work)
 
-- **`Problem` type decoupling mesh/point generation from basis — done, as a thin
-  wrapper.** `MechanicalProblem` bundles `Mesh`+`Point`+`Time` — the expensive,
-  IC-defining part of a simulation — as one object, reusing the existing
-  `MaterialPointPhase` hierarchy rather than a second "phase" concept. `Basis`/`Solver`
-  remain separate, un-bundled types, since `basis.which` and `basis.trsfr` vary
-  independently. `types/problem/` holds every file that feeds `MechanicalProblem`
-  construction — `constitutive.jl`, `eulerian.jl` (Mesh), `tensor.jl`
-  (the `AbstractStrain`/`AbstractStress` tensor types `Point` stores), `lagrangian.jl`
-  (Point), `time.jl` (Time), `problem.jl` (the bundle itself) — loaded in that explicit
-  order by `boot.jl`'s hand-ordered include list (see the main `CLAUDE.md`'s "Project
-  shape" section), not by alphabetical file order.
-
-  `setup_simulation(case::Case)` is the entry point (`src/home/init/case/simulation.jl`), the
-  only construction path (`setup_problem` and hand-written generators were removed).
-  `export_problem` writes a single `ic["problem"]` entry instead of separate
-  `ic["mesh"]`/`ic["mpts"]`/`ic["time"]` keys — see `persistence.md`.
-  `Basis` stays its own top-level `ic["basis"]` key, deliberately independent of
-  `Problem`. Kernel/workflow signatures (`workflow!(mpts,mesh,basis,time,solver)`) are
-  untouched — `Problem` is, for now, only an outer-API/persistence convenience, not
-  threaded through kernels. `setup_basis` takes `(problem::MechanicalProblem, solver)`.
+- **`Problem` — done: one object holding a run.** `Problem` (`types/problem/problem.jl`) bundles
+  `mpts`, `mesh`, `basis`, `time`, `solver`, built by `Problem(case)` from a `Case`; it replaced
+  `MechanicalProblem` (`mesh`/`mpts`/`time` only, whose docstring kept `Basis`/`Solver` out because
+  `basis.which`/`basis.trsfr` vary independently, which does not argue against bundling them for a
+  run). The `Case` is deliberately not a field: the built objects already hold all it describes, it
+  would drift once `mpts` evolves, and a `Region` closure does not serialise; its TOML beside the
+  `.jld2` is the provenance. Kernels keep their `(mpts, mesh, basis, …)` arguments; workflows have
+  `Problem` methods and `elastoplasm` falls back to the five-argument form. Possible follow-up: the
+  solver mixes configuration (part of the problem) with the kernel table `cairn` (machinery,
+  rebuilt from the configuration); rebuilding `cairn` on load would make the stored `Problem` pure
+  data. `types/problem/` files load in `boot.jl`'s explicit order, `problem.jl` last (it needs
+  `Point`, `Mesh`, `Basis`, `Time`, `Case`).
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task, rather than one monolithic kernel body.
   `update.jl`'s `elastoplast`/`elasto` dispatch functions (branch on
@@ -298,7 +290,7 @@
   dimension: 4 ms and 17 ms for those meshes, near-linear up to ~1e6 elements. Same sparsity
   pattern (the only thing `nonlocal.jl` reads); 2D and 3D slumps bit-identical. Whole setup
   (compilation excluded): 3D `[40,10,10]` 4.6 → 2.7 s, `[60,15,15]` 36.6 → 8.5 s. What remains is
-  the IC plot (`slump_problem` with `plot.status`, 2.1 s / 5.2 s) and `export_problem` (0.3 s /
+  the IC plot (`slump_problem` with `plot.status`, 2.1 s / 5.2 s) and the `.jld2` export (0.3 s /
   2.1 s); both linear, not yet looked at.
 - **Random field (`GRF.jl`) open points**, none blocking: (a) the per-axis extension of the
   Gaussian covariance is derived in-repo, not stated in Räss et al. (2019); Sabelfeld (1991) is
@@ -364,6 +356,11 @@
     every step, which accumulates. The explicit runs were stable without it.
   - Follow-ups: an extrapolated (not zero) displacement at fixed nodes would remove the surface bias
     but needs a reference; this stays open alongside the paper's aggregation, which is not planned.
+- **`test_performance.jl` rewrites its tracked baseline on any machine not in it.** The baseline
+  (`test/dataset/performance_baseline.jld2`) holds one AMD Ryzen entry; elsewhere the test saves the
+  current run as that machine's entry (a change to a tracked file) and then compares the run with
+  itself (0.0% everywhere). Restore the file after running it on another machine, or keep machine
+  baselines out of git.
 - **`test_performance.jl` benchmarks `elast!` on NaN state.** The suite runs the mapping and
   deformation kernels repeatedly on an unsettled problem without resetting it, so `elast!` sees
   NaN input, whose 3×3 symmetric `eigen` is ~4000× slower than a valid one. Its `elast` number is

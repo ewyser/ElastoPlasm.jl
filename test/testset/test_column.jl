@@ -23,14 +23,14 @@ Load mesh, material points, and configuration from JLD2 simulation file.
 """
 function load_simulation_setup(sim_file::String)
     jldopen(sim_file, "r") do file
-        problem = file["ic"]["problem"]
+        problem = file["problem"]
         return (
             mesh   = problem.mesh,
             mpts   = problem.mpts,
             time   = problem.time,
-            solver = file["cfg"]["solver"],
-            paths  = file["cfg"]["paths"],
-            misc   = file["cfg"]["misc"],
+            solver = problem.solver,
+            paths  = file["paths"],
+            misc   = file["misc"],
         )
     end
 end
@@ -51,7 +51,7 @@ function compute_column_error(jld2, l0, solver)
 
     # Reload to get final state
     jldopen(jld2, "r") do file
-        problem = file["ic/problem"]
+        problem = file["problem"]
         mesh = problem.mesh
         mpts = problem.mpts
         ρ0   = (1 - mpts.n₀[1]) * mpts.s.ρ₀[1]   # effective density: mass is (1-n₀)ρ₀Ω₀
