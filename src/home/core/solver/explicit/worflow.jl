@@ -20,10 +20,10 @@ Run the explicit elastodynamic workflow for the given mesh, material points, con
 - `nothing`
 """
 function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
-    it,checks = T1(0), T2.(sort(collect(time.t[1]:solver.plot.freq:time.te)))
+    it,stops = T1(0), checkpoints(time,solver,time.te)     # (t, plot, record): output.jl
     # action
-    prog = Progress(length(checks);dt=0.5,desc="Solving elastodynamic...",barlen=10)
-    for T ∈ checks
+    prog = Progress(length(stops);dt=0.5,desc="Solving elastodynamic...",barlen=10)
+    for (T, plotted, recorded) ∈ stops
         while time.t[1] < T
             # set clock on/off
             tic = time_ns()
@@ -36,8 +36,9 @@ function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2}
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
-        # plot/save
-        bake(mpts,mesh,time.t[1],solver)
+        # plot, record
+        plotted  && bake(mpts,mesh,time.t[1],solver)
+        recorded && record!(mpts,mesh,time,solver; step=it)
         # update progress bar
         next!(prog;showvalues = get_vals(mesh,mpts,it))
     end
@@ -64,11 +65,11 @@ Run the explicit elastoplastic workflow for the given mesh, material points, con
 - `nothing`
 """
 function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
-    it,checks = T1(0), T2.(sort(collect(time.t[1]:solver.plot.freq:time.t[2])))
+    it,stops = T1(0), checkpoints(time,solver,time.t[2])     # (t, plot, record): output.jl
     g         = get_g(mesh.prprt; G = T2(9.81))
     # action
-    prog = Progress(length(checks);dt=0.5,desc="Solving elastoplastic...",barlen=10)
-    for T ∈ checks
+    prog = Progress(length(stops);dt=0.5,desc="Solving elastoplastic...",barlen=10)
+    for (T, plotted, recorded) ∈ stops
         while time.t[1] < T
             # set clock on/off
             tic = time_ns()
@@ -81,8 +82,9 @@ function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2}
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
-        # plot/save
-        bake(mpts,mesh,time.t[1],solver)
+        # plot, record
+        plotted  && bake(mpts,mesh,time.t[1],solver)
+        recorded && record!(mpts,mesh,time,solver; step=it)
         # update progress bar
         next!(prog;showvalues = get_vals(mesh,mpts,it))
     end
@@ -110,10 +112,10 @@ Run the explicit thermodynamic workflow for the given mesh, material points, con
 - `nothing`
 """
 function thermodynamic!(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,CM,S<:AbstractSolver{T1,T2,D}}
-    it,checks = T1(0), T2.(sort(collect(time.t[1]:instr.plot.freq:time.t[2])))
+    it,stops = T1(0), checkpoints(time,instr,time.t[2])     # (t, plot, record): output.jl
     # action
-    prog = Progress(length(checks);dt=0.5,desc="Solving thermodynamic!...",barlen=10)
-    for T ∈ checks
+    prog = Progress(length(stops);dt=0.5,desc="Solving thermodynamic!...",barlen=10)
+    for (T, plotted, recorded) ∈ stops
         while time.t[1] < T
             # set clock on/off
             tic = time_ns()
@@ -126,8 +128,9 @@ function thermodynamic!(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis
             # update sim parameters
             time.t[1],it,toc = time.t[1]+dt,it+T1(1),(time_ns()-tic)
         end
-        # plot/save
-        bake(mpts,mesh,time.t[1],instr)
+        # plot, record
+        plotted  && bake(mpts,mesh,time.t[1],instr)
+        recorded && record!(mpts,mesh,time,instr; step=it)
         # update progress bar
         next!(prog;showvalues = get_vals(mesh,mpts,it))
     end

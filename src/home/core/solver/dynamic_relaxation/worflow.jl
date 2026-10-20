@@ -26,6 +26,7 @@ function elastoquasistatic!(mpts::Point{T1,T2,D,CM,ST},mesh::Mesh{T1,T2,D},basis
         end
         time.t[1] += T2(1.0)
         bake(mpts,mesh,time.t[1],instr; title="load step $k/$lstps")
+        record!(mpts,mesh,time,instr; step=k, loadstep=true)
         next!(prog;showvalues = [("load step",k),("DR iterations",it)])
     end
     finish!(prog)

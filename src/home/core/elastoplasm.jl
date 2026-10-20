@@ -14,8 +14,12 @@ function save_workflow_plot(p::Problem, workflow!, paths)
     save_plot((; file=joinpath(paths[:plot], replace(name, " " => "_"))))
 end
 
+# the HDF5 output of a simulation file: `<name>_output.h5` beside `<name>_simulation.jld2`, and its case TOML
+output_file(sim::AbstractString) = joinpath(dirname(sim), replace(basename(sim), r"_simulation\.jld2$" => "", r"\.jld2$" => "") * "_output.h5")
+case_text(sim::AbstractString) = (f = joinpath(dirname(sim), replace(basename(sim), r"_simulation\.jld2$" => "") * "_case.toml"); isfile(f) ? read(f, String) : nothing)
+
 """
-    elastoplasm(problem::Problem; workflows=[elastodynamic!], paths=nothing) -> Problem
+    elastoplasm(problem::Problem; workflows=[elastodynamic!], paths=nothing, output=nothing, append=false) -> Problem
     elastoplasm(file; workflows=[elastodynamic!]) -> (; simulation, success)
     elastoplasm!(file; workflows=[elastodynamic!]) -> (; simulation, success)
 
@@ -28,18 +32,38 @@ Run each workflow of `workflows`, in order, on a problem: `workflow!(problem)`, 
 `setup_simulation` or a `*_problem` call), `elastoplasm` runs a copy and discards the result;
 `elastoplasm!` writes the problem back after each workflow, so the results can be loaded
 (`load_problem`) and inspected afterwards.
+
+With `solver.output.status`, the run is also recorded as an HDF5 time series (`open_output`,
+`record!`): into `output` (in memory), or `<name>_output.h5` beside the `.jld2`, which `elastoplasm`
+starts afresh and `elastoplasm!` continues (`append`), since it continues from the saved state. Read
+it with `output_series`, `output_frame`, `load_output`.
 """
-function elastoplasm(p::Problem; workflows::Vector{<:Function}=Function[elastodynamic!], paths=nothing)
-    for workflow! ∈ workflows
-        @info elastoplasm_log(p.solver; msg = "$workflow!")
-        run_workflow!(workflow!, p)
-        save_workflow_plot(p, workflow!, paths)
+function elastoplasm(p::Problem; workflows::Vector{<:Function}=Function[elastodynamic!], paths=nothing,
+                     output=nothing, append::Bool=false, case_text=nothing)
+    rec = nothing
+    if p.solver.output.status
+        isnothing(output) && !isnothing(paths) && (output = joinpath(paths[:dat], "output.h5"))
+        isnothing(output) ? @warn("output.status is on but no output file is given (output=…): not recorded") :
+                            (rec = open_output(output, p; append, case_text))
+    end
+    try
+        task_local_storage(:elastoplasm_output, rec) do
+            for workflow! ∈ workflows
+                @info elastoplasm_log(p.solver; msg = "$workflow!")
+                task_local_storage(:elastoplasm_workflow, string(workflow!))
+                run_workflow!(workflow!, p)
+                record!(p.mpts, p.mesh, p.time, p.solver)                # the state the workflow ends on
+                save_workflow_plot(p, workflow!, paths)
+            end
+        end
+    finally
+        isnothing(rec) || close(rec)
     end
     return p
 end
 function elastoplasm(sim::String; workflows::Vector{<:Function}=Function[elastodynamic!])
     p, paths = load(sim, "problem", "paths")
-    elastoplasm(p; workflows, paths)
+    elastoplasm(p; workflows, paths, output=output_file(sim), case_text=case_text(sim))
     sleep(1.0)
     exit_log("(✓) Done! exiting...\n")
     return (; simulation=sim, success=true,)
@@ -47,7 +71,7 @@ end
 function elastoplasm!(sim::String; workflows::Vector{<:Function}=Function[elastodynamic!])
     p, paths = load(sim, "problem", "paths")
     for workflow! ∈ workflows
-        elastoplasm(p; workflows=Function[workflow!], paths)
+        elastoplasm(p; workflows=Function[workflow!], paths, output=output_file(sim), append=true, case_text=case_text(sim))
         jldopen(sim, "r+") do f                               # the post-run state, after each workflow
             delete!(f, "problem")
             f["problem"] = p
