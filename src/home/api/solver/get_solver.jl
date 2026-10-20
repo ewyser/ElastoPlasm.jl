@@ -86,6 +86,7 @@ function get_solver(; dim::Number=2, kwargs...)
         instr[:material],
         instr[:nonloc],
         instr[:plot],
+        instr[:output],
         instr[:backend],
         instr[:cairn],
     )

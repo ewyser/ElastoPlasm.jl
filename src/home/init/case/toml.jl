@@ -17,7 +17,7 @@ option_label(v::NamedTuple) = haskey(v, :mpts) ? v.mpts.name : v.mesh.name      
 default_at(path) = foldl((d, k) -> getfield(d, Symbol(k)), path; init=get_default())
 # a numeric option takes any value, not only the listed ones
 free_numeric(d) = (d isa Real && !(d isa Bool)) || d isa AbstractVector{<:Real}
-# a multi-selection: an option whose value is a list of the listed values (e.g. `plot.what`)
+# a multi-selection: an option whose value is a list of the listed values (`plot.what`, the `output.what` lists)
 multi_select(path) = (d = default_at(path); d isa AbstractVector && !(d isa AbstractVector{<:Real}))
 # solver options: values in memory; on disk booleans, numbers and number lists as such, the rest as their
 # `get_option()` labels (so e.g. `dtype` types round-trip), plot variables by name
@@ -33,7 +33,7 @@ parse_numbers(s::AbstractString) = (t = split(strip(s, ['[', ']', ' ']), r"[,\s]
 
 The solver option at `path` (e.g. `["basis", "which"]`) for `x`, a value or its label: one of the
 `get_option()` values, any number (list) for a numeric option (converted to the default's type), and for
-a multi-selection (e.g. `plot.what`) a list of the listed values or their names.
+a multi-selection (`plot.what`, the `output.what` lists) a list of the listed values or their names.
 """
 function option_value(path, x)
     e = option_entry(path)
