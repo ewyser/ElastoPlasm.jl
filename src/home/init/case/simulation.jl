@@ -20,8 +20,8 @@ end
 
 Build the `Problem` of a case (`Problem(case)`) and save it for `elastoplasm`/`elastoplasm!`, the
 initial fields plotted when `solver.plot.status`. Writes `dump/<fid>/<name>_simulation.jld2` (`name`
-the last part of `fid`, `save_problem`) with the case's TOML (`save_case`) beside it, and returns the
-`.jld2` path.
+the last part of `fid`, `save_problem`) with the case's TOML (`save_case`) beside it, removes an
+output (`<name>_output.h5`) left there by an earlier problem, and returns the `.jld2` path.
 """
 function setup_simulation(s::Case; fid::AbstractString=s.run.fid)
     @info "Setting up mesh & material point system for a $(length(domain(s)[1]))d problem ($(length(s.zones)) zones)"
@@ -34,6 +34,8 @@ function setup_simulation(s::Case; fid::AbstractString=s.run.fid)
     catch e
         @warn "Case not written as TOML: $(sprint(showerror, e))"
     end
+    old = joinpath(paths[:dat], "$(name)_output.h5")          # a new problem starts a new output
+    isfile(old) && rm(old)
     return save_problem(joinpath(paths[:dat], "$(name)_simulation.jld2"), problem; paths)
 end
 

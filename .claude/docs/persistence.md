@@ -25,3 +25,8 @@ regenerate them with the example's `*_problem(...)` call.
 `Point` their `nn`, and the file moved to the one `"problem"` key (`refactor-init-problem-spec`), so
 `.jld2` files written before don't load; regenerate them with the
 example's `*_problem(...)` call or `setup_simulation(load_case(<name>_case.toml))`.
+
+**HDF5 output beside it:** with `output.status`, a run also writes `<name>_output.h5` (plain HDF5,
+one array per recorded field with frames last); see "Recording a run" in `operations.md`. The `.jld2`
+stays the setup/restart file, the `.h5` the time series for analysis.
+
