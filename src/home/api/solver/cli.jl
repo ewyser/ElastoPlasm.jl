@@ -112,8 +112,9 @@ function process_cli_option(value, default_val, key_path=())
         return NamedTuple{keys(value)}(process_cli_option(getfield(value, k), getfield(default_val, k), (key_path..., k)) for k in keys(value))
     elseif isa(value, Tuple) && length(value) == 2 && isa(value[1], AbstractString)
         prompt, vals = value
-        # Special handling for plot.what: allow multi-selection of NamedTuples, keep original definition
-        if key_path[end] == :what && occursin("plot", string(key_path))
+        isempty(vals) && return default_val                      # nothing to choose
+        # a multi-selection (e.g. plot.what): several values, kept as they are defined
+        if default_val isa AbstractVector && !(default_val isa AbstractVector{<:Real})
             # Extract names from either mpts or mesh variables
             names = String[] # sorter is names = [string(haskey(v, :mpts) ? v.mpts.name : v.mesh.name) for v ∈ vals]
             for v ∈ vals
