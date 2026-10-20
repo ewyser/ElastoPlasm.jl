@@ -20,7 +20,7 @@ Update material point velocities and positions from solid-type mesh nodes using 
         TV    = eltype(mesh.s.v)
         vPIC  = zero(TV)
         aFLIP = zero(TV)
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N      = basis.N[nn,p]
@@ -55,7 +55,7 @@ Update material point velocities and positions from thermal-type mesh nodes usin
     if p≤mpts.nmp
         δTPIC  = T2(0.0)
         δTFLIP = T2(0.0)
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             w = basis.N[nn,p]

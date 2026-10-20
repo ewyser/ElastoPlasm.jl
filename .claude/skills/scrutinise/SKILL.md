@@ -22,7 +22,7 @@ Read every changed file in full, not just the hunks.
 The package layout is: `src/boot/` (includer + hand-ordered `types/`),
 `src/home/core/common/` (shared ignite/shpfun/topology kernels), `src/home/core/solver/
 explicit/` and `.../dynamic_relaxation/` (the two solver paths), `src/home/init/`
-(setup_mesh/setup_mpts/setup_problem/setup_basis), `src/home/api/solver/` (get_default,
+(Case → setup_simulation: setup_mesh/case_points/setup_mpts/setup_basis), `src/home/api/solver/` (get_default,
 get_solver, cli). Full detail: `.claude/docs/architecture.md`.
 
 For each new/changed type, method, or helper check:

@@ -115,8 +115,6 @@ struct Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:Abstra
     nmp  ::T1
     # CFL-related quantity
     vmax ::Vector{T2}
-    # connectivity
-    nn   ::T1
     # material point properties
     x    ::Vector{SVector{D,T2}}  # coordinates per MP
     ℓ₀   ::Vector{SVector{D,T2}}  # reference domain half-lengths per MP

@@ -22,7 +22,7 @@ type parameter — see `Basis`'s docstring.
         ms,Ω = mpts.s.m[p],mpts.Ω[p]
         px   = ms*mpts.s.v[p][1]
         σxx  = get_tensor(mpts.s.σᵢ[p])[1,1]
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(1))
@@ -40,7 +40,7 @@ end
         ms, Ω = mpts.s.m[p], mpts.Ω[p]
         mv    = ms*mpts.s.v[p]
         σᵢⱼ   = get_tensor(mpts.s.σᵢ[p])
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(2))
@@ -60,7 +60,7 @@ end
         ms, Ω = mpts.s.m[p], mpts.Ω[p]
         mv    = ms*mpts.s.v[p]
         σᵢⱼ   = get_tensor(mpts.s.σᵢ[p])
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(3))
@@ -97,7 +97,7 @@ end
         c  ,T  = mpts.t.c[p]          , mpts.t.T[p]
         qx     = mpts.t.q[1,p]
         γ      = T2(0.0) # heat source
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             # buffering
             no     = basis.p2n[p][nn]
             N, ∂N  = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(1))
@@ -120,7 +120,7 @@ end
         c  , T  = mpts.t.c[p]          , mpts.t.T[p]
         qx , qy = mpts.t.q[1,p]        , mpts.t.q[2,p]
         γ       = T2(0.0) # heat source
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             # buffering
             no          = basis.p2n[p][nn]
             N, ∂N       = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(2))
@@ -142,7 +142,7 @@ end
         c  , T      = mpts.t.c[p]          , mpts.t.T[p]
         qx , qy, qz = mpts.t.q[1,p]        , mpts.t.q[2,p], mpts.t.q[3,p]
         γ           = T2(0.0) # heat source
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             # buffering
             no              = basis.p2n[p][nn]
             N, ∂N           = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(3))

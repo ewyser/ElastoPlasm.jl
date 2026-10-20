@@ -2,7 +2,12 @@
 
 **Status: open** (root cause narrowed but not fully confirmed; `bsmpm`/`mlsmpm` pass cleanly).
 
-**Latest full-suite run** (`GITHUB_ACTIONS=true julia --project=. test/runtests.jl` on `dev`,
+**Latest sweep** (`test_workflow.jl` included directly, 4 threads, branch
+`refactor-init-problem-spec` and, side by side in a worktree, its parent `dc03076`): **145/192 at
+both, the same 47 failing cases** (smpm 24, gimpm 23), so the problem-spec refactor did not change the
+sweep. The run before that:
+
+**Earlier full-suite run** (`GITHUB_ACTIONS=true julia --project=. test/runtests.jl` on `dev`,
 2D sweep with the nonlocal axis, after the `_fast`/`perf` removal and the DP apex fix):
 **144/192 passed**. `smpm` 24/48 fail (unchanged), `gimpm` 24/48 fail (down from 27/48 at
 the 141/192 measurement below), `bsmpm`/`mlsmpm` 0/48. Failures split evenly across elastic

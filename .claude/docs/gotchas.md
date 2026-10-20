@@ -32,3 +32,13 @@ via `M[nn,:]` still allocates for a runtime `nn`, so read it via a small `Val`-u
 `ntuple` (see `∂Nrow`) instead of array-slicing syntax. Always verify with
 `@allocated`/`@code_typed` in a wrapping *function* (not top-level REPL scope, which
 has its own unrelated allocation noise).
+
+## Thread count and bit-identity checks
+
+Multi-threaded runs are not reproducible to the last bit: the atomic nodal sums of P2G add in
+thread order. With 8 threads the §4.3 block under dynamic relaxation (thousands of iterations)
+differs by ~1e-10 m in position between two runs of the *same* code, while the explicit slump
+happened to agree. So compare a refactor against its parent with `-t 1`: single-threaded, the
+block matched the pre-refactor commit exactly (`refactor-init-problem-spec`). Setup-only checks
+(`test_setup.jl`) are not affected.
+

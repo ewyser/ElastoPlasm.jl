@@ -12,7 +12,7 @@ density follow `deform.jl`, so the solid mass `ρ·Ω` stays equal to `mpts.s.m`
         mpts.s.Fn[p] = mpts.s.Fᵢⱼ[p]
         mpts.s.ϵn[p] = mpts.s.ϵᵢ[p]
         Δu = zero(SVector{D,T2})
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             Δu += basis.N[nn,p] * mesh.s.v[no]

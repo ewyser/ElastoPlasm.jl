@@ -1,33 +1,12 @@
 
 """
-    setup_basis(problem::MechanicalProblem{T1,T2,D}, solver::S) -> Basis
+    setup_basis(problem, solver) -> Basis
 
-Construct the topology container linking `problem.mesh` and `problem.mpts`: element-to-node
-(`e2n`) and element-to-element (`e2e`) connectivity from the mesh geometry and neighbor stencil,
-plus zero-initialized point-to-node (`p2n`) and point-to-element (`p2e`) connectivity —
-populated at runtime by the `p2e2n` kernel — and `type`, the per-axis node boundary-layer
-classification used by `BSplineBasis`'s `eval_basis`.
-`N`/`∂N` (per-particle cached shape values/gradients) are zero-initialized here and populated each
-timestep by the `shpfun!` ignite kernel.
-
-Takes `problem` rather than loose `mesh`/`mpts`/`geom`: all the geometric information
-`setup_basis` needs (element size, counts) is already on `problem.mesh.prprt` — a
-separate `geom::Geometry` argument was redundant (`geom.h` and `mesh.prprt.h` are the
-same element-size data), and `mesh`+`mpts` were always the pair a `Problem` already
-bundles.
-
-# Arguments
-- `problem::MechanicalProblem{T1,T2,D}`: Bundles `mesh`/`mpts` (see `setup_problem`); node
-  count (`NN`) comes from the concrete basis kind's stencils.
-- `solver::S`: Solver instance (e.g. `ExplicitSolver`), selects the basis kind and nonlocal support length scale.
-
-# Returns
-- `Basis`: Topology container with fields `kind`, `e2n`, `e2e`, `p2n`, `p2e`.
-
-# Example
-```julia
-basis = setup_basis(problem, solver)
-```
+The connectivity and shape-function state linking `problem.mesh` and `problem.mpts`: the basis kind
+(`solver.basis.which`) and transfer scheme (`solver.basis.trsfr`), element-to-node (`e2n`) and
+element-to-element (`e2e`) connectivity, the nodes' boundary layers (`type`), and the per-point
+node and element indices (`p2n`, `p2e`) and shape values (`N`, `∂N`), zero here and filled every
+step by the `p2e2n` and `shpfun!` kernels.
 """
 function setup_basis(problem::MechanicalProblem{T1,T2,D}, solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     mesh, mpts = problem.mesh, problem.mpts

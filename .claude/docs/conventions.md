@@ -6,8 +6,11 @@
   `σᵢⱼ = get_tensor(...)`). This replaced an earlier rule tied to physical tensor rank. Don't
   give a temporary, differently-shaped object a stored field's name (e.g. a 3×3 embedding of
   `ΔFᵢⱼ`); convert visibly inside the function, under a comment saying what it models.
-- `NN` (nodes-per-element count) belongs to `Basis`, never to `Point` or `Mesh` — it's
-  topology, not point/mesh state.
+- `NN` (nodes a point's shape functions reach) belongs to `Basis`, never to `Point` or `Mesh` — it's
+  topology, not point/mesh state. Read it as `stencil_size(basis)` (the `NN` type parameter, so
+  `for nn ∈ 1:stencil_size(basis)` has a compile-time bound). `MeshProperties.nn` and `Point.nn`,
+  copies of it, were removed; the switch was bit-identical and speed-neutral (2 s slump, bsmpm and
+  gimpm, single thread: 1.10 s before and after).
 - Prefer `SVector`/`SMatrix` (StaticArrays.jl) over runtime-sized arrays for per-point
   fixed-size data.
 - When converting one solver path to a new convention, apply the identical mechanical

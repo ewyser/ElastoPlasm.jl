@@ -77,3 +77,12 @@ struct Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}
     ∂N   ::Array{T2,3}
 end
 @adapt_struct Basis
+
+"""
+    stencil_size(basis) -> Int
+
+The number of nodes a material point's shape functions reach (`NN`, the length of each
+`basis.p2n[p]`): 4/9/16 in 2D for linear/GIMP/cubic B-spline bases. A type parameter, so loops
+`for nn ∈ 1:stencil_size(basis)` have a compile-time bound.
+"""
+stencil_size(::Basis{T1,T2,D,NN}) where {T1,T2,D,NN} = NN

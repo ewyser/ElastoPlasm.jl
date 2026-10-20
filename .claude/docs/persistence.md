@@ -18,3 +18,12 @@ surfaces a similar staleness.
 **Format change:** stress/strain storage switched to a scalar plus a 3D Voigt deviator
 (`feat-refactor-tensor-storage`), and the 2D `mpts.s.ϵzz` field was removed. `.jld2` files written before that don't load;
 regenerate them with the example's `*_problem(...)` call.
+
+**The problem as TOML beside the `.jld2`:** `setup_simulation` also writes `<name>_case.toml`
+(`save_case`) next to `<name>_simulation.jld2`, so a run's setup can be read, edited, reloaded
+(`load_case`) and rebuilt without the `.jld2` (provenance; skipped with a warning when a zone is a
+`Region` predicate, which TOML cannot hold). The `.jld2` layout is unchanged.
+
+**Format change:** `MeshSolidPhase` lost its unused `oobp` and `p` fields, and `MeshProperties` and
+`Point` their `nn` (`refactor-init-problem-spec`), so `.jld2` files written before don't load; regenerate them with the
+example's `*_problem(...)` call or `setup_simulation(load_case(<name>_case.toml))`.

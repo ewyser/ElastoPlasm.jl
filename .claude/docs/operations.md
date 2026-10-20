@@ -14,37 +14,32 @@ Use `elastoplasm!` (not `elastoplasm`) whenever you need to inspect post-run
 `mpts`/`mesh` state afterward — see
 `.claude/bug/fixed/mlsmpm-shpfun-dispatch-ambiguity.md` for why.
 
-- `slump_problem(L, nel; fid="...", kwargs...)` (`src/home/script/example/slump.jl`) is
-  the reference example problem. Calls, in order: `get_solver` → `setup_geometry` →
-  `setup_problem` (internally: `setup_mesh` → `setup_material_constants` →
-  `setup_mpts`, which calls `setup_cmp` to build `mpts.s.cmp` → `setup_time`; returns a
-  `MechanicalProblem`) → `setup_basis`, then `export_problem(...)` to persist to
-  `.jld2` and returns that path. Use it as the template for a new example problem.
-- `collapse_problem(nel; kwargs...)` (`src/home/script/example/collapse.jl`) is a dry
-  granular Drucker-Prager block-collapse example — a plain rectangular block released
-  under gravity with no pre-existing slope, geometry via `get_collapse`
-  (`src/home/init/mpts/get_collapse.jl`, masks the shared `mpts_populate` candidate
-  grid down to a `[0,w0]×[0,h0]` box). Modeled directly on MaterialPointSolver.jl's
-  `2d_collapse.jl` reference scenario (`LandslideSIM/Archive_MaterialPointSolver.jl_paper`)
-  — domain/block size/material constants are hardcoded to match it, so `nel` is the
-  only argument meant to normally change; everything else is an override. Uses the
-  manual low-level `setup_geometry → setup_mesh → setup_material_constants →
-  setup_mpts → setup_time → MechanicalProblem → setup_basis` pipeline (not the
-  `setup_problem` wrapper), since it needs custom `ρ0`/`E`/`ν`/`ϕ`/`c0` that
-  `setup_problem`'s fixed `(mesh,mat,solver)` geometry-helper signature can't pass
-  through. Defaults `material.plastic="DP"`, and — unlike the
-  package default (`:roller`, frictionless normal-only slip) — a `:fixed` (sticky/
-  no-slip) base boundary, needed for the material to actually pile up instead of
-  sliding indefinitely; matches MaterialPointSolver.jl's own boundary treatment.
-  **Not to be confused with `column_problem`** (`src/home/script/example/column.jl`,
-  renamed from the old `collapse_problem`) — a 1-D elastic self-weight column
-  convergence test with no plasticity at all; see
-  `.claude/bug/fixed/test-collapse-renamed-and-fixed.md` for that history.
-- `block_problem(nel=[16,9]; kwargs...)` (`src/home/script/example/block.jl`) is the 8 × 8 m
-  self-weight block of Sutcliffe et al. (2026) §4.3, a thin wrapper over `collapse_problem` with
-  the paper's values as overridable defaults (von Mises `c0 = 20 kPa` Lode reading, smooth base,
-  GIMP). Run it with `elastoquasistatic!(a...; lstps=10, G=10.0, plastic=false|true)`; elastic, the
-  base pressure is 37.7 kPa (~16 s).
+- Every example is a **case constructor** plus a thin wrapper: `slump_case(L, nel; kwargs...)` returns
+  a `Case` (see "Describing a case" below), `slump_problem(L, nel; kwargs...) =
+  setup_simulation(slump_case(...))` builds and saves it and returns the `.jld2` path
+  (`src/home/script/example/*.jl`). `kwargs` are solver options, passed over each example's own
+  defaults (a section given replaces the example's section, then `get_solver` merges it per field over
+  `get_default()`). Write a new example as a case constructor too.
+- `slump_case`: two polygons, the slope (`z = 0.625 Lx − 1.25 x`, up to the highest sub-cell boundary
+  below `lz = 12.8`, i.e. whole sub-cells, as the old `get_slump` kept them) and the base layer below
+  `0.3 lz` (`phi = 7.5°`, three times warmer); 2D or 3D (extruded along y).
+- `collapse_case(nel; kwargs...)`: a dry granular Drucker–Prager block `[0, w0] × [0, h0]` released
+  under gravity, as MaterialPointSolver.jl's `2d_collapse.jl` reference
+  (`LandslideSIM/Archive_MaterialPointSolver.jl_paper`): domain, block and material (`ρ0`, `E`, `ν`,
+  `ϕ`, `c0 = cr`) match it, `nel` is what normally varies; `:fixed` (no-slip) base, needed for the
+  material to pile up. **Not to be confused with `column_case`**, the elastic self-weight column
+  convergence test (`test_column.jl`); see `.claude/bug/fixed/test-collapse-renamed-and-fixed.md`.
+- `block_case(nel=[64,36]; kwargs...)` is the 8 × 8 m self-weight block of Sutcliffe et al. (2026)
+  §4.3, a `collapse_case` with the paper's values as overridable defaults (von Mises `c0 = 20 kPa` Lode
+  reading, smooth base, GIMP). Run it with `elastoquasistatic!(a...; lstps=10, G=10.0,
+  plastic=false|true)`; elastic, the base pressure is 37.7 kPa (~16 s).
+- `column_case(nel, ν, E, ρ0, l0)`: one `Block` up to `l0` in a `1.25 l0` domain one element wide,
+  gravity ramped over `tg = ⌈40 · 2l0/c⌉`; 2D, or 3D with `nel = [1, 1, nz]` (impossible before `Case`).
+  `thermal_case`: the whole domain, `thermal = true`, fixed sides. `collision_case` (`ic_collision`):
+  two `Ball`s moving towards each other.
+- The old `get_slump`/`get_collapse`/`get_column`/`get_thermal`/`get_collision` generators,
+  `material_fields`, `setup_problem` and `setup_material_constants` are gone: a shape no polygon,
+  block or ball describes is a `Region(x -> …)` zone, so there is one construction path.
 - `cli()` (`src/home/api/solver/cli.jl`) parses interactive/CLI overrides for solver
   config; `cli(; ui=true)` prompts interactively, `cli()` with no args picks defaults
   non-interactively — pass its result as `kwargs...` into `slump_problem`/`get_solver`.
@@ -61,6 +56,53 @@ Use `elastoplasm!` (not `elastoplasm`) whenever you need to inspect post-run
 - Plotting is opt-in via `solver.plot.status`; when on, `elastoplasm` auto-saves a PNG
   per workflow named `"$(dim)_$(basis.which)_$(solvertype)_$(deform)_$(workflow)_$(quantity).png"`
   under the run's `dump/.../plot` path.
+
+### Describing a case (`Case`)
+
+A problem starts from a `Case` (`src/boot/needs/types/problem/case.jl`), plain data built by one path,
+`setup_simulation` (`src/home/init/case/`), stored as TOML.
+
+```julia
+case = Case(; L=[20, 10], nel=[20, 10], ni=2, bcs=[:roller :roller; :fixed :free],
+              zones=[Zone("soil", Block([0, 0], [20, 6])),
+                     Zone("rock", Polygon([[0, 0], [20, 0], [20, 2], [0, 2]]); E=5e7, nu=0.2, rho0=2900.0, phi=30*π/180)],
+              material=(; c0=10.0e3), solver=(; basis=(; which="gimpm")), run=(; fid="layers", te=10.0, tep=5.0))
+check_case(case)                      # errors, warnings, points/elements, estimated time step
+jld2 = setup_simulation(case)         # dump/layers/layers_simulation.jld2, with layers_case.toml beside it
+out  = run_simulation(case)           # setup + elastoplasm! with the run's workflow (case_workflows)
+save_case("layers.toml", case); case = load_case("layers.toml")
+```
+
+- **Fields:** `L`, `nel` (2D or 3D; lower corner at the origin), `ni` points per element and axis,
+  optional `width`/`nely` (a 2D x–z case extruded along y, y sides roller), `zones`, `material` (overrides
+  of `MATERIAL`: E, nu, rho0, c0, cr, phi, Hp, n0, T, cp, k; SI, angles in radians), `bcs` (D×2
+  `:free`/`:roller`/`:fixed`; extra rows ignored, as the solver does in 2D; `bcs` passed among the solver
+  options moves here), `solver` (overrides, validated against `get_default()` at construction),
+  `thermal`, `run` (`RUN`: `fid`, `te`, `tg`, `tep`, `workflow` ∈ `WORKFLOWS`, `lstps`).
+- **Zones:** `Zone(name, shape; props...)`, props any `MATERIAL` key or `v` (initial velocity; two
+  (x, z) components in 3D). Shapes: `Polygon` (x–z, even–odd, extruded in 3D), `Block(lo, hi)` (bounds
+  included; D coordinates, or two for an extruded block), `Ball(centre, r)` (disk, sphere, or cylinder
+  along y), `Region(f)` (a predicate on the point, code only, not writable to TOML). A point belongs to the **last** zone containing its sub-cell
+  centre (`case_points`); unset constants come from `case.material`; the random field `solver.grf`
+  perturbs the cohesion of points whose zone does not set `c0`, evaluated over all points at once (the
+  RNG sequence of the old generators).
+- **`PointData`** is the explicit per-point contract (`xp`, `vp`, `zone`, `c0`, `cr`, `phi`, `Hp`, `E`,
+  `nu`, `rho0`, `n0`, `T`, `cp`, `k`) that `setup_mpts`/`build_solid_phase`/`build_thermal_phase`/
+  `setup_cmp` read; `PointData(xp, ni)` is a uniform default material (used by `sfrac.jl`'s
+  quadrature points). `mpts_populate(props; ni)` gives the candidate positions both use.
+- **TOML** (`save_case`/`load_case`): `[domain]`, `[material]` (only values differing from `MATERIAL`;
+  `phi` in degrees, rounded to 12 digits), `bcs`, `thermal`, `[solver.<section>]` (booleans, numbers and
+  number lists as such, other values as their `get_option()` label, `plot.what` as variable names;
+  `option_value` maps back and accepts any number for a numeric option), `[run]`, `[[zone]]` with
+  `shape = "polygon"`/`"block"`/`"ball"`.
+- **Checks** (`check_case`): errors (no material points, `solution` contradicting the workflow,
+  quasi-static with hypoelastic), warnings (zone outside the domain, zone without points, elongated
+  cells under dynamic relaxation, `tg > te`, 32-bit with GIMP), info (points, elements,
+  `estimate_dt`: `get_dt` at rest, tested equal to it, and the number of steps).
+- Verified: every example's setup bit-identical to the old generators (`test_setup.jl`, a stored
+  digest reference; the collision as a point set, its disks now interleave); the standard slump run
+  bit-identical; the §4.3 block under dynamic relaxation bit-identical single-threaded (with 8 threads it
+  varies by ~1e-10 m between runs of the same code: atomic summation order).
 
 ### Running tests / benchmarks
 
@@ -87,6 +129,14 @@ include("test/testset/test_performance.jl")
 `ignite.shpfun!`) and compares against `test/dataset/performance_baseline.jld2` (keyed
 by CPU name); delete/update that file deliberately if a change is a genuine, intended
 perf shift rather than a regression.
+
+`test_setup.jl` compares every example's initial problem (slump 2D/3D/random field/fine, collapse,
+block, column, thermal, collision) with `test/dataset/setup_reference.jld2`: per array its size and a
+64-bit FNV-1a digest of its bits, so bit-exact without storing the arrays. Run it after any `init/`
+change; regenerate the reference (delete the file) only for an intended setup change, and say why.
+`test_case.jl` covers `Case`: shapes, validation, zone membership and overrides, TOML round
+trip, `check_case`/`estimate_dt` (= `get_dt`, 2D and extruded), zone constants reaching the particles,
+free option values, workflows and a short `run_simulation`.
 
 `test_basis.jl` builds a small `n×m` mesh and, for every basis kind, sweeps a particle
 along the mid-height node row, plotting each tracked node's `Nᵢ(x)`/`∂Nᵢ/∂x(x)` and the

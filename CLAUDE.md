@@ -20,7 +20,9 @@ check for `@warn "Failed to include..."` after `using ElastoPlasm` when touching
 under `home/`. The warning appears only while the package **precompiles** (the first
 `using` after an edit): later sessions load the cached image, which silently lacks the
 broken file's definitions (an `UndefVarError` for something that exists in the source).
-To see it again, `include` the file directly or force recompilation.
+To see it again, `include` the file directly or force recompilation. Adding or removing a
+file recompiles (`superDir` registers every directory with `include_dependency`; before
+that, a new file was silently missing from the cached image).
 
 `src/boot/needs/types/` is loaded differently: `boot.jl` includes its files through an
 explicit, hand-ordered list rather than `superInc`/`collect_and_include_jls`, because
@@ -34,6 +36,10 @@ position; it is NOT picked up automatically the way `home/` files are.
 
 ## Core method, at a glance
 
+- A problem starts from a `Case`, plain data (domain, zones, material, boundaries, solver overrides, run
+  settings), built by `setup_simulation` and stored as TOML (`save_case`/`load_case`); every example
+  is a case constructor (`slump_case`, …). See
+  "Describing a case" in `.claude/docs/operations.md`.
 - Construction order is always **mesh → material points → basis** (basis depends on
   both). Function argument order is always **`(mpts, mesh, basis, ...)`**.
 - Three core types: `Mesh` (Eulerian grid), `Point` (Lagrangian material points),

@@ -15,14 +15,12 @@ from the particles' initial domain) and the problem's own basis functions.
 """
 function nodal_volume(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     ni    = round(Int, mesh.prprt.h[1] / (T2(2.0) * mpts.ℓ₀[1][1]))
-    mat   = setup_material_constants(solver)
-    x     = mpts_populate(mesh.prprt, mat, solver; ni=ni).x
-    nmp   = size(x, 2)
-    gps   = setup_mpts(mesh, solver, mat; geom=(; xp=x, ni=ni, nmp=nmp, material_fields(mat, nmp)...))
+    x     = mpts_populate(mesh.prprt; ni=ni)
+    gps   = setup_mpts(mesh, solver, PointData(x, ni))
     basis = setup_basis(MechanicalProblem(mesh, gps, setup_time(solver)), solver)
     ignite(gps, mesh, basis, solver)
     V = zeros(T2, mesh.prprt.nno[end])
-    for p ∈ 1:gps.nmp, nn ∈ 1:mesh.prprt.nn
+    for p ∈ 1:gps.nmp, nn ∈ 1:stencil_size(basis)
         no = basis.p2n[p][nn]
         iszero(no) && continue
         V[no] += basis.N[nn,p] * gps.Ω₀[p]
@@ -41,7 +39,7 @@ falls to 0 across a free surface.
     p = @index(Global)
     if p ≤ mpts.nmp
         vs = mpts.Ω[p] * (T2(1.0) - mpts.n[p]) / (T2(1.0) - mpts.n₀[p])
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             @atom r[no] += basis.N[nn,p] * vs

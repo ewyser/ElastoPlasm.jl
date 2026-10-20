@@ -3,6 +3,7 @@ using Revise,Pkg,Test
 using Plots,LaTeXStrings,ProgressMeter,REPL.TerminalMenus
 using LinearAlgebra,StaticArrays,SparseArrays,Random
 using JLD2,HDF5
+using TOML
 using KernelAbstractions,Adapt,Base.Threads
 import KernelAbstractions.@atomic as @atom
 import KernelAbstractions.Kernel as Cairn
@@ -16,13 +17,13 @@ for f ∈ [
     "self.jl",
     "solver.jl",
     "problem/constitutive.jl",
-    "problem/geometry.jl",
     "problem/eulerian.jl",
     "problem/tensor.jl",
     "problem/elasticity.jl",
     "problem/lagrangian.jl",
     "problem/time.jl",
     "problem/problem.jl",
+    "problem/case.jl",
     "basis/basis.jl",
     "basis/bsmpm.jl",
     "basis/gimpm.jl",

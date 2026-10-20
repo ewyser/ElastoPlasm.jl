@@ -4,7 +4,7 @@
         # accumulate ∇vᵢⱼ into a local mutable buffer then convert
         TM = eltype(mpts.s.∇vᵢⱼ)
         ∇v = zeros(MMatrix{size(TM,1),size(TM,2),T2})
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             ∂N = ∂Nrow(basis.∂N, nn, p, Val(D))

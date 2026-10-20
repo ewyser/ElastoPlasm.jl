@@ -138,11 +138,11 @@ end
     end
     
     if length(mesh.x[1]) == 2
-        x = getindex.(mesh.x, 1)[1:mesh.prprt.nno[2]:end]
-        z = getindex.(mesh.x, 2)[1:mesh.prprt.nno[2]    ]
+        x = getindex.(mesh.x, 1)[1:stencil_size(basis)o[2]:end]
+        z = getindex.(mesh.x, 2)[1:stencil_size(basis)o[2]    ]
     elseif length(mesh.x[1]) == 3
-        x = getindex.(mesh.x, 1)[1:mesh.prprt.nno[3]:end]
-        z = getindex.(mesh.x, 3)[1:mesh.prprt.nno[3]    ]
+        x = getindex.(mesh.x, 1)[1:stencil_size(basis)o[3]:end]
+        z = getindex.(mesh.x, 3)[1:stencil_size(basis)o[3]    ]
     end
     d = reshape(d, mesh.prprt.nno[2], mesh.prprt.nno[1])
     p = heatmap(

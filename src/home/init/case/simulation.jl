@@ -1,0 +1,69 @@
+export setup_simulation, run_simulation, case_workflows
+
+"""
+    case_solver_options(case) -> NamedTuple
+
+The `get_solver` keyword arguments of a case: its solver overrides (merged per field over the
+defaults by `get_solver`), its boundary conditions as `bcs.dirichlet` (roller on the sides along y of
+an extruded problem), and `solution` from the workflow (`"implicit"` for the quasi-static ones) unless
+the overrides set it.
+"""
+function case_solver_options(s::Case)
+    dir = isnothing(s.width) ? s.bcs : vcat(s.bcs[1:1, :], [:roller :roller], s.bcs[2:2, :])
+    kw  = merge(s.solver, (; bcs=(; dirichlet=dir)))
+    haskey(kw, :solution) || (kw = merge(kw, (; solution=quasistatic(s.run.workflow) ? "implicit" : "explicit")))
+    return kw
+end
+
+"""
+    setup_simulation(case; fid=case.run.fid) -> String
+
+Build the problem of a case and save it for `elastoplasm`/`elastoplasm!`: the solver (`case_solver_options`), the
+mesh (`setup_mesh`), the material points (`case_points`), the time stages (`case.run`) and the basis; the initial
+fields are plotted when `solver.plot.status`. Writes `dump/<fid>/<name>_simulation.jld2` (`name` the
+last part of `fid`) with the case's TOML (`save_case`) beside it, and returns the `.jld2` path.
+"""
+function setup_simulation(s::Case; fid::AbstractString=s.run.fid)
+    L, nel  = domain(s)
+    @info "Setting up mesh & material point system for a $(length(L))d problem ($(length(s.zones)) zones)"
+    solver  = get_solver(; dim=length(L), case_solver_options(s)...)
+    paths   = mkpaths(fid, self.sys.dump; interactive=false)
+    mesh    = setup_mesh(L, nel, solver; thermal=s.thermal)
+    mpts    = setup_mpts(mesh, solver, case_points(s, mesh, solver); thermal=s.thermal)
+    time    = setup_time(solver; te=s.run.te, tg=s.run.tg, tep=s.run.tep)
+    problem = MechanicalProblem(mesh, mpts, time)
+    basis   = setup_basis(problem, solver)
+    solver.plot.status && plot_initial_fields(problem, solver, paths)
+    name    = basename(fid)
+    try
+        save_case(joinpath(paths[:dat], "$(name)_case.toml"), s)
+    catch e
+        @warn "Problem not written as TOML: $(sprint(showerror, e))"
+    end
+    return export_problem(problem, basis, solver, paths; file="$(name)_simulation")
+end
+
+"""
+    case_workflows(case) -> Vector{Function}
+
+The workflows of a case's run (`case.run.workflow`, one of `WORKFLOWS`), for
+`elastoplasm!(jld2; workflows=...)`; the quasi-static ones with `case.run.lstps` load steps.
+"""
+function case_workflows(s::Case)
+    w = s.run.workflow
+    w == "elastodynamic! + elastoplastic!" && return Function[elastodynamic!, elastoplastic!]
+    w == "elastodynamic!"                  && return Function[elastodynamic!]
+    w == "elastoplastic!"                  && return Function[elastoplastic!]
+    plastic, lstps = w == "elastoquasistatic! (plastic)", s.run.lstps
+    return Function[(a...) -> elastoquasistatic!(a...; lstps=lstps, plastic=plastic)]
+end
+
+"""
+    run_simulation(case; kwargs...) -> NamedTuple
+    run_simulation(file; kwargs...)
+
+Build and run a case as its run settings say: `elastoplasm!(setup_simulation(case; kwargs...);
+workflows=case_workflows(case))`. Takes a case file (`load_case`) as well.
+"""
+run_simulation(s::Case; kwargs...) = elastoplasm!(setup_simulation(s; kwargs...); workflows=case_workflows(s))
+run_simulation(file::AbstractString; kwargs...) = run_simulation(load_case(file); kwargs...)

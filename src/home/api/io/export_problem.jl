@@ -11,7 +11,7 @@ stays its own top-level `ic["basis"]` key, since it's deliberately independent o
 `Problem` (see `MechanicalProblem`'s docstring).
 
 # Arguments
-- `problem::MechanicalProblem`: Bundles `mesh`, `mpts`, `time` (see `setup_problem`).
+- `problem::MechanicalProblem`: Bundles `mesh`, `mpts`, `time` (see `setup_simulation`).
 - `basis::Basis`: Topology container linking `problem.mesh` and `problem.mpts`.
 - `solver`: Solver instance (e.g. `ExplicitSolver`)
 - `paths`: Path configuration (e.g. from `mkpaths`) — the `.jld2` is written into

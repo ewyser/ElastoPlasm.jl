@@ -2,8 +2,8 @@
 """
     build_solid_mesh_phase(T1,T2,D,prop,bcs,nn_total,SVD) -> MeshSolidPhase
 
-Build the nodal solid-phase state (`MeshSolidPhase`) — mass, out-of-balance
-force/continuity residual, momentum, velocity, acceleration — all zero-initialized.
+Build the nodal solid-phase state (`MeshSolidPhase`) — mass, out-of-balance force, momentum,
+velocity, acceleration — all zero-initialized.
 """
 function build_solid_mesh_phase(T1,T2,D,prop,bcs,nn_total,SVD)
     return MeshSolidPhase{T1,T2,D}(
@@ -11,11 +11,9 @@ function build_solid_mesh_phase(T1,T2,D,prop,bcs,nn_total,SVD)
         bcs,
         T2.(zeros(nn_total             )), # m
         T2.(zeros(D,nn_total          )), # oobf  (Matrix: atomic writes)
-        T2.(zeros(nn_total             )), # oobp
         [zero(SVD) for _ in 1:nn_total]  , # a
         T2.(zeros(D,nn_total          )), # mv    (Matrix: atomic writes)
         [zero(SVD) for _ in 1:nn_total]  , # v
-        T2.(zeros(nn_total             )), # p
     )
 end
 
@@ -39,57 +37,48 @@ function build_thermal_mesh_phase(T1,T2,D,prop,bcs,nn_total; thermal::Bool=false
 end
 
 """
-    setup_mesh(geom::Geometry{T1,T2,D}, solver::S; thermal::Bool=false) -> Mesh
+    mesh_coords(L, h, nel) -> (x, nel, nno)
 
-Construct the mesh and associated nodal data structures for a simulation domain. Connectivity
-(`e2n`, `e2e`) is built separately by `setup_basis`, after both `Mesh` and `Point` exist.
-
-# Arguments
-- `geom::Geometry{T1,T2,D}`: Geometry struct (see `setup_geometry`/`Geometry`).
-- `solver::S`: Solver instance (e.g. `ExplicitSolver`), must include basis and boundary condition settings.
-- `thermal::Bool=false`: (Optional) Build a real `MeshThermalPhase` (zero-initialized,
-  reusing the same Dirichlet boundary layout as the solid phase) instead of leaving
-  `mesh.t` as `nothing`. Only `thermal_problem` sets this.
-
-# Returns
-- `Mesh`: Mesh object containing geometry, nodal quantities, and boundary conditions.
-
-# Example
-```julia
-mesh = setup_mesh(geom, solver)
-println(mesh.prprt.nel)
-```
-
-# Notes
-- Sets up mesh geometry, nodal coordinates, and boundary conditions.
-- Initializes nodal quantities (mass, force, acceleration, etc.). Phase construction
-  itself is delegated to `build_solid_mesh_phase`/`build_thermal_mesh_phase` above.
+The nodes of the grid `[0, L]` with spacing `h`: coordinates (D×nno, x fastest, then y, then z) and
+the element and node counts per axis followed by their product. A floating-point range that misses a
+node (count ≠ `nel + 1`) is an error.
 """
-function setup_mesh(geom::Geometry{T1,T2,D},solver::S; thermal::Bool=false) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
-    # Mesh & boundary condition setup
-    L,nel,h = geom.L,geom.nel,geom.h
-    xn,nel,nno = get_coords(geom)
+function mesh_coords(L::AbstractVector{T2}, h::AbstractVector{T2}, nel) where {T2}
+    axs = [collect(zero(T2):h[d]:L[d]) for d ∈ eachindex(L)]
+    n   = length.(axs)
+    n == nel .+ 1 || error("the node ranges have $(n) nodes for $(nel) elements (floating-point range of L/nel)")
+    x   = reshape(stack(Iterators.product(axs...)), length(L), :)
+    return x, [n .- 1; prod(n .- 1)], [n; prod(n)]
+end
+
+"""
+    setup_mesh(L, nel, solver; thermal=false) -> Mesh
+
+The background grid `[0, L]` with `nel` elements per axis: node coordinates, element size,
+boundary conditions (`solver.bcs.dirichlet`, `get_bc`) and
+zero nodal fields of the solid phase and, with `thermal = true`, the thermal phase. Connectivity is
+built by `setup_basis`, once the material points exist.
+"""
+function setup_mesh(L::AbstractVector, nel::AbstractVector, solver::S; thermal::Bool=false) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+    h          = T2.(L ./ nel)
+    xn,nel,nno = mesh_coords(T2.(L), h, nel)
     status,xB  = get_bc(xn,solver)
-    # static array type for node coords, velocity, acceleration
-    NN  = prod(length.(get_basis(solver.basis.which, T1, D).stencils))
-    DIM = D
-    SVD = SVector{DIM,T2}
+    SVD = SVector{D,T2}                         # node coordinates, velocity, acceleration
     nn_total = nno[end]
 
-    prop = MeshProperties{T1,T2,DIM}(
+    prop = MeshProperties{T1,T2,D}(
         T1.(nel                         ), # nel
         T1.(nno                         ), # nno
-        T1(NN                           ), # nn
         T2.(L                           ), # L
-        SVD(T2.(h)                      ), # h
+        SVD(h                           ), # h
         T2.(xB                          ), # xB
     )
     bcs = MeshBoundary(
         status
     )
-    s = build_solid_mesh_phase(T1,T2,DIM,prop,bcs,nn_total,SVD)
-    t = build_thermal_mesh_phase(T1,T2,DIM,prop,bcs,nn_total; thermal=thermal)
-    mesh = Mesh{T1,T2,DIM}(
+    s = build_solid_mesh_phase(T1,T2,D,prop,bcs,nn_total,SVD)
+    t = build_thermal_mesh_phase(T1,T2,D,prop,bcs,nn_total; thermal=thermal)
+    mesh = Mesh{T1,T2,D}(
         prop,
         # nodal quantities
         SVD(T2.(vec(minimum(xn,dims=2))) )     , # x₀

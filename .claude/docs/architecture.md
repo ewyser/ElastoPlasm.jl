@@ -27,9 +27,15 @@
   picked together from `material.elastic` by `build_solid_phase`.
 - `MechanicalProblem{T1,T2,D,CM,ST,EL,L} <: AbstractProblem{T1,T2,D,SP}`
   (`src/boot/needs/types/problem/problem.jl`) — bundles `mesh::Mesh`+
-  `mpts::Point`+`time::Time` as the IC-defining part of a simulation, built via
-  `setup_problem` (see "`Problem` type decoupling..." in `planned-improvements.md`).
+  `mpts::Point`+`time::Time` as the IC-defining part of a simulation, built by
+  `setup_simulation` from a `Case`.
   Deliberately excludes `Basis`/`Solver` — those stay independent types.
+- `Case` (`src/boot/needs/types/problem/case.jl`) — the plain-data description a problem is built from: domain, zones
+  (`Zone` = shape `Polygon`/`Block`/`Ball`/`Region` + material overrides), default material
+  (`MATERIAL`), boundary conditions, solver overrides, thermal flag, run settings. `case_points`
+  turns it into `PointData`, the explicit per-point contract `setup_mpts` reads. One build path
+  (`setup_simulation`), one TOML format (`save_case`/`load_case`). See
+  "Describing a case" in `operations.md`.
 - `Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}`
   (`src/boot/needs/types/basis/basis.jl`) — independent struct owning ALL
   mesh/point connectivity (`e2n`, `e2e`, `p2n`, `p2e` — `e2e` also doubles as the

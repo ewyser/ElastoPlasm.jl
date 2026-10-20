@@ -23,7 +23,7 @@ println(opts.material.elastic)  # ["hencky", "improved_hencky", "hypoelastic"]
 function get_option()
     return (
 
-            solution = ("Select solver formulation",["explicit","implicit","dynamic relaxation"]),
+            solution = ("Select solver formulation",["explicit","implicit"]),
             dtype = (
                 T0 = ("Select arithmetic types",[(Int64,Float64),(Int32,Float32)]),
                 bits = ("Select arithmetic precision",[Int64(64),Int32(32)]),
