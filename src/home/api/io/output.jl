@@ -1,4 +1,4 @@
-export OUTPUT_FIELDS, record!
+export OUTPUT_FIELDS, record!, output_series, output_frame, load_output
 
 # ---- what can be recorded: (object, phase, name) → (the values of one frame, components)
 
@@ -161,3 +161,66 @@ function checkpoints(time::Time{T1,T2}, solver, stop) where {T1,T2}
     recs  = T2.(sort(collect(time.t[1]:solver.output.every:stop)))
     return [(T, T ∈ plots, T ∈ recs) for T ∈ sort(unique([plots; recs]))]
 end
+
+# ---- reading
+
+"""
+    output_series(file, field; point=nothing, component=nothing) -> (; t, values, loadstep)
+
+The history of a recorded field (`"point/solid/p"`, `"point/base/x"`, `"mesh/solid/v"`, …) against the
+frame axis `t` (a time, or a load step when `loadstep`): at one `point` (a node index for a mesh field)
+a vector over frames, or with `component` (of a vector or deviator field) its component; without
+`point`, every point (count × frames, or components × count × frames).
+"""
+function output_series(file::AbstractString, field::AbstractString; point=nothing, component=nothing)
+    h5open(file, "r") do f
+        haskey(f, field) || throw(ArgumentError("$(file) has no field $(field); recorded: $(recorded_fields(f))"))
+        d, t, kind = f[field], read(f["frames/t"]), read(f["frames/kind"])
+        v = if isnothing(point)
+            isnothing(component) ? read(d) : (ndims(d) == 3 ? d[component, :, :] : throw(ArgumentError("$(field) has no components")))
+        else
+            ndims(d) == 2 ? d[point, :] : isnothing(component) ? d[:, point, :] : d[component, point, :]
+        end
+        return (; t, values=v, loadstep=!isempty(kind) && all(==(1), kind[2:end]))
+    end
+end
+
+"""
+    output_frame(file, k) -> (; t, step, loadstep, workflow, fields)
+
+Every recorded field at frame `k` (`fields`: path → array of that frame).
+"""
+function output_frame(file::AbstractString, k::Integer)
+    h5open(file, "r") do f
+        n = length(f["frames/t"])
+        1 ≤ k ≤ n || throw(ArgumentError("frame $k of $n"))
+        names = read(attributes(f["frames/workflow"])["names"])
+        fields = Dict{String,Array}(p => (d = f[p]; ndims(d) == 2 ? d[:, k] : d[:, :, k]) for p ∈ recorded_fields(f))
+        return (; t=f["frames/t"][k], step=f["frames/step"][k], loadstep=f["frames/kind"][k] == 1,
+                  workflow=names[f["frames/workflow"][k]], fields)
+    end
+end
+
+"""
+    load_output(file) -> NamedTuple
+
+The whole output: `frames` (`t`, `step`, `kind`, `workflow` names per frame), `fields` (path → array,
+frames last), `mesh` (the grid), `initial` (the point properties as built) and the file's `attributes`.
+"""
+function load_output(file::AbstractString)
+    h5open(file, "r") do f
+        names = read(attributes(f["frames/workflow"])["names"])
+        frames = (; t=read(f["frames/t"]), step=read(f["frames/step"]), kind=read(f["frames/kind"]),
+                    workflow=names[read(f["frames/workflow"])])
+        fields  = Dict{String,Array}(p => read(f[p]) for p ∈ recorded_fields(f))
+        mesh    = (; x=read(f["mesh/x"]), L=read(f["mesh/L"]), nel=read(f["mesh/nel"]), h=read(f["mesh/h"]))
+        initial = Dict{String,Array}(k => read(f["point/initial/$k"]) for k ∈ keys(f["point/initial"]))
+        attrs   = Dict{String,Any}(k => read(attributes(f)[k]) for k ∈ keys(attributes(f)))
+        return (; frames, fields, mesh, initial, attributes=attrs)
+    end
+end
+# the paths of the recorded fields: point/<phase>/<name>, mesh/<phase>/<name>
+recorded_fields(f) = [join([obj, phase, name], "/") for obj ∈ ("point", "mesh") if haskey(f, obj)
+                      for phase ∈ keys(f[obj]) if f[obj][phase] isa HDF5.Group && phase != "initial"
+                      for name ∈ keys(f[obj][phase])]
+
