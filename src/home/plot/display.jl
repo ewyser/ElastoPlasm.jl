@@ -56,7 +56,10 @@ function what_plot_field(mpts::Point{T1,T2,D},opts) where {T1,T2,D}
         markersize  = ms,
         xlabel      = L"$x-$direction"*" [m]",
         ylabel      = L"$z-$direction"*" [m]",
-        label       = "$(opts.label) in $(opts.unit)",
+        label       = false,                       # the field's name goes on the colour bar, not in a legend
+        legend      = false,
+        colorbar    = true,                        # (it follows the legend by default)
+        colorbar_title = "$(opts.label) $(opts.unit)",
         color       = opts.cb,
         clim        = clim,
         xlim        = opts.xlim,
@@ -149,7 +152,8 @@ end
         x, z, d,
         xlabel       = L"$x-$direction [m]",
         ylabel       = L"$z-$direction [m]",
-        label        = lab,
+        label        = false,
+        colorbar_title = lab,
         color        = cb,
         clim         = opts.cblim,
         xlim         = opts.xlim,
@@ -190,10 +194,10 @@ function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[], dpi::Int=100)
     config_plot(); opts.backend
     for variable ∈ opts[:what]
         if haskey(variable, :mpts)
-            merged = merge(variable.mpts, (;tit="$(variable.mpts.name), at $(opts.tit))", xlim=opts.xlim, ylim=opts.ylim, dims=opts.dims))
+            merged = merge(variable.mpts, (;tit="$(variable.mpts.name), at $(opts.tit)", xlim=opts.xlim, ylim=opts.ylim, dims=opts.dims))
             p0 = what_plot_field(mpts, merged)
         elseif haskey(variable, :mesh)
-            merged = merge(variable.mesh, (;tit="$(variable.mesh.name), at $(opts.tit))", xlim=opts.xlim, ylim=opts.ylim, dims=opts.dims))
+            merged = merge(variable.mesh, (;tit="$(variable.mesh.name), at $(opts.tit)", xlim=opts.xlim, ylim=opts.ylim, dims=opts.dims))
             p0 = what_plot_field(mesh, merged)
         else
             error("Unknown plot type: $variable")

@@ -25,7 +25,7 @@ function elastoquasistatic!(mpts::Point{T1,T2,D,CM,ST},mesh::Mesh{T1,T2,D},basis
             instr.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())
         end
         time.t[1] += T2(1.0)
-        bake(mpts,mesh,time.t[1],instr)
+        bake(mpts,mesh,time.t[1],instr; title="load step $k/$lstps")
         next!(prog;showvalues = [("load step",k),("DR iterations",it)])
     end
     finish!(prog)
