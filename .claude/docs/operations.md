@@ -122,17 +122,18 @@ plot_output(f, "point/solid/p"; frame=7); animate_output(f, "point/solid/p"); pl
 
 - **Configuration:** the `output` solver section, `(; status, every, single, what)`; `what` mirrors
   the data model, `point = (; base, solid, fluid, thermal)` and `mesh = (; solid, thermal)`, each a
-  list of names from `OUTPUT_FIELDS` (`src/home/api/io/output.jl`, one entry per quantity: point
+  list of names from `OUTPUT_FIELDS` (`src/home/api/io/output/fields.jl`, a nested `Dict` shaped like
+  `what`, one entry per quantity, extensible: point
   `x J n Omega ell`, solid `u v p dev epII epV rho q umag vmag`, thermal `T`; mesh solid `v a m`,
   thermal `T`). Partial selections merge per field; a phase the problem lacks is skipped with a
   warning. Multi-selections are any non-numeric option whose default is a list (`multi_select`):
   `plot.what` and these lists, checkbox grids in the window (pages "output · point/mesh").
 - **File:** one array per field, frames last (`/point/<phase>/<field>`, `/mesh/<phase>/<field>`),
   chunked per frame, deflate 3, Float64 or Float32 (`single`); `/frames/t` (a time, or a load step:
-  `/frames/kind` 1), `/frames/step`, `/frames/workflow` (codes, names in its attribute); the grid,
+  `/frames/loadstep` 1), `/frames/step`, `/frames/workflow` (the workflow's name); the grid,
   the initial point properties and attributes (case TOML, version, laws). Plain HDF5 (h5py etc.).
 - **When:** explicit workflows stop on the `plot.freq` grid and the `output.every` grid
-  (`checkpoints`; without output exactly the old stops, so results are bit-identical with output
+  (`checkpoints`, `explicit/get.jl`; without output exactly the old stops, so results are bit-identical with output
   off); `elastoquasistatic!` records each load step; `elastoplasm` records the initial state and the
   state each workflow ends on. The recorder lives in `task_local_storage` for the run (`record!`
   does nothing without one), so workflow signatures and closures are unchanged. `elastoplasm!`

@@ -206,7 +206,7 @@
   is a candidate pattern to port if the user sets up the equivalent tooling here — not
   something to install unprompted, since it's an external dependency/process the user
   needs running before a session starts.
-- **Time-series output — done, as HDF5** (`output` solver section, `src/home/api/io/output.jl`,
+- **Time-series output — done, as HDF5** (`output` solver section, `src/home/api/io/output/` (`fields.jl`, `write.jl`, `read.jl`),
   `src/home/plot/output_plots.jl`; see "Recording a run" in `operations.md`). Follow-ups:
   whole-model series (kinetic energy, run-out, max displacement; one value per frame, `/series/…`);
   an XDMF sidecar so ParaView opens the `.h5` as an animated point cloud; fields of the fluid phase

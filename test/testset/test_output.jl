@@ -25,7 +25,7 @@
         p = load_problem(j)
         HDF5.h5open(f, "r") do h                                                   # plain HDF5, no ElastoPlasm types
             t = read(h["frames/t"])
-            @test t == [0.0, 0.5, 1.0, 1.5] && issorted(t) && read(h["frames/kind"]) == zeros(Int, 4)
+            @test t == [0.0, 0.5, 1.0, 1.5] && issorted(t) && read(h["frames/loadstep"]) == zeros(UInt8, 4)
             @test size(h["point/solid/u"]) == (2, p.mpts.nmp, 4) && size(h["point/solid/p"]) == (p.mpts.nmp, 4) &&
                   size(h["point/solid/dev"]) == (6, p.mpts.nmp, 4) && eltype(h["point/solid/p"]) == Float64
             @test h["point/base/x"][:, :, end] == reduce(hcat, p.mpts.x) && h["point/solid/p"][:, end] == getfield.(p.mpts.s.σᵢ, :p)   # last frame = saved state

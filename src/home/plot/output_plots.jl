@@ -58,7 +58,7 @@ function load_frame_plotdata(file, field, frame)
         d = f[field]
         D = Int(read(attributes(f)["D"]))
         return (; x=f["point/base/x"][:, :, k], v=(ndims(d) == 2 ? d[:, k] : d[:, :, k]), t=f["frames/t"][k],
-                  loadstep=f["frames/kind"][k] == 1, L=read(f["mesh/L"]), spacing=(sum(read(f["point/initial/Omega"]))/length(f["point/initial/Omega"]))^(1/D))
+                  loadstep=f["frames/loadstep"][k] == 1, L=read(f["mesh/L"]), spacing=(sum(read(f["point/initial/Omega"]))/length(f["point/initial/Omega"]))^(1/D))
     end
 end
 

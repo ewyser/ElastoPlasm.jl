@@ -103,3 +103,17 @@ function get_spacetime(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},time::Time{T1
     end
     return g,dt
 end
+
+"""
+    checkpoints(time, solver, stop) -> Vector{Tuple{T, Bool, Bool}}
+
+The stops of an explicit workflow from the current time to `stop`, as `(t, plot, record)`: the
+`plot.freq` grid (a live plot) and, with `output.status`, the `output.every` grid (an output frame).
+Without output the stops are the plot grid alone.
+"""
+function checkpoints(time::Time{T1,T2}, solver, stop) where {T1,T2}
+    plots = T2.(sort(collect(time.t[1]:solver.plot.freq:stop)))
+    solver.output.status || return [(t, true, false) for t ∈ plots]
+    recs  = T2.(sort(collect(time.t[1]:solver.output.every:stop)))
+    return [(t, t ∈ plots, t ∈ recs) for t ∈ sort(unique([plots; recs]))]
+end
