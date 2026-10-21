@@ -102,7 +102,7 @@ end
 
 @views function what_plot_field(mesh::Mesh{T1,T2,D},opts) where {T1,T2,D}
     if opts.what == "v"
-        d     = [sqrt(v[1]^2 + v[2]^2) for v in mesh.s.v]
+        d     = [sqrt(sum(abs2, v)) for v in mesh.s.v]
         lab   = L"$v(x_n)$"*" [m/s]"
         tit   = "nodal solid velocity"
         cb    = :viridis
