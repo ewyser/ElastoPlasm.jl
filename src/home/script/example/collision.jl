@@ -10,7 +10,7 @@ solver options.
 
 ```julia
 jld2 = setup_simulation(collision_case([1.0, 1.0], [20, 20]))
-execute(jld2; workflows=[elastodynamic!])
+execute!(jld2; workflows=[elastodynamic!])
 ```
 """
 function collision_case(L, nel; r=0.1, v=10.5, folder::String="collision", kwargs...)

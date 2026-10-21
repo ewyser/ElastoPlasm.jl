@@ -11,7 +11,7 @@ options. Not the granular `collapse_case`.
 
 ```julia
 jld2 = setup_simulation(column_case([1, 20], 0.0, 1.0e4, 80.0, 50.0))
-execute(jld2; workflows=[elastodynamic!])
+execute!(jld2; workflows=[elastodynamic!])
 ```
 """
 function column_case(nel, ν, E, ρ0, l0; folder::String="column", kwargs...)

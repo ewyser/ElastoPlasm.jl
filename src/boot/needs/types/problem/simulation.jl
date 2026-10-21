@@ -5,7 +5,7 @@ export Simulation
 
 A problem ready to run: the `problem`, the `workflow` it is run with (one of `WORKFLOWS`, the
 quasi-static ones in `lstps` load steps) and the `folder` its files go to (a name under `dump/`, or a
-path). A simulation's `.jld2` holds one (`save_simulation`/`load_simulation`); `execute` runs it.
+path). A simulation's `.jld2` holds one (`save_simulation`/`load_simulation`); `execute!` runs it.
 """
 struct Simulation{P<:Problem}
     problem  :: P

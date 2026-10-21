@@ -60,7 +60,7 @@
     │ New comer ? Try slumping out
     │   L,nel = [64.1584,64.1584/4.0],[40,10];
     │   jld2  = setup_simulation(slump_case(L,nel;cli()...));
-    └   execute(jld2);
+    └   execute!(jld2);
 
     julia> 
     # plasming begins here!
@@ -72,7 +72,7 @@
                   zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7)],
                   run=(; folder="layers"))
     check_case(case)          # points, time step, warnings
-    execute(setup_simulation(case))   # results under dump/layers/
+    execute!(setup_simulation(case))   # results under dump/layers/
     save_case("layers.toml", case)
 
     using QML

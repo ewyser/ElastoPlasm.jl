@@ -58,7 +58,7 @@ For each new/changed type, method, or helper check:
 - Are new tests in the right file (`test_basis.jl`, `test_column.jl`,
   `test_performance.jl`, `test_workflow.jl`) rather than a new file?
 - Is a refactor verified the way `conventions.md` requires — an actual
-  `setup_simulation(slump_case(...))` → `execute(jld2; workflows=[...])` run with real post-run field
+  `setup_simulation(slump_case(...))` → `execute!(jld2; workflows=[...])` run with real post-run field
   values inspected, not just a clean-load/`success=true` check?
 - If the change touches `test_performance.jl`-benchmarked kernels, was it checked
   against `test/dataset/performance_baseline.jld2`, and is any intentional shift

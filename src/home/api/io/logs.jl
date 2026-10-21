@@ -21,15 +21,15 @@ function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_ve
     if showcase == "slumping"
         printstyled("│", color=:green, bold=true); println("   L,nel = [64.1584,64.1584/4.0],[40,10];")
         printstyled("│", color=:green, bold=true); println("   jld2  = setup_simulation(slump_case(L,nel;cli()...));")
-        printstyled("└", color=:green, bold=true); println("   execute(jld2);")
+        printstyled("└", color=:green, bold=true); println("   execute!(jld2);")
     elseif showcase == "heating"
         printstyled("│", color=:green, bold=true); println("   L,nel = [16.0,16.0],[80,80];")
         printstyled("│", color=:green, bold=true); println("   jld2  = setup_simulation(thermal_case(L,nel));")
-        printstyled("└", color=:green, bold=true); println("   execute(jld2; workflows = [thermodynamic!]);")
+        printstyled("└", color=:green, bold=true); println("   execute!(jld2; workflows = [thermodynamic!]);")
     elseif showcase == "collapsing"
         printstyled("│", color=:green, bold=true); println("   nel  = [92,22];")
         printstyled("│", color=:green, bold=true); println("   jld2 = setup_simulation(collapse_case(nel));")
-        printstyled("└", color=:green, bold=true); println("   execute(jld2);")
+        printstyled("└", color=:green, bold=true); println("   execute!(jld2);")
     else
         printstyled("└", color=:green, bold=true); println("   ...$(showcase) ?!? \e[5m¯\\_(ツ)_/¯\e[0m")
     end

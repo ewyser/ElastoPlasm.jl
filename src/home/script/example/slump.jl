@@ -12,7 +12,7 @@ are solver options (`get_solver`), e.g. `cli()...`; the random field `grf` pertu
 
 ```julia
 jld2 = setup_simulation(slump_case([64.1584, 16.0396], [40, 10]; cli()...))
-execute(jld2; workflows=[elastodynamic!, elastoplastic!])
+execute!(jld2; workflows=[elastodynamic!, elastoplastic!])
 ```
 """
 function slump_case(L, nel; lz=12.80, ni::Integer=2, folder::String="slump", kwargs...)

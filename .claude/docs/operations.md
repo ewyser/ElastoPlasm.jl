@@ -6,10 +6,11 @@ Typical end-to-end run (this is also the standard smoke test after any refactor)
 using ElastoPlasm
 L,nel = [64.1584, 64.1584/4.0], [40,10]          # domain size, element counts (2D here; 3 entries = 3D)
 jld2  = setup_simulation(slump_case(L, nel; cli()...))   # Case → Problem → Simulation, saved; returns the .jld2 path
-execute(jld2)                                       # runs its workflows, written back after each
+execute!(jld2)                                       # runs its workflows, written back after each
+                                                     # (execute(jld2) runs a copy, returns it, leaves the file)
 p     = load_simulation(jld2).problem              # the post-run Problem: p.mpts, p.mesh, ...
 # or entirely in memory, no .jld2:
-sim   = execute(Simulation(Problem(slump_case(L, nel; cli()...))); workflows=[elastodynamic!, elastoplastic!])
+sim   = execute!(Simulation(Problem(slump_case(L, nel; cli()...))); workflows=[elastodynamic!, elastoplastic!])
 ```
 
 **Three types, each built from the one above:** a `Case` (the description) → `Problem(case)` (what is
@@ -47,16 +48,17 @@ run, by workflow name, and where its files go). A `.jld2` is a saved `Simulation
 - `get_solver(; dim=2, kwargs...)` (`src/home/api/solver/get_solver.jl`) merges
   user kwargs over `get_default()`, resolves the execution backend, and builds the
   `Cairn` dispatch table (`cairn.ignite`/`.mapsto`/`.update`/`.implicit`).
-- `execute(sim::Simulation; workflows)` (`src/home/core/execute.jl`) runs each workflow in order on
-  `sim.problem`, in memory, and returns `sim`; `execute(jld2; workflows)` does it on the file, the
-  simulation written back after each workflow, and returns the path. By default the simulation's own
+- `execute!(sim::Simulation; workflows)` (`src/home/core/execute.jl`) runs each workflow in order on
+  `sim.problem`, in memory, and returns `sim`; `execute!(jld2; workflows)` does it on the file, the
+  simulation written back after each workflow, and returns the path. `execute(sim)`/`execute(jld2)`
+  run a copy and return it, leaving `sim` or the file as it was (`elastoplasm`'s logic; unlike
+  `elastoplasm(jld2)`, the result is returned rather than discarded). By default the simulation's own
   workflow (`case_workflows(sim)`: its `workflow` name, the quasi-static ones in `lstps` load steps). A
   workflow is a function of a `Problem`: the built-ins `elastodynamic!`/`elastoplastic!`/
   `thermodynamic!` (explicit), `elastoquasistatic!` (dynamic relaxation), and closures such as
   `(a...) -> elastoquasistatic!(a...; lstps=40)`; freely composable in `workflows`. It replaced
-  `elastoplasm(problem)`, `elastoplasm(jld2)` (which discarded its result), `elastoplasm!(jld2)` and
-  `run_simulation`.
-- Plotting is opt-in via `solver.plot.status`; when on, `execute` saves a PNG per workflow named
+  `elastoplasm(problem)`, `elastoplasm(jld2)`, `elastoplasm!(jld2)` and `run_simulation`.
+- Plotting is opt-in via `solver.plot.status`; when on, `execute!` saves a PNG per workflow named
   `"$(dim)_$(basis.which)_$(solvertype)_$(deform)_$(workflow)_$(quantity).png"` into the
   simulation's folder.
 
@@ -72,7 +74,7 @@ case = Case(; L=[20, 10], nel=[20, 10], ni=2, bcs=[:roller :roller; :fixed :free
               material=(; c0=10.0e3), solver=(; basis=(; which="gimpm")), run=(; folder="layers", te=10.0, tep=5.0))
 check_case(case)                      # errors, warnings, points/elements, estimated time step
 jld2 = setup_simulation(case)         # dump/layers/layers_simulation.jld2, with layers_case.toml beside it
-execute(jld2)                         # its workflow (case_workflows)
+execute!(jld2)                         # its workflow (case_workflows)
 save_case("layers.toml", case); case = load_case("layers.toml")
 ```
 
@@ -117,7 +119,7 @@ using ElastoPlasm, QML
 case = draw_case()                       # opens on the domain step, blocks until Create…; returns a Case
 case = draw_case(slump_case([64.16, 16.04], [40, 10]))   # edit a case (opens on the zones step)
 case = draw_case("layers.toml")          # or a case file
-execute(setup_simulation(case))
+execute!(setup_simulation(case))
 ```
 
 - The window is the weak-dependency extension `ext/DrawQMLExt/` (Qt Quick). `src/` keeps `draw_case`
@@ -254,7 +256,7 @@ block, column, thermal, collision) with `test/dataset/setup_reference.jld2`: per
 change; regenerate the reference (delete the file) only for an intended setup change, and say why.
 `test_case.jl` covers `Case`: shapes, validation, zone membership and overrides, TOML round
 trip, `check_case`/`estimate_dt` (= `get_dt`, 2D and extruded), zone constants reaching the particles,
-free option values, workflows, a short `execute`, and the `Simulation` (build, save, load, in memory equal to the file run, older files). `test_draw.jl` covers the drawing window: its Qt-free
+free option values, workflows, a short `execute!`, and the `Simulation` (build, save, load, in memory equal to the file run, older files). `test_draw.jl` covers the drawing window: its Qt-free
 part (`editing.jl`, loaded into a test module) everywhere, driven as a user would (drawing, snapping and
 shared edges, drag, undo, domain, zone constants, options, run, Create… (its warning confirmation, the folder) and loading a case,
 the caches and the readout, the JSON the view reads); then, where QML is installed, the window itself

@@ -188,7 +188,7 @@
   independently before coupling. `PointFluidPhase` (`lagrangian.jl`) needs real fields
   first — currently a literal empty placeholder, `mpts.f` always `nothing`.
 - **Thermal solution — fixed and viable.** `thermal_problem` (renamed from
-  `ic_thermal`) → `execute(jld2; workflows=[thermodynamic!])` runs end-to-end
+  `ic_thermal`) → `execute!(jld2; workflows=[thermodynamic!])` runs end-to-end
   (verified: temperature stays bounded, cools monotonically from the boundary inward,
   both with `musl=true`/`false`). What was broken: stale `mpts.ϕ∂ϕ` reads across
   several kernels (replaced with the same `basis.N`/`∂Nrow(basis.∂N,...)` caching
@@ -207,7 +207,7 @@
   `.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`; 1D APIC has a
   similar unfixed inconsistency (1D is essentially never exercised in this codebase).
 - **Consider a persistent Julia session for iteration (Kaimon/Revise pattern, seen in
-  sibling repo FEMTools.jl).** A `setup_simulation(slump_case(…))`→`execute` smoke test costs full
+  sibling repo FEMTools.jl).** A `setup_simulation(slump_case(…))`→`execute!` smoke test costs full
   Julia startup+precompile every invocation today (~30-40s), and
   a finely meshed `elastoquasistatic!` run adds more — exactly the kind of loop a persistent
   `Revise`-backed session amortizes. FEMTools.jl's `.agents/`-documented setup

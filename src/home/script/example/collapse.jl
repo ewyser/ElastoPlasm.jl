@@ -12,7 +12,7 @@ argument meant to vary. `kwargs` are solver options over those defaults. Not to 
 
 ```julia
 jld2 = setup_simulation(collapse_case([92, 22]))
-execute(jld2; workflows=[elastodynamic!, elastoplastic!])
+execute!(jld2; workflows=[elastodynamic!, elastoplastic!])
 ```
 """
 function collapse_case(nel; L=[0.92, 0.22], w0=0.2, h0=0.1, ρ0=2650.0, E=7.0e5*3.0*(1.0-2.0*0.3), ν=0.3, ϕ=deg2rad(19.8), c0=0.0,

@@ -46,7 +46,7 @@ position; it is NOT picked up automatically the way `home/` files are.
   `Basis` (owns all connectivity + shape-function kind + transfer-scheme dispatch); a `Problem`
   bundles them with `Time` and the solver, built from a `Case` by `Problem(case)`, and a
   `Simulation` is a problem ready to run (workflow, folder): `Case` → `Problem` → `Simulation`,
-  run by `execute`.
+  run by `execute!`.
   Full field-by-field detail, transfer-scheme dispatch, and the explicit vs.
   dynamic_relaxation solver split: `.claude/docs/architecture.md`.
 - Config/behavior knobs (`basis.which`, `material.elastic`, `material.plastic`, `stab.locking`,

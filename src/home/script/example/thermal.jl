@@ -9,7 +9,7 @@ defaults.
 
 ```julia
 jld2 = setup_simulation(thermal_case([16.0, 16.0], [80, 80]))
-execute(jld2; workflows=[thermodynamic!])
+execute!(jld2; workflows=[thermodynamic!])
 ```
 """
 function thermal_case(L, nel; folder::String="thermal", kwargs...)

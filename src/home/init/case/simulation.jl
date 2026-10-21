@@ -20,7 +20,7 @@ end
 
 Build a case's simulation, `Simulation(Problem(case); workflow, lstps, folder)` from its run settings,
 and save it (`save_simulation`) with the case's TOML (`save_case`) beside it in its folder, the initial
-fields plotted when `solver.plot.status`; returns the `.jld2` path, for `execute`.
+fields plotted when `solver.plot.status`; returns the `.jld2` path, for `execute!`.
 """
 function setup_simulation(s::Case)
     @info "Setting up mesh & material point system for a $(length(domain(s)[1]))d problem ($(length(s.zones)) zones)"
@@ -40,7 +40,7 @@ end
     case_workflows(workflow, lstps) -> Vector{Function}
 
 The workflow functions of a workflow name (one of `WORKFLOWS`), the quasi-static ones in `lstps` load
-steps: what `execute` runs by default.
+steps: what `execute!` runs by default.
 """
 case_workflows(sim::Simulation) = case_workflows(sim.workflow, sim.lstps)
 function case_workflows(w::AbstractString, lstps::Integer)

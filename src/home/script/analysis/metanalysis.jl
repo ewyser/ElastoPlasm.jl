@@ -72,7 +72,7 @@ function execute_simulations(meta_path, nsim)
         sim_path = joinpath(meta_path, sim)
         for file in filter(f -> endswith(f, ".jld2"), readdir(sim_path))
             @suppress begin
-                push!(outputs, execute(joinpath(sim_path, file); workflows=[elastodynamic!, elastoplastic!]))
+                push!(outputs, execute!(joinpath(sim_path, file); workflows=[elastodynamic!, elastoplastic!]))
             end
         end
         next!(prog; desc="Executing simulation(s) $k/$nsim...")

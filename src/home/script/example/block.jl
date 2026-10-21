@@ -13,7 +13,7 @@ elastic or plastic:
 
 ```julia
 jld2 = setup_simulation(block_case())
-execute(jld2; workflows=[(a...) -> elastoquasistatic!(a...; lstps=10, G=10.0, plastic=false)])
+execute!(jld2; workflows=[(a...) -> elastoquasistatic!(a...; lstps=10, G=10.0, plastic=false)])
 ```
 """
 function block_case(nel=[4*16, 4*9]; kwargs...)

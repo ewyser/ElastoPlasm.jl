@@ -13,7 +13,7 @@ angle, temperature, Young's modulus, Poisson's ratio and density), **Options** (
 drop-down lists, any value for numeric ones, ticked to override the defaults; the plotted variables)
 and **Run** (workflow, times or load steps; `check_case` and the estimated time step). **Create…**, at the end of
 the Run step, asks for the case's folder (chosen or made in the system's folder dialog): the case is written there
-as TOML, its runs go there (`run.folder`: `execute(setup_simulation(case))`), and
+as TOML, its runs go there (`run.folder`: `execute!(setup_simulation(case))`), and
 the window returns the `Case` (errors block it, warnings ask for a second click). **Cancel**, closing the window or
 Ctrl-C returns `nothing`. Without arguments the
 window opens on the domain step; with a case (or its file), on the zones step. It edits 2D (x–z)

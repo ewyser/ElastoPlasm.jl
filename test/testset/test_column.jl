@@ -38,7 +38,7 @@ function compute_column_error(jld2, l0, solver)
     z0    = getindex.(setup.mpts.x, idx)
 
     # Run simulation
-    execute(jld2; workflows=[solver])
+    execute!(jld2; workflows=[solver])
 
     # Reload to get final state
     let problem = load_simulation(jld2).problem

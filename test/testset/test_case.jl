@@ -103,9 +103,9 @@
         @test_throws ArgumentError EP.option_value(["basis", "which"], "foo")                      # not a numeric option
         @test [v.mpts.key for v ∈ EP.option_value(["plot", "what"], ["pressure", "plastic strain"])] == ["P", "epII"]
     end
-    @testset "simulation: build, save, load, execute" begin
+    @testset "simulation: build, save, load, execute!" begin
         dir = joinpath(mktempdir(), "mycase")
-        c = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 1]))], solver=(; plot=(; status=false)),
+        c = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 1]))], solver=(; plot=(; status=false, freq=0.1)),
                    run=(; folder=dir * "/", te=0.2, tg=0.1, tep=0.0, workflow="elastodynamic!"))
         sim = Simulation(Problem(c); c.run.workflow, c.run.lstps, c.run.folder)
         @test sim.folder == dir && !isdir(dir)                                              # built, nothing written
@@ -115,10 +115,13 @@
         jld2 = setup_simulation(c)
         @test jld2 == joinpath(dir, "mycase_simulation.jld2") && isfile(joinpath(dir, "mycase_case.toml"))
         l = load_simulation(jld2); @test (l.workflow, l.lstps, l.folder) == (sim.workflow, sim.lstps, sim.folder)
-        @test execute(jld2) == jld2 && load_simulation(jld2).problem.time.t[end] == 0.2     # run to te, written back
         state(p) = (p.mpts.x, getfield.(p.mpts.s.σᵢ, :p), p.mpts.s.v)
-        @test state(execute(sim).problem) == state(load_simulation(jld2).problem)           # in memory: the same
-        @test execute(jld2; workflows=[elastodynamic!]) == jld2                              # other workflows
+        s0 = state(sim.problem); r = execute(jld2)
+        @test state(r.problem) != s0 && state(load_simulation(jld2).problem) == s0               # ran a copy, file untouched
+        @test execute!(jld2) == jld2 && state(load_simulation(jld2).problem) == state(r.problem)  # written back
+        @test state(execute(sim).problem) == state(r.problem) && state(sim.problem) == s0          # a copy of sim
+        @test state(execute!(sim).problem) == state(r.problem)                                   # in memory: the same
+        @test execute!(jld2; workflows=[elastodynamic!]) == jld2                              # other workflows
         @test EP.case_run((; fid="x")).folder == "x" && EP.case_run(Dict("fid" => "x", "dir" => "/a")).folder == "/a"   # older cases
         old = joinpath(mktempdir(), "old.jld2"); jldsave(old; problem=sim.problem)
         @test_throws ArgumentError load_simulation(old)                                     # an older file
@@ -132,6 +135,6 @@
         @test case_workflows(s.run.workflow, s.run.lstps) == Function[elastodynamic!]
         @test case_workflows(EP.RUN.workflow, 1) == Function[elastodynamic!, elastoplastic!]
         @test length(case_workflows("elastoquasistatic! (plastic)", 10)) == 1
-        @test isfile(execute(setup_simulation(s)))                                               # extruded, its own times
+        @test isfile(execute!(setup_simulation(s)))                                               # extruded, its own times
     end
 end

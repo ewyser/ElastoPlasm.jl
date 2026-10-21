@@ -271,7 +271,7 @@ ApplicationWindow {
                             RowLayout { Layout.columnSpan: 2; Layout.topMargin: 8
                                 Button { text: "Create…"; highlighted: true; onClicked: { if (Julia.ready()) folderDialog.open(); win.refresh() } }
                                 Button { text: "Cancel"; onClicked: { Julia.cancel(); Qt.quit() } } }
-                            Label { text: "Create…: choose or make the case's folder. The case is written there, and its runs go there: execute(setup_simulation(case))."
+                            Label { text: "Create…: choose or make the case's folder. The case is written there, and its runs go there: execute!(setup_simulation(case))."
                                 color: "gray"; wrapMode: Text.WordWrap; Layout.columnSpan: 2; Layout.fillWidth: true }
                         } }
                 }
