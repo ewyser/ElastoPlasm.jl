@@ -126,16 +126,14 @@ end
 """
     delete_vertex!(regions, v) -> Bool
 
-Remove the vertex at `v` from every region that has it and keeps at least 3 vertices.
+Remove the vertex at `v` from every region that has it, unless one of them would keep fewer than 3
+vertices: then from none, so a shared boundary stays shared.
 """
 function delete_vertex!(regions, v)
-    done = false
-    for rg ∈ regions
-        i = findfirst(==(v), rg.vertices)
-        (isnothing(i) || length(rg.vertices) ≤ 3) && continue
-        deleteat!(rg.vertices, i); done = true
-    end
-    return done
+    at = filter(rg -> v ∈ rg.vertices, regions)
+    (isempty(at) || any(rg -> length(rg.vertices) ≤ 3, at)) && return false
+    foreach(rg -> deleteat!(rg.vertices, findfirst(==(v), rg.vertices)), at)
+    return true
 end
 
 # a round step for dragging the domain size: a tenth of its order of magnitude
@@ -143,16 +141,7 @@ nice_step(x) = 10.0^floor(log10(max(x, 1e-9)))/10
 # elements along each axis for the element size h (square cells as far as L allows)
 nel_for(L, h) = max.(1, round.(Int, L ./ h))
 
-"""
-    option_rows() -> Vector{(section, path, values, default)}
-    option_lists() -> Vector{(section, path, values, default)}
-
-The solver options the window offers, from `get_option()` (labels and values) and `get_default()`
-(defaults): `option_rows` the single-value fields, one row each, `option_lists` the multi-selections
-(`plot.what`, the `output.what` lists), a checkbox per value. Left out: `dtype.T0`/`dtype.bits` (set
-from `dtype.precision` by `get_solver`) and `solution` (set by the run's workflow,
-`case_solver_options`). `path` is the field's key path below the section.
-"""
+# every option row (section, path, values, default), single-value and multi-selection
 function option_entries()
     rows, opt, def = [], get_option(), get_default()
     function walk(o, d, sec, path)
@@ -169,6 +158,16 @@ function option_entries()
     end
     return rows
 end
+"""
+    option_rows() -> Vector{(section, path, values, default)}
+    option_lists() -> Vector{(section, path, values, default)}
+
+The solver options the window offers, from `get_option()` (labels and values) and `get_default()`
+(defaults): `option_rows` the single-value fields, one row each, `option_lists` the multi-selections
+(`plot.what`, the `output.what` lists), a checkbox per value. Left out: `dtype.T0`/`dtype.bits` (set
+from `dtype.precision` by `get_solver`) and `solution` (set by the run's workflow,
+`case_solver_options`). `path` is the field's key path below the section.
+"""
 option_rows()  = filter(r -> !multi_select([r[1]; r[2]]), option_entries())
 option_lists() = filter(r -> multi_select([r[1]; r[2]]), option_entries())
 # the page of the section menu an option is on: its section, or for nested lists (`output.what.point.…`)

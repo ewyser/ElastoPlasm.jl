@@ -6,8 +6,18 @@
 # QML counts from 0, Julia from 1: every index crosses the boundary here, out with `qml_index` (no item → -1)
 # and back with `julia_index`; the QML file does no index arithmetic
 qml_index(i) = isnothing(i) ? -1 : i - 1
-fileurl(f) = "file://" * replace(abspath(f), "%" => "%25", " " => "%20", "#" => "%23")   # a local file, for QML
 julia_index(i) = Int(i) + 1
+
+# a local file as a URL for QML (the dialogs' start folder, the picture), and a URL from Qt's dialogs as a local
+# file: percent-decoded (Qt sends "#", "%" and the like escaped, UTF-8 bytes when encoded), and Windows'
+# "file:///C:/…" as "C:/…"
+fileurl(f) = "file://" * replace(abspath(f), "%" => "%25", " " => "%20", "#" => "%23")
+percent_decode(s) = replace(s, r"(%[0-9A-Fa-f]{2})+" => m -> String(parse.(UInt8, split(m[2:end], '%'); base=16)))
+function localpath(url)
+    u = String(url); startswith(u, "file://") || return u
+    p = percent_decode(u[8:end])
+    return occursin(r"^/[A-Za-z]:", p) ? p[2:end] : p
+end
 
 json(x::AbstractString) = "\"" * replace(x, "\\" => "\\\\", "\"" => "\\\"", "\n" => "\\n", "\t" => "\\t") * "\""
 json(x::Symbol)  = json(string(x))
@@ -46,18 +56,6 @@ function cursor_json(e::Editor, P)
     shape = kind == :vertex ? "square" : kind == :edge ? "diamond" : "ring"
     return (; xy=P(q...), r=kind == :close ? 9 : 6, color, shape)
 end
-"""
-    background_json(editor, w, h) -> String
-    overlay_json(editor, w, h) -> String
-
-What the canvas draws, in pixels of a `w`×`h` canvas, in two layers. The background: the axes box,
-ticks and title, the grid lines, the domain and its sides (fixed red, roller blue, free grey), the
-zones' fills and the points to be created (over the fills, so each shows its zone's colour). The
-overlay, on top: the zones' outlines and vertices, the polygon being drawn, the snap cursor and its
-coordinates, and the corner handle (domain step). A mouse move repaints only the overlay, so the
-points (tens of thousands on a fine mesh) are not parsed and drawn again; while vertices are dragged,
-the fills and points follow on release (when the background repaints).
-"""
 # each zone's outline in pixels and its handles (a polygon's vertices; a circle's centre and radius handle)
 circle_px(P, c, r; n=96, θ=0.0) = [P(c[1] + r*cos(θ + 2π*j/n), c[2] + r*sin(θ + 2π*j/n)) for j ∈ 0:n-1]
 zone_paths(e::Editor, P) = [iscircle(rg) ?
@@ -82,6 +80,18 @@ function sketch_px(e::Editor, P)
     ring = circle_px(P, d[1], hypot(c[1] - d[1][1], c[2] - d[1][2]); θ=atan(c[2] - d[1][2], c[1] - d[1][1]))
     return [ring; [ring[1]]; [P(d[1]...)]]                    # from the cursor round, then the radius to the centre
 end
+"""
+    background_json(editor, w, h) -> String
+    overlay_json(editor, w, h) -> String
+
+What the canvas draws, in pixels of a `w`×`h` canvas, in two layers. The background: the axes box,
+ticks and title, the grid lines, the domain and its sides (fixed red, roller blue, free grey), the
+zones' fills and the points to be created (over the fills, so each shows its zone's colour). The
+overlay, on top: the zones' outlines and vertices, the polygon being drawn, the snap cursor and its
+coordinates, and the corner handle (domain step). A mouse move repaints only the overlay, so the
+points (tens of thousands on a fine mesh) are not parsed and drawn again; while vertices are dragged,
+the fills and points follow on release (when the background repaints).
+"""
 function background_json(e::Editor, w, h)
     t = transform(e, w, h)
     P(x, z) = collect(t.topx(x, z))

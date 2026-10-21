@@ -163,10 +163,18 @@
         @test ed.create!(e, folder * "/") && e.finished && isfile(joinpath(folder, "layers_case.toml"))   # made, the case in it
         @test e.result.run.folder == folder                                                 # its runs go there
         @test e.result.width == 4.0 && e.result.run.lstps == 20 && e.result.solver.basis.which == "gimpm"
-        e2 = ed.Editor(Case(; L=[1, 1], nel=[2, 2])); ed.load!(e2, joinpath(folder, "layers_case.toml"))   # Start from a case file
+        e2 = ed.Editor(Case(; L=[1, 1], nel=[2, 2])); ed.set_backdrop!(e2, "section.png")
+        ed.load!(e2, joinpath(folder, "layers_case.toml"))                                  # Start from a case file
         @test length(e2.regions) == 1 && e2.width == 4.0 && e2.run["lstps"] == 20 && e2.run["folder"] == folder
+        @test e2.backdrop.file == "section.png"                                             # the picture stays
         @test_throws ArgumentError ed.Editor(Case(; L=[1, 1], nel=[2, 2], zones=[Zone("r", Region(x -> x[1] < 0.5))]))
         @test ed.qml_index(nothing) == -1 && ed.julia_index(ed.qml_index(3)) == 3              # indices crossing to QML
+        @test ed.localpath("file:///a/%C3%89tudes%20x%23%25") == "/a/Études x#%" && ed.localpath("/a b") == "/a b"   # URLs from Qt
+        @test ed.localpath(ed.fileurl("/tmp/a b#c%d")) == "/tmp/a b#c%d" && ed.localpath("file:///C:/a%20b") == "C:/a b"
+        rs = [ed.DrawnRegion("a", [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], Dict{String,Float64}()),
+              ed.DrawnRegion("b", [[1.0, 0.0], [2.0, 0.0], [2.0, 1.0], [1.0, 1.0]], Dict{String,Float64}())]
+        @test !ed.delete_vertex!(rs, [1.0, 0.0]) && length.(getfield.(rs, :vertices)) == [3, 4]   # shared with a triangle: kept
+        @test ed.delete_vertex!(rs, [2.0, 0.0]) && length.(getfield.(rs, :vertices)) == [3, 3]
         @test occursin("\"tab\":$(e.step - 1)", ed.panel_json(e))
         j = ed.json((; a=[1, 2.5], b="x\"y", c=nothing, d=true)); @test j == "{\"a\":[1.0,2.5],\"b\":\"x\\\"y\",\"c\":null,\"d\":true}"
     end

@@ -2,18 +2,6 @@
 # (`DrawQMLExt`) only shows it and forwards events, so everything here is testable without one.
 # Coordinates are data coordinates (x, z in m) unless named `px`.
 
-"""
-    Editor(case; step=2)
-
-The state of a drawing window editing `case`: the zones (polygons and circles), the domain, the boundary
-conditions, the solver overrides and run settings, undo/redo snapshots, the polygon being drawn,
-the vertices being dragged, the current step (1 Domain, 2 Zones, 3 Options, 4 Run), the options page,
-the selected zone, the snapping toggles, the visible area (`view`), the cursor, its coordinates
-(`readout`, drawn on the canvas) and the status line. `cache` keeps the preview points and the checks
-until what they depend on changes (`preview_points`, `checks`).
-`result` is the `Case` after **Done** (`done!`), or `nothing` when cancelled; `finished` says whether
-the window should close.
-"""
 # a picture to trace the zones over (a scanned section, a map), drawn under the grid: its file, its size in pixels
 # (reported by Qt once loaded; (0, 0) until then), its lower-left corner and width in metres (the height follows
 # from the aspect), and its opacity. A drawing aid only: not part of the case.
@@ -27,6 +15,18 @@ mutable struct Backdrop
 end
 height(b::Backdrop) = b.npx[1] == 0 ? 0.0 : b.width*b.npx[2]/b.npx[1]
 
+"""
+    Editor(case; step=2)
+
+The state of a drawing window editing `case`: the zones (polygons and circles), the domain, the boundary
+conditions, the solver overrides and run settings, undo/redo snapshots, the polygon being drawn,
+the vertices being dragged, the current step (1 Domain, 2 Zones, 3 Options, 4 Run), the options page,
+the selected zone, the snapping toggles, the visible area (`view`), the cursor, its coordinates
+(`readout`, drawn on the canvas) and the status line. `cache` keeps the preview points and the checks
+until what they depend on changes (`preview_points`, `checks`).
+`result` is the `Case` after **Create…** (`create!`), or `nothing` when cancelled; `finished` says
+whether the window should close. The picture to trace over (`backdrop`) is kept when a case is loaded.
+"""
 mutable struct Editor
     base     :: Case                                         # its material and thermal flag are kept
     regions  :: Vector{DrawnRegion}
@@ -54,7 +54,7 @@ mutable struct Editor
     view     :: NTuple{4,Float64}                            # x0, x1, z0, z1
     cursor   :: Union{Nothing,Tuple{Vector{Float64},Symbol}}
     status   :: String
-    confirm  :: Bool                                         # warnings shown: the next Done goes through
+    confirm  :: Bool                                         # warnings shown: the next Create… goes through
     result   :: Union{Nothing,Case}
     finished :: Bool
     readout  :: String                                       # the cursor's coordinates
@@ -324,6 +324,7 @@ function restore!(e::Editor, from, to)
     return e
 end
 undo!(e::Editor) = restore!(e, e.history, e.future)
+redo!(e::Editor) = restore!(e, e.future, e.history)
 
 # ---- the picture to trace over, in the Domain step: load it, give its scale (its width, or a scale bar: two
 # clicks and a length), and the domain is fitted to it; then draw the zones on it. Its lower-left corner (x0, z0)
@@ -407,7 +408,6 @@ function remove_at!(e::Editor, v)                            # the vertex at `v`
     delete_vertex!(e.regions, v) ? (push!(e.history, snapshot); empty!(e.future)) : (e.status = "A zone keeps at least 3 vertices.")
     return e
 end
-redo!(e::Editor) = restore!(e, e.future, e.history)
 
 # ---- solver options: rows by key ("basis.which", "output.what.point.solid")
 
@@ -550,7 +550,7 @@ function load!(e::Editor, file)
     try
         n = Editor(c; step=e.step)
         for f ∈ fieldnames(Editor)
-            setfield!(e, f, getfield(n, f))
+            f == :backdrop || setfield!(e, f, getfield(n, f))    # the picture stays: the case is drawn on it
         end
         e.status = "Loaded $file"
     catch err

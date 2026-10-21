@@ -129,8 +129,8 @@ execute!(setup_simulation(case))
   the install command; the extension adds the `drawing_window(::Case)` method (`qml_window`).
   - `editing.jl` is everything that needs no Qt, included by `DrawQMLExt.jl` and, on its own, by
     `test_draw.jl` (so it is tested where QML is not installed): `editor.jl`, the state and every edit as
-    a plain Julia `Editor` (`press!`/`move!`/`release!`/`key!`, `set_domain!`, `set_option!`, `done!`,
-    `save!`/`load!`, …); `helpers.jl`, GUI-independent pieces (zone constants `PROPS`, the preview points
+    a plain Julia `Editor` (`press!`/`move!`/`release!`/`key!`, `set_domain!`, `set_option!`, `ready!`/`create!`,
+    `load!`, …); `helpers.jl`, GUI-independent pieces (zone constants `PROPS`, the preview points
     `drawn_points`, `snap_point`, `insert_on_edge!`, `delete_vertex!`, the option rows); `view.jl`, the
     JSON the window reads (`background_json`, `overlay_json`, `panel_json`). `DrawQMLExt.jl` keeps only
     the QML glue. QML counts from 0, Julia from 1: every index crosses through `qml_index`/`julia_index`

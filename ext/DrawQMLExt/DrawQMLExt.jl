@@ -57,7 +57,6 @@ set_run(k, s)      = (set_run!(ed(), String(k), String(s)); nothing)
 ready()            = ready!(ed())
 create(url)        = create!(ed(), localpath(url))
 cancel()           = (ed().finished || cancel!(ed()); nothing)
-localpath(url)     = (u = String(url); startswith(u, "file://") ? replace(u[8:end], "%20" => " ", "%23" => "#", "%25" => "%") : u)
 load(url)          = (load!(ed(), localpath(url)); nothing)
 set_backdrop(url)  = (set_backdrop!(ed(), localpath(url)); nothing)
 remove_backdrop()  = (remove_backdrop!(ed()); nothing)
@@ -77,10 +76,11 @@ ElastoPlasm.drawing_window(case::Case; step::Integer=2) = qml_window(case; step)
 """
     qml_window(case; step=2, shots=nothing, startdir=pwd()) -> Case or nothing
 
-Open the QML window on `case` (blocking until Done, Cancel or closing it) and return the edited case,
+Open the QML window on `case` (blocking until Create…, Cancel or closing it) and return the edited case,
 or `nothing`. With `shots = (dir, steps)` the window instead saves a PNG of each listed step into `dir`
-and closes (for tests and documentation; run it with `QT_QPA_PLATFORM=offscreen`). Save… and Load… start in
-`startdir`: the current directory, not `dump/`, which is emptied whenever the package recompiles.
+and closes (for tests and documentation; run it with `QT_QPA_PLATFORM=offscreen`). Its file and folder
+dialogs start in `startdir`: the current directory, not `dump/`, which is emptied whenever the package
+recompiles.
 """
 function qml_window(case::Case; step::Integer=2, shots=nothing, startdir=pwd())
     EDITOR[] = Editor(case; step)
@@ -88,8 +88,8 @@ function qml_window(case::Case; step::Integer=2, shots=nothing, startdir=pwd())
     register_functions()
     steps = isnothing(shots) ? Int[] : collect(Int, shots[2])
     loadqml(QMLFILE; shotdir=isnothing(shots) ? "" : shots[1], shotsteps=steps, shottabs=qml_index.(steps),   # names, tabs
-            startdir="file://" * abspath(startdir))
-    @info "Drawing window open: domain, zones, options and run, then click Done (Cancel or closing the window aborts)"
+            startdir=fileurl(startdir))
+    @info "Drawing window open: domain, zones, options and run, then click Create… (Cancel or closing the window aborts)"
     exec()
     return EDITOR[].result
 end
