@@ -11,36 +11,48 @@ const SIDES  = [("left", 1, 1), ("right", 1, 2), ("bottom", 2, 1), ("top", 2, 2)
 """
     drawn_points(L, nel, ni, regions) -> (x, z, region)
 
-The 2D material points `case_points` creates for these polygons (sub-cell centres, as
-`mpts_populate`) and the index of the region each belongs to; the window previews them.
+The 2D material points `case_points` creates for these zones (sub-cell centres, as `mpts_populate`)
+and the index of the region each belongs to, by the zones' own `inside` rule; the window previews them.
 """
 function drawn_points(L, nel, ni, regions)
     hx, hz = L[1]/(nel[1]*ni), L[2]/(nel[2]*ni)
     x = [(i - 0.5)*hx for i ∈ 1:nel[1]*ni, _ ∈ 1:nel[2]*ni]
     z = [(j - 0.5)*hz for _ ∈ 1:nel[1]*ni, j ∈ 1:nel[2]*ni]
-    r = [something(findlast(rg -> inpolygon(x[k], z[k], rg.vertices), regions), 0) for k ∈ eachindex(x)]
+    shapes = shape_of.(regions)
+    r = [something(findlast(s -> inside(s, (x[k], z[k])), shapes), 0) for k ∈ eachindex(x)]
     return x[r .> 0], z[r .> 0], r[r .> 0]
 end
 
-# a zone as the window edits it: polygon vertices, the constants of `PROPS` (SI, by key), and the
-# zone's other properties (velocity, Hp, n₀, cₚ, k) carried through unchanged
+# a zone as the window edits it: a polygon (its vertices) or a circle (a `Ball`: its centre and radius, and
+# no vertices), the constants of `PROPS` (SI, by key), and the zone's other properties (velocity, Hp, n₀,
+# cₚ, k) carried through unchanged
 mutable struct DrawnRegion
     name     :: String
     vertices :: Vector{Vector{Float64}}
     props    :: Dict{String,Float64}
     extra    :: Dict{Symbol,Any}
+    centre   :: Union{Nothing,Vector{Float64}}               # a circle: its centre (x, z) …
+    radius   :: Float64                                      # … and radius
 end
-DrawnRegion(name, vertices, props) = DrawnRegion(name, vertices, props, Dict{Symbol,Any}())
+DrawnRegion(name, vertices, props, extra=Dict{Symbol,Any}()) = DrawnRegion(name, vertices, props, extra, nothing, 0.0)
+circle_region(name, centre, radius, props, extra=Dict{Symbol,Any}()) =
+    DrawnRegion(name, Vector{Float64}[], props, extra, Float64.(collect(centre)), Float64(radius))
+iscircle(rg::DrawnRegion) = !isnothing(rg.centre)
+shape_of(rg::DrawnRegion) = iscircle(rg) ? Ball(rg.centre, rg.radius) : Polygon(rg.vertices)
 
-# the window's regions from a case's zones: polygons, and (x, z) blocks as their rectangle
+# the window's regions from a case's zones: polygons, (x, z) blocks as their rectangle, (x, z) balls as circles
 function drawn_regions(case::Case)
     map(case.zones) do z
         s = z.shape
+        props = Dict{String,Float64}(string(k) => x for (k, x) ∈ z.props if string(k) ∈ GUI_KEYS)
+        extra = Dict{Symbol,Any}(k => x for (k, x) ∈ z.props if string(k) ∉ GUI_KEYS)
+        if s isa Ball && length(s.centre) == 2
+            return circle_region(z.name, s.centre, s.radius, props, extra)
+        end
         vs = s isa Polygon ? deepcopy(s.vertices) :
              s isa Block && length(s.lo) == 2 ? [[s.lo[1], s.lo[2]], [s.hi[1], s.lo[2]], [s.hi[1], s.hi[2]], [s.lo[1], s.hi[2]]] :
-             throw(ArgumentError("the window draws polygons and (x, z) blocks; zone \"$(z.name)\" is a $(nameof(typeof(s)))"))
-        DrawnRegion(z.name, vs, Dict{String,Float64}(string(k) => x for (k, x) ∈ z.props if string(k) ∈ GUI_KEYS),
-                    Dict{Symbol,Any}(k => x for (k, x) ∈ z.props if string(k) ∉ GUI_KEYS))
+             throw(ArgumentError("the window draws polygons, (x, z) blocks and (x, z) balls; zone \"$(z.name)\" is a $(nameof(typeof(s)))"))
+        return DrawnRegion(z.name, vs, props, extra)
     end
 end
 

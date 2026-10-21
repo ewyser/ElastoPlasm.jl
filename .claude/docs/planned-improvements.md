@@ -282,8 +282,6 @@
     properties (needs a reference in `refs/`, e.g. Fenton & Griffiths 2008); whether zone values
     override or centre the random value (today a zone setting `c0` overrides it); independent vs
     cross-correlated fields (shared harmonics).
-  - The drawing window edits only polygon and two-coordinate block zones of 2D problems; `Ball`
-    zones (the collision) could be drawn as circles if wanted.
 - **Setup cost — `e2e` fixed; IC plot and export are what's left.** `e2e` (`init/basis/e2e.jl`)
   filled a `SparseMatrixCSC` entry by entry; in 1D/3D each row insert shifted all later storage, so
   the build was quadratic (3D slump `[40,10,10]`: 2.4 s; `[60,15,15]`: 28 s; 32,000 elements:
@@ -298,6 +296,9 @@
   a candidate source. (b) Point sampling at particle centres vs local averaging over the
   particle volume (Vanmarcke; Fenton & Griffiths), which matters more for the rougher
   exponential covariance and when particle spacing approaches the correlation length.
+- **Drawing window, possible follow-ups:** the traced-over picture is not saved with the case (a
+  `[drawing]` TOML section, ignored by `load_case`'s problem data, could keep its file and placement);
+  a rotated scan cannot be straightened (an angle, or a second scale-bar direction).
 - **Mesh variables can't be plotted through `plot.what`.** `get_mesh_variable_config()`'s only entry
   (`"m"`) has `data=get_epII` and no `what` field, while `what_plot_field(mesh, opts)` branches on
   `opts.what`, so a `(; mesh=...)` entry from `get_variable_plot_options()` would throw. The drawing

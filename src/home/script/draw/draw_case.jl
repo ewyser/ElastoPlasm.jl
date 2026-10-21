@@ -15,7 +15,7 @@ and **Run** (workflow, times or load steps, output folder; `check_case` and the 
 warnings ask for a second click); **Save…**/**Load…** pick a TOML file in the system's file dialog
 (`save_case`/`load_case`; starting in the current directory); **Cancel**, closing the window or Ctrl-C returns `nothing`. Without arguments the
 window opens on the domain step; with a case (or its file), on the zones step. It edits 2D (x–z)
-cases with polygon or block zones.
+cases with polygon, block or ball (circle) zones.
 
 The window comes from the QML extension (`DrawQMLExt`, Qt Quick): `using QML`. Install QML in your
 default environment with Qt pinned to the version Plots/GR already load (a QML built for another Qt fails

@@ -161,19 +161,39 @@ run_simulation(case)
   - Offscreen (tests, CI): `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software
     QT_QUICK_CONTROLS_STYLE=Fusion`; `qml_window(case; shots=(dir, steps))` saves a PNG of each listed
     step and closes (`grabToImage` on a child item: the window's `contentItem` gives an empty image).
-- It edits 2D (x–z) problems whose zones are polygons or two-coordinate blocks (opened as their
-  rectangle, same points); a `Ball`, `Region` or 3D problem is refused. Zone properties it does not
+- It edits 2D (x–z) problems whose zones are polygons, two-coordinate blocks (opened as their
+  rectangle, same points) or two-coordinate balls (circles: `DrawnRegion` with `centre`/`radius` and no
+  vertices, kept as a `Ball`, so the points are the same; New zone ▸ Circle draws one, centre then a point on it;
+  its centre and radius handle drag, and the panel types its centre and radius); a `Region` or a 3D
+  problem is refused. The preview uses each zone's own `inside` rule (`shape_of`), so it equals
+  `case_points` (checked on the collision case). Zone properties it does not
   show (`v`, `Hp`, `n0`, `cp`, `k`), the problem's material and its thermal flag are carried through.
 - Four tabs: **Domain** (drag the upper-right corner handle, snapped to a tenth of the order of
   magnitude, `nice_step`, or type `Lx`, `Lz` and the element size `h`, square cells, `nel_for`; a
   width along y for 3D, `nely` from `h`; points per element; one drop-down per side), **Zones** (the
   editor below; c₀, cᵣ [kPa], φ [°], T, E [MPa], ν, ρ₀; φ hidden when the options pick
-  `material.plastic = "VM"`), **Options** (one row per `get_option()` field: checkbox, name,
+  `material.plastic = "VM"`; "+ New zone ▾" opens a menu of shapes, `new_zone!(e, shape)`: Draw (a polygon,
+  vertex by vertex), Rectangle (two opposite corners; every corner lying on another zone's edge splits
+  it), Triangle (three corners, closes by itself), Circle (centre, then a point on it); the vertex last
+  clicked or dragged (`picked`, outlined on the canvas) has one row, x and z typed exactly and "×"
+  deleting it, `set_picked!`/`remove_picked!`, which move or delete it in every zone sharing it, through
+  undo; the vertices are not listed), **Options** (one row per `get_option()` field: checkbox, name,
   drop-down; numeric fields, `free_numeric`, take any typed value plus presets; picking or typing a
   value ticks the box, unticking restores the default; multi-selections such as `plot.what` are
   checkbox grids; the `dtype` fields are the one `precision` choice and
   `solution` follows the workflow; `option_rows`) and **Run** (workflow, `te`/`tg`/`tep` or the load
   steps, output folder; `check_case` live).
+- A picture to draw on (Domain step, "Picture…": a scanned section or a map, any image Qt reads), drawn
+  under the grid at an adjustable opacity (`Backdrop`: file, pixel size reported by a hidden QML `Image`,
+  lower-left corner and width in metres, the height from the aspect). The order is picture → mesh →
+  draw: the picture opens across the domain's width; its scale is its width in metres, typed, or a scale
+  bar ("Scale bar": click its two ends, type its length, "Apply": `apply_scale!`, a uniform scale about
+  the picture's corner); setting the scale fits the domain to the picture (`fit_domain!`: from the origin
+  to its far corner, at the current element size), which "Fit domain to picture" repeats after a crop.
+  Its corner (`x0`, `z0`, 0 by default) moves it relative to the domain, e.g. to crop part of it. Checked
+  offscreen on a hand-rasterised 20 × 10 m section with a 5 m scale bar: the bar, measured on the
+  picture shown 10 m wide, gives width 20 m and a 20 × 10 m domain. A drawing aid only: not saved with
+  the case (TOML).
 - Footer, always visible: status, Done, Cancel, Save…, Load…. Save…/Load… open Qt's native file
   dialog (QtQuick.Dialogs), starting in the current directory (`qml_window(…; startdir=pwd())`), not in
   `dump/`, which is emptied whenever the package recompiles. Load replaces the whole state and clears undo. Done runs

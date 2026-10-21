@@ -33,6 +33,9 @@ ApplicationWindow {
                     var s = JSON.parse(Julia.background(width, height))
                     var c = getContext("2d")
                     c.reset(); c.fillStyle = "white"; c.fillRect(0, 0, width, height)
+                    // the picture to trace over, under everything (loaded once; painted again when it arrives)
+                    if (s.backdrop) { if (!isImageLoaded(s.backdrop.url)) loadImage(s.backdrop.url)
+                        else { var b = s.backdrop.rect; c.globalAlpha = s.backdrop.opacity; c.drawImage(s.backdrop.url, b[0], b[1], b[2], b[3]); c.globalAlpha = 1.0 } }
                     // axes box and ticks
                     c.strokeStyle = "#333"; c.lineWidth = 1; c.strokeRect(s.box[0], s.box[1], s.box[2], s.box[3])
                     c.fillStyle = "#333"; c.font = "11px sans-serif"
@@ -55,6 +58,7 @@ ApplicationWindow {
                         for (var n = 0; n < xy.length; n += 2) { c.moveTo(xy[n] + 2.2, xy[n + 1]); c.arc(xy[n], xy[n + 1], 2.2, 0, 2*Math.PI) }
                         c.fill() }                               // one fill per zone: fast on fine meshes
                 }
+                onImageLoaded: requestPaint()
                 onPainted: shots.painted()
                 Canvas {
                     id: overlay
@@ -67,8 +71,9 @@ ApplicationWindow {
                         for (var z = 0; z < s.zones.length; z++) { var zn = s.zones[z]
                             canvas.path(c, zn.pts, true); c.strokeStyle = zn.color; c.lineWidth = zn.selected ? 3 : 2; c.stroke() }
                         // vertices
-                        for (var y = 0; y < s.zones.length; y++) { c.fillStyle = s.zones[y].color
-                            for (var v = 0; v < s.zones[y].pts.length; v++) c.fillRect(s.zones[y].pts[v][0] - 4, s.zones[y].pts[v][1] - 4, 8, 8) }
+                        for (var y = 0; y < s.zones.length; y++) { c.fillStyle = s.zones[y].color; var hs = s.zones[y].handles
+                            for (var v = 0; v < hs.length; v++) c.fillRect(hs[v][0] - 4, hs[v][1] - 4, 8, 8) }
+                        if (s.picked) { c.strokeStyle = "#111"; c.lineWidth = 2; c.strokeRect(s.picked[0] - 7, s.picked[1] - 7, 14, 14) }   // its row in the panel
                         // the polygon being drawn, the cursor, the domain handle, the cursor's coordinates
                         if (s.sketch.length > 0) { c.setLineDash([6, 4]); canvas.path(c, s.sketch, false); c.strokeStyle = "black"; c.lineWidth = 1.5; c.stroke(); c.setLineDash([]) }
                         if (s.cursor) { var cx = s.cursor.xy[0], cy = s.cursor.xy[1], r = s.cursor.r; c.beginPath()
@@ -79,6 +84,13 @@ ApplicationWindow {
                         if (s.handle) { c.fillStyle = "white"; c.fillRect(s.handle[0] - 7, s.handle[1] - 7, 14, 14)
                             c.strokeStyle = "black"; c.lineWidth = 2; c.strokeRect(s.handle[0] - 7, s.handle[1] - 7, 14, 14) }
                         c.fillStyle = "#333"; c.font = "11px sans-serif"; c.fillText(s.readout, s.box[0] + s.box[2] - 260, s.box[1] + s.box[3] + 30)
+                        // calibration points clicked on the picture: a cross and its number
+                        c.strokeStyle = "#7a5cc7"; c.fillStyle = "#7a5cc7"; c.lineWidth = 2; c.font = "bold 12px sans-serif"
+                        for (var m = 0; m < s.calib.length; m++) { var k = s.calib[m].xy; c.beginPath()
+                            c.moveTo(k[0] - 8, k[1]); c.lineTo(k[0] + 8, k[1]); c.moveTo(k[0], k[1] - 8); c.lineTo(k[0], k[1] + 8); c.stroke()
+                            c.fillText(s.calib[m].n, k[0] + 6, k[1] - 6) }
+                        if (s.calib.length === 2) { c.setLineDash([4, 3]); c.beginPath(); c.moveTo(s.calib[0].xy[0], s.calib[0].xy[1])
+                            c.lineTo(s.calib[1].xy[0], s.calib[1].xy[1]); c.stroke(); c.setLineDash([]) }      // the scale bar measured
                     }
                     onPainted: shots.painted()
                 }
@@ -132,6 +144,29 @@ ApplicationWindow {
                             Label { text: win.panel.domain.nel; Layout.columnSpan: 2 }
                             Label { text: "points per element" } ComboBox { model: win.panel.domain.nis; currentIndex: win.panel.domain.ni; Layout.fillWidth: true
                                 onActivated: (i) => { Julia.set_ni(i); win.refresh() } }
+                            // a picture to draw on: load it, give its scale (its width, or a scale bar), the domain follows it
+                            Label { text: "Picture to draw on"; font.bold: true; Layout.columnSpan: 2; Layout.topMargin: 8 }
+                            RowLayout { Layout.columnSpan: 2
+                                Button { text: win.panel.backdrop ? "Replace…" : "Picture…"; onClicked: imageDialog.open() }
+                                Button { text: "Scale bar"; visible: win.panel.backdrop !== null; highlighted: win.panel.calib !== null
+                                    onClicked: { Julia.scale_bar(); win.refresh(); canvas.forceActiveFocus() } }
+                                Button { text: "Remove"; visible: win.panel.backdrop !== null; onClicked: { Julia.remove_backdrop(); win.refresh() } } }
+                            Label { visible: win.panel.backdrop !== null; text: "picture width [m]" }
+                            TextField { visible: win.panel.backdrop !== null; text: win.panel.backdrop ? win.panel.backdrop.width : ""; Layout.fillWidth: true
+                                onEditingFinished: { Julia.set_backdrop_field("width", text); win.refresh() } }
+                            Label { visible: win.panel.calib !== null && win.panel.calib.clicked === 2
+                                text: "scale bar length [m]\n(" + (win.panel.calib ? win.panel.calib.shown : "") + " m as shown)" }
+                            RowLayout { visible: win.panel.calib !== null && win.panel.calib.clicked === 2; Layout.fillWidth: true
+                                TextField { text: win.panel.calib ? win.panel.calib.length : ""; Layout.fillWidth: true
+                                    onEditingFinished: { Julia.set_scale_length(text); win.refresh() } }
+                                Button { text: "Apply"; onClicked: { Julia.apply_scale(); win.refresh() } } }
+                            Repeater { model: win.panel.backdrop ? [["x0", "picture left x [m]"], ["z0", "picture bottom z [m]"], ["opacity", "opacity"]] : []
+                                delegate: RowLayout { Layout.columnSpan: 2
+                                    Label { text: modelData[1]; Layout.preferredWidth: 130 }
+                                    TextField { text: win.panel.backdrop ? win.panel.backdrop[modelData[0]] : ""; Layout.fillWidth: true
+                                        onEditingFinished: { Julia.set_backdrop_field(modelData[0], text); win.refresh() } } } }
+                            Button { visible: win.panel.backdrop !== null; text: "Fit domain to picture"; Layout.columnSpan: 2
+                                onClicked: { Julia.fit_domain(); win.refresh() } }
                             Label { text: "Boundary conditions"; font.bold: true; Layout.columnSpan: 2; Layout.topMargin: 8 }
                             Repeater { model: win.panel.domain.bcs
                                 delegate: RowLayout { Layout.columnSpan: 2
@@ -156,8 +191,32 @@ ApplicationWindow {
                                     TextField { text: modelData.value; placeholderText: "default"; Layout.preferredWidth: 110
                                         onEditingFinished: { Julia.set_prop(modelData.key, text); win.refresh() } }
                                     Label { text: modelData.default; color: "gray" } } }
+                            Label { text: "circle [m]"; font.bold: true; Layout.columnSpan: 3; Layout.topMargin: 6
+                                visible: win.panel.zones.circle !== null }
+                            RowLayout { Layout.columnSpan: 3; visible: win.panel.zones.circle !== null   // a Ball zone: centre and radius
+                                Label { text: "x" } TextField { text: win.panel.zones.circle ? win.panel.zones.circle.x : ""; Layout.preferredWidth: 80
+                                    onEditingFinished: { Julia.set_circle("x", text); win.refresh() } }
+                                Label { text: "z" } TextField { text: win.panel.zones.circle ? win.panel.zones.circle.z : ""; Layout.preferredWidth: 80
+                                    onEditingFinished: { Julia.set_circle("z", text); win.refresh() } }
+                                Label { text: "r" } TextField { text: win.panel.zones.circle ? win.panel.zones.circle.r : ""; Layout.preferredWidth: 80
+                                    onEditingFinished: { Julia.set_circle("r", text); win.refresh() } } }
+                            Label { text: "vertex [m]"; font.bold: true; Layout.columnSpan: 3; Layout.topMargin: 6
+                                visible: win.panel.zones.vertex !== null }
+                            RowLayout { Layout.columnSpan: 3; visible: win.panel.zones.vertex !== null   // the vertex last clicked or dragged
+                                Label { text: "x" } TextField { text: win.panel.zones.vertex ? win.panel.zones.vertex.x : ""; Layout.preferredWidth: 95
+                                    onEditingFinished: { Julia.set_picked("x", text); win.refresh() } }
+                                Label { text: "z" } TextField { text: win.panel.zones.vertex ? win.panel.zones.vertex.z : ""; Layout.preferredWidth: 95
+                                    onEditingFinished: { Julia.set_picked("z", text); win.refresh() } }
+                                Button { text: "×"; implicitWidth: 28; onClicked: { Julia.remove_picked(); win.refresh() }
+                                    ToolTip.visible: hovered; ToolTip.text: "delete this vertex" } }
                             RowLayout { Layout.columnSpan: 3
-                                Button { text: "+ New zone"; highlighted: win.panel.zones.drawing; onClicked: { Julia.new_zone(); win.refresh(); canvas.forceActiveFocus() } }
+                                Button { id: newZone; text: "+ New zone ▾"; highlighted: win.panel.zones.drawing
+                                    onClicked: shapes.open()
+                                    Menu { id: shapes; y: newZone.height                     // the shape of the new zone
+                                        Repeater { model: [["polygon", "Draw (polygon)"], ["rectangle", "Rectangle"], ["triangle", "Triangle"], ["circle", "Circle"]]
+                                            MenuItem { text: modelData[1]
+                                                onTriggered: { Julia.new_zone(modelData[0]); win.refresh(); canvas.forceActiveFocus() } } } } } }
+                            RowLayout { Layout.columnSpan: 3
                                 Button { text: "↑"; onClicked: { Julia.swap_zone(-1); win.refresh() } }
                                 Button { text: "↓"; onClicked: { Julia.swap_zone(1); win.refresh() } }
                                 Button { text: "delete"; onClicked: { Julia.delete_zone(); win.refresh() } } }
@@ -169,7 +228,7 @@ ApplicationWindow {
                                 CheckBox { text: "snap shapes"; checked: win.panel.zones.shapes; onToggled: { Julia.toggle("shapes", checked); win.refresh() } }
                                 CheckBox { text: "points"; checked: win.panel.zones.points; onToggled: { Julia.toggle("points", checked); win.refresh() } } }
                             Label { Layout.columnSpan: 3; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: "gray"
-                                text: "Click: vertex (snapped); first vertex or Enter: close; Backspace/Esc: undo vertex/cancel; drag: move; click an edge: insert; right-click: delete; Cmd/Ctrl+Z: undo. Later zones win; blank = default." }
+                                text: "+ New zone: draw a polygon (click vertices; first vertex or Enter: close), a rectangle (two corners), a triangle (three corners) or a circle (centre, then a point on it). Drag a vertex (its coordinates are then typed above), a circle's centre or its handle; click an edge to insert a vertex, right-click one to delete it; Backspace/Esc: undo the last vertex / cancel; Cmd/Ctrl+Z: undo. Later zones win; blank = default." }
                             Label { Layout.columnSpan: 3; Layout.fillWidth: true; wrapMode: Text.WordWrap; text: win.panel.zones.summary }
                         } }
 
@@ -220,6 +279,11 @@ ApplicationWindow {
         }
     }
 
+    Image { visible: false; source: win.panel.backdrop ? win.panel.backdrop.url : ""            // reports the picture's size
+        onStatusChanged: if (status === Image.Ready && !win.panel.backdrop.loaded) { Julia.backdrop_size(implicitWidth, implicitHeight); win.refresh() } }
+    FileDialog { id: imageDialog; fileMode: FileDialog.OpenFile; currentFolder: startdir
+        nameFilters: ["Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff)"]
+        onAccepted: { Julia.set_backdrop(selectedFile.toString()); win.refresh() } }
     FileDialog { id: saveDialog; fileMode: FileDialog.SaveFile; nameFilters: ["Case files (*.toml)"]; currentFolder: startdir
         onAccepted: { Julia.save(selectedFile.toString()); win.refresh() } }
     FileDialog { id: loadDialog; fileMode: FileDialog.OpenFile; nameFilters: ["Case files (*.toml)"]; currentFolder: startdir
