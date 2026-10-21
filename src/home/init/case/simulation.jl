@@ -19,16 +19,18 @@ end
     setup_simulation(case; fid=case.run.fid) -> String
 
 Build the `Problem` of a case (`Problem(case)`) and save it for `elastoplasm`/`elastoplasm!`, the
-initial fields plotted when `solver.plot.status`. Writes `dump/<fid>/<name>_simulation.jld2` (`name`
-the last part of `fid`, `save_problem`) with the case's TOML (`save_case`) beside it, and returns the
-`.jld2` path.
+initial fields plotted when `solver.plot.status`. Writes `<name>_simulation.jld2` (`save_problem`)
+with the case's TOML (`save_case`) beside it into the case's folder `run.dir` (`name` its last part),
+or, when that is empty, into `dump/<fid>/` (`name` the last part of `fid`); returns the `.jld2` path.
 """
 function setup_simulation(s::Case; fid::AbstractString=s.run.fid)
     @info "Setting up mesh & material point system for a $(length(domain(s)[1]))d problem ($(length(s.zones)) zones)"
     problem = Problem(s)
-    paths   = mkpaths(fid, self.sys.dump; interactive=false)
+    dir     = rstrip(normpath(abspath(s.run.dir)), ['/', '\\'])   # "…/case/" → "…/case"
+    paths   = isempty(s.run.dir) ? mkpaths(fid, self.sys.dump; interactive=false) :
+                                   mkpaths(basename(dir), dirname(dir); interactive=false)
     problem.solver.plot.status && plot_initial_fields(problem, paths)
-    name    = basename(fid)
+    name    = isempty(s.run.dir) ? basename(fid) : basename(dir)
     try
         save_case(joinpath(paths[:dat], "$(name)_case.toml"), s)
     catch e

@@ -103,7 +103,7 @@ function case_dict(s::Case)
     return Dict{String,Any}("domain" => dom,
         "material" => Dict{String,Any}(string(k) => deg(k, v) for (k, v) ∈ pairs(s.material) if v != getfield(MATERIAL, k)),
         "bcs" => [string.(s.bcs[d, :]) for d ∈ axes(s.bcs, 1)], "thermal" => s.thermal,
-        "solver" => option_labels(config_dict(s.solver)), "run" => config_dict(s.run), "zone" => zones)
+        "solver" => option_labels(config_dict(s.solver)), "run" => filter(kv -> !(kv[1] == "dir" && isempty(kv[2])), config_dict(s.run)), "zone" => zones)
 end
 
 """

@@ -122,12 +122,6 @@ ApplicationWindow {
                     onCurrentIndexChanged: if (currentIndex !== win.panel.tab) { Julia.set_step(currentIndex); win.refresh() }
                     TabButton { text: "1 Domain" } TabButton { text: "2 Zones" } TabButton { text: "3 Options" } TabButton { text: "4 Run" }
                 }
-                RowLayout {
-                    Button { text: "Done"; onClicked: { if (Julia.done()) Qt.quit(); else win.refresh() } }
-                    Button { text: "Cancel"; onClicked: { Julia.cancel(); Qt.quit() } }
-                    Button { text: "Save…"; onClicked: saveDialog.open() }
-                    Button { text: "Load…"; onClicked: loadDialog.open() }
-                }
                 Label { text: win.panel.status; wrapMode: Text.WordWrap; Layout.fillWidth: true; color: "#444" }
                 StackLayout {
                     currentIndex: win.panel.tab; Layout.fillWidth: true; Layout.fillHeight: true
@@ -135,7 +129,8 @@ ApplicationWindow {
                     // 1 Domain
                     ScrollView { contentWidth: availableWidth; clip: true
                         GridLayout { width: parent.width; columns: 2; columnSpacing: 8
-                            Label { text: "Domain"; font.bold: true; Layout.columnSpan: 2 }
+                            Button { text: "Start from a case file…"; Layout.columnSpan: 2; onClicked: loadDialog.open() }
+                            Label { text: "Domain"; font.bold: true; Layout.columnSpan: 2; Layout.topMargin: 6 }
                             Label { text: "Lx [m]" } TextField { text: win.panel.domain.Lx; Layout.fillWidth: true; onEditingFinished: { Julia.set_field("Lx", text); win.refresh() } }
                             Label { text: "Lz [m]" } TextField { text: win.panel.domain.Lz; Layout.fillWidth: true; onEditingFinished: { Julia.set_field("Lz", text); win.refresh() } }
                             Label { text: "element size h [m]" } TextField { text: win.panel.domain.h; Layout.fillWidth: true; onEditingFinished: { Julia.set_field("h", text); win.refresh() } }
@@ -271,8 +266,13 @@ ApplicationWindow {
                             Label { text: win.panel.run.errors; color: "firebrick"; visible: text !== ""; wrapMode: Text.WordWrap; Layout.columnSpan: 2; Layout.fillWidth: true }
                             Label { text: win.panel.run.warnings; color: "darkorange"; visible: text !== ""; wrapMode: Text.WordWrap; Layout.columnSpan: 2; Layout.fillWidth: true }
                             Label { text: win.panel.run.info; wrapMode: Text.WordWrap; Layout.columnSpan: 2; Layout.fillWidth: true }
-                            Label { text: "Done returns the case; run it with run_simulation(case), or setup_simulation(case) and elastoplasm!."
-                                color: "gray"; wrapMode: Text.WordWrap; Layout.columnSpan: 2; Layout.fillWidth: true; Layout.topMargin: 8 }
+                            Label { text: "folder: " + win.panel.run.dir; visible: win.panel.run.dir !== ""; wrapMode: Text.WrapAnywhere
+                                color: "gray"; Layout.columnSpan: 2; Layout.fillWidth: true; Layout.topMargin: 8 }
+                            RowLayout { Layout.columnSpan: 2; Layout.topMargin: 8
+                                Button { text: "Create…"; highlighted: true; onClicked: { if (Julia.ready()) folderDialog.open(); win.refresh() } }
+                                Button { text: "Cancel"; onClicked: { Julia.cancel(); Qt.quit() } } }
+                            Label { text: "Create…: choose or make the case's folder. The case is written there, and its runs go there: run_simulation(case), or setup_simulation(case) and elastoplasm!."
+                                color: "gray"; wrapMode: Text.WordWrap; Layout.columnSpan: 2; Layout.fillWidth: true }
                         } }
                 }
             }
@@ -284,8 +284,8 @@ ApplicationWindow {
     FileDialog { id: imageDialog; fileMode: FileDialog.OpenFile; currentFolder: startdir
         nameFilters: ["Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff)"]
         onAccepted: { Julia.set_backdrop(selectedFile.toString()); win.refresh() } }
-    FileDialog { id: saveDialog; fileMode: FileDialog.SaveFile; nameFilters: ["Case files (*.toml)"]; currentFolder: startdir
-        onAccepted: { Julia.save(selectedFile.toString()); win.refresh() } }
+    FolderDialog { id: folderDialog; currentFolder: startdir                               // Create…: the case's folder
+        onAccepted: { if (Julia.create(selectedFolder.toString())) Qt.quit(); else win.refresh() } }
     FileDialog { id: loadDialog; fileMode: FileDialog.OpenFile; nameFilters: ["Case files (*.toml)"]; currentFolder: startdir
         onAccepted: { Julia.load(selectedFile.toString()); win.refresh() } }
 

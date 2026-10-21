@@ -506,33 +506,42 @@ function checks(e::Editor)
     end
 end
 """
-    done!(editor) -> Bool
+    ready!(editor) -> Bool
 
-**Done**: the case, if it has no errors and (after a second Done) its warnings are accepted; whether
-the window should close.
+**Create…**, before its folder dialog: whether the case may be created, i.e. it has no errors and its
+warnings, shown on a first click, are accepted by a second.
 """
-function done!(e::Editor)
+function ready!(e::Editor)
     c = checks(e)
     if !isempty(c.errors)
-        e.status = join(c.errors, "\n")
+        e.status = join(c.errors, "\n"); return false
     elseif !isempty(c.warnings) && !e.confirm
-        e.status = join(c.warnings, "\n") * "\nClick Done again to continue anyway."; e.confirm = true
-    else
-        e.result, e.finished = current_case(e), true
-        e.status = "Done: the case is back in Julia."
+        e.status = join(c.warnings, "\n") * "\nClick Create… again to continue anyway."; e.confirm = true; return false
     end
-    return e.finished
+    return true
+end
+"""
+    create!(editor, folder) -> Bool
+
+**Create…** in `folder` (made if missing): the case's runs go there (`run.dir`, its name the folder's),
+the case is written there as `<name>_case.toml`, and the window closes with the case as its result.
+"""
+function create!(e::Editor, folder)
+    dir  = rstrip(normpath(abspath(String(folder))), ['/', '\\'])
+    name = basename(dir)
+    isempty(name) && (e.status = "Choose a folder for the case."; return false)
+    e.run["dir"], e.run["fid"] = dir, name
+    c = current_case(e)
+    try
+        mkpath(dir); save_case(joinpath(dir, "$(name)_case.toml"), c)
+    catch err
+        e.status = "Not created: " * sprint(showerror, err); return false
+    end
+    e.result, e.finished, e.status = c, true, "Created in $dir."
+    return true
 end
 function cancel!(e::Editor)
     e.result, e.finished, e.status = nothing, true, "Cancelled."
-    return e
-end
-function save!(e::Editor, file)
-    try
-        save_case(file, current_case(e)); e.status = "Saved $file"
-    catch err
-        e.status = "Not saved: " * sprint(showerror, err)
-    end
     return e
 end
 function load!(e::Editor, file)

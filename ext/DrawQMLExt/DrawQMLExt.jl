@@ -54,10 +54,10 @@ tick_option(k, on) = (tick_option!(ed(), String(k), Bool(on)); nothing)
 tick_value(k, i, on) = (tick_value!(ed(), String(k), julia_index(i), Bool(on)); nothing)
 set_workflow(j)    = (set_run!(ed(), "workflow", WORKFLOWS[julia_index(j)]); nothing)
 set_run(k, s)      = (set_run!(ed(), String(k), String(s)); nothing)
-done()             = done!(ed())
+ready()            = ready!(ed())
+create(url)        = create!(ed(), localpath(url))
 cancel()           = (ed().finished || cancel!(ed()); nothing)
 localpath(url)     = (u = String(url); startswith(u, "file://") ? replace(u[8:end], "%20" => " ", "%23" => "#", "%25" => "%") : u)
-save(url)          = (save!(ed(), localpath(url)); nothing)
 load(url)          = (load!(ed(), localpath(url)); nothing)
 set_backdrop(url)  = (set_backdrop!(ed(), localpath(url)); nothing)
 remove_backdrop()  = (remove_backdrop!(ed()); nothing)
@@ -70,7 +70,7 @@ fit_domain()       = (fit_domain!(ed()); nothing)
 
 # registered for each window: QML.jl forgets them when a window's application ends, so registering once
 # (in __init__) left a second window of the same session with none
-register_functions() = @qmlfunction background overlay panel press move release leave wheel key set_step set_field set_ni set_bc new_zone set_circle select_zone rename_zone set_prop swap_zone delete_zone set_picked remove_picked undo redo toggle set_section set_option type_option tick_option tick_value set_workflow set_run done cancel save load set_backdrop remove_backdrop backdrop_size set_backdrop_field scale_bar set_scale_length apply_scale fit_domain
+register_functions() = @qmlfunction background overlay panel press move release leave wheel key set_step set_field set_ni set_bc new_zone set_circle select_zone rename_zone set_prop swap_zone delete_zone set_picked remove_picked undo redo toggle set_section set_option type_option tick_option tick_value set_workflow set_run ready create cancel load set_backdrop remove_backdrop backdrop_size set_backdrop_field scale_bar set_scale_length apply_scale fit_domain
 
 ElastoPlasm.drawing_window(case::Case; step::Integer=2) = qml_window(case; step)
 

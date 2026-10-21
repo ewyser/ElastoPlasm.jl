@@ -14,7 +14,7 @@
         ed.new_zone!(e)
         foreach(p -> click!(e, p...), [(0.1, 0.05), (64.1, 0.1), (64.0, 1.95), (22.5, 12.05), (0.05, 12.0), (0.2, 0.1)])   # last: closes
         ed.set_prop!(e, "phi", "7.5")
-        @test ed.done!(e) && e.result isa Case && length(e.result.zones) == 1
+        @test ed.ready!(e) && ed.create!(e, joinpath(mktempdir(), "drawn")) && e.result isa Case && length(e.result.zones) == 1
         v = e.result.zones[1].shape.vertices
         @test length(v) == 5 && v[1] == [0.0, 0.0] && v[4][2] ≈ 15*L2/20                  # snapped to the sub-cell lattice
         @test e.result.zones[1].props[:phi] ≈ 7.5*π/180 rtol=1e-14
@@ -156,12 +156,15 @@
         ed.set_run!(e, "workflow", "elastoquasistatic!"); ed.set_run!(e, "lstps", "20"); ed.set_run!(e, "lstps", "-1")
         @test e.run["workflow"] == "elastoquasistatic!" && e.run["lstps"] == 20
         @test occursin("20 load steps", join(ed.checks(e).info))
-        f = joinpath(mktempdir(), "q.toml"); ed.save!(e, f); @test isfile(f)
-        pop!(e.regions); ed.load!(e, f); @test length(e.regions) == 1 && e.width == 4.0 && e.run["lstps"] == 20
         setoption!(d, s, p, v) = ed.setoption!(d, s, p, v)
-        setoption!(e.options, "dtype", ["precision"], "32-bit precision (or single precision)")   # a warning: Done twice
-        @test !ed.done!(e) && ed.done!(e)
+        setoption!(e.options, "dtype", ["precision"], "32-bit precision (or single precision)")   # a warning: Create… twice
+        @test !ed.ready!(e) && occursin("again", e.status) && ed.ready!(e)
+        folder = joinpath(mktempdir(), "layers")
+        @test ed.create!(e, folder * "/") && e.finished && isfile(joinpath(folder, "layers_case.toml"))   # made, the case in it
+        @test e.result.run.dir == folder && e.result.run.fid == "layers"                    # its runs go there
         @test e.result.width == 4.0 && e.result.run.lstps == 20 && e.result.solver.basis.which == "gimpm"
+        e2 = ed.Editor(Case(; L=[1, 1], nel=[2, 2])); ed.load!(e2, joinpath(folder, "layers_case.toml"))   # Start from a case file
+        @test length(e2.regions) == 1 && e2.width == 4.0 && e2.run["lstps"] == 20 && e2.run["dir"] == folder
         @test_throws ArgumentError ed.Editor(Case(; L=[1, 1], nel=[2, 2], zones=[Zone("r", Region(x -> x[1] < 0.5))]))
         @test ed.qml_index(nothing) == -1 && ed.julia_index(ed.qml_index(3)) == 3              # indices crossing to QML
         @test occursin("\"tab\":$(e.step - 1)", ed.panel_json(e))

@@ -19,7 +19,7 @@ const MATERIAL = (; E=1.0e6, nu=0.3, rho0=2700.0, c0=20.0e3, cr=4.0e3, phi=20.0*
 const ZONE_PROPS = (keys(MATERIAL)..., :v)
 # the run settings of a case: output folder under dump/, times [s] for `setup_time` (elastic stage,
 # gravity ramp, plastic stage), workflow (`WORKFLOWS`), load steps of the quasi-static workflows
-const RUN = (; fid="problem", te=10.0, tg=10.0, tep=5.0, workflow="elastodynamic! + elastoplastic!", lstps=10)
+const RUN = (; fid="problem", dir="", te=10.0, tg=10.0, tep=5.0, workflow="elastodynamic! + elastoplastic!", lstps=10)
 const BOUNDARY_KINDS = (:free, :roller, :fixed)
 
 """
@@ -143,7 +143,7 @@ and `ni`×`ni` material points per element; the `zones` holding material (`Zone`
 row per axis, `:free`, `:roller` or `:fixed`; default roller; extra rows are ignored, as the solver
 does in 2D); `solver` overrides of `get_default()`
 (merged per field, `merge_config`; `solution` follows the workflow unless set); `thermal` (build the
-thermal phase); `run` settings (`RUN`: `fid`, `te`, `tg`, `tep`, `workflow`, `lstps`). A 2D (x–z)
+thermal phase); `run` settings (`RUN`: `fid`, `dir`, `te`, `tg`, `tep`, `workflow`, `lstps`). A 2D (x–z)
 case with `width` and `nely` is extruded along y into 3D, its sides along y roller.
 `setup_simulation` builds it, `save_case`/`load_case` store it as TOML.
 """
@@ -193,14 +193,15 @@ end
 """
     case_run(run) -> NamedTuple
 
-Run settings (`RUN`: `fid`, `te`, `tg`, `tep`, `workflow`, `lstps`), given as a `Dict` or `NamedTuple`,
+Run settings (`RUN`: `fid`, `dir` (the folder the simulation is written to; empty: `dump/<fid>`), `te`, `tg`,
+`tep`, `workflow`, `lstps`), given as a `Dict` or `NamedTuple`,
 missing ones from the defaults; `workflow` is one of `WORKFLOWS`.
 """
 function case_run(run)
     unknown = setdiff(string.(keys(run)), string.(keys(RUN)))
     isempty(unknown) || throw(ArgumentError("unknown run settings $(unknown); known: $(string.(keys(RUN)))"))
     val(k) = run isa AbstractDict ? get(run, string(k), get(run, k, getfield(RUN, k))) : get(run, k, getfield(RUN, k))
-    r = (; fid=String(val(:fid)), te=Float64(val(:te)), tg=Float64(val(:tg)), tep=Float64(val(:tep)),
+    r = (; fid=String(val(:fid)), dir=String(val(:dir)), te=Float64(val(:te)), tg=Float64(val(:tg)), tep=Float64(val(:tep)),
            workflow=String(val(:workflow)), lstps=Int(val(:lstps)))
     r.workflow ∈ WORKFLOWS || throw(ArgumentError("run.workflow = \"$(r.workflow)\" is not one of $(WORKFLOWS)"))
     (r.te ≥ 0 && r.tg ≥ 0 && r.tep ≥ 0 && r.lstps ≥ 1) || throw(ArgumentError("run times must be ≥ 0 and lstps ≥ 1"))

@@ -162,7 +162,8 @@ function panel_json(e::Editor)
     qs = ElastoPlasm.quasistatic(e.run["workflow"])
     fields = qs ? [("lstps", "load steps")] : [("te", "elastic stage te [s]"), ("tg", "gravity ramp tg [s]"), ("tep", "plastic stage tep [s]")]
     run = (; workflows=collect(WORKFLOWS), workflow=qml_index(findfirst(==(e.run["workflow"]), collect(WORKFLOWS))),
-             fields=[(; key, label, value=string(e.run[key])) for (key, label) ∈ [fields; ("fid", "folder in dump/")]],
+             fields=[(; key, label, value=string(e.run[key])) for (key, label) ∈ fields],
+             dir=string(get(e.run, "dir", "")),                 # the case's folder, from a loaded case (else chosen at Create…)
              errors=join("✗ " .* c.errors, "\n"), warnings=join("! " .* c.warnings, "\n"), info=join(c.info, "\n"))
     b = e.backdrop
     backdrop = isnothing(b) ? nothing : (; name=basename(b.file), url=fileurl(b.file), loaded=b.npx[1] > 0,

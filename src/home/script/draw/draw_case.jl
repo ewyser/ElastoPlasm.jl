@@ -5,15 +5,17 @@ export draw_case
     draw_case(case::Case)
     draw_case(file)
 
-Set up a case in a window, in four steps: **Domain** (drag the domain's corner or type `Lx`, `Lz` and the element
-size; a width to extrude along y into 3D; points per element; a boundary condition per side),
+Set up a case in a window, in four steps: **Domain** (optionally start from a case file; drag the domain's corner or
+type `Lx`, `Lz` and the element size; a width to extrude along y into 3D; points per element; a boundary condition
+per side; a picture to draw on),
 **Zones** (draw the material as polygons, each with optional cohesion, residual cohesion, friction
 angle, temperature, Young's modulus, Poisson's ratio and density), **Options** (solver options from
 drop-down lists, any value for numeric ones, ticked to override the defaults; the plotted variables)
-and **Run** (workflow, times or load steps, output folder; `check_case` and the estimated time step).
-**Done** returns the `Case`, ready for `run_simulation` or `setup_simulation` (errors block it,
-warnings ask for a second click); **Save…**/**Load…** pick a TOML file in the system's file dialog
-(`save_case`/`load_case`; starting in the current directory); **Cancel**, closing the window or Ctrl-C returns `nothing`. Without arguments the
+and **Run** (workflow, times or load steps; `check_case` and the estimated time step). **Create…**, at the end of
+the Run step, asks for the case's folder (chosen or made in the system's folder dialog): the case is written there
+as TOML, its runs go there (`run.dir`: `run_simulation(case)`, or `setup_simulation(case)` and `elastoplasm!`), and
+the window returns the `Case` (errors block it, warnings ask for a second click). **Cancel**, closing the window or
+Ctrl-C returns `nothing`. Without arguments the
 window opens on the domain step; with a case (or its file), on the zones step. It edits 2D (x–z)
 cases with polygon, block or ball (circle) zones.
 

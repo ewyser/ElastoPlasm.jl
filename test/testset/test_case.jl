@@ -103,6 +103,15 @@
         @test_throws ArgumentError EP.option_value(["basis", "which"], "foo")                      # not a numeric option
         @test [v.mpts.key for v ∈ EP.option_value(["plot", "what"], ["pressure", "plastic strain"])] == ["P", "epII"]
     end
+    @testset "a case's folder" begin
+        dir = joinpath(mktempdir(), "mycase")
+        c = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 1]))], run=(; dir=dir * "/"))
+        jld2 = setup_simulation(c)
+        @test jld2 == joinpath(dir, "mycase_simulation.jld2") && isfile(jld2) && isfile(joinpath(dir, "mycase_case.toml"))
+        @test load_case(joinpath(dir, "mycase_case.toml")).run.dir == dir * "/"
+        f = joinpath(mktempdir(), "x.toml"); save_case(f, Case(; L=[4, 2], nel=[4, 2]))
+        @test !occursin("dir", read(f, String))                                             # no folder: not written
+    end
     @testset "workflows and a short run" begin
         s = Case(; L=[20, 10], nel=[20, 10], width=4.0, nely=4, zones=[Zone("soil", Block([0, 0], [20, 6]))],
                    solver=(; plot=(; status=false)), run=(; fid="test/case_run", te=0.2, tg=0.1, tep=0.0, workflow="elastodynamic!"))

@@ -82,7 +82,9 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   of `MATERIAL`: E, nu, rho0, c0, cr, phi, Hp, n0, T, cp, k; SI, angles in radians), `bcs` (D×2
   `:free`/`:roller`/`:fixed`; extra rows ignored, as the solver does in 2D; `bcs` passed among the solver
   options moves here), `solver` (overrides, validated against `get_default()` at construction),
-  `thermal`, `run` (`RUN`: `fid`, `te`, `tg`, `tep`, `workflow` ∈ `WORKFLOWS`, `lstps`).
+  `thermal`, `run` (`RUN`: `fid`, `dir`, `te`, `tg`, `tep`, `workflow` ∈ `WORKFLOWS`, `lstps`; `dir` is the folder
+  `setup_simulation` writes the simulation and the case TOML to, named after it; empty, the default: `dump/<fid>/`;
+  written to the TOML only when set).
 - **Zones:** `Zone(name, shape; props...)`, props any `MATERIAL` key or `v` (initial velocity; two
   (x, z) components in 3D). Shapes: `Polygon` (x–z, even–odd, extruded in 3D), `Block(lo, hi)` (bounds
   included; D coordinates, or two for an extruded block), `Ball(centre, r)` (disk, sphere, or cylinder
@@ -113,7 +115,7 @@ save_case("layers.toml", case); case = load_case("layers.toml")
 
 ```julia
 using ElastoPlasm, QML
-case = draw_case()                       # opens on the domain step, blocks until Done; returns a Case
+case = draw_case()                       # opens on the domain step, blocks until Create…; returns a Case
 case = draw_case(slump_case([64.16, 16.04], [40, 10]))   # edit a case (opens on the zones step)
 case = draw_case("layers.toml")          # or a case file
 run_simulation(case)
@@ -182,7 +184,7 @@ run_simulation(case)
   value ticks the box, unticking restores the default; multi-selections such as `plot.what` are
   checkbox grids; the `dtype` fields are the one `precision` choice and
   `solution` follows the workflow; `option_rows`) and **Run** (workflow, `te`/`tg`/`tep` or the load
-  steps, output folder; `check_case` live).
+  steps; `check_case` live; then **Create…** and **Cancel**).
 - A picture to draw on (Domain step, "Picture…": a scanned section or a map, any image Qt reads), drawn
   under the grid at an adjustable opacity (`Backdrop`: file, pixel size reported by a hidden QML `Image`,
   lower-left corner and width in metres, the height from the aspect). The order is picture → mesh →
@@ -194,10 +196,15 @@ run_simulation(case)
   offscreen on a hand-rasterised 20 × 10 m section with a 5 m scale bar: the bar, measured on the
   picture shown 10 m wide, gives width 20 m and a 20 × 10 m domain. A drawing aid only: not saved with
   the case (TOML).
-- Footer, always visible: status, Done, Cancel, Save…, Load…. Save…/Load… open Qt's native file
-  dialog (QtQuick.Dialogs), starting in the current directory (`qml_window(…; startdir=pwd())`), not in
-  `dump/`, which is emptied whenever the package recompiles. Load replaces the whole state and clears undo. Done runs
-  `check_case`: errors block it, warnings need a second click.
+- Only the tabs and the status line are always visible. "Start from a case file…" (top of the Domain
+  step) loads a case TOML (`load!`; replaces the whole state and clears undo). **Create…** (end of the
+  Run step) runs `check_case` first (`ready!`: errors block it, warnings need a second click), then opens
+  Qt's folder dialog (choose, or make with its New Folder button): `create!` sets the run's folder
+  (`run.dir`, and `fid` to the folder's name), writes `<name>_case.toml` there and closes with the case;
+  `setup_simulation` then writes the simulation (`.jld2`, plots, outputs) into that folder instead of
+  `dump/<fid>/` (empty `dir`, as for cases made in code). There is no Save…: the case file is written by
+  Create…. The dialogs start in the current directory (`qml_window(…; startdir=pwd())`), not in `dump/`,
+  which is emptied whenever the package recompiles.
 - Editing: clicks snap to existing vertices, then edges, then the sub-cell lattice `h/ni`
   (`snap_point`; particles sit at sub-cell centres, so never on a vertex), within a snap radius of 1.5%
   of the visible area (`tol`), so it follows the zoom (`zoom!`; the same radius picks vertices, edges
@@ -250,7 +257,7 @@ change; regenerate the reference (delete the file) only for an intended setup ch
 trip, `check_case`/`estimate_dt` (= `get_dt`, 2D and extruded), zone constants reaching the particles,
 free option values, workflows and a short `run_simulation`. `test_draw.jl` covers the drawing window: its Qt-free
 part (`editing.jl`, loaded into a test module) everywhere, driven as a user would (drawing, snapping and
-shared edges, drag, undo, domain, zone constants, options, run, Save/Load, Done's warning confirmation,
+shared edges, drag, undo, domain, zone constants, options, run, Create… (its warning confirmation, the folder) and loading a case,
 the caches and the readout, the JSON the view reads); then, where QML is installed, the window itself
 offscreen, a PNG of each step, twice in one session.
 
