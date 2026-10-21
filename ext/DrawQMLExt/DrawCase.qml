@@ -12,6 +12,7 @@ ApplicationWindow {
     title: "ElastoPlasm — draw a case"
     property var panel: JSON.parse(Julia.panel())
     function refresh() { panel = JSON.parse(Julia.panel()); canvas.requestPaint(); overlay.requestPaint() }
+    function act(f) { f(); refresh() }                       // a Julia call that changes the editor, then the view
     onClosing: Julia.cancel()
 
     Rectangle {
@@ -97,10 +98,10 @@ ApplicationWindow {
                 MouseArea {
                     anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.LeftButton | Qt.RightButton
                     cursorShape: win.panel.zones.drawing ? Qt.CrossCursor : Qt.ArrowCursor      // a crosshair while a zone is drawn
-                    onPressed: (m) => { canvas.forceActiveFocus(); Julia.press(m.x, m.y, m.button === Qt.RightButton, width, height); win.refresh() }
+                    onPressed: (m) => { canvas.forceActiveFocus(); win.act(() => Julia.press(m.x, m.y, m.button === Qt.RightButton, width, height)) }
                     // moving and leaving change only the overlay; zooming both layers; none of them the panel (its checks)
                     onPositionChanged: (m) => { Julia.move(m.x, m.y, width, height); overlay.requestPaint() }
-                    onReleased: { Julia.release(); win.refresh() }
+                    onReleased: win.act(() => Julia.release())
                     onExited: { Julia.leave(); overlay.requestPaint() }
                     onWheel: (w) => { Julia.wheel(w.x, w.y, w.angleDelta.y, width, height); canvas.requestPaint(); overlay.requestPaint() }
                 }
@@ -119,7 +120,7 @@ ApplicationWindow {
                 TabBar {
                     id: tabs; Layout.fillWidth: true
                     currentIndex: win.panel.tab
-                    onCurrentIndexChanged: if (currentIndex !== win.panel.tab) { Julia.set_step(currentIndex); win.refresh() }
+                    onCurrentIndexChanged: if (currentIndex !== win.panel.tab) win.act(() => Julia.set_step(currentIndex))
                     TabButton { text: "1 Domain" } TabButton { text: "2 Zones" } TabButton { text: "3 Options" } TabButton { text: "4 Run" }
                 }
                 Label { text: win.panel.status; wrapMode: Text.WordWrap; Layout.fillWidth: true; color: "#444" }
@@ -131,43 +132,43 @@ ApplicationWindow {
                         GridLayout { width: parent.width; columns: 2; columnSpacing: 8
                             Button { text: "Start from a case file…"; Layout.columnSpan: 2; onClicked: loadDialog.open() }
                             Label { text: "Domain"; font.bold: true; Layout.columnSpan: 2; Layout.topMargin: 6 }
-                            Label { text: "Lx [m]" } TextField { text: win.panel.domain.Lx; Layout.fillWidth: true; onEditingFinished: { Julia.set_field("Lx", text); win.refresh() } }
-                            Label { text: "Lz [m]" } TextField { text: win.panel.domain.Lz; Layout.fillWidth: true; onEditingFinished: { Julia.set_field("Lz", text); win.refresh() } }
-                            Label { text: "element size h [m]" } TextField { text: win.panel.domain.h; Layout.fillWidth: true; onEditingFinished: { Julia.set_field("h", text); win.refresh() } }
+                            Label { text: "Lx [m]" } TextField { text: win.panel.domain.Lx; Layout.fillWidth: true; onEditingFinished: win.act(() => Julia.set_field("Lx", text)) }
+                            Label { text: "Lz [m]" } TextField { text: win.panel.domain.Lz; Layout.fillWidth: true; onEditingFinished: win.act(() => Julia.set_field("Lz", text)) }
+                            Label { text: "element size h [m]" } TextField { text: win.panel.domain.h; Layout.fillWidth: true; onEditingFinished: win.act(() => Julia.set_field("h", text)) }
                             Label { text: "width y [m], 3D" } TextField { text: win.panel.domain.width; placeholderText: "none: 2D"; Layout.fillWidth: true
-                                onEditingFinished: { Julia.set_field("width", text); win.refresh() } }
+                                onEditingFinished: win.act(() => Julia.set_field("width", text)) }
                             Label { text: win.panel.domain.nel; Layout.columnSpan: 2 }
                             Label { text: "points per element" } ComboBox { model: win.panel.domain.nis; currentIndex: win.panel.domain.ni; Layout.fillWidth: true
-                                onActivated: (i) => { Julia.set_ni(i); win.refresh() } }
+                                onActivated: (i) => win.act(() => Julia.set_ni(i)) }
                             // a picture to draw on: load it, give its scale (its width, or a scale bar), the domain follows it
                             Label { text: "Picture to draw on"; font.bold: true; Layout.columnSpan: 2; Layout.topMargin: 8 }
                             RowLayout { Layout.columnSpan: 2
                                 Button { text: win.panel.backdrop ? "Replace…" : "Picture…"; onClicked: imageDialog.open() }
                                 Button { text: "Scale bar"; visible: win.panel.backdrop !== null; highlighted: win.panel.calib !== null
-                                    onClicked: { Julia.scale_bar(); win.refresh(); canvas.forceActiveFocus() } }
-                                Button { text: "Remove"; visible: win.panel.backdrop !== null; onClicked: { Julia.remove_backdrop(); win.refresh() } } }
+                                    onClicked: { win.act(() => Julia.scale_bar()); canvas.forceActiveFocus() } }
+                                Button { text: "Remove"; visible: win.panel.backdrop !== null; onClicked: win.act(() => Julia.remove_backdrop()) } }
                             Label { visible: win.panel.backdrop !== null; text: "picture width [m]" }
                             TextField { visible: win.panel.backdrop !== null; text: win.panel.backdrop ? win.panel.backdrop.width : ""; Layout.fillWidth: true
-                                onEditingFinished: { Julia.set_backdrop_field("width", text); win.refresh() } }
+                                onEditingFinished: win.act(() => Julia.set_backdrop_field("width", text)) }
                             Label { visible: win.panel.calib !== null && win.panel.calib.clicked === 2
                                 text: "scale bar length [m]\n(" + (win.panel.calib ? win.panel.calib.shown : "") + " m as shown)" }
                             RowLayout { visible: win.panel.calib !== null && win.panel.calib.clicked === 2; Layout.fillWidth: true
                                 TextField { text: win.panel.calib ? win.panel.calib.length : ""; Layout.fillWidth: true
-                                    onEditingFinished: { Julia.set_scale_length(text); win.refresh() } }
-                                Button { text: "Apply"; onClicked: { Julia.apply_scale(); win.refresh() } } }
+                                    onEditingFinished: win.act(() => Julia.set_scale_length(text)) }
+                                Button { text: "Apply"; onClicked: win.act(() => Julia.apply_scale()) } }
                             Repeater { model: win.panel.backdrop ? [["x0", "picture left x [m]"], ["z0", "picture bottom z [m]"], ["opacity", "opacity"]] : []
                                 delegate: RowLayout { Layout.columnSpan: 2
                                     Label { text: modelData[1]; Layout.preferredWidth: 130 }
                                     TextField { text: win.panel.backdrop ? win.panel.backdrop[modelData[0]] : ""; Layout.fillWidth: true
-                                        onEditingFinished: { Julia.set_backdrop_field(modelData[0], text); win.refresh() } } } }
+                                        onEditingFinished: win.act(() => Julia.set_backdrop_field(modelData[0], text)) } } }
                             Button { visible: win.panel.backdrop !== null; text: "Fit domain to picture"; Layout.columnSpan: 2
-                                onClicked: { Julia.fit_domain(); win.refresh() } }
+                                onClicked: win.act(() => Julia.fit_domain()) }
                             Label { text: "Boundary conditions"; font.bold: true; Layout.columnSpan: 2; Layout.topMargin: 8 }
                             Repeater { model: win.panel.domain.bcs
                                 delegate: RowLayout { Layout.columnSpan: 2
                                     Label { text: modelData.side; Layout.preferredWidth: 130 }
                                     ComboBox { model: win.panel.domain.kinds; currentIndex: modelData.index; Layout.fillWidth: true
-                                        onActivated: (i) => { Julia.set_bc(modelData.side, i); win.refresh() } } } }
+                                        onActivated: (i) => win.act(() => Julia.set_bc(modelData.side, i)) } } }
                             Label { Layout.columnSpan: 2; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: "gray"; Layout.topMargin: 8
                                 text: "Drag the white handle (upper-right corner) to size the domain, or type the values; a width extrudes the drawing along y (blank: 2D). Boundaries: fixed (red), roller (blue), free (grey). Scroll to zoom." }
                         } }
@@ -177,32 +178,30 @@ ApplicationWindow {
                         GridLayout { width: parent.width; columns: 3; columnSpacing: 8
                             Label { text: "Zones"; font.bold: true; Layout.columnSpan: 3 }
                             ComboBox { model: win.panel.zones.names; currentIndex: win.panel.zones.selected; Layout.columnSpan: 3; Layout.fillWidth: true
-                                onActivated: (i) => { Julia.select_zone(i); win.refresh() } }
+                                onActivated: (i) => win.act(() => Julia.select_zone(i)) }
                             Label { text: "name" } TextField { text: win.panel.zones.name; Layout.columnSpan: 2; Layout.fillWidth: true
-                                onEditingFinished: { Julia.rename_zone(text); win.refresh() } }
+                                onEditingFinished: win.act(() => Julia.rename_zone(text)) }
                             Repeater { model: win.panel.zones.props
                                 delegate: RowLayout { Layout.columnSpan: 3
                                     Label { text: modelData.label; Layout.preferredWidth: 90 }
                                     TextField { text: modelData.value; placeholderText: "default"; Layout.preferredWidth: 110
-                                        onEditingFinished: { Julia.set_prop(modelData.key, text); win.refresh() } }
+                                        onEditingFinished: win.act(() => Julia.set_prop(modelData.key, text)) }
                                     Label { text: modelData.default; color: "gray" } } }
                             Label { text: "circle [m]"; font.bold: true; Layout.columnSpan: 3; Layout.topMargin: 6
                                 visible: win.panel.zones.circle !== null }
                             RowLayout { Layout.columnSpan: 3; visible: win.panel.zones.circle !== null   // a Ball zone: centre and radius
-                                Label { text: "x" } TextField { text: win.panel.zones.circle ? win.panel.zones.circle.x : ""; Layout.preferredWidth: 80
-                                    onEditingFinished: { Julia.set_circle("x", text); win.refresh() } }
-                                Label { text: "z" } TextField { text: win.panel.zones.circle ? win.panel.zones.circle.z : ""; Layout.preferredWidth: 80
-                                    onEditingFinished: { Julia.set_circle("z", text); win.refresh() } }
-                                Label { text: "r" } TextField { text: win.panel.zones.circle ? win.panel.zones.circle.r : ""; Layout.preferredWidth: 80
-                                    onEditingFinished: { Julia.set_circle("r", text); win.refresh() } } }
+                                Repeater { model: ["x", "z", "r"]
+                                    delegate: RowLayout { Label { text: modelData }
+                                        TextField { text: win.panel.zones.circle ? win.panel.zones.circle[modelData] : ""; Layout.preferredWidth: 80
+                                            onEditingFinished: win.act(() => Julia.set_circle(modelData, text)) } } } }
                             Label { text: "vertex [m]"; font.bold: true; Layout.columnSpan: 3; Layout.topMargin: 6
                                 visible: win.panel.zones.vertex !== null }
                             RowLayout { Layout.columnSpan: 3; visible: win.panel.zones.vertex !== null   // the vertex last clicked or dragged
-                                Label { text: "x" } TextField { text: win.panel.zones.vertex ? win.panel.zones.vertex.x : ""; Layout.preferredWidth: 95
-                                    onEditingFinished: { Julia.set_picked("x", text); win.refresh() } }
-                                Label { text: "z" } TextField { text: win.panel.zones.vertex ? win.panel.zones.vertex.z : ""; Layout.preferredWidth: 95
-                                    onEditingFinished: { Julia.set_picked("z", text); win.refresh() } }
-                                Button { text: "×"; implicitWidth: 28; onClicked: { Julia.remove_picked(); win.refresh() }
+                                Repeater { model: ["x", "z"]
+                                    delegate: RowLayout { Label { text: modelData }
+                                        TextField { text: win.panel.zones.vertex ? win.panel.zones.vertex[modelData] : ""; Layout.preferredWidth: 95
+                                            onEditingFinished: win.act(() => Julia.set_picked(modelData, text)) } } }
+                                Button { text: "×"; implicitWidth: 28; onClicked: win.act(() => Julia.remove_picked())
                                     ToolTip.visible: hovered; ToolTip.text: "delete this vertex" } }
                             RowLayout { Layout.columnSpan: 3
                                 Button { id: newZone; text: "+ New zone ▾"; highlighted: win.panel.zones.drawing
@@ -210,18 +209,18 @@ ApplicationWindow {
                                     Menu { id: shapes; y: newZone.height                     // the shape of the new zone
                                         Repeater { model: [["polygon", "Draw (polygon)"], ["rectangle", "Rectangle"], ["triangle", "Triangle"], ["circle", "Circle"]]
                                             MenuItem { text: modelData[1]
-                                                onTriggered: { Julia.new_zone(modelData[0]); win.refresh(); canvas.forceActiveFocus() } } } } } }
+                                                onTriggered: { win.act(() => Julia.new_zone(modelData[0])); canvas.forceActiveFocus() } } } } } }
                             RowLayout { Layout.columnSpan: 3
-                                Button { text: "↑"; onClicked: { Julia.swap_zone(-1); win.refresh() } }
-                                Button { text: "↓"; onClicked: { Julia.swap_zone(1); win.refresh() } }
-                                Button { text: "delete"; onClicked: { Julia.delete_zone(); win.refresh() } } }
+                                Button { text: "↑"; onClicked: win.act(() => Julia.swap_zone(-1)) }
+                                Button { text: "↓"; onClicked: win.act(() => Julia.swap_zone(1)) }
+                                Button { text: "delete"; onClicked: win.act(() => Julia.delete_zone()) } }
                             RowLayout { Layout.columnSpan: 3
-                                Button { text: "undo"; onClicked: { Julia.undo(); win.refresh() } }
-                                Button { text: "redo"; onClicked: { Julia.redo(); win.refresh() } } }
+                                Button { text: "undo"; onClicked: win.act(() => Julia.undo()) }
+                                Button { text: "redo"; onClicked: win.act(() => Julia.redo()) } }
                             RowLayout { Layout.columnSpan: 3
-                                CheckBox { text: "snap grid"; checked: win.panel.zones.grid; onToggled: { Julia.toggle("grid", checked); win.refresh() } }
-                                CheckBox { text: "snap shapes"; checked: win.panel.zones.shapes; onToggled: { Julia.toggle("shapes", checked); win.refresh() } }
-                                CheckBox { text: "points"; checked: win.panel.zones.points; onToggled: { Julia.toggle("points", checked); win.refresh() } } }
+                                CheckBox { text: "snap grid"; checked: win.panel.zones.grid; onToggled: win.act(() => Julia.toggle("grid", checked)) }
+                                CheckBox { text: "snap shapes"; checked: win.panel.zones.shapes; onToggled: win.act(() => Julia.toggle("shapes", checked)) }
+                                CheckBox { text: "points"; checked: win.panel.zones.points; onToggled: win.act(() => Julia.toggle("points", checked)) } }
                             Label { Layout.columnSpan: 3; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: "gray"
                                 text: "+ New zone: draw a polygon (click vertices; first vertex or Enter: close), a rectangle (two corners), a triangle (three corners) or a circle (centre, then a point on it). Drag a vertex (its coordinates are then typed above), a circle's centre or its handle; click an edge to insert a vertex, right-click one to delete it; Backspace/Esc: undo the last vertex / cancel; Cmd/Ctrl+Z: undo. Later zones win; blank = default." }
                             Label { Layout.columnSpan: 3; Layout.fillWidth: true; wrapMode: Text.WordWrap; text: win.panel.zones.summary }
@@ -232,24 +231,24 @@ ApplicationWindow {
                         ColumnLayout { width: parent.width
                             Label { text: "Solver options"; font.bold: true }
                             ComboBox { model: win.panel.options.sections; currentIndex: win.panel.options.section; Layout.fillWidth: true
-                                onActivated: (i) => { Julia.set_section(i); win.refresh() } }
+                                onActivated: (i) => win.act(() => Julia.set_section(i)) }
                             Label { text: "Ticked fields override the default; picking or typing a value ticks the box."; color: "gray"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                             Repeater { model: win.panel.options.rows
                                 delegate: ColumnLayout { Layout.fillWidth: true
                                     property var row: modelData
                                     RowLayout { Layout.fillWidth: true
-                                        CheckBox { checked: row.checked; onToggled: { Julia.tick_option(row.key, checked); win.refresh() } }
+                                        CheckBox { checked: row.checked; onToggled: win.act(() => Julia.tick_option(row.key, checked)) }
                                         Label { text: row.label; font.bold: row.kind === "list"; Layout.preferredWidth: 110 }
                                         ComboBox { visible: row.kind === "menu"; model: row.values; currentIndex: row.index; Layout.fillWidth: true
-                                            onActivated: (i) => { Julia.set_option(row.key, i); win.refresh() } }
+                                            onActivated: (i) => win.act(() => Julia.set_option(row.key, i)) }
                                         TextField { visible: row.kind === "numeric"; text: row.text; Layout.fillWidth: true
-                                            onEditingFinished: { Julia.type_option(row.key, text); win.refresh() } }
+                                            onEditingFinished: win.act(() => Julia.type_option(row.key, text)) }
                                         ComboBox { visible: row.kind === "numeric"; model: row.values; displayText: "presets"; Layout.preferredWidth: 90
-                                            onActivated: (i) => { Julia.set_option(row.key, i); win.refresh() } } }
+                                            onActivated: (i) => win.act(() => Julia.set_option(row.key, i)) } }
                                     GridLayout { visible: row.kind === "list"; columns: 2; Layout.leftMargin: 30
                                         Repeater { model: row.kind === "list" ? row.values : []
                                             delegate: CheckBox { text: modelData; checked: row.picks[index]
-                                                onToggled: { Julia.tick_value(row.key, index, checked); win.refresh() } } } } } }
+                                                onToggled: win.act(() => Julia.tick_value(row.key, index, checked)) } } } } }
                         } }
 
                     // 4 Run
@@ -257,11 +256,11 @@ ApplicationWindow {
                         GridLayout { width: parent.width; columns: 2; columnSpacing: 8
                             Label { text: "Run"; font.bold: true; Layout.columnSpan: 2 }
                             ComboBox { model: win.panel.run.workflows; currentIndex: win.panel.run.workflow; Layout.columnSpan: 2; Layout.fillWidth: true
-                                onActivated: (i) => { Julia.set_workflow(i); win.refresh() } }
+                                onActivated: (i) => win.act(() => Julia.set_workflow(i)) }
                             Repeater { model: win.panel.run.fields
                                 delegate: RowLayout { Layout.columnSpan: 2
                                     Label { text: modelData.label; Layout.preferredWidth: 160 }
-                                    TextField { text: modelData.value; Layout.fillWidth: true; onEditingFinished: { Julia.set_run(modelData.key, text); win.refresh() } } } }
+                                    TextField { text: modelData.value; Layout.fillWidth: true; onEditingFinished: win.act(() => Julia.set_run(modelData.key, text)) } } }
                             Label { text: "Checks"; font.bold: true; Layout.columnSpan: 2; Layout.topMargin: 8 }
                             Label { text: win.panel.run.errors; color: "firebrick"; visible: text !== ""; wrapMode: Text.WordWrap; Layout.columnSpan: 2; Layout.fillWidth: true }
                             Label { text: win.panel.run.warnings; color: "darkorange"; visible: text !== ""; wrapMode: Text.WordWrap; Layout.columnSpan: 2; Layout.fillWidth: true }
@@ -280,14 +279,14 @@ ApplicationWindow {
     }
 
     Image { visible: false; source: win.panel.backdrop ? win.panel.backdrop.url : ""            // reports the picture's size
-        onStatusChanged: if (status === Image.Ready && !win.panel.backdrop.loaded) { Julia.backdrop_size(implicitWidth, implicitHeight); win.refresh() } }
+        onStatusChanged: if (status === Image.Ready && !win.panel.backdrop.loaded) win.act(() => Julia.backdrop_size(implicitWidth, implicitHeight)) }
     FileDialog { id: imageDialog; fileMode: FileDialog.OpenFile; currentFolder: startdir
         nameFilters: ["Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff)"]
-        onAccepted: { Julia.set_backdrop(selectedFile.toString()); win.refresh() } }
+        onAccepted: win.act(() => Julia.set_backdrop(selectedFile.toString())) }
     FolderDialog { id: folderDialog; currentFolder: startdir                               // Create…: the case's folder
         onAccepted: { if (Julia.create(selectedFolder.toString())) Qt.quit(); else win.refresh() } }
     FileDialog { id: loadDialog; fileMode: FileDialog.OpenFile; nameFilters: ["Case files (*.toml)"]; currentFolder: startdir
-        onAccepted: { Julia.load(selectedFile.toString()); win.refresh() } }
+        onAccepted: win.act(() => Julia.load(selectedFile.toString())) }
 
     // screenshots for tests and docs: save each listed step as a PNG, then close
     QtObject {

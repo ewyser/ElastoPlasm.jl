@@ -131,9 +131,11 @@ execute!(setup_simulation(case))
     `test_draw.jl` (so it is tested where QML is not installed): `editor.jl`, the state and every edit as
     a plain Julia `Editor` (`press!`/`move!`/`release!`/`key!`, `set_domain!`, `set_option!`, `ready!`/`create!`,
     `load!`, …); `helpers.jl`, GUI-independent pieces (zone constants `PROPS`, the preview points
-    `drawn_points`, `snap_point`, `insert_on_edge!`, `delete_vertex!`, the option rows); `view.jl`, the
-    JSON the window reads (`background_json`, `overlay_json`, `panel_json`). `DrawQMLExt.jl` keeps only
-    the QML glue. QML counts from 0, Julia from 1: every index crosses through `qml_index`/`julia_index`
+    `drawn_points`, `snap_point`, `insert_on_edge!`, `delete_vertex!`, the solver options `OPTIONS`, built once, and
+    their pages `SECTIONS`); `view.jl`, the JSON the window reads (`background_json`, `overlay_json`,
+    `panel_json`). `DrawQMLExt.jl` keeps only the QML glue: one table, `CALLS`, of what QML may call by
+    name, mostly `act(f)` (the open editor, QML strings as Julia strings, returns nothing), so a call cannot
+    be defined and left unregistered; any parsing or logic lives in `editor.jl`, tested without Qt. QML counts from 0, Julia from 1: every index crosses through `qml_index`/`julia_index`
     (`view.jl`), and the QML file does no index arithmetic (it gets the tab, `panel.tab`, not the step).
   - **Cost per mouse move.** The canvas has two layers (`background_json`/`overlay_json`): the
     background (grid, domain, sides, the zones' fills and the points over them) repaints after an edit,
@@ -151,8 +153,9 @@ execute!(setup_simulation(case))
     `JSON.parse` of 0.8 MB, 35 ms drawing); with the overlay, a move costs ~1 ms at any size (<0.5 kB).
   - `DrawCase.qml` is only a view: two `Canvas` layers draw `Julia.background()`/`Julia.overlay()`, the panel reads
     `Julia.panel()`, both JSON strings (nested vectors don't convert through QML.jl, and property-map
-    updates arrive asynchronously), and each widget calls one `@qmlfunction` (`DrawQMLExt.jl`). The
-    functions are registered by `qml_window` for each window (`register_functions`), not in
+    updates arrive asynchronously), and each widget calls one of `CALLS` through `win.act(() => Julia.…)`,
+    which refreshes the panel and canvas after it. The calls are registered (`QML.qmlfunction`) by
+    `qml_window` for each window (`register_functions`), not in
     `__init__`: QML.jl forgets them when a window's application ends, so a second `draw_case` in the
     same session got a `Julia` object without them ("Property 'panel' … is not a function").
   - **Install** QML in the default environment with Qt pinned to the project's version, since the
@@ -186,7 +189,7 @@ execute!(setup_simulation(case))
   drop-down; numeric fields, `free_numeric`, take any typed value plus presets; picking or typing a
   value ticks the box, unticking restores the default; multi-selections such as `plot.what` are
   checkbox grids; the `dtype` fields are the one `precision` choice and
-  `solution` follows the workflow; `option_rows`) and **Run** (workflow, `te`/`tg`/`tep` or the load
+  `solution` follows the workflow; `OPTIONS`) and **Run** (workflow, `te`/`tg`/`tep` or the load
   steps; `check_case` live; then **Create…** and **Cancel**).
 - A picture to draw on (Domain step, "Picture…": a scanned section or a map, any image Qt reads), drawn
   under the grid at an adjustable opacity (`Backdrop`: file, pixel size reported by a hidden QML `Image`,

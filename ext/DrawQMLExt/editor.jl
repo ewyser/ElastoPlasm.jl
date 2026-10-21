@@ -27,7 +27,8 @@ until what they depend on changes (`preview_points`, `checks`).
 `result` is the `Case` after **Create…** (`create!`), or `nothing` when cancelled; `finished` says
 whether the window should close. The picture to trace over (`backdrop`) is kept when a case is loaded.
 """
-mutable struct Editor
+Base.@kwdef mutable struct Editor
+    # from the case
     base     :: Case                                         # its material and thermal flag are kept
     regions  :: Vector{DrawnRegion}
     L        :: Vector{Float64}
@@ -39,43 +40,41 @@ mutable struct Editor
     bcs      :: Matrix{Symbol}
     options  :: Dict{String,Any}
     run      :: Dict{String,Any}
-    history  :: Vector{Vector{DrawnRegion}}
-    future   :: Vector{Vector{DrawnRegion}}
-    drawing  :: Union{Nothing,Vector{Vector{Float64}}}
-    onedge   :: Vector{Vector{Float64}}                      # vertices of the drawing snapped onto edges
-    drag     :: Vector{Tuple{Int,Int}}                       # (zone, vertex) moving together
-    resizing :: Bool                                         # the domain corner is being dragged
     step     :: Int
-    section  :: String
     selected :: Int
-    grid     :: Bool
-    shapes   :: Bool
-    points   :: Bool
-    view     :: NTuple{4,Float64}                            # x0, x1, z0, z1
-    cursor   :: Union{Nothing,Tuple{Vector{Float64},Symbol}}
-    status   :: String
-    confirm  :: Bool                                         # warnings shown: the next Create… goes through
-    result   :: Union{Nothing,Case}
-    finished :: Bool
-    readout  :: String                                       # the cursor's coordinates
-    cache    :: Dict{Symbol,Tuple{UInt,Any}}                 # name => (key, value)
-    shape    :: Symbol                                       # the zone being drawn: :polygon, :rectangle, :triangle, :circle
-    ring     :: Union{Nothing,Tuple{Int,Symbol}}             # a circle being dragged: (zone, :centre or :radius)
-    picked   :: Union{Nothing,Vector{Float64}}               # the vertex last clicked or dragged (its position)
-    backdrop :: Union{Nothing,Backdrop}                      # the picture under the grid
-    calib    :: Union{Nothing,Vector{Vector{Float64}}}       # measuring a scale bar on it: its ends clicked (at most 2) …
-    calib_len:: Union{Nothing,Float64}                       # … and its true length [m] (typed)
+    # the window's own state
+    history  :: Vector{Vector{DrawnRegion}}                    = Vector{DrawnRegion}[]
+    future   :: Vector{Vector{DrawnRegion}}                    = Vector{DrawnRegion}[]
+    drawing  :: Union{Nothing,Vector{Vector{Float64}}}         = nothing
+    onedge   :: Vector{Vector{Float64}}                        = Vector{Float64}[]   # vertices of the drawing snapped onto edges
+    drag     :: Vector{Tuple{Int,Int}}                         = Tuple{Int,Int}[]    # (zone, vertex) moving together
+    resizing :: Bool                                           = false   # the domain corner is being dragged
+    section  :: String                                         = first(SECTIONS)
+    grid     :: Bool                                           = true
+    shapes   :: Bool                                           = true
+    points   :: Bool                                           = true
+    view     :: NTuple{4,Float64}                              = (0.0, 1.0, 0.0, 1.0)   # x0, x1, z0, z1
+    cursor   :: Union{Nothing,Tuple{Vector{Float64},Symbol}}   = nothing
+    status   :: String                                         = ""
+    confirm  :: Bool                                           = false   # warnings shown: the next Create… goes through
+    result   :: Union{Nothing,Case}                            = nothing
+    finished :: Bool                                           = false
+    readout  :: String                                         = ""      # the cursor's coordinates
+    cache    :: Dict{Symbol,Tuple{UInt,Any}}                   = Dict{Symbol,Tuple{UInt,Any}}()   # name => (key, value)
+    shape    :: Symbol                                         = :polygon   # the zone being drawn: :polygon, :rectangle, :triangle, :circle
+    ring     :: Union{Nothing,Tuple{Int,Symbol}}               = nothing   # a circle being dragged: (zone, :centre or :radius)
+    picked   :: Union{Nothing,Vector{Float64}}                 = nothing   # the vertex last clicked or dragged (its position)
+    backdrop :: Union{Nothing,Backdrop}                        = nothing   # the picture under the grid
+    calib    :: Union{Nothing,Vector{Vector{Float64}}}         = nothing   # measuring a scale bar on it: its ends clicked (at most 2) …
+    calib_len:: Union{Nothing,Float64}                         = nothing   # … and its true length [m] (typed)
 end
 function Editor(case::Case; step::Integer=2)
     length(case.L) == 2 || throw(ArgumentError("the window draws a 2D (x–z) case; a width (domain step) extrudes it along y"))
-    e = Editor(case, drawn_regions(case), copy(case.L), copy(case.nel), minimum(case.L ./ case.nel), case.ni, case.width,
-               case.nely, copy(case.bcs), config_dict(case.solver), Dict{String,Any}(string(k) => v for (k, v) ∈ pairs(case.run)),
-               [], [], nothing, [], [], false, Int(step), first(option_sections()), isempty(case.zones) ? 0 : 1,
-               true, true, true, (0.0, 1.0, 0.0, 1.0), nothing, "", false, nothing, false,
-               "", Dict{Symbol,Tuple{UInt,Any}}(), :polygon, nothing,
-               nothing, nothing, nothing, nothing)
-    fit!(e)
-    return e
+    e = Editor(; base=case, regions=drawn_regions(case), L=copy(case.L), nel=copy(case.nel), h=minimum(case.L ./ case.nel),
+               case.ni, case.width, case.nely, bcs=copy(case.bcs), options=config_dict(case.solver),
+               run=Dict{String,Any}(string(k) => v for (k, v) ∈ pairs(case.run)), step=Int(step),
+               selected=isempty(case.zones) ? 0 : 1)
+    return fit!(e)
 end
 
 lattice(e::Editor) = (e.L[1]/(e.nel[1]*e.ni), e.L[2]/(e.nel[2]*e.ni))
@@ -87,26 +86,30 @@ function zoom!(e::Editor, x, z, f)
     return e
 end
 fit!(e::Editor, f=e.step == 1 ? 1.4 : 1.0) = (e.view = (-0.02f*e.L[1], (f + 0.02)*e.L[1], -0.04f*e.L[2], (f + 0.04)*e.L[2]); e)
-checkpoint!(e::Editor) = (push!(e.history, deepcopy(e.regions)); length(e.history) > 200 && popfirst!(e.history); empty!(e.future); e)
+# an undo step before an edit, or with the zones as they were before it (`snapshot`, when the edit may not happen)
+function checkpoint!(e::Editor, snapshot=deepcopy(e.regions))
+    push!(e.history, snapshot); length(e.history) > 200 && popfirst!(e.history); empty!(e.future)
+    return e
+end
 outside(e::Editor) = any(v -> !(0 ≤ v[1] ≤ e.L[1] && 0 ≤ v[2] ≤ e.L[2]), (v for rg ∈ e.regions for v ∈ rg.vertices)) ||
                      any(rg -> iscircle(rg) && !all(0 .≤ rg.centre .- rg.radius .&& rg.centre .+ rg.radius .≤ e.L), e.regions)
+outside!(e::Editor) = (e.status = outside(e) ? "Some zones lie outside the domain." : ""; e)
 # a circle's handles: its centre, and the point east of it that sets the radius
 radius_handle(rg::DrawnRegion) = [rg.centre[1] + rg.radius, rg.centre[2]]
 function near_handle(e::Editor, p)                           # (zone, :centre or :radius) of a circle under p, or nothing
     for k ∈ reverse(eachindex(e.regions))
         rg = e.regions[k]; iscircle(rg) || continue
-        hypot(p[1] - rg.centre[1], p[2] - rg.centre[2]) < tol(e) && return (k, :centre)
-        q = radius_handle(rg); hypot(p[1] - q[1], p[2] - q[2]) < tol(e) && return (k, :radius)
+        dist(p, rg.centre) < tol(e) && return (k, :centre)
+        dist(p, radius_handle(rg)) < tol(e) && return (k, :radius)
     end
     return nothing
 end
 snap(e::Editor, p; skip=()) = snap_point(p, e.regions, lattice(e), e.L, tol(e); grid=e.grid, shapes=e.shapes, skip)
 # the zone being drawn: is `p` on its first vertex (a click there closes it, from 3 vertices on)?
-near_first(e::Editor, p) = !isnothing(e.drawing) && !isempty(e.drawing) &&
-                           hypot(p[1] - e.drawing[1][1], p[2] - e.drawing[1][2]) < tol(e)
+near_first(e::Editor, p) = !isnothing(e.drawing) && !isempty(e.drawing) && dist(p, e.drawing[1]) < tol(e)
 closing(e::Editor, p) = e.shape == :polygon && near_first(e, p) && length(e.drawing) ≥ 3
 near_vertex(e::Editor, p) = (for rg ∈ reverse(e.regions), v ∈ rg.vertices
-                                 hypot(p[1] - v[1], p[2] - v[2]) < tol(e) && return v
+                                 dist(p, v) < tol(e) && return v
                              end; nothing)
 
 # ---- the domain
@@ -114,14 +117,20 @@ near_vertex(e::Editor, p) = (for rg ∈ reverse(e.regions), v ∈ rg.vertices
 function set_domain!(e::Editor, L; h=e.h)
     e.h, e.L, e.nel = h, Float64.(collect(L)), nel_for(L, h)
     isnothing(e.width) || (e.nely = nel_for([e.width], h)[1])
-    e.status = outside(e) ? "Some zone vertices lie outside the domain." : ""
-    return e
+    return outside!(e)
 end
 function set_width!(e::Editor, text)
-    x = tryparse(Float64, strip(text))
+    x = number(text)
     e.width = isnothing(x) || x ≤ 0 ? nothing : x
     e.nely  = isnothing(e.width) ? nothing : nel_for([e.width], e.h)[1]
     return e
+end
+"Set the domain field `name` (`Lx`, `Lz`, the element size `h`, or the `width` along y) to the number in `text`."
+function set_domain_field!(e::Editor, name, text)
+    name == "width" && return set_domain!(set_width!(e, text), e.L)
+    x = number(text); (isnothing(x) || x ≤ 0) && return e
+    name == "h" ? set_domain!(e, e.L; h=x) : set_domain!(e, name == "Lx" ? [x, e.L[2]] : [e.L[1], x])
+    return fit!(e)
 end
 set_bc!(e::Editor, side, kind) = (s = findfirst(t -> t[1] == side, SIDES); e.bcs[SIDES[s][2], SIDES[s][3]] = Symbol(kind); e)
 function set_step!(e::Editor, k)
@@ -140,7 +149,7 @@ function press!(e::Editor, x, z; right::Bool=false)
         return e
     end
     if e.step == 1                                           # the domain: grab the corner handle
-        !right && hypot(p[1] - e.L[1], p[2] - e.L[2]) < 2tol(e) && (e.resizing = true)
+        !right && dist(p, e.L) < 2tol(e) && (e.resizing = true)
         return e
     end
     e.step == 2 || return e
@@ -154,7 +163,7 @@ function press!(e::Editor, x, z; right::Bool=false)
         if isempty(e.drawing)
             push!(e.drawing, q)
         else
-            r = hypot(q[1] - e.drawing[1][1], q[2] - e.drawing[1][2])
+            r = dist(q, e.drawing[1])
             r > 0 || return e
             checkpoint!(e)
             push!(e.regions, circle_region("zone $(length(e.regions) + 1)", e.drawing[1], r, Dict{String,Float64}()))
@@ -195,7 +204,7 @@ function press!(e::Editor, x, z; right::Bool=false)
         snapshot = deepcopy(e.regions)
         v = insert_on_edge!(e.regions, p, tol(e))
         isnothing(v) && return e
-        push!(e.history, snapshot); empty!(e.future)
+        checkpoint!(e, snapshot)
     else
         checkpoint!(e)
     end
@@ -224,7 +233,7 @@ function move!(e::Editor, x, z)
     if !isnothing(e.ring)                                    # a circle: move its centre, or set its radius
         k, what = e.ring; rg = e.regions[k]
         what == :centre ? (rg.centre = copy(q)) :
-                          (rg.radius = max(hypot(q[1] - rg.centre[1], q[2] - rg.centre[2]), minimum(lattice(e))/2))
+                          (rg.radius = max(dist(q, rg.centre), minimum(lattice(e))/2))
     end
     e.readout = "x = $(round(q[1]; digits=3)) m, z = $(round(q[2]; digits=3)) m" *
                 (kind == :close ? " (click to close the zone)" : kind == :vertex ? " (on a vertex)" : kind == :edge ? " (on an edge)" : "")
@@ -283,13 +292,12 @@ end
 "Set the centre's `x` or `z`, or the radius `r`, of the selected circle to the number in `text` (otherwise ignored)."
 function set_circle!(e::Editor, key, text)
     k = e.selected; (k == 0 || !iscircle(e.regions[k])) && return e
-    x = tryparse(Float64, strip(text)); (isnothing(x) || !isfinite(x) || (key == "r" && x ≤ 0)) && return e
+    x = number(text); (isnothing(x) || (key == "r" && x ≤ 0)) && return e
     rg = e.regions[k]
     (key == "r" ? rg.radius : rg.centre[key == "x" ? 1 : 2]) == x && return e
     checkpoint!(e)
     key == "r" ? (rg.radius = x) : (rg.centre[key == "x" ? 1 : 2] = x)
-    e.status = outside(e) ? "Some zones lie outside the domain." : ""
-    return e
+    return outside!(e)
 end
 select_zone!(e::Editor, i) = (e.selected = clamp(Int(i), isempty(e.regions) ? 0 : 1, length(e.regions)); e)
 function rename_zone!(e::Editor, name)
@@ -300,7 +308,7 @@ end
 function set_prop!(e::Editor, key, text)
     i = e.selected; i == 0 && return e
     scale = PROPS[findfirst(t -> t[1] == key, PROPS)][3]
-    v = tryparse(Float64, strip(text))
+    v = number(text)
     get(e.regions[i].props, key, nothing) == (isnothing(v) ? nothing : v/scale) && return e
     checkpoint!(e)
     isnothing(v) ? delete!(e.regions[i].props, key) : (e.regions[i].props[key] = v/scale)
@@ -343,7 +351,7 @@ the domain) or `opacity` (0–1) to the number in `text`; other text is ignored.
 """
 function set_backdrop_field!(e::Editor, key, text)
     b = e.backdrop; isnothing(b) && return e
-    x = tryparse(Float64, strip(text)); (isnothing(x) || !isfinite(x)) && return e
+    x = number(text); isnothing(x) && return e
     if key == "width"
         x > 0 || return e
         b.width = x; fit_domain!(e)
@@ -366,7 +374,7 @@ end
 "Measure a scale bar on the picture: the next two clicks are its ends (`set_scale_length!`, then `apply_scale!`)."
 scale_bar!(e::Editor) = (isnothing(e.backdrop) || (e.calib = Vector{Float64}[]; e.calib_len = nothing;
                          e.status = "Scale bar: click one end of it on the picture."); e)
-set_scale_length!(e::Editor, text) = (x = tryparse(Float64, strip(text)); e.calib_len = isnothing(x) || !(x > 0) ? nothing : x; e)
+set_scale_length!(e::Editor, text) = (x = number(text); e.calib_len = isnothing(x) || x ≤ 0 ? nothing : x; e)
 """
     apply_scale!(editor)
 
@@ -377,7 +385,7 @@ domain is then fitted to the picture.
 function apply_scale!(e::Editor)
     b, c, len = e.backdrop, e.calib, e.calib_len
     (isnothing(b) || isnothing(c) || length(c) < 2 || isnothing(len)) && return e
-    d = hypot((c[2] .- c[1])...)
+    d = dist(c[2], c[1])
     d > 0 || (e.status = "The two ends must differ."; return e)
     b.width *= len/d
     e.calib, e.calib_len = nothing, nothing
@@ -388,38 +396,38 @@ end
 # ---- the vertex last clicked or dragged (`picked`), typed exactly in the Zones step. A vertex shared with other
 # zones moves, or is deleted, in all of them, as when dragging or right-clicking it on the canvas.
 
+# the picked vertex, or nothing once no zone has it (undo, deletion)
+picked_vertex(e::Editor) = isnothing(e.picked) || isempty(shared(e.regions, e.picked)) ? nothing : e.picked
 "Set coordinate `axis` (\"x\" or \"z\") of the picked vertex to the number in `text` (otherwise ignored)."
 function set_picked!(e::Editor, axis, text)
     v = e.picked; isnothing(v) && return e
     at = shared(e.regions, v); isempty(at) && (e.picked = nothing; return e)   # gone (undo, deletion)
-    x = tryparse(Float64, strip(text)); (isnothing(x) || !isfinite(x)) && return e
+    x = number(text); isnothing(x) && return e
     w = copy(v); w[axis == "x" ? 1 : 2] = x
     w == v && return e
     checkpoint!(e)
     foreach(((k, i),) -> e.regions[k].vertices[i] = copy(w), at)
     e.picked = w
-    e.status = outside(e) ? "Some zone vertices lie outside the domain." : ""
-    return e
+    return outside!(e)
 end
 "Delete the picked vertex (a zone keeps at least 3)."
 remove_picked!(e::Editor) = (isnothing(e.picked) || (remove_at!(e, e.picked); isempty(shared(e.regions, e.picked)) && (e.picked = nothing)); e)
 function remove_at!(e::Editor, v)                            # the vertex at `v`, from every zone that has it
     snapshot = deepcopy(e.regions)
-    delete_vertex!(e.regions, v) ? (push!(e.history, snapshot); empty!(e.future)) : (e.status = "A zone keeps at least 3 vertices.")
+    delete_vertex!(e.regions, v) ? checkpoint!(e, snapshot) : (e.status = "A zone keeps at least 3 vertices.")
     return e
 end
 
 # ---- solver options: rows by key ("basis.which", "output.what.point.solid")
 
 const PAGE_ORDER = ["basis", "stab", "material", "grf", "nonloc", "plot", "output", "output · point", "output · mesh", "dtype", "backend"]
-option_sections() = sort(unique([option_page(r[1], r[2]) for r ∈ [option_rows(); option_lists()]]);
-                         by=s -> something(findfirst(==(s), PAGE_ORDER), length(PAGE_ORDER) + 1))
+const SECTIONS   = sort(unique([option_page(r[1], r[2]) for r ∈ OPTIONS]);       # the pages of the section menu
+                        by=s -> something(findfirst(==(s), PAGE_ORDER), length(PAGE_ORDER) + 1))
 option_key(sec, path) = join([sec; path], ".")
 function option_entry(key)
-    for r ∈ [option_rows(); option_lists()]
-        option_key(r[1], r[2]) == key && return r
-    end
-    throw(ArgumentError("no solver option $key"))
+    i = findfirst(r -> option_key(r[1], r[2]) == key, OPTIONS)
+    isnothing(i) && throw(ArgumentError("no solver option $key"))
+    return OPTIONS[i]
 end
 # a list's values: plot.what offers the material-point variables only (the mesh ones need a `what` field)
 list_values(sec, vals) = sec == "plot" ? filter(v -> haskey(v, :mpts), vals) : vals
@@ -460,7 +468,7 @@ function set_run!(e::Editor, key, text)
     elseif key == "lstps"
         n = tryparse(Int, t); !isnothing(n) && n ≥ 1 && (e.run["lstps"] = n)
     else
-        x = tryparse(Float64, t); !isnothing(x) && x ≥ 0 && (e.run[key] = x)
+        x = number(t); !isnothing(x) && x ≥ 0 && (e.run[key] = x)
     end
     return e
 end
@@ -538,8 +546,8 @@ function create!(e::Editor, folder)
     e.result, e.finished, e.status = c, true, "Created in $dir."
     return true
 end
-function cancel!(e::Editor)
-    e.result, e.finished, e.status = nothing, true, "Cancelled."
+function cancel!(e::Editor)                                  # once: closing the window after Create… cancels nothing
+    e.finished || ((e.result, e.finished, e.status) = (nothing, true, "Cancelled."))
     return e
 end
 function load!(e::Editor, file)

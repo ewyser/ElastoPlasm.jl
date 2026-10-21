@@ -8,6 +8,10 @@ const PROPS  = [("c0", "c₀ [kPa]", 1e-3), ("cr", "cᵣ [kPa]", 1e-3), ("phi", 
 const GUI_KEYS = first.(PROPS)
 const SIDES  = [("left", 1, 1), ("right", 1, 2), ("bottom", 2, 1), ("top", 2, 2)]   # (name, axis, lower/upper) of bcs
 
+# the number typed in `text`, or nothing (not a number, or not finite); the distance between two points
+number(text) = (x = tryparse(Float64, strip(String(text))); isnothing(x) || !isfinite(x) ? nothing : x)
+dist(p, q)   = hypot(p[1] - q[1], p[2] - q[2])
+
 """
     drawn_points(L, nel, ni, regions) -> (x, z, region)
 
@@ -79,13 +83,13 @@ function snap_point(p, regions, step, L, tol; grid::Bool=true, shapes::Bool=true
         best, d = nothing, tol
         for (k, rg) ∈ enumerate(regions), (i, v) ∈ enumerate(rg.vertices)
             (k, i) ∈ skip && continue
-            (h = hypot(p[1] - v[1], p[2] - v[2])) < d && ((best, d) = (v, h))
+            (h = dist(p, v)) < d && ((best, d) = (v, h))
         end
         isnothing(best) || return copy(best), :vertex
         for (k, rg) ∈ enumerate(regions), (i, j) ∈ edges(rg)
             ((k, i) ∈ skip || (k, j) ∈ skip) && continue
             q = closest_on_segment(p, rg.vertices[i], rg.vertices[j])
-            (h = hypot(p[1] - q[1], p[2] - q[2])) < d && ((best, d) = (q, h))
+            (h = dist(p, q)) < d && ((best, d) = (q, h))
         end
         isnothing(best) || return clampL(best), :edge
     end
@@ -109,7 +113,7 @@ function insert_on_edge!(regions, p, tol; exact=false)
     for rg ∈ regions, (i, j) ∈ edges(rg)
         a, b = rg.vertices[i], rg.vertices[j]
         q = closest_on_segment(p, a, b)
-        (h = hypot(p[1] - q[1], p[2] - q[2])) < d && q != a && q != b && ((best, d) = ((q, a, b), h))
+        (h = dist(p, q)) < d && q != a && q != b && ((best, d) = ((q, a, b), h))
     end
     isnothing(best) && return nothing
     q, a, b = best
@@ -141,9 +145,16 @@ nice_step(x) = 10.0^floor(log10(max(x, 1e-9)))/10
 # elements along each axis for the element size h (square cells as far as L allows)
 nel_for(L, h) = max.(1, round.(Int, L ./ h))
 
-# every option row (section, path, values, default), single-value and multi-selection
-function option_entries()
-    rows, opt, def = [], get_option(), get_default()
+"""
+    OPTIONS :: Vector{(section, path, values, default)}
+
+The solver options the window offers, from `get_option()` (labels and values) and `get_default()`
+(defaults), in their order, built once: a row each, or for a multi-selection (`is_list`: `plot.what`,
+the `output.what` lists) a checkbox per value. Left out: `dtype.T0`/`dtype.bits` (set from
+`dtype.precision` by `get_solver`) and `solution` (set by the run's workflow, `case_solver_options`).
+`path` is the field's key path below the section.
+"""
+const OPTIONS = let rows = Any[]
     function walk(o, d, sec, path)
         if o isa Tuple && length(o) == 2 && o[1] isa AbstractString
             (sec == "dtype" && path ∈ (["T0"], ["bits"])) || sec == "solution" || push!(rows, (sec, path, o[2], d))
@@ -153,23 +164,11 @@ function option_entries()
             end
         end
     end
-    for k ∈ keys(opt)
-        walk(getfield(opt, k), getfield(def, k), string(k), String[])
-    end
-    return rows
+    opt, def = get_option(), get_default()
+    foreach(k -> walk(getfield(opt, k), getfield(def, k), string(k), String[]), keys(opt))
+    rows
 end
-"""
-    option_rows() -> Vector{(section, path, values, default)}
-    option_lists() -> Vector{(section, path, values, default)}
-
-The solver options the window offers, from `get_option()` (labels and values) and `get_default()`
-(defaults): `option_rows` the single-value fields, one row each, `option_lists` the multi-selections
-(`plot.what`, the `output.what` lists), a checkbox per value. Left out: `dtype.T0`/`dtype.bits` (set
-from `dtype.precision` by `get_solver`) and `solution` (set by the run's workflow,
-`case_solver_options`). `path` is the field's key path below the section.
-"""
-option_rows()  = filter(r -> !multi_select([r[1]; r[2]]), option_entries())
-option_lists() = filter(r -> multi_select([r[1]; r[2]]), option_entries())
+is_list(r) = multi_select([r[1]; r[2]])
 # the page of the section menu an option is on: its section, or for nested lists (`output.what.point.…`)
 # the section and the group, e.g. "output · point"
 option_page(sec, path) = length(path) ≥ 3 ? "$sec · $(path[2])" : sec
@@ -204,5 +203,3 @@ function deleteoption!(options, sec, path)
     end
 end
 
-# a number or number list as text (and back, `parse_numbers`)
-fmt(v) = v isa AbstractVector ? join(v, ", ") : string(v)

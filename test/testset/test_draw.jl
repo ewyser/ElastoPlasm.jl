@@ -139,9 +139,10 @@
         e = ed.Editor(Case(; L=[10.0, 5.0], nel=[20, 10]); step=1)
         ed.press!(e, 10.0, 5.0); ed.move!(e, 13.3, 6.7); ed.release!(e)
         @test e.L == [13.0, 7.0] && e.nel == [26, 14]                                       # snapped to 1 m, h = 0.5
-        ed.set_domain!(e, e.L; h=1.0); @test e.nel == [13, 7]
+        ed.set_domain_field!(e, "h", "1"); @test e.nel == [13, 7]                          # the typed fields
+        ed.set_domain_field!(e, "Lx", "abc"); ed.set_domain_field!(e, "Lz", "-2"); @test e.L == [13.0, 7.0]   # ignored
         ed.set_bc!(e, "bottom", :fixed); @test e.bcs[2, 1] == :fixed
-        ed.set_width!(e, "4"); ed.set_domain!(e, e.L); @test e.width == 4.0 && e.nely == 4
+        ed.set_domain_field!(e, "width", "4"); @test e.width == 4.0 && e.nely == 4
         ed.set_step!(e, 2); ed.new_zone!(e); foreach(p -> click!(e, p...), [(0, 0), (13, 0), (13, 3), (0, 3)]); ed.key!(e, "enter")
         ed.set_prop!(e, "E", "50"); ed.set_prop!(e, "nu", "0.2"); ed.set_prop!(e, "rho0", "2900")
         @test e.regions[1].props == Dict("E" => 5e7, "nu" => 0.2, "rho0" => 2900.0)

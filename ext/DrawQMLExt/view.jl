@@ -30,6 +30,10 @@ json(x::NamedTuple)   = "{" * join(("$(json(string(k))):$(json(v))" for (k, v) �
 json(x::AbstractDict) = "{" * join(("$(json(string(k))):$(json(v))" for (k, v) ∈ x), ",") * "}"
 struct RawJSON; s::String; end                              # already JSON (the cached points)
 json(x::RawJSON) = x.s
+# a number as the panel shows it (8 significant digits), and a value or number list as text
+num(x) = string(round(x; sigdigits=8))
+fmt(v) = v isa AbstractVector ? join(v, ", ") : string(v)
+zone_color(k) = COLORS[mod1(k, length(COLORS))]
 
 # ---- pixels ↔ data: the visible area `view`, equal aspect, margins for the axis labels
 
@@ -58,10 +62,13 @@ function cursor_json(e::Editor, P)
 end
 # each zone's outline in pixels and its handles (a polygon's vertices; a circle's centre and radius handle)
 circle_px(P, c, r; n=96, θ=0.0) = [P(c[1] + r*cos(θ + 2π*j/n), c[2] + r*sin(θ + 2π*j/n)) for j ∈ 0:n-1]
-zone_paths(e::Editor, P) = [iscircle(rg) ?
-    (; pts=circle_px(P, rg.centre, rg.radius), handles=[P(rg.centre...), P(radius_handle(rg)...)], color=COLORS[mod1(k, length(COLORS))], selected=k == e.selected) :
-    (; pts=[P(v...) for v ∈ rg.vertices], handles=[P(v...) for v ∈ rg.vertices], color=COLORS[mod1(k, length(COLORS))], selected=k == e.selected)
-    for (k, rg) ∈ enumerate(e.regions)]
+function zone_paths(e::Editor, P)
+    map(enumerate(e.regions)) do (k, rg)
+        vs = [P(v...) for v ∈ rg.vertices]
+        pts, handles = iscircle(rg) ? (circle_px(P, rg.centre, rg.radius), [P(rg.centre...), P(radius_handle(rg)...)]) : (vs, vs)
+        (; pts, handles, color=zone_color(k), selected=k == e.selected)
+    end
+end
 # the zone being drawn: the polygon so far and the cursor (a triangle closed back to its first corner); a rectangle
 # from its first corner to the cursor; a circle at the cursor's distance from its centre
 function sketch_px(e::Editor, P)
@@ -77,7 +84,7 @@ function sketch_px(e::Editor, P)
         return e.shape == :triangle && length(d) == 2 ? [line; [P(d[1]...)]] : line
     end
     isnothing(c) && return [P(d[1]...)]
-    ring = circle_px(P, d[1], hypot(c[1] - d[1][1], c[2] - d[1][2]); θ=atan(c[2] - d[1][2], c[1] - d[1][1]))
+    ring = circle_px(P, d[1], dist(c, d[1]); θ=atan(c[2] - d[1][2], c[1] - d[1][1]))
     return [ring; [ring[1]]; [P(d[1]...)]]                    # from the cursor round, then the radius to the centre
 end
 """
@@ -119,8 +126,9 @@ function overlay_json(e::Editor, w, h)
     P(x, z) = collect(t.topx(x, z))
     zones = zone_paths(e, P)
     sketch = sketch_px(e, P)
-    picked = isnothing(e.picked) || isempty(shared(e.regions, e.picked)) ? nothing : P(e.picked...)
-    return json((; box=collect(t.box), zones, sketch, cursor=cursor_json(e, P), handle=e.step == 1 ? P(e.L...) : nothing, picked,
+    v = picked_vertex(e)
+    return json((; box=collect(t.box), zones, sketch, cursor=cursor_json(e, P), handle=e.step == 1 ? P(e.L...) : nothing,
+                   picked=isnothing(v) ? nothing : P(v...),
                    readout=e.readout, calib=isnothing(e.calib) ? [] : [(; xy=P(p...), n=j) for (j, p) ∈ enumerate(e.calib)]))
 end
 
@@ -133,7 +141,7 @@ function points_json(e::Editor, t, w, h)
         x, z, r = p
         zones = map(unique(r)) do k
             xy = join((string(round(v; digits=1)) for i ∈ findall(==(k), r) for v ∈ t.topx(x[i], z[i])), ",")
-            "{\"color\":$(json(COLORS[mod1(k, length(COLORS))])),\"xy\":[$xy]}"
+            "{\"color\":$(json(zone_color(k))),\"xy\":[$xy]}"
         end
         RawJSON("[" * join(zones, ",") * "]")
     end
@@ -149,7 +157,7 @@ function panel_json(e::Editor)
     defaults = Dict(string(k) => getfield(e.base.material, k) for k ∈ keys(MATERIAL))
     vm = getoption(e.options, "material", ["plastic"]) == "VM"
     i  = e.selected
-    domain = (; Lx=string(e.L[1]), Lz=string(e.L[2]), h=string(round(e.h; sigdigits=8)), width=isnothing(e.width) ? "" : string(e.width),
+    domain = (; Lx=string(e.L[1]), Lz=string(e.L[2]), h=num(e.h), width=isnothing(e.width) ? "" : string(e.width),
                 nel="→ $(e.nel[1]) × $(e.nel[2]) elements of $(round(e.L[1]/e.nel[1]; sigdigits=4)) × $(round(e.L[2]/e.nel[2]; sigdigits=4)) m" *
                     (isnothing(e.width) ? "" : ", × $(e.nely) along y"),
                 ni=qml_index(e.ni), nis=["$(n)×$(n)" for n ∈ 1:max(8, e.ni)], kinds=string.(collect(BOUNDARY_KINDS)),
@@ -157,17 +165,15 @@ function panel_json(e::Editor)
     x, _, r = preview_points(e)
     zones = (; names=["$k  $(rg.name)" for (k, rg) ∈ enumerate(e.regions)], selected=qml_index(i), name=i == 0 ? "" : e.regions[i].name,
                props=[(; key, label, default="default $(round(defaults[key]*scale; sigdigits=6))",
-                         value=(i == 0 || !haskey(e.regions[i].props, key)) ? "" : string(round(e.regions[i].props[key]*scale; sigdigits=8)))
+                         value=(i == 0 || !haskey(e.regions[i].props, key)) ? "" : num(e.regions[i].props[key]*scale))
                       for (key, label, scale) ∈ PROPS if !(vm && key == "phi")],
                circle=i == 0 || !iscircle(e.regions[i]) ? nothing :
-                      (; x=string(round(e.regions[i].centre[1]; sigdigits=8)), z=string(round(e.regions[i].centre[2]; sigdigits=8)),
-                         r=string(round(e.regions[i].radius; sigdigits=8))),
-               vertex=isnothing(e.picked) || isempty(shared(e.regions, e.picked)) ? nothing :
-                      (; x=string(round(e.picked[1]; sigdigits=8)), z=string(round(e.picked[2]; sigdigits=8))),
+                      (; x=num(e.regions[i].centre[1]), z=num(e.regions[i].centre[2]), r=num(e.regions[i].radius)),
+               vertex=(v = picked_vertex(e); isnothing(v) ? nothing : (; x=num(v[1]), z=num(v[2]))),
                grid=e.grid, shapes=e.shapes, points=e.points, drawing=!isnothing(e.drawing), shape=string(e.shape),
                summary="$(length(x)) material points" * (isempty(e.regions) ? "" : ": ") *
                        join(("$(rg.name) $(count(==(k), r))" for (k, rg) ∈ enumerate(e.regions)), ", "))
-    options = (; sections=option_sections(), section=qml_index(findfirst(==(e.section), option_sections())), rows=option_rows_json(e))
+    options = (; sections=SECTIONS, section=qml_index(findfirst(==(e.section), SECTIONS)), rows=option_rows_json(e))
     c  = checks(e)
     qs = ElastoPlasm.quasistatic(e.run["workflow"])
     fields = qs ? [("lstps", "load steps")] : [("te", "elastic stage te [s]"), ("tg", "gravity ramp tg [s]"), ("tep", "plastic stage tep [s]")]
@@ -177,28 +183,23 @@ function panel_json(e::Editor)
              errors=join("✗ " .* c.errors, "\n"), warnings=join("! " .* c.warnings, "\n"), info=join(c.info, "\n"))
     b = e.backdrop
     backdrop = isnothing(b) ? nothing : (; name=basename(b.file), url=fileurl(b.file), loaded=b.npx[1] > 0,
-                                           x0=fmt(round(b.x0; sigdigits=8)), z0=fmt(round(b.z0; sigdigits=8)),
-                                           width=fmt(round(b.width; sigdigits=8)), opacity=fmt(b.opacity))
+                                           x0=num(b.x0), z0=num(b.z0), width=num(b.width), opacity=fmt(b.opacity))
     calib = isnothing(e.calib) ? nothing :                   # a scale bar being measured: its ends clicked, its length
             (; clicked=length(e.calib), length=isnothing(e.calib_len) ? "" : fmt(e.calib_len),
-               shown=length(e.calib) == 2 ? fmt(round(hypot((e.calib[2] .- e.calib[1])...); sigdigits=6)) : "")
+               shown=length(e.calib) == 2 ? string(round(dist(e.calib[2], e.calib[1]); sigdigits=6)) : "")
     return json((; tab=qml_index(e.step), status=e.status, finished=e.finished, domain, zones, options, run, backdrop, calib))
 end
-# the rows of the current options page: a drop-down, a numeric field (with presets) or a list of values
+# the rows of the current options page, the lists last: a drop-down, a numeric field (with presets) or a list of values
 function option_rows_json(e::Editor)
-    rows = []
-    for (sec, path, vals, def) ∈ filter(r -> option_page(r[1], r[2]) == e.section, option_rows())
-        cur = getoption(e.options, sec, path)
-        base = (; key=option_key(sec, path), label=join(path, "."), checked=!isnothing(cur), values=option_label.(vals))
-        push!(rows, free_numeric(def) ? (; base..., kind="numeric", text=fmt(something(cur, def)), index=-1) :
-                                        (; base..., kind="menu", text="", index=qml_index(something(findfirst(v -> option_label(v) == option_label(something(cur, def)), vals), 1))))
-    end
-    for (sec, path, vals, def) ∈ filter(r -> option_page(r[1], r[2]) == e.section, option_lists())
+    page = sort(filter(r -> option_page(r[1], r[2]) == e.section, OPTIONS); by=is_list)
+    return map(page) do (sec, path, vals, def)
+        list = is_list((sec, path))
+        vals = option_label.(list ? list_values(sec, vals) : vals)
         cur  = getoption(e.options, sec, path)
-        vals = list_values(sec, vals)
-        on   = option_label.(something(cur, def))
-        push!(rows, (; key=option_key(sec, path), label=join(path, "."), checked=!isnothing(cur), values=option_label.(vals),
-                       kind="list", text="", index=-1, picks=[option_label(v) ∈ on for v ∈ vals]))
+        now  = something(cur, def)
+        row  = (; key=option_key(sec, path), label=join(path, "."), checked=!isnothing(cur), values=vals)
+        list              ? (; row..., kind="list", text="", index=-1, picks=vals .∈ Ref(option_label.(now))) :
+        free_numeric(def) ? (; row..., kind="numeric", text=fmt(now), index=-1) :
+                            (; row..., kind="menu", text="", index=qml_index(something(findfirst(==(option_label(now)), vals), 1)))
     end
-    return rows
 end
