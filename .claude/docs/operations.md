@@ -4,23 +4,21 @@ Typical end-to-end run (this is also the standard smoke test after any refactor)
 
 ```julia
 using ElastoPlasm
-L,nel = [64.1584, 64.1584/4.0], [40,10]      # domain size, element counts (2D here; 3 entries = 3D)
-jld2  = slump_problem(L, nel; cli()...)           # builds the Problem, saves it, returns the .jld2 path
-out   = elastoplasm!(jld2; workflows = [elastodynamic!, elastoplastic!])
-@assert out.success
-p     = load_problem(jld2)                        # the post-run Problem: p.mpts, p.mesh, ...
-# or entirely in memory, no file:
-p     = elastoplasm(Problem(slump_case(L, nel; cli()...)); workflows=[elastodynamic!, elastoplastic!])
+L,nel = [64.1584, 64.1584/4.0], [40,10]          # domain size, element counts (2D here; 3 entries = 3D)
+jld2  = setup_simulation(slump_case(L, nel; cli()...))   # Case → Problem → Simulation, saved; returns the .jld2 path
+execute(jld2)                                       # runs its workflows, written back after each
+p     = load_simulation(jld2).problem              # the post-run Problem: p.mpts, p.mesh, ...
+# or entirely in memory, no .jld2:
+sim   = execute(Simulation(Problem(slump_case(L, nel; cli()...))); workflows=[elastodynamic!, elastoplastic!])
 ```
 
-Use `elastoplasm!` (not `elastoplasm`) whenever you need to inspect post-run
-`mpts`/`mesh` state afterward — see
-`.claude/bug/fixed/mlsmpm-shpfun-dispatch-ambiguity.md` for why.
+**Three types, each built from the one above:** a `Case` (the description) → `Problem(case)` (what is
+solved: mpts, mesh, basis, time, solver) → `Simulation(problem; workflow, lstps, folder)` (how it is
+run, by workflow name, and where its files go). A `.jld2` is a saved `Simulation`.
 
-- Every example is a **case constructor** plus a thin wrapper: `slump_case(L, nel; kwargs...)` returns
-  a `Case` (see "Describing a case" below), `slump_problem(L, nel; kwargs...) =
-  setup_simulation(slump_case(...))` builds and saves it and returns the `.jld2` path
-  (`src/home/script/example/*.jl`). `kwargs` are solver options, passed over each example's own
+- Every example is a **case constructor**: `slump_case(L, nel; kwargs...)` returns a `Case` (see
+  "Describing a case" below), and `setup_simulation(slump_case(...))` builds and saves it
+  (`src/home/script/example/*.jl`; the `*_problem` wrappers are gone). `kwargs` are solver options, passed over each example's own
   defaults (a section given replaces the example's section, then `get_solver` merges it per field over
   `get_default()`). Write a new example as a case constructor too.
 - `slump_case`: two polygons, the slope (`z = 0.625 Lx − 1.25 x`, up to the highest sub-cell boundary
@@ -38,28 +36,29 @@ Use `elastoplasm!` (not `elastoplasm`) whenever you need to inspect post-run
   plastic=false|true)`; elastic, the base pressure is 37.7 kPa (~16 s).
 - `column_case(nel, ν, E, ρ0, l0)`: one `Block` up to `l0` in a `1.25 l0` domain one element wide,
   gravity ramped over `tg = ⌈40 · 2l0/c⌉`; 2D, or 3D with `nel = [1, 1, nz]` (impossible before `Case`).
-  `thermal_case`: the whole domain, `thermal = true`, fixed sides. `collision_case` (`ic_collision`):
+  `thermal_case`: the whole domain, `thermal = true`, fixed sides. `collision_case`:
   two `Ball`s moving towards each other.
 - The old `get_slump`/`get_collapse`/`get_column`/`get_thermal`/`get_collision` generators,
   `material_fields`, `setup_problem` and `setup_material_constants` are gone: a shape no polygon,
   block or ball describes is a `Region(x -> …)` zone, so there is one construction path.
 - `cli()` (`src/home/api/solver/cli.jl`) parses interactive/CLI overrides for solver
   config; `cli(; ui=true)` prompts interactively, `cli()` with no args picks defaults
-  non-interactively — pass its result as `kwargs...` into `slump_problem`/`get_solver`.
+  non-interactively — pass its result as `kwargs...` into `slump_case`/`get_solver`.
 - `get_solver(; dim=2, kwargs...)` (`src/home/api/solver/get_solver.jl`) merges
   user kwargs over `get_default()`, resolves the execution backend, and builds the
   `Cairn` dispatch table (`cairn.ignite`/`.mapsto`/`.update`/`.implicit`).
-- `elastoplasm(problem::Problem; workflows=[...])` runs each workflow in order, in memory, and
-  returns the problem: `workflow!(problem)` when the workflow takes one (the built-ins
-  `elastodynamic!`/`elastoplastic!`/`thermodynamic!` (explicit) and `elastoquasistatic!`
-  (dynamic relaxation) do, and so do closures such as `(a...) -> elastoquasistatic!(a...;
-  lstps=40)`), otherwise `workflow!(mpts, mesh, basis, time, solver)` (`run_workflow!`).
-  `elastoplasm(jld2)` does the same on the problem saved in a file and discards the result;
-  `elastoplasm!(jld2)` writes the problem back after each workflow (`load_problem` to inspect it).
-  The workflows are freely composable in the `workflows` vector.
-- Plotting is opt-in via `solver.plot.status`; when on, `elastoplasm` auto-saves a PNG
-  per workflow named `"$(dim)_$(basis.which)_$(solvertype)_$(deform)_$(workflow)_$(quantity).png"`
-  under the run's `dump/.../plot` path.
+- `execute(sim::Simulation; workflows)` (`src/home/core/execute.jl`) runs each workflow in order on
+  `sim.problem`, in memory, and returns `sim`; `execute(jld2; workflows)` does it on the file, the
+  simulation written back after each workflow, and returns the path. By default the simulation's own
+  workflow (`case_workflows(sim)`: its `workflow` name, the quasi-static ones in `lstps` load steps). A
+  workflow is a function of a `Problem`: the built-ins `elastodynamic!`/`elastoplastic!`/
+  `thermodynamic!` (explicit), `elastoquasistatic!` (dynamic relaxation), and closures such as
+  `(a...) -> elastoquasistatic!(a...; lstps=40)`; freely composable in `workflows`. It replaced
+  `elastoplasm(problem)`, `elastoplasm(jld2)` (which discarded its result), `elastoplasm!(jld2)` and
+  `run_simulation`.
+- Plotting is opt-in via `solver.plot.status`; when on, `execute` saves a PNG per workflow named
+  `"$(dim)_$(basis.which)_$(solvertype)_$(deform)_$(workflow)_$(quantity).png"` into the
+  simulation's folder.
 
 ### Describing a case (`Case`)
 
@@ -70,10 +69,10 @@ A problem starts from a `Case` (`src/boot/needs/types/problem/case.jl`), plain d
 case = Case(; L=[20, 10], nel=[20, 10], ni=2, bcs=[:roller :roller; :fixed :free],
               zones=[Zone("soil", Block([0, 0], [20, 6])),
                      Zone("rock", Polygon([[0, 0], [20, 0], [20, 2], [0, 2]]); E=5e7, nu=0.2, rho0=2900.0, phi=30*π/180)],
-              material=(; c0=10.0e3), solver=(; basis=(; which="gimpm")), run=(; fid="layers", te=10.0, tep=5.0))
+              material=(; c0=10.0e3), solver=(; basis=(; which="gimpm")), run=(; folder="layers", te=10.0, tep=5.0))
 check_case(case)                      # errors, warnings, points/elements, estimated time step
 jld2 = setup_simulation(case)         # dump/layers/layers_simulation.jld2, with layers_case.toml beside it
-out  = run_simulation(case)           # setup + elastoplasm! with the run's workflow (case_workflows)
+execute(jld2)                         # its workflow (case_workflows)
 save_case("layers.toml", case); case = load_case("layers.toml")
 ```
 
@@ -82,9 +81,9 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   of `MATERIAL`: E, nu, rho0, c0, cr, phi, Hp, n0, T, cp, k; SI, angles in radians), `bcs` (D×2
   `:free`/`:roller`/`:fixed`; extra rows ignored, as the solver does in 2D; `bcs` passed among the solver
   options moves here), `solver` (overrides, validated against `get_default()` at construction),
-  `thermal`, `run` (`RUN`: `fid`, `dir`, `te`, `tg`, `tep`, `workflow` ∈ `WORKFLOWS`, `lstps`; `dir` is the folder
-  `setup_simulation` writes the simulation and the case TOML to, named after it; empty, the default: `dump/<fid>/`;
-  written to the TOML only when set).
+  `thermal`, `run` (`RUN`: `folder`, `te`, `tg`, `tep`, `workflow` ∈ `WORKFLOWS`, `lstps`; `folder` is where
+  `setup_simulation` writes the simulation and the case TOML, named after its last part: a name under `dump/`
+  or a path; older cases' `fid`/`dir` are read into it).
 - **Zones:** `Zone(name, shape; props...)`, props any `MATERIAL` key or `v` (initial velocity; two
   (x, z) components in 3D). Shapes: `Polygon` (x–z, even–odd, extruded in 3D), `Block(lo, hi)` (bounds
   included; D coordinates, or two for an extruded block), `Ball(centre, r)` (disk, sphere, or cylinder
@@ -118,7 +117,7 @@ using ElastoPlasm, QML
 case = draw_case()                       # opens on the domain step, blocks until Create…; returns a Case
 case = draw_case(slump_case([64.16, 16.04], [40, 10]))   # edit a case (opens on the zones step)
 case = draw_case("layers.toml")          # or a case file
-run_simulation(case)
+execute(setup_simulation(case))
 ```
 
 - The window is the weak-dependency extension `ext/DrawQMLExt/` (Qt Quick). `src/` keeps `draw_case`
@@ -200,9 +199,9 @@ run_simulation(case)
   step) loads a case TOML (`load!`; replaces the whole state and clears undo). **Create…** (end of the
   Run step) runs `check_case` first (`ready!`: errors block it, warnings need a second click), then opens
   Qt's folder dialog (choose, or make with its New Folder button): `create!` sets the run's folder
-  (`run.dir`, and `fid` to the folder's name), writes `<name>_case.toml` there and closes with the case;
+  (`run.folder`), writes `<name>_case.toml` there and closes with the case;
   `setup_simulation` then writes the simulation (`.jld2`, plots, outputs) into that folder instead of
-  `dump/<fid>/` (empty `dir`, as for cases made in code). There is no Save…: the case file is written by
+  `dump/<name>/` (a plain name, as for cases made in code). There is no Save…: the case file is written by
   Create…. The dialogs start in the current directory (`qml_window(…; startdir=pwd())`), not in `dump/`,
   which is emptied whenever the package recompiles.
 - Editing: clicks snap to existing vertices, then edges, then the sub-cell lattice `h/ni`
@@ -255,7 +254,7 @@ block, column, thermal, collision) with `test/dataset/setup_reference.jld2`: per
 change; regenerate the reference (delete the file) only for an intended setup change, and say why.
 `test_case.jl` covers `Case`: shapes, validation, zone membership and overrides, TOML round
 trip, `check_case`/`estimate_dt` (= `get_dt`, 2D and extruded), zone constants reaching the particles,
-free option values, workflows and a short `run_simulation`. `test_draw.jl` covers the drawing window: its Qt-free
+free option values, workflows, a short `execute`, and the `Simulation` (build, save, load, in memory equal to the file run, older files). `test_draw.jl` covers the drawing window: its Qt-free
 part (`editing.jl`, loaded into a test module) everywhere, driven as a user would (drawing, snapping and
 shared edges, drag, undo, domain, zone constants, options, run, Create… (its warning confirmation, the folder) and loading a case,
 the caches and the readout, the JSON the view reads); then, where QML is installed, the window itself
@@ -280,7 +279,7 @@ knob and its out-of-the-box value.
 
 - `solution` — `"explicit"`/`"implicit"`, picks the concrete solver struct at
   construction time (`ExplicitSolver`/`ImplicitSolver` — same field layout,
-  `DynamicRelaxationSolver` unused scaffolding). Also what `elastoplasm.jl`'s
+  `DynamicRelaxationSolver` unused scaffolding). Also what `execute.jl`'s
   generated filenames and `logs.jl`'s startup banner print. Picking `solution=
   "explicit"` then calling an implicit-only workflow fails with `MethodError` at the
   workflow call, not silently — `elastodynamic!`/`elastoplastic!` are typed to
@@ -328,7 +327,7 @@ Two ways to change solver behaviour:
    `thermal_problem`'s and `test_basis.jl`'s `basis=(;which=...)` lost `trsfr`/`C_pf`;
    full sections, as most callers still pass, merge exactly as before.) Example:
    ```julia
-   slump_problem(L, nel; basis=(; which="gimpm", trsfr="apic"), stab=(; damping=0.1))
+   setup_simulation(slump_case(L, nel; basis=(; which="gimpm", trsfr="apic"), stab=(; damping=0.1)))
    ```
 2. **Change the package-wide default** — edit the literal value in `get_default()`
    directly. Do this only for a genuine change of the shipped default behaviour, not

@@ -25,10 +25,15 @@
   `InfinitesimalStrain`) and `EL<:AbstractElasticLaw` (`HenckySolid`/`ImprovedHenckySolid`/
   `HypoelasticSolid`, the elastic-law tag `elast.jl` and `get_dt`'s `_Ktan` dispatch on) are both
   picked together from `material.elastic` by `build_solid_phase`.
-- `Problem{T1,T2,D,P,B,S}` (`src/boot/needs/types/problem/problem.jl`) — everything a run needs:
-  `mpts`, `mesh`, `basis`, `time`, `solver`, built by `Problem(case)`; what a simulation's `.jld2`
-  stores and what workflows run on (`elastodynamic!(problem)`, `elastoplasm(problem; workflows)`).
-  The `Case` it was built from is not a field (see "`Problem`" in `planned-improvements.md`).
+- `Problem{T1,T2,D,P,B,S}` (`src/boot/needs/types/problem/problem.jl`) — what is solved: `mpts`,
+  `mesh`, `basis`, `time`, `solver`, built by `Problem(case)`; what workflows run on
+  (`elastodynamic!(problem)`). The `Case` it was built from is not a field (see "`Problem`" in
+  `planned-improvements.md`).
+- `Simulation{P}` (`src/boot/needs/types/problem/simulation.jl`) — a problem ready to run:
+  `problem`, `workflow` (a name, one of `WORKFLOWS`), `lstps`, `folder` (absolute; a name given is
+  under `dump/`), built by `Simulation(problem; workflow, lstps, folder)`. A `.jld2` is a saved one
+  (`save_simulation`/`load_simulation`); `execute(sim)` / `execute(jld2)` run it. The chain is
+  `Case` → `Problem` → `Simulation`, each built from the one above.
 - `Case` (`src/boot/needs/types/problem/case.jl`) — the plain-data description a problem is built from: domain, zones
   (`Zone` = shape `Polygon`/`Block`/`Ball`/`Region` + material overrides), default material
   (`MATERIAL`), boundary conditions, solver overrides, thermal flag, run settings. `case_points`
@@ -135,7 +140,7 @@ commit to be the *only* behavior change from this refactor; not a regression.
   Hencky P-wave estimate of Eqs 35/38/50 (`fictitious_mass`, `ζ_M=2`, no `N` weight),
   assembled once per step where `ΔF=I`. Converges on `‖R‖/‖fᵉˣᵗ‖ < tol` (1e-9) over free
   DOFs; the workflow returns the iteration count per load step. `mpts.s.u` accumulates the total displacement over the workflow (the explicit path stores the per-step increment `dt·v` there instead). Finite strain only
-  (`hypoelastic` throws). Pass options through `elastoplasm` as a closure:
+  (`hypoelastic` throws). Pass options through `execute` as a closure:
   `workflows=[(a...)->elastoquasistatic!(a...; lstps=40)]`.
 
   **Eq 35 takes one element size `h`**, so on elongated cells (`h = minimum(h)`) the

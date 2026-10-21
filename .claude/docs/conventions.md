@@ -17,13 +17,13 @@
   pattern already validated on the sibling path (explicit ↔ dynamic_relaxation) rather
   than reinventing it — these two solver directories are meant to stay structurally
   parallel.
-- Verify refactors by actually running the `slump_problem` → `elastoplasm!(...;
-  workflows=[...])` pipeline end-to-end and inspecting real post-run field values, not
-  just a clean-load check or `success=true` — a file can `include` cleanly, a workflow
-  can return `success=true`, and the run can still be functionally broken (wrong
-  kwarg name, stale dict key, matrix-style indexing into what's now a `Vector{SVector}`,
-  or — as happened once — silently operating on the untouched pre-simulation state
-  because `elastoplasm` was used instead of `elastoplasm!`).
+- Verify refactors by actually running the `setup_simulation(slump_case(...))` → `execute(jld2)`
+  pipeline end-to-end and inspecting real post-run field values (`load_simulation(jld2).problem`),
+  not just a clean load — a file can `include` cleanly and a run can finish and still be
+  functionally broken (wrong kwarg name, stale dict key, matrix-style indexing into what's now a
+  `Vector{SVector}`, or — as happened once with the removed `elastoplasm(jld2)` — silently operating
+  on the untouched pre-simulation state). For plumbing changes, compare final states bit for bit
+  against the parent commit, single-threaded (`gotchas.md`).
 - `test/testset/test_performance.jl` benchmarks core kernels directly via
   `solver.cairn.*`; keep it in sync with the `Cairn` dispatch-table shape whenever that
   shape changes.

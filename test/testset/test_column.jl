@@ -76,7 +76,7 @@ function run_column_convergence_tests(solver, fwrk)
             material = (; plastic = get_default().material.plastic, elastic = fwrk.elastic)
             basis    = merge(get_default().basis, (; which = "gimpm", trsfr = fwrk.trsfr, C_pf = fwrk.C_pf))
             stab     = merge(get_default().stab, (; locking = fwrk.locking, damping = fwrk.damping, musl = fwrk.musl))
-            sim = column_problem(nel, 0.0, 1.0e4, 80.0, l0; folder = "test/column", material=material, basis=basis, stab=stab)
+            sim = setup_simulation(column_case(nel, 0.0, 1.0e4, 80.0, l0; folder = "test/column", material=material, basis=basis, stab=stab))
 
             setup = load_simulation_setup(sim)
             err = compute_column_error(sim, l0, solver)

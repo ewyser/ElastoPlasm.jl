@@ -57,7 +57,7 @@ function define_benchs(problem)
 end
 
 function run_bench(L,nel)
-    simfile = slump_problem(L, nel; folder = "test/performance")
+    simfile = setup_simulation(slump_case(L, nel; folder = "test/performance"))
     suite = define_benchs(load_simulation(simfile).problem)
     if length(L) == 2
         dim = "2d" 

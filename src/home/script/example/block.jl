@@ -1,8 +1,7 @@
-export block_problem, block_case
+export block_case
 
 """
     block_case(nel=[64, 36]; kwargs...) -> Case
-    block_problem(nel=[64, 36]; kwargs...) -> String
 
 The 8 m × 8 m self-weight block of Sutcliffe et al. (2026, IJNME 127:e70384) §4.3, Fig 10a, as a
 `collapse_case`: `ρ = 1000 kg/m³` (`ρ0 = 1000/0.9`, since the mass is `(1-n₀)ρ₀Ω` with `n₀ = 0.1`),
@@ -13,7 +12,7 @@ particles per cell, smooth base, GIMP. Every value is a keyword override (`L`, `
 elastic or plastic:
 
 ```julia
-jld2 = block_problem()
+jld2 = setup_simulation(block_case())
 execute(jld2; workflows=[(a...) -> elastoquasistatic!(a...; lstps=10, G=10.0, plastic=false)])
 ```
 """
@@ -29,4 +28,3 @@ function block_case(nel=[4*16, 4*9]; kwargs...)
     )
     return collapse_case(nel; merge(defaults, kwargs)...)
 end
-block_problem(nel=[4*16, 4*9]; kwargs...) = setup_simulation(block_case(nel; kwargs...))

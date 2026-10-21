@@ -1,17 +1,16 @@
-export column_problem, column_case
+export column_case
 
 """
     column_case(nel, ν, E, ρ0, l0; folder="column", kwargs...) -> Case
-    column_problem(nel, ν, E, ρ0, l0; kwargs...) -> String
 
 An elastic self-weight column of height `l0` in a domain `1.25 l0` high, one element wide (2D, `nel =
 [1, nz]`, or 3D, `[1, 1, nz]`), with Poisson's ratio `ν`, Young's modulus `E` and density `ρ0`: the
 convergence test of `test/testset/test_column.jl` against the geostatic stress. Gravity is ramped over
 `tg = ⌈40 · 2 l0 / c⌉` (`c` the elastic wave speed), which is also the end time. `kwargs` are solver
-options. Not the granular `collapse_problem`.
+options. Not the granular `collapse_case`.
 
 ```julia
-jld2 = column_problem([1, 20], 0.0, 1.0e4, 80.0, 50.0)
+jld2 = setup_simulation(column_case([1, 20], 0.0, 1.0e4, 80.0, 50.0))
 execute(jld2; workflows=[elastodynamic!])
 ```
 """
@@ -25,4 +24,3 @@ function column_case(nel, ν, E, ρ0, l0; folder::String="column", kwargs...)
     return Case(; L, nel, ni=2, zones=[Zone("column", Block(zeros(D), [L[1:end-1]; l0]))],
                   material=(; E, nu=ν, rho0=ρ0), solver=(; kwargs...), run=(; folder, te=tg, tg=tg, tep=0.0))
 end
-column_problem(nel, ν, E, ρ0, l0; kwargs...) = setup_simulation(column_case(nel, ν, E, ρ0, l0; kwargs...))

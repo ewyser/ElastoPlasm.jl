@@ -59,7 +59,7 @@
     ┌ Welcome to ϵlastσPlasm 👻 v0.4.2
     │ New comer ? Try slumping out
     │   L,nel = [64.1584,64.1584/4.0],[40,10];
-    │   jld2  = slump_problem(L,nel;cli()...);
+    │   jld2  = setup_simulation(slump_case(L,nel;cli()...));
     └   execute(jld2);
 
     julia> 

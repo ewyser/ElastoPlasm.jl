@@ -6,12 +6,22 @@
   `basis.which`/`basis.trsfr` vary independently, which does not argue against bundling them for a
   run). The `Case` is deliberately not a field: the built objects already hold all it describes, it
   would drift once `mpts` evolves, and a `Region` closure does not serialise; its TOML beside the
-  `.jld2` is the provenance. Kernels keep their `(mpts, mesh, basis, …)` arguments; workflows have
-  `Problem` methods and `elastoplasm` falls back to the five-argument form. Possible follow-up: the
+  `.jld2` is the provenance. Kernels keep their `(mpts, mesh, basis, …)` arguments; workflows are
+  functions of a `Problem`, and a `Simulation` (problem + workflow + folder) is what runs and what a
+  `.jld2` holds (see `architecture.md`). Possible follow-up: the
   solver mixes configuration (part of the problem) with the kernel table `cairn` (machinery,
   rebuilt from the configuration); rebuilding `cairn` on load would make the stored `Problem` pure
   data. `types/problem/` files load in `boot.jl`'s explicit order, `problem.jl` last (it needs
   `Point`, `Mesh`, `Basis`, `Time`, `Case`).
+- **Next: a `Solver` level, Case → Problem → Solver → Simulation** (separating what is solved from
+  how). Split the solver options into *build* options, which decide the `Problem`'s types and contents
+  (`dtype`, `basis` which/trsfr, `material` laws, `bcs`, `grf`), and *run* options (`solution` and the
+  kernel table `cairn`, `stab`, `nonloc`, `plot`/`output`, `backend`, the time stages, the workflow,
+  `lstps`). `Problem` keeps `mpts`, `mesh`, `basis` (no `solver`, no `time`); `Solver` holds the run
+  options; `Simulation` becomes problem + solver + folder (its `workflow`/`lstps` move into the
+  solver); workflows take `(problem, solver)`. Gain: one `Problem` solved several ways without
+  rebuilding. Cost: `get_default`/`get_solver`/`cli`, the case's solver overrides and their TOML
+  sections, every `problem.solver` reader (18); everything bit-identical. Own branch.
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task, rather than one monolithic kernel body.
   `update.jl`'s `elastoplast`/`elasto` dispatch functions (branch on
@@ -178,7 +188,7 @@
   independently before coupling. `PointFluidPhase` (`lagrangian.jl`) needs real fields
   first — currently a literal empty placeholder, `mpts.f` always `nothing`.
 - **Thermal solution — fixed and viable.** `thermal_problem` (renamed from
-  `ic_thermal`) → `elastoplasm(jld2; workflows=[thermodynamic!])` runs end-to-end
+  `ic_thermal`) → `execute(jld2; workflows=[thermodynamic!])` runs end-to-end
   (verified: temperature stays bounded, cools monotonically from the boundary inward,
   both with `musl=true`/`false`). What was broken: stale `mpts.ϕ∂ϕ` reads across
   several kernels (replaced with the same `basis.N`/`∂Nrow(basis.∂N,...)` caching
@@ -197,7 +207,7 @@
   `.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`; 1D APIC has a
   similar unfixed inconsistency (1D is essentially never exercised in this codebase).
 - **Consider a persistent Julia session for iteration (Kaimon/Revise pattern, seen in
-  sibling repo FEMTools.jl).** A `slump_problem`→`elastoplasm!` smoke test costs full
+  sibling repo FEMTools.jl).** A `setup_simulation(slump_case(…))`→`execute` smoke test costs full
   Julia startup+precompile every invocation today (~30-40s), and
   a finely meshed `elastoquasistatic!` run adds more — exactly the kind of loop a persistent
   `Revise`-backed session amortizes. FEMTools.jl's `.agents/`-documented setup

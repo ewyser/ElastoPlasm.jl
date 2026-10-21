@@ -3,7 +3,7 @@
 `dtype=(;T0=(Int32,Float32),bits=Int32(32),...)` is a supported but rarely-exercised
 path — the default is always `(Int64,Float64)`, so bugs that only manifest under
 `T1=Int32`/`T2=Float32` silently pass every day-to-day test. Two concrete patterns
-found and fixed by actually running an `Int32`/`Float32` `slump_problem`→`elastoplasm`
+found and fixed by actually running an `Int32`/`Float32` `slump_case`→`execute`
 end-to-end (not just skimming the code):
 
 - **`@index(Global)` inside a `@kernel` function is always `Int64`**, regardless of the
