@@ -282,7 +282,8 @@
     properties (needs a reference in `refs/`, e.g. Fenton & Griffiths 2008); whether zone values
     override or centre the random value (today a zone setting `c0` overrides it); independent vs
     cross-correlated fields (shared harmonics).
-
+  - The drawing window edits only polygon and two-coordinate block zones of 2D problems; `Ball`
+    zones (the collision) could be drawn as circles if wanted.
 - **Setup cost — `e2e` fixed; IC plot and export are what's left.** `e2e` (`init/basis/e2e.jl`)
   filled a `SparseMatrixCSC` entry by entry; in 1D/3D each row insert shifted all later storage, so
   the build was quadratic (3D slump `[40,10,10]`: 2.4 s; `[60,15,15]`: 28 s; 32,000 elements:
@@ -299,8 +300,8 @@
   exponential covariance and when particle spacing approaches the correlation length.
 - **Mesh variables can't be plotted through `plot.what`.** `get_mesh_variable_config()`'s only entry
   (`"m"`) has `data=get_epII` and no `what` field, while `what_plot_field(mesh, opts)` branches on
-  `opts.what`, so a `(; mesh=...)` entry from `get_variable_plot_options()` would throw.
-
+  `opts.what`, so a `(; mesh=...)` entry from `get_variable_plot_options()` would throw. The drawing
+  window offers only the material-point variables for that reason.
 - **Usability findings (second `agent-user` pass), not yet addressed:** a mistyped nested config
   key (e.g. `material=(;elastik=...)`) replaces the whole section and fails in `get_solver` with
   a cryptic "NamedTuple has no field" error; reading typed tensors (`.p`/`.dev`, `get_tensor`) and the

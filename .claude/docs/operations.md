@@ -64,7 +64,7 @@ Use `elastoplasm!` (not `elastoplasm`) whenever you need to inspect post-run
 ### Describing a case (`Case`)
 
 A problem starts from a `Case` (`src/boot/needs/types/problem/case.jl`), plain data built by one path,
-`setup_simulation` (`src/home/init/case/`), stored as TOML.
+`setup_simulation` (`src/home/init/case/`), stored as TOML. No GUI package needed for any of it.
 
 ```julia
 case = Case(; L=[20, 10], nel=[20, 10], ni=2, bcs=[:roller :roller; :fixed :free],
@@ -86,7 +86,8 @@ save_case("layers.toml", case); case = load_case("layers.toml")
 - **Zones:** `Zone(name, shape; props...)`, props any `MATERIAL` key or `v` (initial velocity; two
   (x, z) components in 3D). Shapes: `Polygon` (x–z, even–odd, extruded in 3D), `Block(lo, hi)` (bounds
   included; D coordinates, or two for an extruded block), `Ball(centre, r)` (disk, sphere, or cylinder
-  along y), `Region(f)` (a predicate on the point, code only, not writable to TOML). A point belongs to the **last** zone containing its sub-cell
+  along y), `Region(f)` (a predicate on the point, code only, not writable to TOML). `Block` is not named
+  `Box` because GLMakie exports `Box` (ambiguous when both are loaded). A point belongs to the **last** zone containing its sub-cell
   centre (`case_points`); unset constants come from `case.material`; the random field `solver.grf`
   perturbs the cohesion of points whose zone does not set `c0`, evaluated over all points at once (the
   RNG sequence of the old generators).
@@ -107,6 +108,93 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   digest reference; the collision as a point set, its disks now interleave); the standard slump run
   bit-identical; the §4.3 block under dynamic relaxation bit-identical single-threaded (with 8 threads it
   varies by ~1e-10 m between runs of the same code: atomic summation order).
+
+### Drawing a case
+
+```julia
+using ElastoPlasm, QML
+case = draw_case()                       # opens on the domain step, blocks until Done; returns a Case
+case = draw_case(slump_case([64.16, 16.04], [40, 10]))   # edit a case (opens on the zones step)
+case = draw_case("layers.toml")          # or a case file
+run_simulation(case)
+```
+
+- The window is the weak-dependency extension `ext/DrawQMLExt/` (Qt Quick). `src/` keeps `draw_case`
+  (`script/draw/draw_case.jl`) and the stub `drawing_window(case; step)`, whose fallback errors with
+  the install command; the extension adds the `drawing_window(::Case)` method (`qml_window`).
+  - `editing.jl` is everything that needs no Qt, included by `DrawQMLExt.jl` and, on its own, by
+    `test_draw.jl` (so it is tested where QML is not installed): `editor.jl`, the state and every edit as
+    a plain Julia `Editor` (`press!`/`move!`/`release!`/`key!`, `set_domain!`, `set_option!`, `done!`,
+    `save!`/`load!`, …); `helpers.jl`, GUI-independent pieces (zone constants `PROPS`, the preview points
+    `drawn_points`, `snap_point`, `insert_on_edge!`, `delete_vertex!`, the option rows); `view.jl`, the
+    JSON the window reads (`background_json`, `overlay_json`, `panel_json`). `DrawQMLExt.jl` keeps only
+    the QML glue. QML counts from 0, Julia from 1: every index crosses through `qml_index`/`julia_index`
+    (`view.jl`), and the QML file does no index arithmetic (it gets the tab, `panel.tab`, not the step).
+  - **Cost per mouse move.** The canvas has two layers (`background_json`/`overlay_json`): the
+    background (grid, domain, sides, the zones' fills and the points over them) repaints after an edit,
+    a zoom or a resize; the overlay (outlines, vertices, the polygon being drawn, the cursor, the
+    handle) at every move. A move repaints only the overlay (the panel and `check_case` refresh after
+    an edit, on release, on keys and buttons), and the cursor coordinates are drawn on the canvas
+    (`readout`), not in the status line. The preview points, the checks and the points' JSON (pixels,
+    0.1 px) are cached in `editor.cache` until what they depend on changes (`preview_points`, `checks`,
+    `points_json`); while vertices are dragged the preview keeps the last points and follows on release.
+    Measured per move (`move` + `scene`, 40 moves, a slope polygon): 628 points 8 → 1.1 ms, 15,700
+    points 1,466 → 2.2 ms, 62,800 points 19,557 → 5.2 ms. Most of the old cost was quadratic: the
+    points' pixel list was built with `reduce(vcat, …)` over one vector per point. The Qt side, timed in
+    the window offscreen (`Date.now()` around each layer's paint): with one layer, every move re-parsed
+    and redrew all the points, ~70 ms at 62,800 points (15 ms Julia and the string to Qt, 19 ms
+    `JSON.parse` of 0.8 MB, 35 ms drawing); with the overlay, a move costs ~1 ms at any size (<0.5 kB).
+  - `DrawCase.qml` is only a view: two `Canvas` layers draw `Julia.background()`/`Julia.overlay()`, the panel reads
+    `Julia.panel()`, both JSON strings (nested vectors don't convert through QML.jl, and property-map
+    updates arrive asynchronously), and each widget calls one `@qmlfunction` (`DrawQMLExt.jl`). The
+    functions are registered by `qml_window` for each window (`register_functions`), not in
+    `__init__`: QML.jl forgets them when a window's application ends, so a second `draw_case` in the
+    same session got a `Julia` object without them ("Property 'panel' … is not a function").
+  - **Install** QML in the default environment with Qt pinned to the project's version, since the
+    project's Plots/GR already loads `Qt6Base_jll` 6.8.2 and a QML built on Qt 6.10 then fails with a
+    missing `_qt_version_tag_6_10` symbol: `] activate; add QML Qt6Base_jll@6.8.2
+    Qt6Declarative_jll@6.8.2 Qt6ShaderTools_jll@6.8.2 Qt6Svg_jll@6.8.2 Qt6Wayland_jll@6.8.2` (the set
+    verified; resolves QML 0.12.1, jlqml_jll 0.9.0). Bump the pins together with the project's Qt. Without
+    the window, `draw_case`'s error (`drawing_window_help`) says whether QML is missing or only not
+    loaded, explains the `_qt_version_tag` failure, and gives the pins with the Qt version the session
+    actually loads (`session_qt`, from `Base.loaded_modules`), so it stays right when Plots/GR move Qt.
+  - Offscreen (tests, CI): `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software
+    QT_QUICK_CONTROLS_STYLE=Fusion`; `qml_window(case; shots=(dir, steps))` saves a PNG of each listed
+    step and closes (`grabToImage` on a child item: the window's `contentItem` gives an empty image).
+- It edits 2D (x–z) problems whose zones are polygons or two-coordinate blocks (opened as their
+  rectangle, same points); a `Ball`, `Region` or 3D problem is refused. Zone properties it does not
+  show (`v`, `Hp`, `n0`, `cp`, `k`), the problem's material and its thermal flag are carried through.
+- Four tabs: **Domain** (drag the upper-right corner handle, snapped to a tenth of the order of
+  magnitude, `nice_step`, or type `Lx`, `Lz` and the element size `h`, square cells, `nel_for`; a
+  width along y for 3D, `nely` from `h`; points per element; one drop-down per side), **Zones** (the
+  editor below; c₀, cᵣ [kPa], φ [°], T, E [MPa], ν, ρ₀; φ hidden when the options pick
+  `material.plastic = "VM"`), **Options** (one row per `get_option()` field: checkbox, name,
+  drop-down; numeric fields, `free_numeric`, take any typed value plus presets; picking or typing a
+  value ticks the box, unticking restores the default; multi-selections such as `plot.what` are
+  checkbox grids; the `dtype` fields are the one `precision` choice and
+  `solution` follows the workflow; `option_rows`) and **Run** (workflow, `te`/`tg`/`tep` or the load
+  steps, output folder; `check_case` live).
+- Footer, always visible: status, Done, Cancel, Save…, Load…. Save…/Load… open Qt's native file
+  dialog (QtQuick.Dialogs), starting in the current directory (`qml_window(…; startdir=pwd())`), not in
+  `dump/`, which is emptied whenever the package recompiles. Load replaces the whole state and clears undo. Done runs
+  `check_case`: errors block it, warnings need a second click.
+- Editing: clicks snap to existing vertices, then edges, then the sub-cell lattice `h/ni`
+  (`snap_point`; particles sit at sub-cell centres, so never on a vertex), within a snap radius of 1.5%
+  of the visible area (`tol`), so it follows the zoom (`zoom!`; the same radius picks vertices, edges
+  and the domain corner). The cursor is grey when no zone is drawn, red while one is (with a crosshair
+  pointer and "+ New zone" highlighted), and its shape says what it snapped to: a square on a vertex, a
+  diamond on an edge, a ring on the lattice (`cursor_json`). While a zone is drawn, from
+  its third vertex on, the cursor snaps onto its first vertex within the snap radius (a larger green
+  ring, readout "click to close the zone"), and that click closes it, exactly there: no right click or
+  Enter needed. With fewer vertices a click there is refused rather than repeating the vertex. The line's
+  other vertices are not snap targets (the outline would touch itself). A vertex drawn onto an edge
+  is also inserted into that edge, and dragging moves every zone's vertex at the same place, so shared
+  boundaries stay shared (closing a zone inserts its edge-snapped vertices themselves,
+  `insert_on_edge!(…; exact=true)`: projecting them again moved them by round-off, so the two zones'
+  copies differed); clicking an edge inserts a vertex (`insert_on_edge!`), right-clicking deletes
+  one (`delete_vertex!`); the wheel zooms about the pointer; undo/redo (Cmd/Ctrl+Z,
+  Shift+Cmd/Ctrl+Z, buttons) keeps snapshots of the zones. The points to be created are previewed
+  (`drawn_points`).
 
 ### Running tests / benchmarks
 
@@ -140,7 +228,11 @@ block, column, thermal, collision) with `test/dataset/setup_reference.jld2`: per
 change; regenerate the reference (delete the file) only for an intended setup change, and say why.
 `test_case.jl` covers `Case`: shapes, validation, zone membership and overrides, TOML round
 trip, `check_case`/`estimate_dt` (= `get_dt`, 2D and extruded), zone constants reaching the particles,
-free option values, workflows and a short `run_simulation`.
+free option values, workflows and a short `run_simulation`. `test_draw.jl` covers the drawing window: its Qt-free
+part (`editing.jl`, loaded into a test module) everywhere, driven as a user would (drawing, snapping and
+shared edges, drag, undo, domain, zone constants, options, run, Save/Load, Done's warning confirmation,
+the caches and the readout, the JSON the view reads); then, where QML is installed, the window itself
+offscreen, a PNG of each step, twice in one session.
 
 `test_basis.jl` builds a small `n×m` mesh and, for every basis kind, sweeps a particle
 along the mid-height node row, plotting each tracked node's `Nᵢ(x)`/`∂Nᵢ/∂x(x)` and the

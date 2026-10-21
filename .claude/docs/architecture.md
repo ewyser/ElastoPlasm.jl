@@ -33,7 +33,7 @@
   (`Zone` = shape `Polygon`/`Block`/`Ball`/`Region` + material overrides), default material
   (`MATERIAL`), boundary conditions, solver overrides, thermal flag, run settings. `case_points`
   turns it into `PointData`, the explicit per-point contract `setup_mpts` reads. One build path
-  (`setup_simulation`), one TOML format (`save_case`/`load_case`). See
+  (`setup_simulation`), one TOML format (`save_case`/`load_case`); the drawing window edits it. See
   "Describing a case" in `operations.md`.
 - `Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}`
   (`src/boot/needs/types/basis/basis.jl`) — independent struct owning ALL

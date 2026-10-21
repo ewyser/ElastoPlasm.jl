@@ -66,7 +66,7 @@
     # plasming begins here!
     ```
 5. **Your own problem:** describe it as data (domain, zones of material, boundaries, solver options,
-   run settings):
+   run settings), or draw it in a window (needs QML in your default environment, see `?draw_case`):
     ```julia
     case = Case(; L=[20.0, 10.0], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
                   zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7)],
@@ -74,6 +74,9 @@
     check_case(case)          # points, time step, warnings
     run_simulation(case)      # results under dump/layers/
     save_case("layers.toml", case)
+
+    using QML
+    case = draw_case()        # draw the domain, zones, options and run settings
     ```
 
 ---

@@ -38,7 +38,7 @@ position; it is NOT picked up automatically the way `home/` files are.
 
 - A problem starts from a `Case`, plain data (domain, zones, material, boundaries, solver overrides, run
   settings), built by `setup_simulation` and stored as TOML (`save_case`/`load_case`); every example
-  is a case constructor (`slump_case`, …). See
+  is a case constructor (`slump_case`, …) and the drawing window (`ext/`) only edits one. See
   "Describing a case" in `.claude/docs/operations.md`.
 - Construction order is always **mesh → material points → basis** (basis depends on
   both). Function argument order is always **`(mpts, mesh, basis, ...)`**.
