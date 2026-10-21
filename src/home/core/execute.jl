@@ -22,7 +22,8 @@ Run a simulation's workflows in order, each on its problem (`workflow!(problem)`
 
 On a `.jld2` file (`setup_simulation`), the simulation is loaded, run, and written back after each
 workflow; `load_simulation(file)` then holds the results. `execute` runs on a copy (of `sim`, or of
-the file's simulation), leaves its argument untouched and returns the run simulation.
+the file's simulation), leaves its argument untouched and returns the run simulation (its plots are
+still saved into the folder).
 """
 function execute!(sim::Simulation; workflows=case_workflows(sim))
     for workflow! ∈ workflows
@@ -36,7 +37,7 @@ function execute!(file::AbstractString; workflows=nothing)
     sim = load_simulation(file)
     for workflow! ∈ something(workflows, case_workflows(sim))
         execute!(sim; workflows=(workflow!,))
-        jldsave(file; simulation=sim)                        # the state after each workflow
+        save_simulation(sim, file)                           # the state after each workflow
     end
     return file
 end

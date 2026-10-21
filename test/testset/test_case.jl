@@ -121,13 +121,18 @@
         @test execute!(jld2) == jld2 && state(load_simulation(jld2).problem) == state(r.problem)  # written back
         @test state(execute(sim).problem) == state(r.problem) && state(sim.problem) == s0          # a copy of sim
         @test state(execute!(sim).problem) == state(r.problem)                                   # in memory: the same
-        @test execute!(jld2; workflows=[elastodynamic!]) == jld2                              # other workflows
+        seen = Bool[]; probe(p) = push!(seen, state(load_simulation(jld2).problem) == state(p))
+        @test execute!(jld2; workflows=[elastodynamic!, probe]) == jld2 && seen == [true]          # other workflows, saved after each
+        moved = joinpath(mktempdir(), "copied"); cp(dir, moved)
+        @test load_simulation(joinpath(moved, "mycase_simulation.jld2")).folder == moved          # its folder: the file's
         @test EP.case_run((; fid="x")).folder == "x" && EP.case_run(Dict("fid" => "x", "dir" => "/a")).folder == "/a"   # older cases
         old = joinpath(mktempdir(), "old.jld2"); jldsave(old; problem=sim.problem)
         @test_throws ArgumentError load_simulation(old)                                     # an older file
-        q = EP.block_case([8, 4]; plot=(; status=false, freq=1.0, dpi=100, what=[]))        # quasi-static, 3 load steps
-        qs = Simulation(Problem(q); workflow="elastoquasistatic!", lstps=3)
-        @test length(only(case_workflows(qs))(qs.problem)) == 3
+        q  = Problem(EP.block_case([8, 4]; plot=(; status=false, freq=1.0, dpi=100, what=[])))   # quasi-static: implicit
+        @test Simulation(q).workflow == "elastoquasistatic!"                                      # its default workflow
+        @test_throws ArgumentError Simulation(q; workflow="elastodynamic!")                       # an explicit one: refused
+        qs = Simulation(q; lstps=3)
+        @test length(only(case_workflows(qs))(qs.problem)) == 3                                   # 3 load steps
     end
     @testset "workflows and a short run" begin
         s = Case(; L=[20, 10], nel=[20, 10], width=4.0, nely=4, zones=[Zone("soil", Block([0, 0], [20, 6]))],

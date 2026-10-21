@@ -31,7 +31,9 @@
   `planned-improvements.md`).
 - `Simulation{P}` (`src/boot/needs/types/problem/simulation.jl`) — a problem ready to run:
   `problem`, `workflow` (a name, one of `WORKFLOWS`), `lstps`, `folder` (absolute; a name given is
-  under `dump/`), built by `Simulation(problem; workflow, lstps, folder)`. A `.jld2` is a saved one
+  under `dump/`), built by `Simulation(problem; workflow, lstps, folder)`; the default workflow follows the
+  solver (`"elastoquasistatic!"` for an `ImplicitSolver`), and an explicit workflow on an implicit solver is
+  refused there rather than as a `MethodError` at `execute!`. A `.jld2` is a saved one
   (`save_simulation`/`load_simulation`); `execute!(sim)` / `execute!(jld2)` run it in place (`execute` on a copy). The chain is
   `Case` → `Problem` → `Simulation`, each built from the one above.
 - `Case` (`src/boot/needs/types/problem/case.jl`) — the plain-data description a problem is built from: domain, zones

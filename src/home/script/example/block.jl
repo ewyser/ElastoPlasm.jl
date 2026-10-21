@@ -8,8 +8,9 @@ The 8 m × 8 m self-weight block of Sutcliffe et al. (2026, IJNME 127:e70384) §
 `E = 1 MPa`, `ν = 0.3`, perfectly plastic von Mises with `c0 = ρ_y = 20 kPa` (the Lode-radius reading,
 see `architecture.md`; `c0 = √2·20e3` for `√J₂ = ρ_y` as Eq 49 prints it), on a 16 m × 9 m grid, 2×2
 particles per cell, smooth base, GIMP. Every value is a keyword override (`L`, `w0`, `h0`, `ρ0`, `E`,
-`ν`, `c0`, or any `get_solver` section). Solve it with dynamic relaxation and the paper's gravity,
-elastic or plastic:
+`ν`, `c0`, `workflow`, or any `get_solver` section). Its workflow is dynamic relaxation
+(`execute!(jld2)` runs it elastic, in 10 load steps, with `g = 9.81`); with the paper's gravity, elastic
+or plastic:
 
 ```julia
 jld2 = setup_simulation(block_case())
@@ -20,7 +21,7 @@ function block_case(nel=[4*16, 4*9]; kwargs...)
     defaults = (;
         L = [16.0, 9.0], w0 = 8.0, h0 = 8.0,
         ρ0 = 1000.0/0.9, E = 1.0e6, ν = 0.3, c0 = 20.0e3,
-        folder = "block",
+        folder = "block", workflow = "elastoquasistatic!",
         material = (; plastic="VM", elastic="hencky"),
         bcs      = (; dirichlet=[:roller :roller; :roller :roller]),
         basis    = (; get_default().basis..., which="gimpm"),

@@ -25,8 +25,10 @@ fields plotted when `solver.plot.status`; returns the `.jld2` path, for `execute
 function setup_simulation(s::Case)
     @info "Setting up mesh & material point system for a $(length(domain(s)[1]))d problem ($(length(s.zones)) zones)"
     sim = Simulation(Problem(s); s.run.workflow, s.run.lstps, s.run.folder)
+    p   = sim.problem
+    @info ic_log(p.mesh, p.mpts, p.time, p.solver)
     mkpath(sim.folder)
-    sim.problem.solver.plot.status && plot_initial_fields(sim.problem, sim.folder)
+    p.solver.plot.status && plot_initial_fields(p, sim.folder)
     try
         save_case(joinpath(sim.folder, "$(basename(sim.folder))_case.toml"), s)
     catch e

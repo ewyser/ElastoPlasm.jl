@@ -33,8 +33,10 @@ run, by workflow name, and where its files go). A `.jld2` is a saved `Simulation
   convergence test (`test_column.jl`); see `.claude/bug/fixed/test-collapse-renamed-and-fixed.md`.
 - `block_case(nel=[64,36]; kwargs...)` is the 8 × 8 m self-weight block of Sutcliffe et al. (2026)
   §4.3, a `collapse_case` with the paper's values as overridable defaults (von Mises `c0 = 20 kPa` Lode
-  reading, smooth base, GIMP). Run it with `elastoquasistatic!(a...; lstps=10, G=10.0,
-  plastic=false|true)`; elastic, the base pressure is 37.7 kPa (~16 s).
+  reading, smooth base, GIMP). Its run workflow is `"elastoquasistatic!"` (so an implicit solver;
+  `collapse_case` takes a `workflow` keyword): `execute!(jld2)` runs it elastic with `g = 9.81`; with the
+  paper's gravity, `elastoquasistatic!(a...; lstps=10, G=10.0, plastic=false|true)`; elastic, the base
+  pressure is 37.7 kPa (~16 s).
 - `column_case(nel, ν, E, ρ0, l0)`: one `Block` up to `l0` in a `1.25 l0` domain one element wide,
   gravity ramped over `tg = ⌈40 · 2l0/c⌉`; 2D, or 3D with `nel = [1, 1, nz]` (impossible before `Case`).
   `thermal_case`: the whole domain, `thermal = true`, fixed sides. `collision_case`:
