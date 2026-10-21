@@ -42,7 +42,7 @@ function prepare_simulations!(L, nel, fid, paths)
                     what = [(; mpts=(name="epII", cblim=(0.0, 1.5)),),],
                 )
                 @suppress begin
-                    _ = slump_problem(L, nel; fid="$fid/sim_$sim", basis=basis, material=material, stab=stab, plot=plot)
+                    _ = slump_problem(L, nel; folder="$fid/sim_$sim", basis=basis, material=material, stab=stab, plot=plot)
                 end
                 next!(prog; desc="Preparing simulation(s) $sim/$nsim...")
                 sim += 1
@@ -72,8 +72,7 @@ function execute_simulations(meta_path, nsim)
         sim_path = joinpath(meta_path, sim)
         for file in filter(f -> endswith(f, ".jld2"), readdir(sim_path))
             @suppress begin
-                out = elastoplasm!(joinpath(sim_path, file); workflows=[elastodynamic!, elastoplastic!])
-                push!(outputs, out.simulation)
+                push!(outputs, execute(joinpath(sim_path, file); workflows=[elastodynamic!, elastoplastic!]))
             end
         end
         next!(prog; desc="Executing simulation(s) $k/$nsim...")
@@ -99,8 +98,8 @@ function postprocess_fields(outputs, path)
     isempty(selection) && error("No fields selected")
 
     # Load reference data
-    reference = load(outputs[1])
-    npts      = length(reference["problem"].mpts.x)
+    reference = load_simulation(outputs[1]).problem
+    npts      = length(reference.mpts.x)
     
     # Process each selected field
     for field in selection
@@ -131,8 +130,7 @@ function extract_field_data(outputs, get, npts, nsim)
     
     prog = make_progress(nsim; desc="Extracting $(get.name)")
     for (k, output) ∈ enumerate(outputs)
-        jldopen(output,"r") do file
-            mpts    = file["problem"].mpts
+        let mpts = load_simulation(output).problem.mpts
             X[:, k] = getindex.(mpts.x, 1)
             Y[:, k] = getindex.(mpts.x, 2)
             D[:, k] = get.data(mpts) .* get.scale
@@ -166,9 +164,7 @@ Generate and save plots for field statistics.
 function plot_field_statistics(stats, field_info, reference, path, field_name, nsim)
     @info "Plotting averaged $(field_info.name) with standard deviation..."
     
-    solver = reference["problem"].solver
-    mesh = reference["problem"].mesh
-    mpts = reference["problem"].mpts
+    solver, mesh, mpts = reference.solver, reference.mesh, reference.mpts
 
     # Common plot settings
     common = (;

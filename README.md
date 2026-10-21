@@ -60,7 +60,7 @@
     │ New comer ? Try slumping out
     │   L,nel = [64.1584,64.1584/4.0],[40,10];
     │   jld2  = slump_problem(L,nel;cli()...);
-    └   out   = elastoplasm!(jld2; workflows = [elastodynamic!,elastoplastic!]);
+    └   execute(jld2);
 
     julia> 
     # plasming begins here!
@@ -70,9 +70,9 @@
     ```julia
     case = Case(; L=[20.0, 10.0], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
                   zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7)],
-                  run=(; fid="layers"))
+                  run=(; folder="layers"))
     check_case(case)          # points, time step, warnings
-    run_simulation(case)      # results under dump/layers/
+    execute(setup_simulation(case))   # results under dump/layers/
     save_case("layers.toml", case)
 
     using QML

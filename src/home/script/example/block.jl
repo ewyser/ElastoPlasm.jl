@@ -14,14 +14,14 @@ elastic or plastic:
 
 ```julia
 jld2 = block_problem()
-elastoplasm!(jld2; workflows=[(a...) -> elastoquasistatic!(a...; lstps=10, G=10.0, plastic=false)])
+execute(jld2; workflows=[(a...) -> elastoquasistatic!(a...; lstps=10, G=10.0, plastic=false)])
 ```
 """
 function block_case(nel=[4*16, 4*9]; kwargs...)
     defaults = (;
         L = [16.0, 9.0], w0 = 8.0, h0 = 8.0,
         ρ0 = 1000.0/0.9, E = 1.0e6, ν = 0.3, c0 = 20.0e3,
-        fid = "block",
+        folder = "block",
         material = (; plastic="VM", elastic="hencky"),
         bcs      = (; dirichlet=[:roller :roller; :roller :roller]),
         basis    = (; get_default().basis..., which="gimpm"),

@@ -1,7 +1,7 @@
 export column_problem, column_case
 
 """
-    column_case(nel, ν, E, ρ0, l0; fid="column", kwargs...) -> Case
+    column_case(nel, ν, E, ρ0, l0; folder="column", kwargs...) -> Case
     column_problem(nel, ν, E, ρ0, l0; kwargs...) -> String
 
 An elastic self-weight column of height `l0` in a domain `1.25 l0` high, one element wide (2D, `nel =
@@ -12,10 +12,10 @@ options. Not the granular `collapse_problem`.
 
 ```julia
 jld2 = column_problem([1, 20], 0.0, 1.0e4, 80.0, 50.0)
-elastoplasm!(jld2; workflows=[elastodynamic!])
+execute(jld2; workflows=[elastodynamic!])
 ```
 """
-function column_case(nel, ν, E, ρ0, l0; fid::String="column", kwargs...)
+function column_case(nel, ν, E, ρ0, l0; folder::String="column", kwargs...)
     D  = length(nel)
     ly = 1.25*l0
     lx = ly/nel[end]
@@ -23,6 +23,6 @@ function column_case(nel, ν, E, ρ0, l0; fid::String="column", kwargs...)
     K, G = get_elastic_moduli(Float64(E), Float64(ν))
     tg = ceil((1.0/sqrt((K + 4.0/3.0*G)/Float64(ρ0)))*(2.0*l0)*40.0)
     return Case(; L, nel, ni=2, zones=[Zone("column", Block(zeros(D), [L[1:end-1]; l0]))],
-                  material=(; E, nu=ν, rho0=ρ0), solver=(; kwargs...), run=(; fid, te=tg, tg=tg, tep=0.0))
+                  material=(; E, nu=ν, rho0=ρ0), solver=(; kwargs...), run=(; folder, te=tg, tg=tg, tep=0.0))
 end
 column_problem(nel, ν, E, ρ0, l0; kwargs...) = setup_simulation(column_case(nel, ν, E, ρ0, l0; kwargs...))

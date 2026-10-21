@@ -30,6 +30,7 @@ for f ∈ [
     "basis/smpm.jl",
     "basis/transfer.jl",
     "problem/problem.jl",          # needs Point, Mesh, Basis, Time, Case
+    "problem/simulation.jl",       # needs Problem
 ]
     include(joinpath(SRC,"boot/needs/types",f))
 end

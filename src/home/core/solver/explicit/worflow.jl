@@ -135,7 +135,7 @@ function thermodynamic!(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis
     return nothing
 end
 
-# the workflows on a whole problem (`elastoplasm(problem; workflows)`)
+# the workflows on a whole problem (`execute(sim)`)
 elastodynamic!(p::Problem) = elastodynamic!(p.mpts, p.mesh, p.basis, p.time, p.solver)
 elastoplastic!(p::Problem) = elastoplastic!(p.mpts, p.mesh, p.basis, p.time, p.solver)
 thermodynamic!(p::Problem) = thermodynamic!(p.mpts, p.mesh, p.basis, p.time, p.solver)

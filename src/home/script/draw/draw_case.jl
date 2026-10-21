@@ -13,7 +13,7 @@ angle, temperature, Young's modulus, Poisson's ratio and density), **Options** (
 drop-down lists, any value for numeric ones, ticked to override the defaults; the plotted variables)
 and **Run** (workflow, times or load steps; `check_case` and the estimated time step). **Create…**, at the end of
 the Run step, asks for the case's folder (chosen or made in the system's folder dialog): the case is written there
-as TOML, its runs go there (`run.dir`: `run_simulation(case)`, or `setup_simulation(case)` and `elastoplasm!`), and
+as TOML, its runs go there (`run.folder`: `execute(setup_simulation(case))`), and
 the window returns the `Case` (errors block it, warnings ask for a second click). **Cancel**, closing the window or
 Ctrl-C returns `nothing`. Without arguments the
 window opens on the domain step; with a case (or its file), on the zones step. It edits 2D (x–z)
@@ -25,7 +25,7 @@ to load): without the window, `draw_case()`'s error gives the command with that 
 """
 draw_case(case::Case) = drawing_window(case; step=2)
 draw_case(file::AbstractString) = draw_case(load_case(file))
-draw_case(; L=[10.0, 5.0], nel=[20, 10], ni::Integer=2) = drawing_window(Case(; L, nel, ni, run=(; fid="drawn")); step=1)
+draw_case(; L=[10.0, 5.0], nel=[20, 10], ni::Integer=2) = drawing_window(Case(; L, nel, ni, run=(; folder="drawn")); step=1)
 
 """
     drawing_window(case; step) -> Case or nothing

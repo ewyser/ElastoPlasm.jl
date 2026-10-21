@@ -1,12 +1,12 @@
 export plot_initial_fields
 
 """
-    plot_initial_fields(problem, paths)
+    plot_initial_fields(problem, folder)
 
 Plot the initial cohesion (and, for Drucker–Prager, friction angle) of the material points into
-`paths[:plot]`, as the example problems do when `solver.plot.status` is on.
+`folder`, as `setup_simulation` does when `solver.plot.status` is on.
 """
-function plot_initial_fields(problem::Problem, paths)
+function plot_initial_fields(problem::Problem, folder)
     solver = problem.solver
     @info "Plotting initial cohesion & friction fields..."
     dims  = solver.plot.dpi.*(problem.mesh.prprt.L[1]./problem.mesh.prprt.L)
@@ -25,7 +25,7 @@ function plot_initial_fields(problem::Problem, paths)
         ylim    = (minimum(getindex.(problem.mesh.x, 2)), maximum(getindex.(problem.mesh.x, 2))),
         tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
         backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
-        file    = joinpath(paths[:plot],"$(length(problem.mesh.prprt.nel)-1)d_std_coh0_phi0.png"),
+        file    = joinpath(folder,"$(length(problem.mesh.prprt.nel)-1)d_std_coh0_phi0.png"),
     )
     get_plot_field(problem.mpts,problem.mesh,opts);save_plot(opts)
 end

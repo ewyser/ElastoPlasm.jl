@@ -161,10 +161,10 @@
         @test !ed.ready!(e) && occursin("again", e.status) && ed.ready!(e)
         folder = joinpath(mktempdir(), "layers")
         @test ed.create!(e, folder * "/") && e.finished && isfile(joinpath(folder, "layers_case.toml"))   # made, the case in it
-        @test e.result.run.dir == folder && e.result.run.fid == "layers"                    # its runs go there
+        @test e.result.run.folder == folder                                                 # its runs go there
         @test e.result.width == 4.0 && e.result.run.lstps == 20 && e.result.solver.basis.which == "gimpm"
         e2 = ed.Editor(Case(; L=[1, 1], nel=[2, 2])); ed.load!(e2, joinpath(folder, "layers_case.toml"))   # Start from a case file
-        @test length(e2.regions) == 1 && e2.width == 4.0 && e2.run["lstps"] == 20 && e2.run["dir"] == folder
+        @test length(e2.regions) == 1 && e2.width == 4.0 && e2.run["lstps"] == 20 && e2.run["folder"] == folder
         @test_throws ArgumentError ed.Editor(Case(; L=[1, 1], nel=[2, 2], zones=[Zone("r", Region(x -> x[1] < 0.5))]))
         @test ed.qml_index(nothing) == -1 && ed.julia_index(ed.qml_index(3)) == 3              # indices crossing to QML
         @test occursin("\"tab\":$(e.step - 1)", ed.panel_json(e))

@@ -266,12 +266,12 @@ ApplicationWindow {
                             Label { text: win.panel.run.errors; color: "firebrick"; visible: text !== ""; wrapMode: Text.WordWrap; Layout.columnSpan: 2; Layout.fillWidth: true }
                             Label { text: win.panel.run.warnings; color: "darkorange"; visible: text !== ""; wrapMode: Text.WordWrap; Layout.columnSpan: 2; Layout.fillWidth: true }
                             Label { text: win.panel.run.info; wrapMode: Text.WordWrap; Layout.columnSpan: 2; Layout.fillWidth: true }
-                            Label { text: "folder: " + win.panel.run.dir; visible: win.panel.run.dir !== ""; wrapMode: Text.WrapAnywhere
+                            Label { text: "folder: " + win.panel.run.folder; visible: win.panel.run.folder !== ""; wrapMode: Text.WrapAnywhere
                                 color: "gray"; Layout.columnSpan: 2; Layout.fillWidth: true; Layout.topMargin: 8 }
                             RowLayout { Layout.columnSpan: 2; Layout.topMargin: 8
                                 Button { text: "Create…"; highlighted: true; onClicked: { if (Julia.ready()) folderDialog.open(); win.refresh() } }
                                 Button { text: "Cancel"; onClicked: { Julia.cancel(); Qt.quit() } } }
-                            Label { text: "Create…: choose or make the case's folder. The case is written there, and its runs go there: run_simulation(case), or setup_simulation(case) and elastoplasm!."
+                            Label { text: "Create…: choose or make the case's folder. The case is written there, and its runs go there: execute(setup_simulation(case))."
                                 color: "gray"; wrapMode: Text.WordWrap; Layout.columnSpan: 2; Layout.fillWidth: true }
                         } }
                 }

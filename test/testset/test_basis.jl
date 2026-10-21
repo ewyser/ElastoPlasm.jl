@@ -50,8 +50,8 @@ function test_basis(n::Integer=4, m::Integer=4; which::Vector{String}=["bsmpm","
     @testset "+ test_basis($n,$m)" verbose = true begin
     for w ∈ which
       @testset "- basis/$(w)" begin
-        jld2  = slump_problem(L, nel; basis=(;get_default().basis...,which=w), plot=(;status=false,freq=1.0,dpi=300,what=[]), fid="test/basis_$(w)")
-        problem = load_problem(jld2)
+        jld2  = slump_problem(L, nel; basis=(;get_default().basis...,which=w), plot=(;status=false,freq=1.0,dpi=300,what=[]), folder="test/basis_$(w)")
+        problem = load_simulation(jld2).problem
         mesh  = problem.mesh
         mpts  = problem.mpts
         basis = problem.basis

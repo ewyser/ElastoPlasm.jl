@@ -1,7 +1,7 @@
 export slump_problem, slump_case
 
 """
-    slump_case(L, nel; lz=12.8, ni=2, fid="slump", kwargs...) -> Case
+    slump_case(L, nel; lz=12.8, ni=2, folder="slump", kwargs...) -> Case
     slump_problem(L, nel; kwargs...) -> String
 
 The slump: a slope `z = 0.625 Lx − 1.25 x` cut into a layer of height `lz` on a base layer
@@ -13,10 +13,10 @@ are solver options (`get_solver`), e.g. `cli()...`; the random field `grf` pertu
 
 ```julia
 jld2 = slump_problem([64.1584, 16.0396], [40, 10]; cli()...)
-elastoplasm!(jld2; workflows=[elastodynamic!, elastoplastic!])
+execute(jld2; workflows=[elastodynamic!, elastoplastic!])
 ```
 """
-function slump_case(L, nel; lz=12.80, ni::Integer=2, fid::String="slump", kwargs...)
+function slump_case(L, nel; lz=12.80, ni::Integer=2, folder::String="slump", kwargs...)
     Lx, sub = L[1], L[end]/(nel[end]*ni)                      # sub-cell height
     wl   = 0.15*lz
     top  = min(sub*floor(lz/sub), 0.625*Lx)                    # top of the whole sub-cells below lz (or of the slope)
@@ -24,6 +24,6 @@ function slump_case(L, nel; lz=12.80, ni::Integer=2, fid::String="slump", kwargs
     slope = Polygon([[0.0, 0.0], [Lx, 0.0], [Lx, wl], [xs(wl), wl], [xs(top), top], [0.0, top]])
     base  = Polygon([[0.0, 0.0], [Lx, 0.0], [Lx, wl], [xs(wl), wl], [xs(2wl), 2wl], [0.0, 2wl]])
     zones = [Zone("slope", slope), Zone("base", base; phi=7.5*π/180, T=3.0*MATERIAL.T)]
-    return Case(; L, nel, ni, zones, solver=(; kwargs...), run=(; fid, te=10.0, tg=10.0, tep=5.0))
+    return Case(; L, nel, ni, zones, solver=(; kwargs...), run=(; folder, te=10.0, tg=10.0, tep=5.0))
 end
 slump_problem(L, nel; kwargs...) = setup_simulation(slump_case(L, nel; kwargs...))

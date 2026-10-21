@@ -1,7 +1,7 @@
 export thermal_problem, thermal_case
 
 """
-    thermal_case(L, nel; fid="thermal", kwargs...) -> Case
+    thermal_case(L, nel; folder="thermal", kwargs...) -> Case
     thermal_problem(L, nel; kwargs...) -> String
 
 Heat conduction: the whole domain filled with material at the initial temperature, every side
@@ -10,10 +10,10 @@ defaults.
 
 ```julia
 jld2 = thermal_problem([16.0, 16.0], [80, 80])
-elastoplasm(jld2; workflows=[thermodynamic!])
+execute(jld2; workflows=[thermodynamic!])
 ```
 """
-function thermal_case(L, nel; fid::String="thermal", kwargs...)
+function thermal_case(L, nel; folder::String="thermal", kwargs...)
     D = length(L)
     solver = merge((;
             basis = (; get_default().basis..., which = "bsmpm"),
@@ -21,6 +21,6 @@ function thermal_case(L, nel; fid::String="thermal", kwargs...)
             plot  = (; status = true, freq = 1.0, dpi = 300, what = [(;mpts=get_mpts_variable_config()["T"])]),
         ), (; kwargs...))
     return Case(; L, nel, ni=2, zones=[Zone("material", Block(zeros(D), L))], thermal=true, solver,
-                  run=(; fid, te=5.0, tg=5.0, tep=0.0))
+                  run=(; folder, te=5.0, tg=5.0, tep=0.0))
 end
 thermal_problem(L, nel; kwargs...) = setup_simulation(thermal_case(L, nel; kwargs...))

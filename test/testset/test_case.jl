@@ -47,7 +47,7 @@
                    zones=[Zone("soil", Polygon([[0, 0], [20, 0], [20, 6], [0, 6]])), Zone("rock", Block([0, 0], [20, 2]); E=5e7, phi=30.0*π/180),
                           Zone("boulder", Ball([10, 4], 1.0); rho0=3000.0, v=[0.0, 0.0, -1.0])],
                    material=(; c0=1.0e4, phi=25.0*π/180), solver=(; basis=(; which="gimpm", C_pf=0.37), stab=(; locking=false),
-                   plot=(; what=EP.option_value(["plot", "what"], ["pressure"]))), run=(; fid="x/y", te=1.0, workflow="elastodynamic!"))
+                   plot=(; what=EP.option_value(["plot", "what"], ["pressure"]))), run=(; folder="x/y", te=1.0, workflow="elastodynamic!"))
         back = load_case(save_case(joinpath(mktempdir(), "p.toml"), s))
         @test (back.L, back.nel, back.ni, back.width, back.nely, back.bcs, back.thermal, back.run) == (s.L, s.nel, s.ni, s.width, s.nely, s.bcs, s.thermal, s.run)
         @test [z.name for z ∈ back.zones] == ["soil", "rock", "boulder"] && back.zones[3].shape.radius == 1.0 && back.zones[3].props[:v] == [0.0, 0.0, -1.0]
@@ -60,14 +60,14 @@
     @testset "checks and time step" begin
         layered(; kw...) = Case(; L=[20, 10], nel=[20, 10], kw...,
             zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7, nu=0.2, rho0=2900.0)])
-        s = layered(; solver=(; plot=(; status=false)), run=(; fid="test/spec_dt"))
+        s = layered(; solver=(; plot=(; status=false)), run=(; folder="test/spec_dt"))
         c = check_case(s)
         @test isempty(c.errors) && isempty(c.warnings) && startswith(c.info[1], "480 material points, 200 elements (2D)")
-        pb = load_problem(setup_simulation(s))
+        pb = load_simulation(setup_simulation(s)).problem
         @test pb.mpts.nmp == 480
         @test estimate_dt(s)[1] ≈ EP.get_dt(pb.mpts, pb.mesh.prprt, pb.time, Inf) rtol=1e-12   # = the solver's
-        ex = layered(; width=4.0, nely=4, solver=(; plot=(; status=false)), run=(; fid="test/spec_dt3"))
-        pb3 = load_problem(setup_simulation(ex))
+        ex = layered(; width=4.0, nely=4, solver=(; plot=(; status=false)), run=(; folder="test/spec_dt3"))
+        pb3 = load_simulation(setup_simulation(ex)).problem
         @test startswith(check_case(ex).info[1], "$(pb3.mpts.nmp) material points, 800 elements (3D") && pb3.mpts.nmp == 480*8
         @test estimate_dt(ex)[1] ≈ EP.get_dt(pb3.mpts, pb3.mesh.prprt, pb3.time, Inf) rtol=1e-12
         none = Case(; L=[20, 10], nel=[20, 10], zones=[Zone("away", Polygon([[30, 0], [40, 0], [40, 5]]))])
@@ -84,8 +84,8 @@
         s = Case(; L=[20, 10], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
                    zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7, nu=0.2, rho0=2900.0)],
                    solver=(; basis=(; which="gimpm", C_pf=0.37), stab=(; locking=false), material=(; plastic="VM"), plot=(; status=false)),
-                   run=(; fid="test/case_zones"))
-        pb = load_problem(setup_simulation(s)); solver = pb.solver
+                   run=(; folder="test/case_zones"))
+        pb = load_simulation(setup_simulation(s)).problem; solver = pb.solver
         m = pb.mpts
         @test solver.basis == (; which="gimpm", trsfr=get_default().basis.trsfr, C_pf=0.37) && !solver.stab.locking &&
               solver.stab.damping == get_default().stab.damping && solver.material.plastic == "VM" && solver.bcs.dirichlet == s.bcs
@@ -103,21 +103,35 @@
         @test_throws ArgumentError EP.option_value(["basis", "which"], "foo")                      # not a numeric option
         @test [v.mpts.key for v ∈ EP.option_value(["plot", "what"], ["pressure", "plastic strain"])] == ["P", "epII"]
     end
-    @testset "a case's folder" begin
+    @testset "simulation: build, save, load, execute" begin
         dir = joinpath(mktempdir(), "mycase")
-        c = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 1]))], run=(; dir=dir * "/"))
+        c = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 1]))], solver=(; plot=(; status=false)),
+                   run=(; folder=dir * "/", te=0.2, tg=0.1, tep=0.0, workflow="elastodynamic!"))
+        sim = Simulation(Problem(c); c.run.workflow, c.run.lstps, c.run.folder)
+        @test sim.folder == dir && !isdir(dir)                                              # built, nothing written
+        @test Simulation(sim.problem; folder="a/b").folder == joinpath(EP.self.sys.dump, "a", "b")   # a name: under dump/
+        @test_throws ArgumentError Simulation(sim.problem; workflow="nope")
+        @test_throws ArgumentError Simulation(sim.problem; lstps=0)
         jld2 = setup_simulation(c)
-        @test jld2 == joinpath(dir, "mycase_simulation.jld2") && isfile(jld2) && isfile(joinpath(dir, "mycase_case.toml"))
-        @test load_case(joinpath(dir, "mycase_case.toml")).run.dir == dir * "/"
-        f = joinpath(mktempdir(), "x.toml"); save_case(f, Case(; L=[4, 2], nel=[4, 2]))
-        @test !occursin("dir", read(f, String))                                             # no folder: not written
+        @test jld2 == joinpath(dir, "mycase_simulation.jld2") && isfile(joinpath(dir, "mycase_case.toml"))
+        l = load_simulation(jld2); @test (l.workflow, l.lstps, l.folder) == (sim.workflow, sim.lstps, sim.folder)
+        @test execute(jld2) == jld2 && load_simulation(jld2).problem.time.t[end] == 0.2     # run to te, written back
+        state(p) = (p.mpts.x, getfield.(p.mpts.s.σᵢ, :p), p.mpts.s.v)
+        @test state(execute(sim).problem) == state(load_simulation(jld2).problem)           # in memory: the same
+        @test execute(jld2; workflows=[elastodynamic!]) == jld2                              # other workflows
+        @test EP.case_run((; fid="x")).folder == "x" && EP.case_run(Dict("fid" => "x", "dir" => "/a")).folder == "/a"   # older cases
+        old = joinpath(mktempdir(), "old.jld2"); jldsave(old; problem=sim.problem)
+        @test_throws ArgumentError load_simulation(old)                                     # an older file
+        q = EP.block_case([8, 4]; plot=(; status=false, freq=1.0, dpi=100, what=[]))        # quasi-static, 3 load steps
+        qs = Simulation(Problem(q); workflow="elastoquasistatic!", lstps=3)
+        @test length(only(case_workflows(qs))(qs.problem)) == 3
     end
     @testset "workflows and a short run" begin
         s = Case(; L=[20, 10], nel=[20, 10], width=4.0, nely=4, zones=[Zone("soil", Block([0, 0], [20, 6]))],
-                   solver=(; plot=(; status=false)), run=(; fid="test/case_run", te=0.2, tg=0.1, tep=0.0, workflow="elastodynamic!"))
-        @test case_workflows(s) == Function[elastodynamic!]
-        @test case_workflows(Case(; L=[1, 1], nel=[1, 1])) == Function[elastodynamic!, elastoplastic!]
-        @test length(case_workflows(Case(; L=[1, 1], nel=[1, 1], run=(; workflow="elastoquasistatic! (plastic)")))) == 1
-        @test run_simulation(s).success                                                          # extruded, its own times
+                   solver=(; plot=(; status=false)), run=(; folder="test/case_run", te=0.2, tg=0.1, tep=0.0, workflow="elastodynamic!"))
+        @test case_workflows(s.run.workflow, s.run.lstps) == Function[elastodynamic!]
+        @test case_workflows(EP.RUN.workflow, 1) == Function[elastodynamic!, elastoplastic!]
+        @test length(case_workflows("elastoquasistatic! (plastic)", 10)) == 1
+        @test isfile(execute(setup_simulation(s)))                                               # extruded, its own times
     end
 end

@@ -10,8 +10,8 @@ export Problem
 
 Everything a run needs: the material points `mpts`, the background `mesh`, the `basis` linking them
 (connectivity, shape functions, transfer scheme), the `time` stages and the `solver` (configuration
-and kernels). Workflows run on it (`elastodynamic!(problem)`, `elastoplasm(problem; workflows)`), and
-the `.jld2` of a simulation stores it (`save_problem`/`load_problem`).
+and kernels). Workflows run on it (`elastodynamic!(problem)`), and a `Simulation` holds it, ready to run
+(`execute`).
 
 `Problem(case)` builds it from a `Case`: the solver (`case_solver_options`), the mesh (`setup_mesh`),
 the material points (`case_points`, `setup_mpts`), the time stages (`case.run`) and the basis

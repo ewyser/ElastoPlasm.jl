@@ -457,8 +457,6 @@ function set_run!(e::Editor, key, text)
     t = strip(text)
     if key == "workflow"
         t ∈ WORKFLOWS && (e.run["workflow"] = String(t))
-    elseif key == "fid"
-        isempty(t) || (e.run["fid"] = String(t))
     elseif key == "lstps"
         n = tryparse(Int, t); !isnothing(n) && n ≥ 1 && (e.run["lstps"] = n)
     else
@@ -523,14 +521,14 @@ end
 """
     create!(editor, folder) -> Bool
 
-**Create…** in `folder` (made if missing): the case's runs go there (`run.dir`, its name the folder's),
+**Create…** in `folder` (made if missing): the case's runs go there (`run.folder`),
 the case is written there as `<name>_case.toml`, and the window closes with the case as its result.
 """
 function create!(e::Editor, folder)
     dir  = rstrip(normpath(abspath(String(folder))), ['/', '\\'])
     name = basename(dir)
     isempty(name) && (e.status = "Choose a folder for the case."; return false)
-    e.run["dir"], e.run["fid"] = dir, name
+    e.run["folder"] = dir
     c = current_case(e)
     try
         mkpath(dir); save_case(joinpath(dir, "$(name)_case.toml"), c)
