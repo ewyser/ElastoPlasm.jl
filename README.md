@@ -72,7 +72,7 @@
                   zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7)],
                   run=(; folder="layers"))
     check_case(case)          # points, time step, warnings
-    execute!(setup_simulation(case))   # results under dump/layers/
+    execute!(setup_simulation(case))   # results under dump/layers/ (kept until clean_dump())
     save_case("layers.toml", case)
 
     using QML

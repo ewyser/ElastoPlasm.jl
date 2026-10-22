@@ -28,14 +28,13 @@
 - `test/testset/test_performance.jl` benchmarks core kernels directly via
   `solver.cairn.*`; keep it in sync with the `Cairn` dispatch-table shape whenever that
   shape changes.
-- `dump/` is emptied when the package **precompiles** (`rootflush` is top-level code in
-  `boot.jl`, so it runs while the cache is built, not at every `using`): the first `using
-  ElastoPlasm` after a source change deletes everything under `dump/`; later sessions loading the
-  cached image leave it alone (checked: a probe file survived a plain `using`). So outputs survive
-  between sessions until the next edit, and stale files (e.g. a previous run's `_output.h5`) can
-  still be there; `setup_simulation` removes the output of the problem it rewrites. Never run more
-  than one session against this repo while one of them may recompile and another is writing to
-  `dump/`.
+- `dump/` is never emptied automatically; `clean_dump()` empties it on request. (Until
+  `merge-hdf5-output` it was emptied by top-level code in `boot.jl`, i.e. whenever the package
+  precompiled: the first `using` after a source change deleted every output, also those of another
+  session still running; the user chose no automatic emptying over a prompt in `__init__`, which
+  would hang scripts, tests and CI.) `boot.jl` only creates it, since git does not track it.
+  `setup_simulation` overwrites the files of its own simulation and removes its stale output, so
+  older simulations' folders stay until `clean_dump()`.
 - When doing a mechanical rename across a codebase (e.g. via sed/substring match),
   verify each occurrence semantically before trusting it — a blind rename can catch
   things that only textually match but mean something different (see the `σᵢ`/`τᵢ`

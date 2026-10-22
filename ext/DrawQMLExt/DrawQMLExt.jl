@@ -73,8 +73,8 @@ ElastoPlasm.drawing_window(case::Case; step::Integer=2) = qml_window(case; step)
 Open the QML window on `case` (blocking until Create…, Cancel or closing it) and return the edited case,
 or `nothing`. With `shots = (dir, steps)` the window instead saves a PNG of each listed step into `dir`
 and closes (for tests and documentation; run it with `QT_QPA_PLATFORM=offscreen`). Its file and folder
-dialogs start in `startdir`: the current directory, not `dump/`, which is emptied whenever the package
-recompiles.
+dialogs start in `startdir`: the current directory, not `dump/`, the solver's scratch folder
+(`clean_dump()` empties it).
 """
 function qml_window(case::Case; step::Integer=2, shots=nothing, startdir=pwd())
     EDITOR[] = Editor(case; step)

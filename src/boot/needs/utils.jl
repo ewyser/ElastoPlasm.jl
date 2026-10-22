@@ -29,40 +29,19 @@ function tree(sucess, prefix="\n\t", level=0, max_level=1)
     return printout
 end
 
+export clean_dump
 """
-    rootflush(info) -> Vector{String}
+    clean_dump()
 
-Creates or flushes the output directory, removing files that do not match a given pattern.
-
-# Arguments
-- `info`: Struct containing system and MPI information.
-
-# Returns
-- `Vector{String}`: Messages about created or deleted files.
-
-# Example
-```julia
-msgs = rootflush(info)
-println.(msgs)
-```
+Empty `dump/`, the default folder of simulations, their plots and outputs. Nothing else empties it:
+`setup_simulation` only overwrites the files of the simulation it writes (and removes its stale output).
 """
-function rootflush(dir_to_flush::String; except::Vector{String}=String[])
-    if !isdir(dir_to_flush)
-        msg = ["Creating:\n+ $(trunc_path(dir_to_flush))"]
-        mkdir(dir_to_flush) 
-    else
-        files = readdir(dir_to_flush;join=true)
-        if !isempty(files)
-            msg = ["Flushing $(trunc_path(dir_to_flush; anchor=basename(dir_to_flush)))/: "]
-            for file ∈ files
-                if basename(file) ∉ except
-                    rm(file,recursive=true)  
-                    push!(msg,"\e[31m- $(trunc_path(file))\e[0m")
-                end
-            end
-            @info join(msg,"\n")
-        end
-    end
+function clean_dump()
+    dir   = self.sys.dump
+    files = isdir(dir) ? readdir(dir; join=true) : String[]
+    isempty(files) && return nothing
+    foreach(f -> rm(f; recursive=true), files)
+    @info join(["Emptied $(trunc_path(dir; anchor=basename(dir)))/:"; ["\e[31m- $(trunc_path(f))\e[0m" for f ∈ files]], "\n")
     return nothing
 end
 

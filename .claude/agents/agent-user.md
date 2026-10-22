@@ -99,7 +99,7 @@ rediscover them from scratch, and don't repeat them as new findings. Examples of
 specific ones are still findable — check current state):
 
 - A silent footgun: inspecting a `.jld2` while a run is still writing it, or reading a
-  stale one from `dump/` (emptied only when the package precompiles) and taking it for
+  stale one from `dump/` (emptied only by `clean_dump()`) and taking it for
   the current run's result.
 - A shallow-merge trap: overriding one field of a nested config section (e.g. just
   `basis.trsfr`) requires passing the *whole* section, because `merge` replaces whole

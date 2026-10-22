@@ -222,10 +222,6 @@
   an XDMF sidecar so ParaView opens the `.h5` as an animated point cloud; fields of the fluid phase
   once it has some; `plot_output` in 3D shows the x–z projection of all points (a slab or slice option
   would help); the figures share the live plots' cramped sizing.
-- **Decide when `dump/` is emptied.** It happens only when the package precompiles (see
-  `conventions.md`), not at each `using` as the docs used to say: either move `rootflush` to
-  `__init__` (every load, the documented behaviour) or drop it (outputs then accumulate until removed
-  by hand). The user's call.
 - **Improved Hencky's porosity is its own elastic-strain measure — decided, keep.**
   `_trial_elastic_stress_improved` (`elasticity.jl`) and `_Ktan` (`explicit/get.jl`) compute
   `n = 1-(1-n₀)/exp(ϵᵥᵉ)`, i.e. Eqs. 22-23 of Pretti et al. (2024) written in the stored
@@ -315,7 +311,7 @@
   `opts.what`, so a `(; mesh=...)` entry from `get_variable_plot_options()` would throw. The drawing
   window offers only the material-point variables for that reason.
 - **Usability findings (second `agent-user` pass), not yet addressed:** reading typed tensors
-  (`.p`/`.dev`, `get_tensor`) and when `dump/` is emptied are undocumented in `README.md`/`docs/src`.
+  (`.p`/`.dev`, `get_tensor`) are undocumented in `README.md`/`docs/src`.
   (The mistyped nested config key it also found now errors naming the valid fields, see `operations.md`.)
 
 - **Implicit dynamic-relaxation MPM (Sutcliffe et al. 2026) — Algorithm 1 and plasticity

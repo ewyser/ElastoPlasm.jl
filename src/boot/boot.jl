@@ -52,8 +52,8 @@ self = Self(
     mpi = Distributed()
 )  
 
-# Flushing
-rootflush(self.sys.dump)
+# the default output folder (not tracked by git), emptied only on request: clean_dump()
+mkpath(self.sys.dump)
 
 # Find & printout active backend(s)
 add_backend!(self.bckd, Val(:x86_64))

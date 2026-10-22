@@ -210,7 +210,7 @@ execute!(setup_simulation(case))
   `setup_simulation` then writes the simulation (`.jld2`, plots, outputs) into that folder instead of
   `dump/<name>/` (a plain name, as for cases made in code). There is no Save…: the case file is written by
   Create…. The dialogs start in the current directory (`qml_window(…; startdir=pwd())`), not in `dump/`,
-  which is emptied whenever the package recompiles.
+  the solver's scratch folder (`clean_dump()` empties it).
 - Editing: clicks snap to existing vertices, then edges, then the sub-cell lattice `h/ni`
   (`snap_point`; particles sit at sub-cell centres, so never on a vertex), within a snap radius of 1.5%
   of the visible area (`tol`), so it follows the zoom (`zoom!`; the same radius picks vertices, edges
