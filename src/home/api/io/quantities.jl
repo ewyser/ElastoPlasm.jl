@@ -2,10 +2,23 @@ export quantities
 
 columns(v) = reduce(hcat, v)                                 # Vector{SVector{D}} → D × n
 
-# an entry of `quantities()`: what a frame of it is (raw SI), its readable name and SI unit; for a plottable point
-# quantity also its plot label, displayed unit and factor, colour map and limits (in the displayed unit)
-qty(data, name, unit="-"; label=nothing, display=(unit, 1.0), cb=:viridis, cblim=nothing) =
-    (; data, name, unit, label, display, cb, cblim)
+"""
+    qty(data, name, unit="-"; label=nothing, display=(unit, 1.0), cb=:viridis, cblim=nothing) -> NamedTuple
+
+One entry of `quantities()`: returns its arguments as a NamedTuple, the defaults filled in.
+`data` gives a frame of the quantity in SI, `name` is readable, `unit` the SI unit (`"-"`: dimensionless).
+A `label` makes the quantity plottable, shown in `display = (unit, factor)` (by default its SI unit) with
+colour map `cb` and limits `cblim` (in the displayed unit; `nothing`: the data's range).
+
+```julia
+qty(m -> m.s.ρ, "density", "kg/m^3")
+# (; data = m -> m.s.ρ, name = "density", unit = "kg/m^3", label = nothing,
+#    display = ("kg/m^3", 1.0), cb = :viridis, cblim = nothing)
+```
+"""
+function qty(data, name, unit="-"; label=nothing, display=(unit, 1.0), cb=:viridis, cblim=nothing)
+    return (; data, name, unit, label, display, cb, cblim)
+end
 
 """
     quantities() -> NamedTuple
