@@ -30,6 +30,9 @@
                   size(h["point/solid/dev"]) == (6, p.mpts.nmp, 4) && eltype(h["point/solid/p"]) == Float64
             @test h["point/base/x"][:, :, end] == reduce(hcat, p.mpts.x) && h["point/solid/p"][:, end] == getfield.(p.mpts.s.σᵢ, :p)   # last frame = saved state
             @test read(HDF5.attributes(h)["nmp"]) == p.mpts.nmp && occursin("[[zone]]", read(HDF5.attributes(h)["case"]))
+            a = HDF5.attributes(h["point/solid/p"])                                # each field says what it is
+            @test (read(a["name"]), read(a["unit"]), read(a["label"])) == ("pressure", "Pa", "\$p\$") &&
+                  read(HDF5.attributes(h["frames/t"])["unit"]) == "s" && !haskey(HDF5.attributes(h["point/solid/u"]), "label")
         end
         s = output_series(f, "point/solid/p"; point=7)
         @test s.t == [0.0, 0.5, 1.0, 1.5] && s.values[end] == p.mpts.s.σᵢ[7].p && !s.loadstep
@@ -37,6 +40,7 @@
         fr = output_frame(f, 3)
         @test fr.t == 1.0 && fr.workflow == "elastodynamic!" && fr.fields["point/solid/epII"] == HDF5.h5open(h -> h["point/solid/epII"][:, 3], f)
         @test load_output(f).frames.workflow == ["initial", "elastodynamic!", "elastodynamic!", "elastoplastic!"]
+        @test load_output(f).info["point/solid/u"] == (; name="displacement", unit="m", label=nothing)
         execute(j; workflows=[elastodynamic!])                                     # a copy of the saved state: a new file
         @test output_series(f, "point/solid/p"; point=1).t[1] == load_simulation(j).problem.time.t[1]
     end

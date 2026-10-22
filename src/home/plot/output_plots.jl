@@ -1,14 +1,16 @@
 export plot_output, animate_output, plot_series
 
-# how a recorded field is shown: the live plots' settings (`get_mpts_variable_config`) where one matches
-const OUTPUT_PLOT_NAMES = Dict("p" => "P", "epII" => "epII", "J" => "J", "n" => "n", "umag" => "u", "vmag" => "v", "T" => "T")
-function output_style(field::AbstractString, component)
-    name = last(split(field, "/"))
-    cfg  = get_mpts_variable_config()
-    key  = get(OUTPUT_PLOT_NAMES, name, nothing)
-    isnothing(component) && !isnothing(key) && haskey(cfg, key) && return cfg[key]
-    sub  = isnothing(component) ? "" : "[$component]"
-    return (; label=name * sub, unit="", scale=1.0, name=name * sub, cb=:viridis, cblim=nothing)
+# how a recorded field is shown: as the live plots do when it is a plottable quantity (`quantities()`, the entry
+# at the same path); otherwise (a vector, a component, a field this version lacks) by the file's own name,
+# label and SI unit, colour map viridis, limits the data's range
+function output_style(file::AbstractString, field::AbstractString, component)
+    e = quantity(field)
+    isnothing(component) && !isnothing(e) && !isnothing(e.label) &&
+        return (; e.name, e.label, unit="[$(e.display[1])]", scale=e.display[2], e.cb, e.cblim)
+    i   = h5open(f -> field_info(f, field), file, "r")
+    sub = isnothing(component) ? "" : "[$component]"
+    label = isnothing(i.label) || !isnothing(component) ? i.name * sub : LaTeXString(i.label)
+    return (; name=i.name * sub, label, unit="[$(i.unit)]", scale=1.0, cb=:viridis, cblim=nothing)
 end
 # one frame's values of a field: a scalar per point, a component, or the magnitude of a vector
 function frame_values(v::AbstractArray, component)
@@ -33,7 +35,7 @@ function plot_output(file::AbstractString, field::AbstractString="point/solid/p"
                      dpi::Integer=500, file_out=nothing)
     startswith(field, "point/") || throw(ArgumentError("plot_output draws point fields; $(field) is not one"))
     o  = load_frame_plotdata(file, field, frame)
-    st = output_style(field, component)
+    st = output_style(file, field, component)
     d  = frame_values(o.v, component) .* st.scale
     clim = isnothing(st.cblim) ? (minimum(d) == maximum(d) ? (minimum(d) - 1, maximum(d) + 1) : extrema(d)) : st.cblim
     xz   = (o.x[1, :], o.x[end, :])
@@ -85,7 +87,7 @@ The history of a recorded field at one point (a node for a mesh field) against t
 """
 function plot_series(file::AbstractString, field::AbstractString="point/solid/p"; point::Integer, component=nothing, file_out=nothing)
     s  = output_series(file, field; point, component)
-    st = output_style(field, component)
+    st = output_style(file, field, component)
     v  = s.values isa AbstractMatrix ? (size(s.values, 1) ≤ 3 ? vec(sqrt.(sum(abs2, s.values; dims=1))) : throw(ArgumentError("pass component=…"))) : s.values
     config_plot()
     p = plot(s.t, v .* st.scale; marker=:circle, label=false, xlabel=s.loadstep ? "load step" : "t [s]",

@@ -306,10 +306,12 @@
 - **Drawing window, possible follow-ups:** the traced-over picture is not saved with the case (a
   `[drawing]` TOML section, ignored by `load_case`'s problem data, could keep its file and placement);
   a rotated scan cannot be straightened (an angle, or a second scale-bar direction).
-- **Mesh variables can't be plotted through `plot.what`.** `get_mesh_variable_config()`'s only entry
-  (`"m"`) has `data=get_epII` and no `what` field, while `what_plot_field(mesh, opts)` branches on
-  `opts.what`, so a `(; mesh=...)` entry from `get_variable_plot_options()` would throw. The drawing
-  window offers only the material-point variables for that reason.
+- **Mesh quantities can't be plotted.** `plot.what` picks plottable *point* quantities only
+  (`plottable()`); the mesh entries of `quantities()` can be recorded but have no plot label, and
+  `what_plot_field(mesh, opts)` (the `opts.what == "v"` branches in `display.jl`) is not reached. (The old
+  mesh plot entry `m` extracted the plastic strain; `quantities()` gives it the nodal mass.)
+- **The initial-fields figure is unreadable at the usual `dpi`.** `plot_initial_fields` sizes it
+  `dpi × L/L[1]` (300 × 75 px for the 4:1 slump at `dpi = 300`), so its two panels are cramped.
 - **Usability findings (second `agent-user` pass), not yet addressed:** reading typed tensors
   (`.p`/`.dev`, `get_tensor`) are undocumented in `README.md`/`docs/src`.
   (The mistyped nested config key it also found now errors naming the valid fields, see `operations.md`.)

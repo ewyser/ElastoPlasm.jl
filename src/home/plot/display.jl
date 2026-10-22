@@ -3,32 +3,16 @@ export what_plot_field, get_plot_field, save_plot
 """
     what_plot_field(mpts, opts) -> Plot
 
-Select and prepare a material point field for plotting based on the `opts` specification.
-
-# Arguments
-- `mpts`: Material point data structure.
-- `opts`: Named tuple or dictionary specifying what to plot and plot settings (e.g., `what`, `dims`, `tit`, `backend`).
-
-# Returns
-- `Plot`: Plot object for the selected field.
-
-# Example
-```julia
-opts = (;what="P", dims=(500,250), tit="", backend=gr())
-p = what_plot_field(mpts, opts)
-display(p)
-```
-
-# Notes
-- Supports fields: pressure (`P`), plastic strain (`epII`), volumetric plastic strain (`epV`), displacement (`du`), initial vertical position (`z0`), initial cohesion (`coh0`), and initial friction angle (`phi0`).
-- Throws an error if the requested field is not defined.
+One panel of a live plot: the points coloured by a plottable quantity, `opts` its entry of
+`quantities()` (`data`, `name`, `label`, `display`, `cb`, `cblim`) merged with `key`, the title `tit`,
+`xlim`, `ylim` and `dims`; `ell` draws the points' GIMP domains as boxes instead.
 """
 function what_plot_field(mpts::Point{T1,T2,D},opts) where {T1,T2,D}
-    if get(opts, :key, nothing) == "domain"
+    if get(opts, :key, nothing) == "ell"
         return plot_domain_boxes(mpts, opts)
     end
     # Extract data using the data function from opts, scaled to the display unit
-    data = opts.data(mpts) .* opts.scale
+    data = opts.data(mpts) .* opts.display[2]
     if isnothing(opts.cblim)
         dmin, dmax = minimum(data), maximum(data)
         if dmin == dmax
@@ -59,7 +43,7 @@ function what_plot_field(mpts::Point{T1,T2,D},opts) where {T1,T2,D}
         label       = false,                       # the field's name goes on the colour bar, not in a legend
         legend      = false,
         colorbar    = true,                        # (it follows the legend by default)
-        colorbar_title = "$(opts.label) $(opts.unit)",
+        colorbar_title = "$(opts.label) [$(opts.display[1])]",
         color       = opts.cb,
         clim        = clim,
         xlim        = opts.xlim,
@@ -192,17 +176,10 @@ function get_plot_field(mpts,mesh,opts; P::Vector{Any}=[], dpi::Int=100)
     sx,sy = opts[:dims][1],scale*opts[:dims][2]
     # plotting
     config_plot(); opts.backend
-    for variable ∈ opts[:what]
-        if haskey(variable, :mpts)
-            merged = merge(variable.mpts, (;tit="$(variable.mpts.name), at $(opts.tit)", xlim=opts.xlim, ylim=opts.ylim, dims=opts.dims))
-            p0 = what_plot_field(mpts, merged)
-        elseif haskey(variable, :mesh)
-            merged = merge(variable.mesh, (;tit="$(variable.mesh.name), at $(opts.tit)", xlim=opts.xlim, ylim=opts.ylim, dims=opts.dims))
-            p0 = what_plot_field(mesh, merged)
-        else
-            error("Unknown plot type: $variable")
-        end
-        push!(P, p0)
+    for key ∈ opts[:what]                                     # plottable quantities, by key (`plottable()`)
+        e = plot_entry(key)
+        isnothing(e) && throw(ArgumentError("no plottable quantity $key; one of $(first.(plottable()))"))
+        push!(P, what_plot_field(mpts, merge(e, (; key, tit="$(e.name), at $(opts.tit)", opts.xlim, opts.ylim, opts.dims))))
     end
     return display(plot(P...;layout=(scale,1),size=(sx,sy)))
 end

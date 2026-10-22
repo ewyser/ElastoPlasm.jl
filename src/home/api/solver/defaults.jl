@@ -76,12 +76,12 @@ function get_default()
             status = true,
             freq   = 1.0,
             dpi    = 500,
-            what   = [(;mpts=get_mpts_variable_config()["P"]),],
+            what   = ["p"],                    # plottable quantities, by key (`quantities()`)
         ),
         output = (;                          # HDF5 time series beside the .jld2 (output.jl)
             status = false,
             every  = 1.0,                    # [s] between frames of the explicit workflows
-            what   = (;                      # fields to record, by object and phase (OUTPUT_FIELDS)
+            what   = (;                      # fields to record, by object and phase (`quantities()`)
                 point = (; base=["x", "J"], solid=["u", "v", "p", "dev", "epII"], fluid=String[], thermal=String[]),
                 mesh  = (; solid=String[], thermal=String[]),
             ),

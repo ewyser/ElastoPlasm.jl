@@ -62,23 +62,12 @@ function get_option()
                 status = ("Enable plotting",[true, false]),
                 freq   = ("Select plot frequency",[0.1, 0.5, 1.0, 5.0]),
                 dpi    = ("Select plot resolution",[100, 300, 500, 1000]),
-                what   = ("Select plot variable(s)", get_variable_plot_options()),
+                what   = ("Select plot variable(s)", first.(plottable())),
             ),
             output = (
                 status = ("Record an HDF5 time series of the run",[true, false]),
                 every  = ("Select time between recorded frames [s]",[0.1, 0.5, 1.0, 5.0]),
-                what   = (
-                    point = (
-                        base    = ("Select point fields outside any phase",["x", "J", "n", "Omega", "ell"]),
-                        solid   = ("Select solid-phase point fields",["u", "v", "p", "dev", "epII", "epV", "rho", "q", "umag", "vmag"]),
-                        fluid   = ("Select fluid-phase point fields",String[]),
-                        thermal = ("Select thermal-phase point fields",["T"]),
-                    ),
-                    mesh  = (
-                        solid   = ("Select solid-phase mesh fields",["v", "a", "m"]),
-                        thermal = ("Select thermal-phase mesh fields",["T"]),
-                    ),
-                ),
+                what   = output_what_options(),
             ),
             backend = (
                 select = ("Select backend",["host", "cuda", "rocm"]),
@@ -131,17 +120,7 @@ function process_cli_option(value, default_val, key_path=())
         isempty(vals) && return default_val                      # nothing to choose (e.g. the fluid fields, for now)
         # a multi-selection (plot.what, the output.what lists): several values, kept as they are defined
         if default_val isa AbstractVector && !(default_val isa AbstractVector{<:Real})
-            # Extract names from either mpts or mesh variables
-            names = String[] # sorter is names = [string(haskey(v, :mpts) ? v.mpts.name : v.mesh.name) for v ∈ vals]
-            for v ∈ vals
-                if haskey(v, :mpts)
-                    push!(names, string(v.mpts.name))
-                elseif haskey(v, :mesh)
-                    push!(names, string(v.mesh.name))
-                else
-                    push!(names, string(v))
-                end
-            end
+            names = [shown_name(string.(key_path), v) for v ∈ vals]   # readable names (quantities)
             menu  = MultiSelectMenu(names, pagesize=length(names))
             idxs  = request(prompt * " (Space to select, Enter to confirm):", menu)
             selected = [vals[i] for i in idxs]

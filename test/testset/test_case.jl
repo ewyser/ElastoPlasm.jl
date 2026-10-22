@@ -47,14 +47,14 @@
                    zones=[Zone("soil", Polygon([[0, 0], [20, 0], [20, 6], [0, 6]])), Zone("rock", Block([0, 0], [20, 2]); E=5e7, phi=30.0*π/180),
                           Zone("boulder", Ball([10, 4], 1.0); rho0=3000.0, v=[0.0, 0.0, -1.0])],
                    material=(; c0=1.0e4, phi=25.0*π/180), solver=(; basis=(; which="gimpm", C_pf=0.37), stab=(; locking=false),
-                   plot=(; what=EP.option_value(["plot", "what"], ["pressure"]))), run=(; folder="x/y", te=1.0, workflow="elastodynamic!"))
+                   plot=(; what=["p"])), run=(; folder="x/y", te=1.0, workflow="elastodynamic!"))
         back = load_case(save_case(joinpath(mktempdir(), "p.toml"), s))
         @test (back.L, back.nel, back.ni, back.width, back.nely, back.bcs, back.thermal, back.run) == (s.L, s.nel, s.ni, s.width, s.nely, s.bcs, s.thermal, s.run)
         @test [z.name for z ∈ back.zones] == ["soil", "rock", "boulder"] && back.zones[3].shape.radius == 1.0 && back.zones[3].props[:v] == [0.0, 0.0, -1.0]
         @test back.zones[2].props[:phi] ≈ 30.0*π/180 rtol=1e-12
         @test back.material.phi ≈ s.material.phi rtol=1e-12
         @test back.material.c0 == 1.0e4 && Dict(pairs(back.solver.basis)) == Dict(:which => "gimpm", :C_pf => 0.37)
-        @test back.solver.stab == (; locking=false) && back.solver.plot.what[1].mpts.key == "P"
+        @test back.solver.stab == (; locking=false) && back.solver.plot.what == ["p"]
         @test_throws ArgumentError save_case(joinpath(mktempdir(), "r.toml"), Case(; L=[1, 1], nel=[1, 1], zones=[Zone("f", Region(x -> true))]))
     end
     @testset "checks and time step" begin
@@ -104,7 +104,7 @@
         @test EP.option_value(["grf", "param", "Iₓ"], "3, 4, 5") == [3.0, 4.0, 5.0] && EP.option_value(["stab", "locking"], "false") === false
         @test_throws ArgumentError EP.option_value(["grf", "param", "Nₕ"], 2.5)                    # an integer option
         @test_throws ArgumentError EP.option_value(["basis", "which"], "foo")                      # not a numeric option
-        @test [v.mpts.key for v ∈ EP.option_value(["plot", "what"], ["pressure", "plastic strain"])] == ["P", "epII"]
+        @test EP.option_value(["plot", "what"], ["p", "plastic strain"]) == ["p", "epII"]          # a key, or an older case's name
     end
     @testset "simulation: build, save, load, execute!" begin
         dir = joinpath(mktempdir(), "mycase")

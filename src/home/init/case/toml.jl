@@ -12,7 +12,6 @@ function option_entry(path)
     return o isa Tuple && length(o) == 2 && o[1] isa AbstractString ? o : nothing
 end
 option_label(v) = string(v)
-option_label(v::NamedTuple) = haskey(v, :mpts) ? v.mpts.name : v.mesh.name        # a plot.what variable: its name
 # the `get_default()` value at `path`
 default_at(path) = foldl((d, k) -> getfield(d, Symbol(k)), path; init=get_default())
 # a numeric option takes any value, not only the listed ones
@@ -20,7 +19,7 @@ free_numeric(d) = (d isa Real && !(d isa Bool)) || d isa AbstractVector{<:Real}
 # a multi-selection: an option whose value is a list of the listed values (`plot.what`, the `output.what` lists)
 multi_select(path) = (d = default_at(path); d isa AbstractVector && !(d isa AbstractVector{<:Real}))
 # solver options: values in memory; on disk booleans, numbers and number lists as such, the rest as their
-# `get_option()` labels (so e.g. `dtype` types round-trip), plot variables by name
+# `get_option()` labels (so e.g. `dtype` types round-trip), quantities by key
 option_save(v) = v isa Real || v isa AbstractVector{<:Real} ? v : v isa AbstractVector ? option_label.(v) : option_label(v)
 option_labels(d::AbstractDict) = Dict{String,Any}(k => v isa AbstractDict ? option_labels(v) : option_save(v) for (k, v) ∈ d)
 option_values(d::AbstractDict, path=String[]) =
@@ -41,7 +40,7 @@ function option_value(path, x)
     vals, name = e[2], join(path, ".")
     if multi_select(path)
         x isa AbstractVector || throw(ArgumentError("solver option $name is a list of $(option_label.(vals))"))
-        return [option_value_in(vals, s, name) for s ∈ x]
+        return [option_value_in(vals, s, path) for s ∈ x]
     end
     i = findfirst(v -> option_label(v) == option_label(x), vals)
     isnothing(i) || return vals[i]
@@ -56,8 +55,12 @@ function option_value(path, x)
     d isa Integer && !isinteger(y) && throw(ArgumentError("solver option $name = $x is not an integer"))
     return d isa Integer ? typeof(d)(y) : Float64(y)
 end
-option_value_in(vals, s, name) = (i = findfirst(v -> option_label(v) == string(s), vals);
-    isnothing(i) ? throw(ArgumentError("solver option $name: $s is not one of $(option_label.(vals))")) : vals[i])
+# a value of a multi-selection, by label or by its quantity's readable name (older cases wrote `plot.what` so)
+function option_value_in(vals, s, path)
+    i = something(findfirst(v -> option_label(v) == string(s), vals), findfirst(v -> shown_name(path, v) == string(s), vals), 0)
+    i == 0 && throw(ArgumentError("solver option $(join(path, ".")): $s is not one of $(option_label.(vals))"))
+    return vals[i]
+end
 
 # a NamedTuple (or Dict) of option sections as a Dict with string keys, and back
 config_dict(x) = x isa NamedTuple || x isa AbstractDict ? Dict{String,Any}(string(k) => config_dict(v) for (k, v) ∈ pairs(x)) : x

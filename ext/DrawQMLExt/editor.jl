@@ -429,8 +429,6 @@ function option_entry(key)
     isnothing(i) && throw(ArgumentError("no solver option $key"))
     return OPTIONS[i]
 end
-# a list's values: plot.what offers the material-point variables only (the mesh ones need a `what` field)
-list_values(sec, vals) = sec == "plot" ? filter(v -> haskey(v, :mpts), vals) : vals
 
 # pick value j of a drop-down row (ticks it)
 set_option!(e::Editor, key, j) = (r = option_entry(key); setoption!(e.options, r[1], r[2], r[3][Int(j)]); e)
@@ -450,12 +448,9 @@ end
 # tick or untick value i of a list row (ticks the row)
 function tick_value!(e::Editor, key, i, on::Bool)
     sec, path, vals, def = option_entry(key)
-    vals = list_values(sec, vals)
-    cur  = collect(Any, something(getoption(e.options, sec, path), def))   # Any: plot variables differ in type
-    v    = vals[Int(i)]
-    names = option_label.(cur)
-    on ? (option_label(v) ∈ names || push!(cur, v)) : filter!(c -> option_label(c) != option_label(v), cur)
-    setoption!(e.options, sec, path, [x for x ∈ vals if option_label(x) ∈ option_label.(cur)])   # in the listed order
+    cur = something(getoption(e.options, sec, path), def)
+    new = on ? union(cur, [vals[Int(i)]]) : setdiff(cur, [vals[Int(i)]])
+    setoption!(e.options, sec, path, [v for v ∈ vals if v ∈ new])                # in the listed order
     return e
 end
 

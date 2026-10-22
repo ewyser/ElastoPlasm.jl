@@ -25,7 +25,7 @@ function block_case(nel=[4*16, 4*9]; kwargs...)
         material = (; plastic="VM", elastic="hencky"),
         bcs      = (; dirichlet=[:roller :roller; :roller :roller]),
         basis    = (; get_default().basis..., which="gimpm"),
-        plot     = (; status = true, freq   = 1.0, dpi    = 500, what   = [(;mpts=get_mpts_variable_config()["u"]),], ),
+        plot     = (; status = true, freq   = 1.0, dpi    = 500, what   = ["umag"]),
     )
     return collapse_case(nel; merge(defaults, kwargs)...)
 end

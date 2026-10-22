@@ -243,17 +243,23 @@ plot_output(f, "point/solid/p"; frame=7); animate_output(f, "point/solid/p"); pl
 
 - **Configuration:** the `output` solver section, `(; status, every, what)`; `what` mirrors
   the data model, `point = (; base, solid, fluid, thermal)` and `mesh = (; solid, thermal)`, each a
-  list of names from `OUTPUT_FIELDS` (`src/home/api/io/output/fields.jl`, a nested `Dict` shaped like
-  `what`, one entry per quantity, extensible: point
-  `x J n Omega ell`, solid `u v p dev epII epV rho q umag vmag`, thermal `T`; mesh solid `v a m`,
-  thermal `T`). Partial selections merge per field; a phase the problem lacks is skipped with a
+  list of keys from `quantities()` (`src/home/api/io/quantities.jl`, shaped like `what`: point base
+  `x J n Omega ell`, solid `u v p dev epII epV rho q umag vmag c0 phi0`, thermal `T`; mesh solid `v a m`,
+  thermal `T`). `quantities()` is the one table of what can be plotted or recorded: per quantity its
+  extractor (a frame in SI), readable `name`, SI `unit`, and for the plottable point ones (those with a
+  `label`) the displayed unit and factor, colour map and limits. `plot.what` picks from the plottable
+  keys (`plottable()`), `get_option()` derives both lists from it, the window and the CLI show the
+  readable names (`shown_name`; an older case's `plot.what` written by name still loads). A new quantity
+  is one entry there. Partial selections merge per field; a phase the problem lacks is skipped with a
   warning. Multi-selections are any non-numeric option whose default is a list (`multi_select`):
   `plot.what` and these lists, checkbox grids in the window, all on its "output" page (`point · solid`, `mesh · solid`, …; a list
   with nothing to pick, such as the fluid phase's, is not shown).
 - **File:** one array per field, frames last (`/point/<phase>/<field>`, `/mesh/<phase>/<field>`),
   chunked per frame, deflate 3, Float64; `/frames/t` (a time, or a load step:
   `/frames/loadstep` 1), `/frames/step`, `/frames/workflow` (the workflow's name); the grid,
-  the initial point properties and attributes (case TOML, version, laws). Plain HDF5 (h5py etc.).
+  the initial point properties and attributes (case TOML, version, laws). Each field's dataset has the
+  attributes `name`, `unit` (SI) and, when plottable, `label` (LaTeX); `/frames/t` has `unit = "s"`
+  (`load_output(f).info`, `output_frame`'s `info`). Plain HDF5 (h5py etc.).
 - **When:** explicit workflows stop on the `plot.freq` grid and the `output.every` grid, each ending at
   the stage's end time (`checkpoints`, `explicit/get.jl`; without output exactly the plot stops, so
   results are bit-identical with output off); `elastoquasistatic!` records each load step; `execute!`
@@ -356,8 +362,8 @@ knob and its out-of-the-box value.
   dispatch lives on `Point`'s `CM` type parameter, not a runtime string — see "DP/J2
   retmap kernel unification" in `planned-improvements.md`)
 - `nonloc` — non-local plastic strain regularization (`status`, `ls` length scale)
-- `plot` — `status`, `freq` (plot every N `Time` checkpoints), `dpi`, `what` (list of
-  field specs to plot, keyed by name via `get_mpts_variable_config()`)
+- `plot` — `status`, `freq` (plot every N `Time` checkpoints), `dpi`, `what` (keys of the plottable
+  quantities, `plottable()` in `quantities.jl`, e.g. `["p", "epII"]`)
 - `backend` — `select` (execution backend, `"host"`/GPU target) and `distributed`
 
 Two ways to change solver behaviour:

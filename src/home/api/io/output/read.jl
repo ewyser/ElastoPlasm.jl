@@ -14,6 +14,11 @@ function recorded_fields(f)
 end
 # frame k of a dataset (the last axis)
 frame(d, k) = ndims(d) == 1 ? d[k] : ndims(d) == 2 ? d[:, k] : d[:, :, k]
+# what a recorded field is, from its attributes: readable name, SI unit, LaTeX label (an older file: its key)
+function field_info(f, path)
+    a = attributes(f[path]); get_attr(k, d) = haskey(a, k) ? read(a[k]) : d
+    return (; name=get_attr("name", basename(path)), unit=get_attr("unit", ""), label=get_attr("label", nothing))
+end
 
 """
     output_series(file, field; point=nothing, component=nothing) -> (; t, values, loadstep)
@@ -39,25 +44,27 @@ function output_series(file::AbstractString, field::AbstractString; point=nothin
 end
 
 """
-    output_frame(file, k) -> (; t, step, loadstep, workflow, fields)
+    output_frame(file, k) -> (; t, step, loadstep, workflow, fields, info)
 
-Every recorded field at frame `k` (`fields`: path → that frame).
+Every recorded field at frame `k` (`fields`: path → that frame; `info`: path → its name, SI unit, label).
 """
 function output_frame(file::AbstractString, k::Integer)
     h5open(file, "r") do f
         n = length(f["frames/t"])
         1 ≤ k ≤ n || throw(ArgumentError("frame $k of $n"))
         fields = Dict{String,Any}(path => frame(f[path], k) for path ∈ recorded_fields(f))
+        info   = Dict{String,Any}(path => field_info(f, path) for path ∈ recorded_fields(f))
         return (; t=f["frames/t"][k], step=f["frames/step"][k], loadstep=f["frames/loadstep"][k] == 1,
-                  workflow=f["frames/workflow"][k], fields)
+                  workflow=f["frames/workflow"][k], fields, info)
     end
 end
 
 """
-    load_output(file) -> (; frames, fields, mesh, initial, attributes)
+    load_output(file) -> (; frames, fields, info, mesh, initial, attributes)
 
 The whole output: `frames` (`t`, `step`, `loadstep`, `workflow` per frame), `fields` (path → array,
-frames last), the grid `mesh`, the `initial` point properties and the file's `attributes`.
+frames last), `info` (path → the field's name, SI unit and label), the grid `mesh`, the `initial` point
+properties and the file's `attributes`.
 """
 function load_output(file::AbstractString)
     h5open(file, "r") do f
@@ -65,8 +72,9 @@ function load_output(file::AbstractString)
         frames  = (; t=read(f["frames/t"]), step=read(f["frames/step"]), loadstep=read(f["frames/loadstep"]) .== 1,
                      workflow=read(f["frames/workflow"]))
         fields  = Dict{String,Any}(path => read(f[path]) for path ∈ recorded_fields(f))
+        info    = Dict{String,Any}(path => field_info(f, path) for path ∈ recorded_fields(f))
         mesh    = (; x=read(f["mesh/x"]), L=read(f["mesh/L"]), nel=read(f["mesh/nel"]), h=read(f["mesh/h"]))
         attrs   = Dict{String,Any}(k => read(attributes(f)[k]) for k ∈ keys(attributes(f)))
-        return (; frames, fields, mesh, initial=group(f["point/initial"]), attributes=attrs)
+        return (; frames, fields, info, mesh, initial=group(f["point/initial"]), attributes=attrs)
     end
 end

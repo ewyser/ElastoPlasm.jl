@@ -53,12 +53,16 @@ function create_output(file, p::Problem; case_text=nothing)
     a["solution"], a["basis"], a["transfer"] = p.solver.solution, p.solver.basis.which, p.solver.basis.trsfr
     a["elastic"], a["plastic"] = p.solver.material.elastic, p.solver.material.plastic
     isnothing(case_text) || (a["case"] = case_text)
-    frames_dataset(f, "frames/t", Float64, ())
+    attributes(frames_dataset(f, "frames/t", Float64, ()))["unit"] = "s"
     frames_dataset(f, "frames/step", Int, ())
     frames_dataset(f, "frames/loadstep", UInt8, ())                    # 1 when t is a load step (0/1: readable anywhere)
     frames_dataset(f, "frames/workflow", datatype(String), ())
-    fields = [(field, object, frames_dataset(f, path, Float64, size(field(object == "point" ? m : g))))
-              for (path, field, object) ∈ output_fields(p)]
+    fields = map(output_fields(p)) do (path, e, object)           # each field says what it is: name, SI unit, label
+        d = frames_dataset(f, path, Float64, size(e.data(object == "point" ? m : g)))
+        attributes(d)["name"], attributes(d)["unit"] = e.name, e.unit
+        isnothing(e.label) || (attributes(d)["label"] = String(e.label))
+        (e.data, object, d)
+    end
     r = Recorder(f, fields)
     write_frame!(r, p.mpts, p.mesh, p.time.t[1], 0, false, "initial")
     return r
@@ -70,7 +74,7 @@ function reopen_output(file, p::Problem)
     selected = output_fields(p)
     missing_ = [path for (path, _, _) ∈ selected if !haskey(f, path)]
     isempty(missing_) || @warn "Output: $(file) does not record $(missing_); not added when continuing it"
-    fields = [(field, object, f[path]) for (path, field, object) ∈ selected if haskey(f, path)]
+    fields = [(e.data, object, f[path]) for (path, e, object) ∈ selected if haskey(f, path)]
     return Recorder(f, fields)
 end
 

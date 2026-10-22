@@ -151,9 +151,9 @@
         ed.type_option!(e, "grf.param.σ", "7500"); @test e.options["grf"]["param"]["σ"] == 7500.0
         ed.type_option!(e, "grf.param.σ", "abc");  @test e.options["grf"]["param"]["σ"] == 7500.0   # invalid: ignored
         ed.tick_option!(e, "grf.param.σ", false);  @test !haskey(e.options, "grf")
-        pv = ed.list_values("plot", ed.option_entry("plot.what")[3])
-        ed.tick_value!(e, "plot.what", findfirst(v -> EP.option_label(v) == "plastic strain", pv), true)
-        @test Set(EP.option_label.(e.options["plot"]["what"])) == Set(["pressure", "plastic strain"])
+        ed.tick_value!(e, "plot.what", findfirst(==("epII"), ed.option_entry("plot.what")[3]), true)
+        @test e.options["plot"]["what"] == ["p", "epII"]
+        e.section = "plot"; @test occursin("\"plastic strain\"", ed.panel_json(e))           # shown by its readable name
         ed.set_run!(e, "workflow", "elastoquasistatic!"); ed.set_run!(e, "lstps", "20"); ed.set_run!(e, "lstps", "-1")
         @test e.run["workflow"] == "elastoquasistatic!" && e.run["lstps"] == 20
         @test occursin("20 load steps", join(ed.checks(e).info))

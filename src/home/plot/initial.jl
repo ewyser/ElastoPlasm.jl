@@ -16,8 +16,7 @@ function plot_initial_fields(problem::Problem, folder)
     # VonMises (material.plastic=="VM") has no friction angle at all (J2 yield has
     # no pressure dependence, see VonMises's docstring), so plotting it there would
     # either crash (no .ϕ₀ field) or fake a value that doesn't mean anything.
-    names = solver.material.plastic == "DP" ? ["coh0", "phi0"] : ["coh0"]
-    what = [(;mpts=get_mpts_variable_config()[name]) for name ∈ names]
+    what  = solver.material.plastic == "DP" ? ["c0", "phi0"] : ["c0"]
     opts = (;
         dims    = solver.plot.dpi.*(problem.mesh.prprt.L./problem.mesh.prprt.L[1]),
         what    = what,

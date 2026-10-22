@@ -14,6 +14,10 @@ workflow. `mpts.s.cmp` (constitutive constants) and APIC's `Bᵢⱼ`/`Dᵢⱼ` (
 scripts, was never the key.) `test_column.jl` once lagged a layout change for a long stretch, see
 `.claude/bug/fixed/test-collapse-renamed-and-fixed.md`.
 
+**Format change:** `solver.plot.what` holds quantity keys (`["p", "epII"]`) instead of NamedTuples of
+plot settings (`quantities()`), so a `.jld2` written before plots nothing it can resolve; set it up
+again from its case TOML (`plot.what` there was written by name, which still loads).
+
 **Format change:** stress/strain storage switched to a scalar plus a 3D Voigt deviator
 (`feat-refactor-tensor-storage`), and the 2D `mpts.s.ϵzz` field was removed. `.jld2` files written before that don't load;
 regenerate them with `setup_simulation(<example>_case(...))`.
