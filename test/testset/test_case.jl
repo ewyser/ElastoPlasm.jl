@@ -105,7 +105,7 @@
     end
     @testset "simulation: build, save, load, execute!" begin
         dir = joinpath(mktempdir(), "mycase")
-        c = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 1]))], solver=(; plot=(; status=false, freq=0.1)),
+        c = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 1]))], solver=(; plot=(; status=false)),
                    run=(; folder=dir * "/", te=0.2, tg=0.1, tep=0.0, workflow="elastodynamic!"))
         sim = Simulation(Problem(c); c.run.workflow, c.run.lstps, c.run.folder)
         @test sim.folder == dir && !isdir(dir)                                              # built, nothing written
@@ -118,6 +118,7 @@
         state(p) = (p.mpts.x, getfield.(p.mpts.s.σᵢ, :p), p.mpts.s.v)
         s0 = state(sim.problem); r = execute(jld2)
         @test state(r.problem) != s0 && state(load_simulation(jld2).problem) == s0               # ran a copy, file untouched
+        @test r.problem.time.t[1] == 0.2                                                          # to te, though te < plot.freq
         @test execute!(jld2) == jld2 && state(load_simulation(jld2).problem) == state(r.problem)  # written back
         @test state(execute(sim).problem) == state(r.problem) && state(sim.problem) == s0          # a copy of sim
         @test state(execute!(sim).problem) == state(r.problem)                                   # in memory: the same
