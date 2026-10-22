@@ -217,10 +217,12 @@
   something to install unprompted, since it's an external dependency/process the user
   needs running before a session starts.
 - **Time-series output — done, as HDF5** (`output` solver section, `src/home/api/io/output/` (`fields.jl`, `write.jl`, `read.jl`),
-  `src/home/plot/output_plots.jl`; see "Recording a run" in `operations.md`). Follow-ups:
+  `src/home/plot/output_plots.jl`; what can be recorded is `quantities()`, `src/home/api/io/quantities.jl`,
+  shared with the live plots; each dataset carries its name, SI unit and label as attributes; see
+  "Recording a run" in `operations.md`). Follow-ups:
   whole-model series (kinetic energy, run-out, max displacement; one value per frame, `/series/…`);
   an XDMF sidecar so ParaView opens the `.h5` as an animated point cloud; fields of the fluid phase
-  once it has some; `plot_output` in 3D shows the x–z projection of all points (a slab or slice option
+  once it has some (entries under `quantities().point.fluid`); `plot_output` in 3D shows the x–z projection of all points (a slab or slice option
   would help); the figures share the live plots' cramped sizing.
 - **Improved Hencky's porosity is its own elastic-strain measure — decided, keep.**
   `_trial_elastic_stress_improved` (`elasticity.jl`) and `_Ktan` (`explicit/get.jl`) compute
