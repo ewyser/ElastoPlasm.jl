@@ -313,11 +313,9 @@
   (`"m"`) has `data=get_epII` and no `what` field, while `what_plot_field(mesh, opts)` branches on
   `opts.what`, so a `(; mesh=...)` entry from `get_variable_plot_options()` would throw. The drawing
   window offers only the material-point variables for that reason.
-- **Usability findings (second `agent-user` pass), not yet addressed:** a mistyped nested config
-  key (e.g. `material=(;elastik=...)`) replaces the whole section and fails in `get_solver` with
-  a cryptic "NamedTuple has no field" error; reading typed tensors (`.p`/`.dev`, `get_tensor`) and the
-  `dump/` flush on `using` are undocumented in `README.md`/`docs/src`; `worflow.jl` is misspelled
-  in both solver folders.
+- **Usability findings (second `agent-user` pass), not yet addressed:** reading typed tensors
+  (`.p`/`.dev`, `get_tensor`) and when `dump/` is emptied are undocumented in `README.md`/`docs/src`.
+  (The mistyped nested config key it also found now errors naming the valid fields, see `operations.md`.)
 
 - **Implicit dynamic-relaxation MPM (Sutcliffe et al. 2026) — Algorithm 1 and plasticity
   done**, see `architecture.md`. Remaining, in order:

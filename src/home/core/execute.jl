@@ -27,7 +27,7 @@ still saved into the folder).
 """
 function execute!(sim::Simulation; workflows=case_workflows(sim))
     for workflow! ∈ workflows
-        @info elastoplasm_log(sim.problem.solver; msg="$workflow!")
+        @info workflow_log(sim.problem.solver; msg="$workflow!")
         workflow!(sim.problem)
         save_workflow_plot(sim.problem, workflow!, sim.folder)
     end
