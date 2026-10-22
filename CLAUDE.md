@@ -58,7 +58,7 @@ position; it is NOT picked up automatically the way `home/` files are.
 - 32-bit precision and StaticArrays allocation-elision gotchas:
   `.claude/docs/gotchas.md`.
 - House rules (unicode subscript tensor-rank convention, refactor-verification
-  discipline, `dump/` flushing on load, etc.): `.claude/docs/conventions.md`.
+  discipline, `dump/` emptied when the package precompiles, etc.): `.claude/docs/conventions.md`.
 - Known-follow-up design work (not bugs): `.claude/docs/planned-improvements.md`.
 - Open bugs: `.claude/bug/known/*.md`. Resolved bugs, kept for archaeology: `.claude/bug/fixed/*.md`.
   **When picking up an open bug: create a new branch off the current branch, named so

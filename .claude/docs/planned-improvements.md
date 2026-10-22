@@ -216,15 +216,16 @@
   is a candidate pattern to port if the user sets up the equivalent tooling here — not
   something to install unprompted, since it's an external dependency/process the user
   needs running before a session starts.
-- **Add a JLD2 time-series export option, as an alternative to plot-only checkpoints.**
-  Every workflow's time loop calls `bake(mpts,mesh,t,solver)` at each checkpoint, but
-  `bake` only renders a PNG when `solver.plot.status` is true — there's no way to
-  record a field's evolution as raw data today. A natural fix reuses the same
-  `checks` cadence and `solver.plot.what`-style field selection to append values into
-  a JLD2 dataset at each checkpoint (`export.status`/`export.what`, sitting next to
-  `bake()`). Writing the export is only half the feature — a companion loader/plotter
-  for the saved time series would need to be built alongside it, not as a separate
-  follow-up.
+- **Time-series output — done, as HDF5** (`output` solver section, `src/home/api/io/output/` (`fields.jl`, `write.jl`, `read.jl`),
+  `src/home/plot/output_plots.jl`; see "Recording a run" in `operations.md`). Follow-ups:
+  whole-model series (kinetic energy, run-out, max displacement; one value per frame, `/series/…`);
+  an XDMF sidecar so ParaView opens the `.h5` as an animated point cloud; fields of the fluid phase
+  once it has some; `plot_output` in 3D shows the x–z projection of all points (a slab or slice option
+  would help); the figures share the live plots' cramped sizing.
+- **Decide when `dump/` is emptied.** It happens only when the package precompiles (see
+  `conventions.md`), not at each `using` as the docs used to say: either move `rootflush` to
+  `__init__` (every load, the documented behaviour) or drop it (outputs then accumulate until removed
+  by hand). The user's call.
 - **Improved Hencky's porosity is its own elastic-strain measure — decided, keep.**
   `_trial_elastic_stress_improved` (`elasticity.jl`) and `_Ktan` (`explicit/get.jl`) compute
   `n = 1-(1-n₀)/exp(ϵᵥᵉ)`, i.e. Eqs. 22-23 of Pretti et al. (2024) written in the stored

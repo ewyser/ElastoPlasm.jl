@@ -20,7 +20,8 @@ end
 
 Build a case's simulation, `Simulation(Problem(case); workflow, lstps, folder)` from its run settings,
 and save it (`save_simulation`) with the case's TOML (`save_case`) beside it in its folder, the initial
-fields plotted when `solver.plot.status`; returns the `.jld2` path, for `execute!`.
+fields plotted when `solver.plot.status`; removes an output (`output_file(sim)`) left there by an earlier
+simulation, and returns the `.jld2` path, for `execute!`.
 """
 function setup_simulation(s::Case)
     @info "Setting up mesh & material point system for a $(length(domain(s)[1]))d problem ($(length(s.zones)) zones)"
@@ -34,6 +35,7 @@ function setup_simulation(s::Case)
     catch e
         @warn "Case not written as TOML: $(sprint(showerror, e))"
     end
+    rm(output_file(sim); force=true)                         # a new simulation starts a new output
     return save_simulation(sim)
 end
 

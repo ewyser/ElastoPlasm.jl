@@ -229,6 +229,46 @@ execute!(setup_simulation(case))
   Shift+Cmd/Ctrl+Z, buttons) keeps snapshots of the zones. The points to be created are previewed
   (`drawn_points`).
 
+### Recording a run (HDF5 output)
+
+```julia
+case = slump_case(L, nel; cli()..., plot=(; status=false),
+                  output=(; status=true, every=0.5, what=(; point=(; solid=["u", "p", "epII"]))))
+jld2 = setup_simulation(case)
+execute!(jld2; workflows=[elastodynamic!, elastoplastic!])         # writes <name>_output.h5 beside the .jld2
+f    = replace(jld2, "_simulation.jld2" => "_output.h5")
+output_series(f, "point/solid/p"; point=30)                         # (; t, values, loadstep)
+plot_output(f, "point/solid/p"; frame=7); animate_output(f, "point/solid/p"); plot_series(f, "point/solid/p"; point=30)
+```
+
+- **Configuration:** the `output` solver section, `(; status, every, single, what)`; `what` mirrors
+  the data model, `point = (; base, solid, fluid, thermal)` and `mesh = (; solid, thermal)`, each a
+  list of names from `OUTPUT_FIELDS` (`src/home/api/io/output/fields.jl`, a nested `Dict` shaped like
+  `what`, one entry per quantity, extensible: point
+  `x J n Omega ell`, solid `u v p dev epII epV rho q umag vmag`, thermal `T`; mesh solid `v a m`,
+  thermal `T`). Partial selections merge per field; a phase the problem lacks is skipped with a
+  warning. Multi-selections are any non-numeric option whose default is a list (`multi_select`):
+  `plot.what` and these lists, checkbox grids in the window (pages "output · point/mesh").
+- **File:** one array per field, frames last (`/point/<phase>/<field>`, `/mesh/<phase>/<field>`),
+  chunked per frame, deflate 3, Float64 or Float32 (`single`); `/frames/t` (a time, or a load step:
+  `/frames/loadstep` 1), `/frames/step`, `/frames/workflow` (the workflow's name); the grid,
+  the initial point properties and attributes (case TOML, version, laws). Plain HDF5 (h5py etc.).
+- **When:** explicit workflows stop on the `plot.freq` grid and the `output.every` grid, each ending at
+  the stage's end time (`checkpoints`, `explicit/get.jl`; without output exactly the plot stops, so
+  results are bit-identical with output off); `elastoquasistatic!` records each load step; `execute!`
+  records the initial state and the state each workflow ends on. The recorder lives in
+  `task_local_storage` for the run (`record!` does nothing without one), so workflow signatures and
+  closures are unchanged. The file is `output` (default `<folder>/<name>_output.h5`, `output_file(sim)`):
+  `execute!(jld2)` appends (it continues the saved state), `execute` and an in-memory
+  `execute!(sim; output, append=false)` start a new one, `setup_simulation` removes a stale one. Adding stops changes the time-step sequence
+  (`get_dt` clips at each stop), so a run with a finer `every` than `plot.freq` differs slightly
+  from one without output.
+- **After the run:** `output_series`, `output_frame`, `load_output` read it; `plot_output`,
+  `animate_output`, `plot_series` draw from the file alone (live-plot colour maps, units and limits
+  where the field matches a plot variable). Checked: a frame drawn from the file matches the live
+  plot of the same time; `test_output.jl` covers shapes, cadence, last frame = saved state, append,
+  Float32, skipped phases, load steps and the plotting.
+
 ### Running tests / benchmarks
 
 ```julia

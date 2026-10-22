@@ -64,6 +64,23 @@ function get_option()
                 dpi    = ("Select plot resolution",[100, 300, 500, 1000]),
                 what   = ("Select plot variable(s)", get_variable_plot_options()),
             ),
+            output = (
+                status = ("Record an HDF5 time series of the run",[true, false]),
+                every  = ("Select time between recorded frames [s]",[0.1, 0.5, 1.0, 5.0]),
+                single = ("Store single precision",[true, false]),
+                what   = (
+                    point = (
+                        base    = ("Select point fields outside any phase",["x", "J", "n", "Omega", "ell"]),
+                        solid   = ("Select solid-phase point fields",["u", "v", "p", "dev", "epII", "epV", "rho", "q", "umag", "vmag"]),
+                        fluid   = ("Select fluid-phase point fields",String[]),
+                        thermal = ("Select thermal-phase point fields",["T"]),
+                    ),
+                    mesh  = (
+                        solid   = ("Select solid-phase mesh fields",["v", "a", "m"]),
+                        thermal = ("Select thermal-phase mesh fields",["T"]),
+                    ),
+                ),
+            ),
             backend = (
                 select = ("Select backend",["host", "cuda", "rocm"]),
                 distributed = ("Enable distributed computing",[true, false])
@@ -112,8 +129,8 @@ function process_cli_option(value, default_val, key_path=())
         return NamedTuple{keys(value)}(process_cli_option(getfield(value, k), getfield(default_val, k), (key_path..., k)) for k in keys(value))
     elseif isa(value, Tuple) && length(value) == 2 && isa(value[1], AbstractString)
         prompt, vals = value
-        isempty(vals) && return default_val                      # nothing to choose
-        # a multi-selection (e.g. plot.what): several values, kept as they are defined
+        isempty(vals) && return default_val                      # nothing to choose (e.g. the fluid fields, for now)
+        # a multi-selection (plot.what, the output.what lists): several values, kept as they are defined
         if default_val isa AbstractVector && !(default_val isa AbstractVector{<:Real})
             # Extract names from either mpts or mesh variables
             names = String[] # sorter is names = [string(haskey(v, :mpts) ? v.mpts.name : v.mesh.name) for v ∈ vals]

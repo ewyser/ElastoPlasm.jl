@@ -28,11 +28,14 @@
 - `test/testset/test_performance.jl` benchmarks core kernels directly via
   `solver.cairn.*`; keep it in sync with the `Cairn` dispatch-table shape whenever that
   shape changes.
-- `using ElastoPlasm` flushes (deletes) everything under `dump/` on load if that
-  directory already has contents. Never run more than one `julia --project=. -e '...'`
-  invocation against this repo concurrently while any of them is still writing to
-  `dump/` — a second session's `using ElastoPlasm` will delete the first session's
-  still-in-progress output out from under it.
+- `dump/` is emptied when the package **precompiles** (`rootflush` is top-level code in
+  `boot.jl`, so it runs while the cache is built, not at every `using`): the first `using
+  ElastoPlasm` after a source change deletes everything under `dump/`; later sessions loading the
+  cached image leave it alone (checked: a probe file survived a plain `using`). So outputs survive
+  between sessions until the next edit, and stale files (e.g. a previous run's `_output.h5`) can
+  still be there; `setup_simulation` removes the output of the problem it rewrites. Never run more
+  than one session against this repo while one of them may recompile and another is writing to
+  `dump/`.
 - When doing a mechanical rename across a codebase (e.g. via sed/substring match),
   verify each occurrence semantically before trusting it — a blind rename can catch
   things that only textually match but mean something different (see the `σᵢ`/`τᵢ`

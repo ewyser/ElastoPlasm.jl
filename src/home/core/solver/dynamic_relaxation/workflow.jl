@@ -8,7 +8,7 @@ Algorithm 1): gravity is applied in `lstps` uniform load steps, `g = (k/lstps)·
 `k`, each solved to `‖R‖/‖fᵉˣᵗ‖ < tol` by `relax!`. Returns the DR iteration count of each
 load step. `plastic=true` adds the `material.plastic` return mapping inside every DR
 iteration (non-local regularization is not applied). Finite strain only. To change `lstps` or
-`tol` from `elastoplasm`, pass a closure, e.g.
+`tol` from `execute!`, pass a closure, e.g.
 `workflows = [(a...) -> elastoquasistatic!(a...; lstps=40)]`.
 """
 function elastoquasistatic!(mpts::Point{T1,T2,D,CM,ST},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S; lstps::Int=10, tol::Real=1e-9, plastic::Bool=false, G::Real=9.81) where {T1,T2,D,CM,ST,S<:AbstractSolver{T1,T2,D}}
@@ -26,6 +26,7 @@ function elastoquasistatic!(mpts::Point{T1,T2,D,CM,ST},mesh::Mesh{T1,T2,D},basis
         end
         time.t[1] += T2(1.0)
         bake(mpts,mesh,time.t[1],instr; title="load step $k/$lstps")
+        record!(mpts,mesh,time,instr; step=k, loadstep=true)
         next!(prog;showvalues = [("load step",k),("DR iterations",it)])
     end
     finish!(prog)
