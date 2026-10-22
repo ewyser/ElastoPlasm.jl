@@ -248,7 +248,8 @@ plot_output(f, "point/solid/p"; frame=7); animate_output(f, "point/solid/p"); pl
   `x J n Omega ell`, solid `u v p dev epII epV rho q umag vmag`, thermal `T`; mesh solid `v a m`,
   thermal `T`). Partial selections merge per field; a phase the problem lacks is skipped with a
   warning. Multi-selections are any non-numeric option whose default is a list (`multi_select`):
-  `plot.what` and these lists, checkbox grids in the window (pages "output · point/mesh").
+  `plot.what` and these lists, checkbox grids in the window, all on its "output" page (`point · solid`, `mesh · solid`, …; a list
+  with nothing to pick, such as the fluid phase's, is not shown).
 - **File:** one array per field, frames last (`/point/<phase>/<field>`, `/mesh/<phase>/<field>`),
   chunked per frame, deflate 3, Float64 or Float32 (`single`); `/frames/t` (a time, or a load step:
   `/frames/loadstep` 1), `/frames/step`, `/frames/workflow` (the workflow's name); the grid,

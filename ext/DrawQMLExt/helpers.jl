@@ -157,7 +157,7 @@ the `output.what` lists) a checkbox per value. Left out: `dtype.T0`/`dtype.bits`
 const OPTIONS = let rows = Any[]
     function walk(o, d, sec, path)
         if o isa Tuple && length(o) == 2 && o[1] isa AbstractString
-            (sec == "dtype" && path ∈ (["T0"], ["bits"])) || sec == "solution" || push!(rows, (sec, path, o[2], d))
+            (sec == "dtype" && path ∈ (["T0"], ["bits"])) || sec == "solution" || isempty(o[2]) || push!(rows, (sec, path, o[2], d))
         elseif o isa NamedTuple
             for k ∈ keys(o)
                 walk(getfield(o, k), getfield(d, k), sec, [path; string(k)])
@@ -169,9 +169,6 @@ const OPTIONS = let rows = Any[]
     rows
 end
 is_list(r) = multi_select([r[1]; r[2]])
-# the page of the section menu an option is on: its section, or for nested lists (`output.what.point.…`)
-# the section and the group, e.g. "output · point"
-option_page(sec, path) = length(path) ≥ 3 ? "$sec · $(path[2])" : sec
 # the override at (section, path) in the nested options Dict, or nothing; and setting/removing it
 function getoption(options, sec, path)
     d = get(options, sec, nothing)

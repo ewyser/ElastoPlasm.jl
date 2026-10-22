@@ -189,15 +189,17 @@ function panel_json(e::Editor)
                shown=length(e.calib) == 2 ? string(round(dist(e.calib[2], e.calib[1]); sigdigits=6)) : "")
     return json((; tab=qml_index(e.step), status=e.status, finished=e.finished, domain, zones, options, run, backdrop, calib))
 end
-# the rows of the current options page, the lists last: a drop-down, a numeric field (with presets) or a list of values
+# the rows of the current options page (its section), the lists last: a drop-down, a numeric field (with presets)
+# or a list of values; a nested list is labelled by its group ("point · solid" for `output.what.point.solid`)
 function option_rows_json(e::Editor)
-    page = sort(filter(r -> option_page(r[1], r[2]) == e.section, OPTIONS); by=is_list)
+    page = sort(filter(r -> r[1] == e.section, OPTIONS); by=is_list)
     return map(page) do (sec, path, vals, def)
         list = is_list((sec, path))
         vals = option_label.(list ? list_values(sec, vals) : vals)
         cur  = getoption(e.options, sec, path)
         now  = something(cur, def)
-        row  = (; key=option_key(sec, path), label=join(path, "."), checked=!isnothing(cur), values=vals)
+        name = list && length(path) > 1 ? join(path[2:end], " · ") : join(path, ".")
+        row  = (; key=option_key(sec, path), label=name, checked=!isnothing(cur), values=vals)
         list              ? (; row..., kind="list", text="", index=-1, picks=vals .∈ Ref(option_label.(now))) :
         free_numeric(def) ? (; row..., kind="numeric", text=fmt(now), index=-1) :
                             (; row..., kind="menu", text="", index=qml_index(something(findfirst(==(option_label(now)), vals), 1)))

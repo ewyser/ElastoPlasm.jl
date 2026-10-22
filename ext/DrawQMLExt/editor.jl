@@ -420,8 +420,8 @@ end
 
 # ---- solver options: rows by key ("basis.which", "output.what.point.solid")
 
-const PAGE_ORDER = ["basis", "stab", "material", "grf", "nonloc", "plot", "output", "output · point", "output · mesh", "dtype", "backend"]
-const SECTIONS   = sort(unique([option_page(r[1], r[2]) for r ∈ OPTIONS]);       # the pages of the section menu
+const PAGE_ORDER = ["basis", "stab", "material", "grf", "nonloc", "plot", "output", "dtype", "backend"]
+const SECTIONS   = sort(unique(first.(OPTIONS));                                  # the pages of the section menu, one per section
                         by=s -> something(findfirst(==(s), PAGE_ORDER), length(PAGE_ORDER) + 1))
 option_key(sec, path) = join([sec; path], ".")
 function option_entry(key)
