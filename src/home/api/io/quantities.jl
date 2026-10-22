@@ -1,6 +1,9 @@
 export quantities
 
-columns(v) = reduce(hcat, v)                                 # Vector{SVector{D}} → D × n
+# a vector of D-component vectors as a D × n matrix, one column each (what HDF5 stores)
+function columns(v)
+    return reduce(hcat, v)
+end
 
 """
     qty(data, name, unit="-"; label=nothing, display=(unit, 1.0), cb=:viridis, cblim=nothing) -> NamedTuple
@@ -31,44 +34,46 @@ or node, or components × count. A point entry with a `label` can be plotted (`p
 `output.what` and `plot.what` select keys, `get_option` lists them, an HDF5 output stores each field's
 `name`, `unit` and `label` as attributes. To add a quantity, add an entry here.
 """
-quantities() = (;
-    point = (;
-        base = (;
-            x     = qty(m -> columns(m.x), "position", "m"),
-            J     = qty(m -> m.J, "deformation determinant"; label=L"J", cblim=(0.5, 1.5)),
-            n     = qty(m -> m.n, "porosity"; label=L"n", cb=:vik, cblim=(-1.0, 1.0)),
-            Omega = qty(m -> m.Ω, "volume", "m^D"),
-            ell   = qty(m -> columns(m.ℓ), "domain", "m"; label=L"\ell"),   # plotted as the points' GIMP boxes
+function quantities()
+    return (;
+        point = (;
+            base = (;
+                x     = qty(m -> columns(m.x), "position", "m"),
+                J     = qty(m -> m.J, "deformation determinant"; label=L"J", cblim=(0.5, 1.5)),
+                n     = qty(m -> m.n, "porosity"; label=L"n", cb=:vik, cblim=(-1.0, 1.0)),
+                Omega = qty(m -> m.Ω, "volume", "m^D"),
+                ell   = qty(m -> columns(m.ℓ), "domain", "m"; label=L"\ell"),   # plotted as the points' GIMP boxes
+            ),
+            solid = (;
+                u     = qty(m -> columns(m.s.u), "displacement", "m"),
+                v     = qty(m -> columns(m.s.v), "velocity", "m/s"),
+                p     = qty(m -> getfield.(m.s.σᵢ, :p), "pressure", "Pa"; label=L"p", display=("kPa", 1e-3), cblim=(0.0, 150)),
+                dev   = qty(m -> columns([σ.dev for σ ∈ m.s.σᵢ]), "deviatoric stress", "Pa"),
+                epII  = qty(m -> getindex.(m.s.ϵpII, 1), "plastic strain";
+                            label=L"\epsilon_{\mathrm{II}}^{\mathrm{acc}}", cblim=(0.0, 1.5)),
+                epV   = qty(m -> m.s.ϵpV, "volumetric plastic strain"),
+                rho   = qty(m -> m.s.ρ, "density", "kg/m^3"),
+                q     = qty(m -> [sqrt(3*get_J2(σ)) for σ ∈ m.s.σᵢ], "von Mises stress", "Pa"),
+                umag  = qty(m -> [sqrt(sum(abs2, u)) for u ∈ m.s.u], "displacement magnitude", "m"; label=L"u", cblim=(0.0, 0.25)),
+                vmag  = qty(m -> [sqrt(sum(abs2, v)) for v ∈ m.s.v], "velocity magnitude", "m/s"; label=L"v", cblim=(0.0, 5.0)),
+                c0    = qty(m -> [c.c₀ for c ∈ m.s.cmp], "initial cohesion", "Pa";
+                            label=L"c_{0}", display=("kPa", 1e-3), cb=:vik, cblim=(10.0, 30.0)),
+                phi0  = qty(m -> [hasproperty(c, :ϕ₀) ? c.ϕ₀ : NaN for c ∈ m.s.cmp], "initial friction angle", "rad";   # NaN: von Mises
+                            label=L"\phi_{0}", display=("deg", 180/π), cblim=(20.0, 40.0)),
+            ),
+            fluid = (;),                                         # until the fluid phase has fields
+            thermal = (; T = qty(m -> m.t.T, "temperature", "K"; label=L"T", cb=:thermal, cblim=(20.0, 293.15))),
         ),
-        solid = (;
-            u     = qty(m -> columns(m.s.u), "displacement", "m"),
-            v     = qty(m -> columns(m.s.v), "velocity", "m/s"),
-            p     = qty(m -> getfield.(m.s.σᵢ, :p), "pressure", "Pa"; label=L"p", display=("kPa", 1e-3), cblim=(0.0, 150)),
-            dev   = qty(m -> columns([σ.dev for σ ∈ m.s.σᵢ]), "deviatoric stress", "Pa"),
-            epII  = qty(m -> getindex.(m.s.ϵpII, 1), "plastic strain";
-                        label=L"\epsilon_{\mathrm{II}}^{\mathrm{acc}}", cblim=(0.0, 1.5)),
-            epV   = qty(m -> m.s.ϵpV, "volumetric plastic strain"),
-            rho   = qty(m -> m.s.ρ, "density", "kg/m^3"),
-            q     = qty(m -> [sqrt(3*get_J2(σ)) for σ ∈ m.s.σᵢ], "von Mises stress", "Pa"),
-            umag  = qty(m -> [sqrt(sum(abs2, u)) for u ∈ m.s.u], "displacement magnitude", "m"; label=L"u", cblim=(0.0, 0.25)),
-            vmag  = qty(m -> [sqrt(sum(abs2, v)) for v ∈ m.s.v], "velocity magnitude", "m/s"; label=L"v", cblim=(0.0, 5.0)),
-            c0    = qty(m -> [c.c₀ for c ∈ m.s.cmp], "initial cohesion", "Pa";
-                        label=L"c_{0}", display=("kPa", 1e-3), cb=:vik, cblim=(10.0, 30.0)),
-            phi0  = qty(m -> [hasproperty(c, :ϕ₀) ? c.ϕ₀ : NaN for c ∈ m.s.cmp], "initial friction angle", "rad";   # NaN: von Mises
-                        label=L"\phi_{0}", display=("deg", 180/π), cblim=(20.0, 40.0)),
+        mesh = (;
+            solid = (;
+                v = qty(g -> columns(g.s.v), "velocity", "m/s"),
+                a = qty(g -> columns(g.s.a), "acceleration", "m/s^2"),
+                m = qty(g -> g.s.m, "mass", "kg"),
+            ),
+            thermal = (; T = qty(g -> g.t.T, "temperature", "K")),
         ),
-        fluid = (;),                                         # until the fluid phase has fields
-        thermal = (; T = qty(m -> m.t.T, "temperature", "K"; label=L"T", cb=:thermal, cblim=(20.0, 293.15))),
-    ),
-    mesh = (;
-        solid = (;
-            v = qty(g -> columns(g.s.v), "velocity", "m/s"),
-            a = qty(g -> columns(g.s.a), "acceleration", "m/s^2"),
-            m = qty(g -> g.s.m, "mass", "kg"),
-        ),
-        thermal = (; T = qty(g -> g.t.T, "temperature", "K")),
-    ),
-)
+    )
+end
 
 # the entry at a path ("point/solid/p"), or a group of them ("point/solid"); nothing if there is none
 function quantity(path::AbstractString)
@@ -80,9 +85,16 @@ function quantity(path::AbstractString)
     return t
 end
 # the plottable point quantities, key => entry, in order: what `plot.what` picks from
-plottable() = [string(k) => e for phase ∈ quantities().point for (k, e) ∈ pairs(phase) if !isnothing(e.label)]
+function plottable()
+    return [string(k) => e for phase ∈ quantities().point for (k, e) ∈ pairs(phase) if !isnothing(e.label)]
+end
 # a plottable quantity by key, or nothing
-plot_entry(key) = (i = findfirst(==(string(key)) ∘ first, plottable()); isnothing(i) ? nothing : plottable()[i][2])
+function plot_entry(key)
+    for (k, e) ∈ plottable()
+        k == string(key) && return e
+    end
+    return nothing
+end
 # a value of `plot.what` or of an `output.what` list (option path ["output", "what", "point", "solid"]) as menus
 # show it: its quantity's readable name, otherwise the value itself
 function shown_name(path, v)
@@ -90,5 +102,8 @@ function shown_name(path, v)
     return isnothing(e) ? string(v) : e.name
 end
 # the `output.what` options of `get_option()`: per object and phase, the keys of its quantities
-output_what_options() = NamedTuple(o => NamedTuple(ph => ("Select $ph $o fields", String[string(k) for k ∈ keys(qs)]) for (ph, qs) ∈ pairs(g))
-                                   for (o, g) ∈ pairs(quantities()))
+function output_what_options()
+    return NamedTuple(object => NamedTuple(phase => ("Select $phase $object fields", String[string(k) for k ∈ keys(qs)])
+                                           for (phase, qs) ∈ pairs(phases))
+                      for (object, phases) ∈ pairs(quantities()))
+end
