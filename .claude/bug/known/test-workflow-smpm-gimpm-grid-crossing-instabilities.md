@@ -2,7 +2,13 @@
 
 **Status: open** (root cause narrowed but not fully confirmed; `bsmpm`/`mlsmpm` pass cleanly).
 
-**Latest sweep** (`test_workflow.jl` included directly, 4 threads, branch
+**Latest sweep** (branch `fix-explicit-end-time-and-cfl-step`, after `get_dt` took the smallest cell,
+see `.claude/bug/fixed/get-dt-maximum-over-axes.md`): **144/192**, the 47 cases below plus
+`slump_2d_gimpm_hencky_std_locktrue_musltrue_nlfalse` (BoundsError at a negative element index, like its
+three `musl`/`nonloc` siblings, which already failed). The steps changed by under 1% on this slump, so a
+borderline case tipped over; no other case changed. Before that:
+
+**Previous sweep** (`test_workflow.jl` included directly, 4 threads, branch
 `refactor-init-problem-spec` and, side by side in a worktree, its parent `dc03076`): **145/192 at
 both, the same 47 failing cases** (smpm 24, gimpm 23), so the problem-spec refactor did not change the
 sweep. The run before that:

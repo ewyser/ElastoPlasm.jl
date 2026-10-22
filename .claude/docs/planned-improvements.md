@@ -368,6 +368,12 @@
     every step, which accumulates. The explicit runs were stable without it.
   - Follow-ups: an extrapolated (not zero) displacement at fixed nodes would remove the surface bias
     but needs a reference; this stays open alongside the paper's aggregation, which is not planned.
+- **`get_dt` against Nakamura et al. (2023) Eq 35.** Since the smallest-cell fix
+  (`.claude/bug/fixed/get-dt-maximum-over-axes.md`) the step is `0.5·min_d h_d/(c_max + v_max,d)`. Eq 35
+  uses the speed `‖v_p‖` (not the largest component per axis, which is smaller by up to √D) and
+  `max_p(c_p + ‖v_p‖)` (the code adds the two maxima, which is larger). Matching it means `n2p.jl` tracking
+  `max_p(c_p + ‖v_p‖)` instead of `vmax` per axis; it changes every explicit run slightly, so check it the
+  same way (old and new reduction in one session, figure).
 - **`test_performance.jl` rewrites its tracked baseline on any machine not in it.** The baseline
   (`test/dataset/performance_baseline.jld2`) holds one AMD Ryzen entry; elsewhere the test saves the
   current run as that machine's entry (a change to a tracked file) and then compares the run with

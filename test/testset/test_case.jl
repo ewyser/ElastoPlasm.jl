@@ -70,6 +70,9 @@
         pb3 = load_simulation(setup_simulation(ex)).problem
         @test startswith(check_case(ex).info[1], "$(pb3.mpts.nmp) material points, 800 elements (3D") && pb3.mpts.nmp == 480*8
         @test estimate_dt(ex)[1] ≈ EP.get_dt(pb3.mpts, pb3.mesh.prprt, pb3.time, Inf) rtol=1e-12
+        el = layered(; nel=[40, 10], solver=(; plot=(; status=false)), run=(; folder="test/spec_dt_el"))   # cells 0.5 × 1 m
+        pe = load_simulation(setup_simulation(el)).problem; dt, c = estimate_dt(el)
+        @test isapprox(dt, EP.get_dt(pe.mpts, pe.mesh.prprt, pe.time, Inf); rtol=1e-12) && dt ≈ 0.5*0.5/c   # the smallest cell sets it
         none = Case(; L=[20, 10], nel=[20, 10], zones=[Zone("away", Polygon([[30, 0], [40, 0], [40, 5]]))])
         @test length(check_case(none).errors) == 1 && length(check_case(none).warnings) == 2   # no points; outside; empty zone
         hidden = Case(; L=[20, 10], nel=[20, 10], zones=reverse(s.zones))

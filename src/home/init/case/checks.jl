@@ -24,8 +24,8 @@ option_of(s::Case, sec, key) = (o = get(s.solver, sec, (;)); o isa NamedTuple &&
 
 The explicit solver's first time step for a case, as `get_dt` computes it at rest: `0.5 h / c`,
 with `c` the largest elastic P-wave speed `√((K + 4G/3)/ρ)` over the zones holding points
-(`ρ = (1 − n₀)ρ₀`; improved Hencky's tangent bulk modulus `K/n₀` at zero strain) and `h` the largest
-cell size over the axes (what `get_dt` takes, see `.claude/bug/known/get-dt-maximum-over-axes.md`).
+(`ρ = (1 − n₀)ρ₀`; improved Hencky's tangent bulk modulus `K/n₀` at zero strain) and `h` the smallest
+cell size over the axes.
 `(Inf, 0.0)` without points.
 """
 function estimate_dt(s::Case; zone=case_zones(s))
@@ -40,7 +40,7 @@ function estimate_dt(s::Case; zone=case_zones(s))
     end
     c = maximum(speed, used)
     L, nel = domain(s)
-    return 0.5*maximum(L ./ nel)/c, c
+    return 0.5*minimum(L ./ nel)/c, c
 end
 
 """

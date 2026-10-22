@@ -35,9 +35,9 @@ function get_dt(mpts::Point{T1,T2,D,CM,ST,EL},props::MeshProperties{T1,T2,D},tim
         cmp   = mpts.s.cmp[p]
         cwave = max(cwave, sqrt((_Ktan(EL,mpts.s.ϵᵢ[p],cmp,mpts.n₀[p])+T2(4.0/3.0)*cmp.Gc)/mpts.s.ρ[p]))
     end
-    # calculte dt
+    # dt: the CFL bound of the most restrictive axis, Courant number 0.5 (Nakamura et al. 2023, Eq 35)
     cmax = props.h./(mpts.vmax.+cwave); mpts.vmax.=T2(0.0)
-    dt   = min(T2(0.5)*maximum(cmax),ΔT-time.t[1])
+    dt   = min(T2(0.5)*minimum(cmax),ΔT-time.t[1])
     return dt::T2
 end
 
