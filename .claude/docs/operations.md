@@ -241,7 +241,7 @@ output_series(f, "point/solid/p"; point=30)                         # (; t, valu
 plot_output(f, "point/solid/p"; frame=7); animate_output(f, "point/solid/p"); plot_series(f, "point/solid/p"; point=30)
 ```
 
-- **Configuration:** the `output` solver section, `(; status, every, single, what)`; `what` mirrors
+- **Configuration:** the `output` solver section, `(; status, every, what)`; `what` mirrors
   the data model, `point = (; base, solid, fluid, thermal)` and `mesh = (; solid, thermal)`, each a
   list of names from `OUTPUT_FIELDS` (`src/home/api/io/output/fields.jl`, a nested `Dict` shaped like
   `what`, one entry per quantity, extensible: point
@@ -251,7 +251,7 @@ plot_output(f, "point/solid/p"; frame=7); animate_output(f, "point/solid/p"); pl
   `plot.what` and these lists, checkbox grids in the window, all on its "output" page (`point · solid`, `mesh · solid`, …; a list
   with nothing to pick, such as the fluid phase's, is not shown).
 - **File:** one array per field, frames last (`/point/<phase>/<field>`, `/mesh/<phase>/<field>`),
-  chunked per frame, deflate 3, Float64 or Float32 (`single`); `/frames/t` (a time, or a load step:
+  chunked per frame, deflate 3, Float64; `/frames/t` (a time, or a load step:
   `/frames/loadstep` 1), `/frames/step`, `/frames/workflow` (the workflow's name); the grid,
   the initial point properties and attributes (case TOML, version, laws). Plain HDF5 (h5py etc.).
 - **When:** explicit workflows stop on the `plot.freq` grid and the `output.every` grid, each ending at
@@ -268,7 +268,7 @@ plot_output(f, "point/solid/p"; frame=7); animate_output(f, "point/solid/p"); pl
   `animate_output`, `plot_series` draw from the file alone (live-plot colour maps, units and limits
   where the field matches a plot variable). Checked: a frame drawn from the file matches the live
   plot of the same time; `test_output.jl` covers shapes, cadence, last frame = saved state, append,
-  Float32, skipped phases, load steps and the plotting.
+  skipped phases, load steps and the plotting.
 
 ### Running tests / benchmarks
 

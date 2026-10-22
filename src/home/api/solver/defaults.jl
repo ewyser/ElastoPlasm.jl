@@ -81,7 +81,6 @@ function get_default()
         output = (;                          # HDF5 time series beside the .jld2 (output.jl)
             status = false,
             every  = 1.0,                    # [s] between frames of the explicit workflows
-            single = false,                  # store Float32 instead of Float64
             what   = (;                      # fields to record, by object and phase (OUTPUT_FIELDS)
                 point = (; base=["x", "J"], solid=["u", "v", "p", "dev", "epII"], fluid=String[], thermal=String[]),
                 mesh  = (; solid=String[], thermal=String[]),

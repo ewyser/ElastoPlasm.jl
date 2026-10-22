@@ -67,7 +67,6 @@ function get_option()
             output = (
                 status = ("Record an HDF5 time series of the run",[true, false]),
                 every  = ("Select time between recorded frames [s]",[0.1, 0.5, 1.0, 5.0]),
-                single = ("Store single precision",[true, false]),
                 what   = (
                     point = (
                         base    = ("Select point fields outside any phase",["x", "J", "n", "Omega", "ell"]),

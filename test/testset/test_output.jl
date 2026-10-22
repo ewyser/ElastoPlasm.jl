@@ -40,12 +40,12 @@
         execute(j; workflows=[elastodynamic!])                                     # a copy of the saved state: a new file
         @test output_series(f, "point/solid/p"; point=1).t[1] == load_simulation(j).problem.time.t[1]
     end
-    @testset "selection, precision, phases" begin
-        c = case("out_sel"; output=out(single=true, what=(; point=(; solid=["p"], thermal=["T"]), mesh=(; solid=["v"]))))
+    @testset "selection, phases" begin
+        c = case("out_sel"; output=out(what=(; point=(; solid=["p"], thermal=["T"]), mesh=(; solid=["v"]))))
         j = setup_simulation(c)
         @test_logs (:warn, r"skipped fields") match_mode=:any execute!(j; workflows=[elastodynamic!])
         HDF5.h5open(output_of(j), "r") do h
-            @test !haskey(h, "point/thermal") && eltype(h["point/solid/p"]) == Float32 && keys(h["point/solid"]) == ["p"]
+            @test !haskey(h, "point/thermal") && keys(h["point/solid"]) == ["p"]
             @test size(h["mesh/solid/v"]) == (2, load_simulation(j).problem.mesh.prprt.nno[end], length(h["frames/t"]))
         end
         p = execute!(Simulation(Problem(case("out_mem"))); workflows=[elastodynamic!], output=(f = joinpath(mktempdir(), "o.h5"))).problem   # in memory

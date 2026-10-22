@@ -3,13 +3,12 @@ export record!
 """
     Recorder
 
-An open HDF5 output: the file, the recorded fields (`(field, object, dataset)`) and the element type
-they are stored in. Made by `open_output`, written by `record!`, closed by `close`.
+An open HDF5 output: the file and the recorded fields (`(field, object, dataset)`, stored as Float64).
+Made by `open_output`, written by `record!`, closed by `close`.
 """
 struct Recorder
     file   :: HDF5.File
     fields :: Vector{Tuple{Function,String,HDF5.Dataset}}
-    T      :: DataType
 end
 Base.close(r::Recorder) = isopen(r.file) && close(r.file)
 nframes(r::Recorder) = length(r.file["frames/t"])
@@ -38,17 +37,16 @@ open_output(file, p::Problem; append::Bool=false, case_text=nothing) =
 
 # a new output: the grid, the points as built, what was run, a dataset per field, and the first frame
 function create_output(file, p::Problem; case_text=nothing)
-    T = p.solver.output.single ? Float32 : Float64
     m, g = p.mpts, p.mesh
     mkpath(dirname(abspath(file)))
     f = h5open(file, "w")
-    f["mesh/x"]   = T.(columns(g.x))
+    f["mesh/x"]   = Float64.(columns(g.x))
     f["mesh/L"]   = Float64.(collect(g.prprt.L))
     f["mesh/nel"] = Int.(collect(g.prprt.nel))
     f["mesh/h"]   = Float64.(collect(g.prprt.h))
-    f["point/initial/Omega"] = T.(m.Ω₀)
-    f["point/initial/n0"]    = T.(m.n₀)
-    f["point/initial/rho0"]  = T.(m.s.ρ₀)
+    f["point/initial/Omega"] = Float64.(m.Ω₀)
+    f["point/initial/n0"]    = Float64.(m.n₀)
+    f["point/initial/rho0"]  = Float64.(m.s.ρ₀)
     a = attributes(f)
     a["ElastoPlasm"] = string(get_version())
     a["D"], a["nmp"], a["nno"] = length(g.prprt.L), Int(m.nmp), Int(g.prprt.nno[end])
@@ -59,9 +57,9 @@ function create_output(file, p::Problem; case_text=nothing)
     frames_dataset(f, "frames/step", Int, ())
     frames_dataset(f, "frames/loadstep", UInt8, ())                    # 1 when t is a load step (0/1: readable anywhere)
     frames_dataset(f, "frames/workflow", datatype(String), ())
-    fields = [(field, object, frames_dataset(f, path, T, size(field(object == "point" ? m : g))))
+    fields = [(field, object, frames_dataset(f, path, Float64, size(field(object == "point" ? m : g))))
               for (path, field, object) ∈ output_fields(p)]
-    r = Recorder(f, fields, T)
+    r = Recorder(f, fields)
     write_frame!(r, p.mpts, p.mesh, p.time.t[1], 0, false, "initial")
     return r
 end
@@ -73,14 +71,13 @@ function reopen_output(file, p::Problem)
     missing_ = [path for (path, _, _) ∈ selected if !haskey(f, path)]
     isempty(missing_) || @warn "Output: $(file) does not record $(missing_); not added when continuing it"
     fields = [(field, object, f[path]) for (path, field, object) ∈ selected if haskey(f, path)]
-    T = isempty(fields) ? (p.solver.output.single ? Float32 : Float64) : eltype(fields[1][3])
-    return Recorder(f, fields, T)
+    return Recorder(f, fields)
 end
 
 function write_frame!(r::Recorder, mpts, mesh, t, step, loadstep::Bool, workflow::AbstractString)
     k = nframes(r) + 1
     for (field, object, d) ∈ r.fields
-        set_frame!(d, k, r.T.(field(object == "point" ? mpts : mesh)))
+        set_frame!(d, k, Float64.(field(object == "point" ? mpts : mesh)))
     end
     set_frame!(r.file["frames/t"], k, Float64(t))
     set_frame!(r.file["frames/step"], k, Int(step))
