@@ -21,11 +21,12 @@ height(b::Backdrop) = b.npx[1] == 0 ? 0.0 : b.width*b.npx[2]/b.npx[1]
 The state of a drawing window editing `case`: the zones (polygons and circles), the domain, the boundary
 conditions, the solver overrides and run settings, undo/redo snapshots, the polygon being drawn,
 the vertices being dragged, the current step (1 Domain, 2 Zones, 3 Options, 4 Run), the options page,
-the selected zone, the snapping toggles, the visible area (`view`), the cursor, its coordinates
-(`readout`, drawn on the canvas) and the status line. `cache` keeps the preview points and the checks
+the selected zone, the snapping toggles, the visible area (`view`, and the point grabbed while panning it), the
+cursor, its coordinates (`readout`, drawn on the canvas) and the status line. `cache` keeps the preview points and the checks
 until what they depend on changes (`preview_points`, `checks`).
 `result` is the `Case` after **Create…** (`create!`), or `nothing` when cancelled; `finished` says
-whether the window should close. The picture to trace over (`backdrop`) is kept when a case is loaded.
+whether the window should close. The picture to trace over (`backdrop`, shown while `picture`) is kept when a
+case is loaded.
 """
 Base.@kwdef mutable struct Editor
     # from the case
@@ -49,6 +50,8 @@ Base.@kwdef mutable struct Editor
     onedge   :: Vector{Vector{Float64}}                        = Vector{Float64}[]   # vertices of the drawing snapped onto edges
     drag     :: Vector{Tuple{Int,Int}}                         = Tuple{Int,Int}[]    # (zone, vertex) moving together
     resizing :: Bool                                           = false   # the domain corner is being dragged
+    grab     :: Union{Nothing,Vector{Float64}}                 = nothing   # panning: the point grabbed, kept under the cursor
+    clicked  :: Union{Nothing,Tuple{Int,NTuple{4,Float64}}}    = nothing   # the zone pressed in, and the view then (unless panned: selected)
     section  :: String                                         = first(SECTIONS)
     grid     :: Bool                                           = true
     shapes   :: Bool                                           = true
@@ -64,9 +67,9 @@ Base.@kwdef mutable struct Editor
     shape    :: Symbol                                         = :polygon   # the zone being drawn: :polygon, :rectangle, :triangle, :circle
     ring     :: Union{Nothing,Tuple{Int,Symbol}}               = nothing   # a circle being dragged: (zone, :centre or :radius)
     picked   :: Union{Nothing,Vector{Float64}}                 = nothing   # the vertex last clicked or dragged (its position)
-    backdrop :: Union{Nothing,Backdrop}                        = nothing   # the picture under the grid
-    calib    :: Union{Nothing,Vector{Vector{Float64}}}         = nothing   # measuring a scale bar on it: its ends clicked (at most 2) …
-    calib_len:: Union{Nothing,Float64}                         = nothing   # … and its true length [m] (typed)
+    backdrop :: Union{Nothing,Backdrop}                        = nothing   # the picture under the grid …
+    picture  :: Bool                                           = false     # … shown: the Domain step's choice, draw on a picture
+    calib    :: Union{Nothing,Vector{Vector{Float64}}}         = nothing   # measuring a scale bar on it: its ends clicked (at most 2)
 end
 function Editor(case::Case; step::Integer=2)
     length(case.L) == 2 || throw(ArgumentError("the window draws a 2D (x–z) case; a width (domain step) extrudes it along y"))
@@ -85,7 +88,28 @@ function zoom!(e::Editor, x, z, f)
     e.view = (x + (x0 - x)*f, x + (x1 - x)*f, z + (z0 - z)*f, z + (z1 - z)*f)
     return e
 end
-fit!(e::Editor, f=e.step == 1 ? 1.4 : 1.0) = (e.view = (-0.02f*e.L[1], (f + 0.02)*e.L[1], -0.04f*e.L[2], (f + 0.04)*e.L[2]); e)
+"Move the visible area by `d` (x, z) [m]."
+function pan!(e::Editor, d)
+    x0, x1, z0, z1 = e.view
+    e.view = (x0 + d[1], x1 + d[1], z0 + d[2], z1 + d[2])
+    return e
+end
+"""
+    wheel!(editor, x, z, angle, shift; zoom=false)
+
+The wheel at `(x, z)`: a trackpad's two-finger scroll (`shift`, how far the content moves, x and z [m], non-zero)
+pans the view; a mouse wheel (`angle`, in eighths of a degree, 120 a notch), or any scroll with `zoom` (Cmd/Ctrl
+held), zooms about the pointer.
+"""
+function wheel!(e::Editor, x, z, angle, shift; zoom::Bool=false)
+    !zoom && any(!=(0), shift) && return pan!(e, .-shift)
+    return zoom!(e, x, z, 0.9^(angle/120))
+end
+"Fit the visible area to the domain, with a small margin."
+function fit!(e::Editor)
+    e.view = (-0.02e.L[1], 1.02e.L[1], -0.04e.L[2], 1.04e.L[2])
+    return e
+end
 # an undo step before an edit, or with the zones as they were before it (`snapshot`, when the edit may not happen)
 function checkpoint!(e::Editor, snapshot=deepcopy(e.regions))
     push!(e.history, snapshot); length(e.history) > 200 && popfirst!(e.history); empty!(e.future)
@@ -141,18 +165,20 @@ end
 
 # ---- mouse and keys (data coordinates)
 
-function press!(e::Editor, x, z; right::Bool=false)
+function press!(e::Editor, x, z; right::Bool=false, pan::Bool=false)
     p = [Float64(x), Float64(z)]
+    pan && (e.grab = p; return e)                           # the middle button: pan, whatever is under it
     if !isnothing(e.calib) && length(e.calib) < 2 && !right  # a scale bar's end on the picture (not snapped)
         push!(e.calib, p)
-        e.status = length(e.calib) == 1 ? "Scale bar: click its other end." : "Scale bar: type its length, then Apply."
+        e.status = length(e.calib) == 1 ? "Scale bar: click its other end." : "Scale bar: type its length in metres, then Enter."
         return e
     end
-    if e.step == 1                                           # the domain: grab the corner handle
-        !right && dist(p, e.L) < 2tol(e) && (e.resizing = true)
+    if e.step == 1                                           # the domain: grab the corner handle, or pan
+        right && return e
+        dist(p, e.L) < 2tol(e) ? (e.resizing = true) : (e.grab = p)
         return e
     end
-    e.step == 2 || return e
+    e.step == 2 || (right || (e.grab = p); return e)          # options, run: the canvas only pans
     if right                                                 # delete a vertex
         v = isnothing(e.drawing) ? near_vertex(e, p) : nothing
         isnothing(v) || remove_at!(e, v)
@@ -168,6 +194,7 @@ function press!(e::Editor, x, z; right::Bool=false)
             checkpoint!(e)
             push!(e.regions, circle_region("zone $(length(e.regions) + 1)", e.drawing[1], r, Dict{String,Float64}()))
             e.drawing, e.status, e.selected = nothing, "", length(e.regions)
+            cut_earlier!(e)
         end
         return e
     end
@@ -203,7 +230,12 @@ function press!(e::Editor, x, z; right::Bool=false)
     if isnothing(v)                                          # on an edge: insert a vertex there, and drag it
         snapshot = deepcopy(e.regions)
         v = insert_on_edge!(e.regions, p, tol(e))
-        isnothing(v) && return e
+        if isnothing(v)                                      # on no vertex or edge: pan, or select the zone clicked in
+            e.grab = p
+            k = findlast(rg -> inside(shape_of(rg), (p[1], p[2])), e.regions)   # the topmost, whose constants a point there gets
+            isnothing(k) || (e.clicked = (k, e.view))
+            return e
+        end
         checkpoint!(e, snapshot)
     else
         checkpoint!(e)
@@ -214,6 +246,7 @@ function press!(e::Editor, x, z; right::Bool=false)
 end
 function move!(e::Editor, x, z)
     p = [Float64(x), Float64(z)]
+    isnothing(e.grab) || return pan!(e, e.grab .- p)         # panning: the grabbed point follows the cursor
     if e.step == 1
         e.cursor = nothing
         if e.resizing
@@ -241,12 +274,16 @@ function move!(e::Editor, x, z)
 end
 function release!(e::Editor)
     e.resizing && (e.resizing = false; fit!(e))
-    empty!(e.drag); e.ring = nothing
+    if !isnothing(e.clicked)                                 # a click inside a zone, not a pan (within a few pixels), selects it
+        k, view = e.clicked
+        maximum(abs.(e.view .- view)) < 0.2tol(e) && (e.selected = k)
+    end
+    empty!(e.drag); e.ring, e.grab, e.clicked = nothing, nothing, nothing
     return e
 end
 leave!(e::Editor) = (e.cursor = nothing; e.readout = ""; e)
 function key!(e::Editor, key::AbstractString; cmd::Bool=false, shift::Bool=false)
-    key == "escape" && !isnothing(e.calib) && (e.calib = nothing; e.calib_len = nothing; e.status = ""; return e)
+    key == "escape" && !isnothing(e.calib) && (e.calib = nothing; e.status = ""; return e)
     e.step == 2 || return e
     if cmd && (key == "y" || (key == "z" && shift))
         return redo!(e)
@@ -265,7 +302,8 @@ function key!(e::Editor, key::AbstractString; cmd::Bool=false, shift::Bool=false
     end
     return e
 end
-# the drawing as a zone: its edge-snapped vertices are inserted into the edges they lie on (shared vertices)
+# the drawing as a zone: its edge-snapped vertices are inserted into the edges they lie on (shared vertices), and it
+# is cut out of the earlier zones
 function close_drawing!(e::Editor)
     d = e.drawing
     length(d) < 3 && (e.status = "A zone needs at least 3 vertices."; return e)
@@ -274,6 +312,39 @@ function close_drawing!(e::Editor)
     empty!(e.onedge)
     push!(e.regions, DrawnRegion("zone $(length(e.regions) + 1)", d, Dict{String,Float64}()))
     e.drawing, e.status, e.selected = nothing, "", length(e.regions)
+    return cut_earlier!(e)
+end
+"""
+    cut_earlier!(editor)
+
+Cut the zone just drawn (the last) out of the earlier zones it overlaps (`cut`): each zone's outline is then where
+its points are (a point belongs to the last zone containing it, so the points do not change, but for a cut circle's
+next to its arc). An earlier zone may be left in several parts or with holes (several outlines); one covered
+entirely is removed; a circle that is cut becomes a polygon (`zone_rings`). Where the new zone's outline crosses
+theirs it gets a vertex too, so that the boundary they now share moves together. Part of the same undo step as
+drawing the zone.
+"""
+function cut_earlier!(e::Editor)
+    new, scale = last(e.regions), maximum(e.L)
+    cuts, gone = String[], Int[]
+    for k ∈ 1:length(e.regions)-1
+        rg = e.regions[k]
+        overlap(bbox(rg), bbox(new)) || continue
+        rs = cut(zone_rings(rg), [zone_rings(new)], scale)
+        isnothing(rs) && continue
+        isempty(rs) && (push!(gone, k); continue)
+        rg.vertices, rg.sizes, rg.centre, rg.radius = reduce(vcat, rs), length.(rs), nothing, 0.0
+        push!(cuts, rg.name)
+        iscircle(new) && continue
+        for v ∈ rg.vertices                                  # where the outlines cross: a vertex of the new zone too
+            v ∈ new.vertices || insert_on_edge!([new], v, 1e-9scale; exact=true)
+        end
+    end
+    msg = String[]
+    isempty(cuts) || push!(msg, "Cut out of $(join(cuts, ", ")).")
+    isempty(gone) || push!(msg, "Covered by it, removed: $(join((e.regions[k].name for k ∈ gone), ", ")).")
+    deleteat!(e.regions, gone)
+    e.status, e.selected = join(msg, " "), length(e.regions)
     return e
 end
 
@@ -334,61 +405,95 @@ end
 undo!(e::Editor) = restore!(e, e.history, e.future)
 redo!(e::Editor) = restore!(e, e.future, e.history)
 
-# ---- the picture to trace over, in the Domain step: load it, give its scale (its width, or a scale bar: two
-# clicks and a length), and the domain is fitted to it; then draw the zones on it. Its lower-left corner (x0, z0)
-# is where it sits in the domain (0, 0 by default; move it to crop the picture).
+# ---- the picture to trace over. The Domain step starts with a choice: a domain sized by hand, or a picture to draw
+# on (`use_picture!`), which has its own panel: load the picture, give its scale (a scale bar: two clicks and its
+# length, or its width) and place it; the domain follows it, from the origin to its far corner (`fit_domain!`).
+# Its lower-left corner (x0, z0) is where it sits in the domain (0, 0 by default; move it to crop the picture).
 
+"Draw on the picture (`on`: shown, its panel in the Domain step), or on a domain sized by hand (the picture kept, hidden)."
+function use_picture!(e::Editor, on::Bool)
+    e.picture, e.calib = on, nothing
+    e.status = on && isnothing(e.backdrop) ? "Choose a picture to draw on: a scanned section, a map." : ""
+    return e
+end
 "Show the picture `file` under the grid, across the domain's width until its scale is given."
-set_backdrop!(e::Editor, file) = (e.backdrop = Backdrop(String(file), (0, 0), 0.0, 0.0, e.L[1], 0.6); e.calib = nothing;
-                                  e.status = "Picture loaded: give its width, or measure a scale bar."; e)
-remove_backdrop!(e::Editor) = (e.backdrop = nothing; e.calib = nothing; e.calib_len = nothing; e)
-backdrop_size!(e::Editor, w, h) = (isnothing(e.backdrop) || (e.backdrop.npx = (Int(w), Int(h))); e)
+function set_backdrop!(e::Editor, file)
+    e.backdrop = Backdrop(String(file), (0, 0), 0.0, 0.0, e.L[1], 0.6)
+    e.picture, e.calib = true, nothing
+    e.status = "Loading the picture…"
+    return e
+end
+function remove_backdrop!(e::Editor)
+    e.backdrop, e.calib = nothing, nothing
+    return e
+end
+"The picture's size in pixels, reported by Qt once it has loaded it: the domain is fitted to the picture."
+function backdrop_size!(e::Editor, w, h)
+    isnothing(e.backdrop) && return e
+    e.backdrop.npx = (Int(w), Int(h))
+    fit_domain!(e)
+    e.status = "Picture loaded: measure a scale bar on it, or type its width."   # after the fit, which resets it
+    return e
+end
 """
     set_backdrop_field!(editor, key, text)
 
-Set the picture's `width` [m] (its scale: the domain is fitted to it), `x0`/`z0` (its lower-left corner in
-the domain) or `opacity` (0–1) to the number in `text`; other text is ignored.
+Set the picture's `width` [m] (its scale), `x0`/`z0` (its lower-left corner in the domain) or `opacity` (0–1) to
+the number in `text`; other text is ignored. The domain is fitted to the picture again, unless the opacity changed.
 """
 function set_backdrop_field!(e::Editor, key, text)
     b = e.backdrop; isnothing(b) && return e
     x = number(text); isnothing(x) && return e
-    if key == "width"
-        x > 0 || return e
-        b.width = x; fit_domain!(e)
-    elseif key == "x0" || key == "z0"
-        key == "x0" ? (b.x0 = x) : (b.z0 = x)
+    if key == "width" && x > 0
+        b.width = x
+    elseif key == "x0"
+        b.x0 = x
+    elseif key == "z0"
+        b.z0 = x
     elseif key == "opacity"
         b.opacity = clamp(x, 0.0, 1.0)
+        return e
+    else
+        return e
     end
-    return e
+    return fit_domain!(e)
 end
-"Fit the domain to the picture: from the origin to its far corner, at the current element size."
+"""
+    fit_domain!(editor)
+
+Fit the domain to the picture, from the origin to its far corner, in whole square elements of the current size
+(the nearest number of them): a measured scale gives an arbitrary picture size, which would make the cells
+slightly elongated.
+"""
 function fit_domain!(e::Editor)
     b = e.backdrop
     (isnothing(b) || b.npx[1] == 0) && return e
     L = [b.x0 + b.width, b.z0 + height(b)]
     all(>(0), L) || return e
-    set_domain!(e, L); fit!(e)
+    set_domain!(e, e.h .* max.(1, round.(L ./ e.h))); fit!(e)
     return e
 end
-"Measure a scale bar on the picture: the next two clicks are its ends (`set_scale_length!`, then `apply_scale!`)."
-scale_bar!(e::Editor) = (isnothing(e.backdrop) || (e.calib = Vector{Float64}[]; e.calib_len = nothing;
-                         e.status = "Scale bar: click one end of it on the picture."); e)
-set_scale_length!(e::Editor, text) = (x = number(text); e.calib_len = isnothing(x) || x ≤ 0 ? nothing : x; e)
+"Measure a scale bar on the picture: the next two clicks are its ends, then its length is typed (`apply_scale!`)."
+function scale_bar!(e::Editor)
+    isnothing(e.backdrop) && return e
+    e.calib = Vector{Float64}[]
+    e.status = "Scale bar: click one end of it on the picture."
+    return e
+end
 """
-    apply_scale!(editor)
+    apply_scale!(editor, text)
 
-Scale the picture so that the scale bar clicked on it has its typed length: a uniform scale about the
-picture's lower-left corner (the aspect is kept), from the ratio of that length to the clicked one; the
-domain is then fitted to the picture.
+Scale the picture so that the scale bar clicked on it is as long as the number in `text` [m] (other text is
+ignored): a uniform scale about the picture's lower-left corner (the aspect is kept), from the ratio of that
+length to the clicked one; the domain is then fitted to the picture.
 """
-function apply_scale!(e::Editor)
-    b, c, len = e.backdrop, e.calib, e.calib_len
-    (isnothing(b) || isnothing(c) || length(c) < 2 || isnothing(len)) && return e
+function apply_scale!(e::Editor, text)
+    b, c, len = e.backdrop, e.calib, number(text)
+    (isnothing(b) || isnothing(c) || length(c) < 2 || isnothing(len) || len ≤ 0) && return e
     d = dist(c[2], c[1])
     d > 0 || (e.status = "The two ends must differ."; return e)
     b.width *= len/d
-    e.calib, e.calib_len = nothing, nothing
+    e.calib = nothing
     fit_domain!(e); e.status = "Picture scaled, domain fitted to it."
     return e
 end
@@ -494,12 +599,12 @@ follow on release.
 function preview_points(e::Editor)
     (!isempty(e.drag) || !isnothing(e.ring)) && haskey(e.cache, :points) && return e.cache[:points][2]
     return cached!(() -> drawn_points(e.L, e.nel, e.ni, e.regions), e, :points,
-                   hash((e.L, e.nel, e.ni, [(rg.vertices, rg.centre, rg.radius) for rg ∈ e.regions])))
+                   hash((e.L, e.nel, e.ni, [(rg.vertices, rg.sizes, rg.centre, rg.radius) for rg ∈ e.regions])))
 end
 "`check_case` on the edited case (errors, warnings, info)."
 function checks(e::Editor)
     key = hash((e.base, e.L, e.nel, e.ni, e.width, e.nely, e.bcs, e.options, e.run,
-                [(rg.name, rg.vertices, rg.centre, rg.radius, rg.props, rg.extra) for rg ∈ e.regions]))
+                [(rg.name, rg.vertices, rg.sizes, rg.centre, rg.radius, rg.props, rg.extra) for rg ∈ e.regions]))
     return cached!(e, :checks, key) do
         try check_case(current_case(e)) catch err
             (; errors=[sprint(showerror, err)], warnings=String[], info=String[])
@@ -553,7 +658,7 @@ function load!(e::Editor, file)
     try
         n = Editor(c; step=e.step)
         for f ∈ fieldnames(Editor)
-            f == :backdrop || setfield!(e, f, getfield(n, f))    # the picture stays: the case is drawn on it
+            f ∈ (:backdrop, :picture) || setfield!(e, f, getfield(n, f))   # the picture stays: the case is drawn on it
         end
         e.status = "Loaded $file"
     catch err

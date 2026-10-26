@@ -89,7 +89,8 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   `setup_simulation` writes the simulation and the case TOML, named after its last part: a name under `dump/`
   or a path; older cases' `fid`/`dir` are read into it).
 - **Zones:** `Zone(name, shape; props...)`, props any `MATERIAL` key or `v` (initial velocity; two
-  (x, z) components in 3D). Shapes: `Polygon` (x–z, even–odd, extruded in 3D), `Block(lo, hi)` (bounds
+  (x, z) components in 3D). Shapes: `Polygon` (x–z, even–odd, extruded in 3D; several outlines, `Polygon(rings)`, make one zone of
+  several parts or with holes: flat `vertices` plus `sizes`, `polygon_rings`), `Block(lo, hi)` (bounds
   included; D coordinates, or two for an extruded block), `Ball(centre, r)` (disk, sphere, or cylinder
   along y), `Region(f)` (a predicate on the point, code only, not writable to TOML). `Block` is not named
   `Box` because GLMakie exports `Box` (ambiguous when both are loaded). A point belongs to the **last** zone containing its sub-cell
@@ -104,7 +105,8 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   `phi` in degrees, rounded to 12 digits), `bcs`, `thermal`, `[solver.<section>]` (booleans, numbers and
   number lists as such, other values as their `get_option()` label, `plot.what` as variable names;
   `option_value` maps back and accepts any number for a numeric option), `[run]`, `[[zone]]` with
-  `shape = "polygon"`/`"block"`/`"ball"`.
+  `shape = "polygon"`/`"block"`/`"ball"` (a polygon's `vertices`, or `rings` for several outlines; one outline is
+  written as before).
 - **Checks** (`check_case`): errors (no material points, `solution` contradicting the workflow,
   quasi-static with hypoelastic), warnings (zone outside the domain, zone without points, elongated
   cells under dynamic relaxation, `tg > te`, 32-bit with GIMP), info (points, elements,
@@ -169,6 +171,12 @@ execute!(setup_simulation(case))
   - Offscreen (tests, CI): `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software
     QT_QUICK_CONTROLS_STYLE=Fusion`; `qml_window(case; shots=(dir, steps))` saves a PNG of each listed
     step and closes (`grabToImage` on a child item: the window's `contentItem` gives an empty image).
+    **Not what a user sees on macOS**: without the style override the window uses Qt's native macOS style,
+    which follows dark mode and cannot render offscreen (it crashes in `QMacStyle`). Check a visual change
+    there too, with `QT_QPA_PLATFORM=cocoa` and no style or backend override (the window shows for the shots
+    and closes). Found that way: a fixed grey (`#444`) status line invisible on the dark panel, and a `Frame`
+    without margins in that style (the picture's panel is a `GroupBox`); help texts are the palette's text
+    at `opacity: 0.6`, not a fixed `gray`.
 - It edits 2D (x–z) problems whose zones are polygons, two-coordinate blocks (opened as their
   rectangle, same points) or two-coordinate balls (circles: `DrawnRegion` with `centre`/`radius` and no
   vertices, kept as a `Ball`, so the points are the same; New zone ▸ Circle draws one, centre then a point on it;
@@ -176,7 +184,8 @@ execute!(setup_simulation(case))
   problem is refused. The preview uses each zone's own `inside` rule (`shape_of`), so it equals
   `case_points` (checked on the collision case). Zone properties it does not
   show (`v`, `Hp`, `n0`, `cp`, `k`), the problem's material and its thermal flag are carried through.
-- Four tabs: **Domain** (drag the upper-right corner handle, snapped to a tenth of the order of
+- Four tabs: **Domain** (first a choice, *Domain* or *Picture to draw on*, the latter with its own panel,
+  below; drag the upper-right corner handle, snapped to a tenth of the order of
   magnitude, `nice_step`, or type `Lx`, `Lz` and the element size `h`, square cells, `nel_for`; a
   width along y for 3D, `nely` from `h`; points per element; one drop-down per side), **Zones** (the
   editor below; c₀, cᵣ [kPa], φ [°], T, E [MPa], ν, ρ₀; φ hidden when the options pick
@@ -191,17 +200,30 @@ execute!(setup_simulation(case))
   checkbox grids; the `dtype` fields are the one `precision` choice and
   `solution` follows the workflow; `OPTIONS`) and **Run** (workflow, `te`/`tg`/`tep` or the load
   steps; `check_case` live; then **Create…** and **Cancel**).
-- A picture to draw on (Domain step, "Picture…": a scanned section or a map, any image Qt reads), drawn
-  under the grid at an adjustable opacity (`Backdrop`: file, pixel size reported by a hidden QML `Image`,
-  lower-left corner and width in metres, the height from the aspect). The order is picture → mesh →
-  draw: the picture opens across the domain's width; its scale is its width in metres, typed, or a scale
-  bar ("Scale bar": click its two ends, type its length, "Apply": `apply_scale!`, a uniform scale about
-  the picture's corner); setting the scale fits the domain to the picture (`fit_domain!`: from the origin
-  to its far corner, at the current element size), which "Fit domain to picture" repeats after a crop.
-  Its corner (`x0`, `z0`, 0 by default) moves it relative to the domain, e.g. to crop part of it. Checked
-  offscreen on a hand-rasterised 20 × 10 m section with a 5 m scale bar: the bar, measured on the
-  picture shown 10 m wide, gives width 20 m and a 20 × 10 m domain. A drawing aid only: not saved with
-  the case (TOML).
+- A picture to draw on (a scanned section or a map, any image Qt reads), drawn under the grid at an
+  adjustable opacity (`Backdrop`: file, pixel size reported by a hidden QML `Image`, lower-left corner and
+  width in metres, the height from the aspect). The Domain step starts with a choice, *Domain* (sized by
+  hand) or *Picture to draw on* (`use_picture!`, `editor.picture`): the latter opens the file dialog and
+  shows the picture's own framed panel, in the order picture → scale → placement; *Domain* again hides the
+  picture and keeps it. (It used to be a sub-section in the middle of the domain fields, with a separate
+  "Apply" and "Fit domain to picture"; the user found the import hard to follow.) The picture opens across
+  the domain's width; its scale is a scale bar ("Measure a scale bar": click its two ends on the canvas, a
+  crosshair meanwhile, then type its length and Enter: `apply_scale!(e, text)`, a uniform scale about the
+  picture's corner) or its width typed. **The domain follows the picture**: once it is loaded, and after
+  every change of scale or lower-left corner (`x0`, `z0`, 0 by default; negative crops it), `fit_domain!`
+  sets the domain from the origin to the picture's far corner, in whole square elements of the current `h`
+  (the nearest number: a measured scale gives an arbitrary size, otherwise slightly elongated cells, which
+  `check_case` flags under dynamic relaxation beyond 1%); `Lx`/`Lz` typed afterwards still change it. Checked
+  offscreen on a 1000 × 500 px section with a 5 m scale bar (49 px/m): measured on the picture shown 10 m
+  wide, it gives a picture 20.41 m wide and a 20.5 × 10 m domain of 41 × 20 elements at `h = 0.5`. A drawing
+  aid only: not saved with the case (TOML).
+  - **Loading, two Qt traps** (both hit by the user on a macOS screenshot, invisible in the tests until the
+    window test loaded a picture, `qml_window(editor; shots)`): the hidden `Image` loads a local file at once,
+    inside the refresh that set its source, so its size report (another refresh) is deferred with
+    `Qt.callLater` (called directly: a binding loop on `source`; `asynchronous: true` delayed the report
+    past the first paints instead). And the canvas's `loadImage` of a picture Qt already holds (the hidden
+    `Image` loaded it) completes at once *without* `imageLoaded`, so the canvas draws it in the same pass
+    when `isImageLoaded` turns true; before, the picture stayed blank until the next repaint (another tab, a zoom).
 - Only the tabs and the status line are always visible. "Start from a case file…" (top of the Domain
   step) loads a case TOML (`load!`; replaces the whole state and clears undo). **Create…** (end of the
   Run step) runs `check_case` first (`ready!`: errors block it, warnings need a second click), then opens
@@ -225,7 +247,34 @@ execute!(setup_simulation(case))
   boundaries stay shared (closing a zone inserts its edge-snapped vertices themselves,
   `insert_on_edge!(…; exact=true)`: projecting them again moved them by round-off, so the two zones'
   copies differed); clicking an edge inserts a vertex (`insert_on_edge!`), right-clicking deletes
-  one (`delete_vertex!`); the wheel zooms about the pointer; undo/redo (Cmd/Ctrl+Z,
+  one (`delete_vertex!`); each zone is drawn where it applies, since a point belongs to the last zone containing it:
+  its fill and solid outline outside the later zones that may cover it (`later`, by bounding box; canvas clips,
+  even–odd as `Polygon`'s rule), faint dashes under them (asked for: a first region crossed by later ones still showed
+  its whole polygon, though its points already went to the later zones). **Drawing a zone cuts it out of the earlier
+  zones** it overlaps (`cut_earlier!`, asked for next; the user chose automatic over on demand): their outlines then
+  follow it, sharing its vertices (where outlines cross, the new zone gets a vertex too), so a zone may get several
+  outlines (parts, holes); one covered entirely is removed; a cut circle becomes a polygon. The points do not change
+  (the new zone won them anyway), checked against the priority rule in `test_draw.jl`, but for a cut circle's next to
+  its arc; a circle cuts as an inscribed 32-gon, whose slivers it still wins. Deleting or moving the later zone then
+  leaves a gap (undo restores it, one step with the drawing). `cut` (`cut.jl`): the edges of both split where they
+  cross or touch, each piece kept when the difference lies on exactly one side of it (probed 1e-7·L away with the
+  even–odd rule), chained into outlines turning most to the left; probing sides keeps snapped, shared edges exact.
+  Overlaps remain possible (cases written in code, vertices dragged into another zone): the display above shows them.
+  The selected zone stands out (asked for:
+  a 3 px outline against 2 px was hard to tell): drawn last, a glow and a thick line inside its own area, also along
+  the later zones' edges that cut into it, larger white-edged vertices and a stronger fill, the others thin and
+  faded, its colour as a swatch beside the zone list; a click inside a zone selects
+  it (the topmost, as `case_points` assigns; `clicked`, on release, unless the press became a pan); navigating (asked for once zoomed in to draw: there was no pan, and no way back but
+  zooming out): a mouse wheel zooms about the pointer, a trackpad pans with two fingers (`pixelDelta`) and zooms
+  with a pinch (`PinchHandler`) or Cmd/Ctrl + scroll (`wheel!`); dragging the empty canvas (a press that starts no
+  edit, any tab) or the middle button (anywhere, also while drawing) pans, the grabbed point kept under the cursor
+  (`grab`, `pan!`); "Fit view" (canvas corner) recentres on the domain (`fit!`, as switching tabs does; the same fit on every
+  step: the Domain step used to show 1.4 times the domain, room to drag its corner, which left the canvas half
+  blank; a drag continues outside the canvas and the view refits on release). x and z
+  keep equal scales and the axes fill the canvas: `transform` widens the visible area about its centre along one
+  axis, so there are no blank margins outside the axes, only coordinate space beside a domain whose proportions
+  differ from the canvas (the user chose this over independent scales, which fill the canvas with the domain but
+  stretch the picture, circles and slopes, and would need snapping in screen distances); undo/redo (Cmd/Ctrl+Z,
   Shift+Cmd/Ctrl+Z, buttons) keeps snapshots of the zones. The points to be created are previewed
   (`drawn_points`).
 
@@ -312,7 +361,7 @@ free option values, workflows, a short `execute!`, and the `Simulation` (build, 
 part (`editing.jl`, loaded into a test module) everywhere, driven as a user would (drawing, snapping and
 shared edges, drag, undo, domain, zone constants, options, run, Create… (its warning confirmation, the folder) and loading a case,
 the caches and the readout, the JSON the view reads); then, where QML is installed, the window itself
-offscreen, a PNG of each step, twice in one session.
+offscreen, a PNG of each step, twice in one session, then once on a picture (Qt measures it, the domain follows).
 
 `test_basis.jl` builds a small `n×m` mesh and, for every basis kind, sweeps a particle
 along the mid-height node row, plotting each tracked node's `Nᵢ(x)`/`∂Nᵢ/∂x(x)` and the

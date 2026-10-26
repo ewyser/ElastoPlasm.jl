@@ -307,7 +307,10 @@
   exponential covariance and when particle spacing approaches the correlation length.
 - **Drawing window, possible follow-ups:** the traced-over picture is not saved with the case (a
   `[drawing]` TOML section, ignored by `load_case`'s problem data, could keep its file and placement);
-  a rotated scan cannot be straightened (an angle, or a second scale-bar direction).
+  a rotated scan cannot be straightened (an angle, or a second scale-bar direction). Zones are cut only when
+  one is drawn (`cut_earlier!`): a vertex dragged into another zone overlaps it again (shown dashed, later wins),
+  and a later zone deleted or moved leaves a gap; a "cut again"/"merge back" action would cover both. Trackpad pinch
+  and the middle button were checked only through the Julia logic (`wheel!`, `press!(…; pan)`), not on hardware.
 - **Mesh quantities can't be plotted.** `plot.what` picks plottable *point* quantities only
   (`plottable()`); the mesh entries of `quantities()` can be recorded but have no plot label, and
   `what_plot_field(mesh, opts)` (the `opts.what == "v"` branches in `display.jl`) is not reached. (The old

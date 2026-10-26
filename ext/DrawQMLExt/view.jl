@@ -35,18 +35,18 @@ num(x) = string(round(x; sigdigits=8))
 fmt(v) = v isa AbstractVector ? join(v, ", ") : string(v)
 zone_color(k) = COLORS[mod1(k, length(COLORS))]
 
-# ---- pixels ↔ data: the visible area `view`, equal aspect, margins for the axis labels
+# ---- pixels ↔ data: equal scales on both axes, margins for the axis labels. The visible area `view` fits the canvas
+# and is widened along one axis, about its centre, so the axes fill the canvas: no blank margins outside them (`t.view`)
 
 const PAD = (; left=48.0, right=12.0, top=28.0, bottom=36.0)
 function transform(e::Editor, w, h)
     x0, x1, z0, z1 = e.view
-    aw, ah = w - PAD.left - PAD.right, h - PAD.top - PAD.bottom
+    aw, ah = max(w - PAD.left - PAD.right, 1.0), max(h - PAD.top - PAD.bottom, 1.0)   # (a canvas not laid out yet: 0 × 0)
     s  = min(aw/(x1 - x0), ah/(z1 - z0))
-    ox = PAD.left + (aw - s*(x1 - x0))/2
-    oy = PAD.bottom + (ah - s*(z1 - z0))/2
-    topx(x, z) = (ox + (x - x0)*s, h - (oy + (z - z0)*s))
-    todata(px, py) = (x0 + (px - ox)/s, z0 + (h - py - oy)/s)
-    return (; topx, todata, s, box=(ox, h - oy - s*(z1 - z0), s*(x1 - x0), s*(z1 - z0)))
+    x0, z0 = (x0 + x1)/2 - aw/(2s), (z0 + z1)/2 - ah/(2s)
+    topx(x, z) = (PAD.left + (x - x0)*s, h - PAD.bottom - (z - z0)*s)
+    todata(px, py) = (x0 + (px - PAD.left)/s, z0 + (h - PAD.bottom - py)/s)
+    return (; topx, todata, s, view=(x0, x0 + aw/s, z0, z0 + ah/s), box=(PAD.left, PAD.top, aw, ah))
 end
 nice_tick(r) = (b = 10.0^floor(log10(r/5)); m = r/5/b; b*(m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10))
 
@@ -60,13 +60,17 @@ function cursor_json(e::Editor, P)
     shape = kind == :vertex ? "square" : kind == :edge ? "diamond" : "ring"
     return (; xy=P(q...), r=kind == :close ? 9 : 6, color, shape)
 end
-# each zone's outline in pixels and its handles (a polygon's vertices; a circle's centre and radius handle)
+# each zone's outlines in pixels, its handles (a polygon's vertices; a circle's centre and radius handle), and the later
+# zones that may cover part of it (`later`, QML indices; their boxes overlap): a point belongs to the last zone
+# containing it, so the canvas draws a zone solid only outside those
 circle_px(P, c, r; n=96, θ=0.0) = [P(c[1] + r*cos(θ + 2π*j/n), c[2] + r*sin(θ + 2π*j/n)) for j ∈ 0:n-1]
 function zone_paths(e::Editor, P)
+    boxes = bbox.(e.regions)
     map(enumerate(e.regions)) do (k, rg)
-        vs = [P(v...) for v ∈ rg.vertices]
-        pts, handles = iscircle(rg) ? (circle_px(P, rg.centre, rg.radius), [P(rg.centre...), P(radius_handle(rg)...)]) : (vs, vs)
-        (; pts, handles, color=zone_color(k), selected=k == e.selected)
+        rings, handles = iscircle(rg) ? ([circle_px(P, rg.centre, rg.radius)], [P(rg.centre...), P(radius_handle(rg)...)]) :
+                                        ([[P(v...) for v ∈ r] for r ∈ zone_rings(rg)], [P(v...) for v ∈ rg.vertices])
+        later = [qml_index(j) for j ∈ k+1:length(e.regions) if overlap(boxes[k], boxes[j])]
+        (; rings, handles, color=zone_color(k), selected=k == e.selected, later)
     end
 end
 # the zone being drawn: the polygon so far and the cursor (a triangle closed back to its first corner); a rectangle
@@ -111,14 +115,14 @@ function background_json(e::Editor, w, h)
                 color=e.bcs[a, k] == :fixed ? "#b22222" : e.bcs[a, k] == :roller ? "#4682b4" : "#cccccc") for (n, a, k) ∈ SIDES]
     fills = zone_paths(e, P)
     pts = e.points ? points_json(e, t, w, h) : RawJSON("[]")
-    b = e.backdrop                                           # the picture: its file URL and pixel rectangle
+    b = e.picture ? e.backdrop : nothing                     # the picture: its file URL and pixel rectangle
     backdrop = isnothing(b) || b.npx[1] == 0 ? nothing :
                (; url=fileurl(b.file), rect=[P(b.x0, b.z0 + height(b)); b.width*t.s; height(b)*t.s], opacity=b.opacity)
-    x0, x1, z0, z1 = e.view
+    x0, x1, z0, z1 = t.view
     tx, tz = nice_tick(x1 - x0), nice_tick(z1 - z0)
     ticks = (; x=[(; px=P(v, z0)[1], label=string(round(v; sigdigits=6))) for v ∈ ceil(x0/tx)*tx:tx:x1],
                z=[(; py=P(x0, v)[2], label=string(round(v; sigdigits=6))) for v ∈ ceil(z0/tz)*tz:tz:z1])
-    title = "$(L[1]) × $(L[2]) m, $(nel[1]) × $(nel[2]) elements, $(ni)×$(ni) points per element"
+    title = "$(num(L[1])) × $(num(L[2])) m, $(nel[1]) × $(nel[2]) elements, $(ni)×$(ni) points per element"
     return json((; box=collect(t.box), sub, el, domain=[P(0, 0); P(L[1], L[2])], sides, fills, points=pts, backdrop, ticks, title))
 end
 function overlay_json(e::Editor, w, h)
@@ -157,13 +161,14 @@ function panel_json(e::Editor)
     defaults = Dict(string(k) => getfield(e.base.material, k) for k ∈ keys(MATERIAL))
     vm = getoption(e.options, "material", ["plastic"]) == "VM"
     i  = e.selected
-    domain = (; Lx=string(e.L[1]), Lz=string(e.L[2]), h=num(e.h), width=isnothing(e.width) ? "" : string(e.width),
+    domain = (; Lx=num(e.L[1]), Lz=num(e.L[2]), h=num(e.h), width=isnothing(e.width) ? "" : string(e.width),
                 nel="→ $(e.nel[1]) × $(e.nel[2]) elements of $(round(e.L[1]/e.nel[1]; sigdigits=4)) × $(round(e.L[2]/e.nel[2]; sigdigits=4)) m" *
                     (isnothing(e.width) ? "" : ", × $(e.nely) along y"),
                 ni=qml_index(e.ni), nis=["$(n)×$(n)" for n ∈ 1:max(8, e.ni)], kinds=string.(collect(BOUNDARY_KINDS)),
                 bcs=[(; side=n, index=qml_index(findfirst(==(e.bcs[a, k]), collect(BOUNDARY_KINDS)))) for (n, a, k) ∈ SIDES])
     x, _, r = preview_points(e)
     zones = (; names=["$k  $(rg.name)" for (k, rg) ∈ enumerate(e.regions)], selected=qml_index(i), name=i == 0 ? "" : e.regions[i].name,
+               color=i == 0 ? "" : zone_color(i),
                props=[(; key, label, default="default $(round(defaults[key]*scale; sigdigits=6))",
                          value=(i == 0 || !haskey(e.regions[i].props, key)) ? "" : num(e.regions[i].props[key]*scale))
                       for (key, label, scale) ∈ PROPS if !(vm && key == "phi")],
@@ -183,11 +188,11 @@ function panel_json(e::Editor)
              errors=join("✗ " .* c.errors, "\n"), warnings=join("! " .* c.warnings, "\n"), info=join(c.info, "\n"))
     b = e.backdrop
     backdrop = isnothing(b) ? nothing : (; name=basename(b.file), url=fileurl(b.file), loaded=b.npx[1] > 0,
-                                           x0=num(b.x0), z0=num(b.z0), width=num(b.width), opacity=fmt(b.opacity))
-    calib = isnothing(e.calib) ? nothing :                   # a scale bar being measured: its ends clicked, its length
-            (; clicked=length(e.calib), length=isnothing(e.calib_len) ? "" : fmt(e.calib_len),
-               shown=length(e.calib) == 2 ? string(round(dist(e.calib[2], e.calib[1]); sigdigits=6)) : "")
-    return json((; tab=qml_index(e.step), status=e.status, finished=e.finished, domain, zones, options, run, backdrop, calib))
+                                           x0=num(b.x0), z0=num(b.z0), width=num(b.width), opacity=b.opacity)
+    calib = isnothing(e.calib) ? nothing :                   # a scale bar being measured: its ends clicked, its length as shown
+            (; clicked=length(e.calib), shown=length(e.calib) == 2 ? string(round(dist(e.calib[2], e.calib[1]); sigdigits=6)) : "")
+    return json((; tab=qml_index(e.step), status=e.status, finished=e.finished, domain, zones, options, run,
+                   picture=e.picture, backdrop, calib, panning=!isnothing(e.grab)))
 end
 # the rows of the current options page (its section), the lists last: a drop-down, a numeric field (with presets)
 # or a list of values; a nested list is labelled by its group ("point · solid" for `output.what.point.solid`),

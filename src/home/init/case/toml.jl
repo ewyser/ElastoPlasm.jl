@@ -72,14 +72,17 @@ deg(k, v) = k == :phi ? round(rad2deg(v); sigdigits=12) : v   # angles: degrees 
 rad(k, v) = k == :phi ? deg2rad(v) : v
 
 function shape_dict(s::AbstractShape)
-    s isa Polygon && return Dict{String,Any}("shape" => "polygon", "vertices" => s.vertices)
+    if s isa Polygon                                         # one outline as `vertices`; several as `rings`
+        rs = polygon_rings(s)
+        return Dict{String,Any}("shape" => "polygon", length(rs) == 1 ? "vertices" => only(rs) : "rings" => rs)
+    end
     s isa Block     && return Dict{String,Any}("shape" => "block", "lo" => s.lo, "hi" => s.hi)
     s isa Ball    && return Dict{String,Any}("shape" => "ball", "centre" => s.centre, "radius" => s.radius)
     throw(ArgumentError("a $(nameof(typeof(s))) zone (a Julia predicate) cannot be written to TOML"))
 end
 function parse_shape(z::AbstractDict, name)
     kind = get(z, "shape", "")
-    kind == "polygon" && return Polygon(z["vertices"])
+    kind == "polygon" && return Polygon(haskey(z, "rings") ? z["rings"] : z["vertices"])
     kind == "block"     && return Block(z["lo"], z["hi"])
     kind == "ball"    && return Ball(z["centre"], z["radius"])
     throw(ArgumentError("zone \"$name\": shape = \"$kind\" is not one of $(SHAPES)"))
@@ -119,7 +122,7 @@ function parse_case(d::AbstractDict)
     dom   = d["domain"]
     zones = map(enumerate(get(d, "zone", []))) do (i, z)
         name = String(get(z, "name", "zone $i"))
-        known = ("name", "shape", "vertices", "lo", "hi", "centre", "radius")
+        known = ("name", "shape", "vertices", "rings", "lo", "hi", "centre", "radius")
         Zone(name, parse_shape(z, name), Dict{Symbol,Any}(Symbol(k) => rad(Symbol(k), v) for (k, v) ∈ z if k ∉ known))
     end
     mat = Dict{Symbol,Any}(Symbol(k) => rad(Symbol(k), v) for (k, v) ∈ get(d, "material", Dict()))
@@ -137,7 +140,8 @@ Write a case to a TOML file, and read it back: `[domain]` (`L`, `nel`, `ni`, opt
 `nely`), `[material]` (overrides of `MATERIAL`, `phi` in degrees), `bcs` (`[[lower, upper], …]` per
 axis), `thermal`, `[solver.<section>]` overrides (values as `get_option()` lists them, any number for
 a numeric option, variable names for `plot.what`), `[run]` (`folder`, `te`, `tg`, `tep`, `workflow`,
-`lstps`) and `[[zone]]` tables (`name`, `shape = "polygon"` with `vertices = [[x, z], …]`, `"block"` with
+`lstps`) and `[[zone]]` tables (`name`, `shape = "polygon"` with `vertices = [[x, z], …]`, or `rings = [[[x, z], …], …]`
+for several outlines, `"block"` with
 `lo`/`hi`, or `"ball"` with `centre`/`radius`, and any material constant or `v`). A zone given as a
 Julia predicate (`Region`) cannot be written.
 """

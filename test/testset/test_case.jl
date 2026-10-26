@@ -10,6 +10,10 @@
         @test EP.inside(ell, [0.5, 1.5]) && EP.inside(ell, [1.5, 0.5]) && !EP.inside(ell, [1.5, 1.5])
         @test EP.inside(Region(x -> x[1] > x[end]), [2.0, 1.0])
         @test_throws ArgumentError Polygon([[0, 0], [1, 0]])
+        donut = Polygon([[[0, 0], [4, 0], [4, 4], [0, 4]], [[1, 1], [3, 1], [3, 3], [1, 3]], [[5, 0], [6, 0], [6, 1]]])   # several outlines:
+        @test EP.inside(donut, [0.5, 0.5]) && !EP.inside(donut, [2.0, 2.0]) && EP.inside(donut, [5.8, 0.2])   # a hole, a second part
+        @test donut.sizes == [4, 4, 3]
+        @test_throws ArgumentError Polygon([[[0, 0], [1, 0], [1, 1]], [[2, 2], [3, 3]]])
         @test_throws ArgumentError Block([1, 0], [0, 1])
     end
     @testset "specification and validation" begin
@@ -45,12 +49,14 @@
     @testset "TOML round trip" begin
         s = Case(; L=[20, 10], nel=[20, 10], ni=3, width=4.0, nely=4, bcs=[:roller :roller; :fixed :free], thermal=true,
                    zones=[Zone("soil", Polygon([[0, 0], [20, 0], [20, 6], [0, 6]])), Zone("rock", Block([0, 0], [20, 2]); E=5e7, phi=30.0*π/180),
-                          Zone("boulder", Ball([10, 4], 1.0); rho0=3000.0, v=[0.0, 0.0, -1.0])],
+                          Zone("boulder", Ball([10, 4], 1.0); rho0=3000.0, v=[0.0, 0.0, -1.0]),
+                          Zone("lens", Polygon([[[2, 2], [8, 2], [8, 5], [2, 5]], [[4, 3], [5, 3], [5, 4]]]))],
                    material=(; c0=1.0e4, phi=25.0*π/180), solver=(; basis=(; which="gimpm", C_pf=0.37), stab=(; locking=false),
                    plot=(; what=["p"])), run=(; folder="x/y", te=1.0, workflow="elastodynamic!"))
         back = load_case(save_case(joinpath(mktempdir(), "p.toml"), s))
         @test (back.L, back.nel, back.ni, back.width, back.nely, back.bcs, back.thermal, back.run) == (s.L, s.nel, s.ni, s.width, s.nely, s.bcs, s.thermal, s.run)
-        @test [z.name for z ∈ back.zones] == ["soil", "rock", "boulder"] && back.zones[3].shape.radius == 1.0 && back.zones[3].props[:v] == [0.0, 0.0, -1.0]
+        @test [z.name for z ∈ back.zones] == ["soil", "rock", "boulder", "lens"] && back.zones[3].shape.radius == 1.0 && back.zones[3].props[:v] == [0.0, 0.0, -1.0]
+        @test back.zones[4].shape.sizes == [4, 3] && back.zones[4].shape.vertices == s.zones[4].shape.vertices   # several outlines
         @test back.zones[2].props[:phi] ≈ 30.0*π/180 rtol=1e-12
         @test back.material.phi ≈ s.material.phi rtol=1e-12
         @test back.material.c0 == 1.0e4 && Dict(pairs(back.solver.basis)) == Dict(:which => "gimpm", :C_pf => 0.37)

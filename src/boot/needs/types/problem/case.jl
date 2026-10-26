@@ -43,17 +43,32 @@ end
 abstract type AbstractShape end
 """
     Polygon(vertices)
+    Polygon(rings)
+    Polygon(vertices, sizes)
 
 A polygon in the x–z plane (`[x, z]` vertices, not repeated at the end; even–odd rule); in 3D it is
-extruded along y.
+extruded along y. Several outlines (`rings`, each a vector of vertices) make one zone of several parts or
+with holes, by the even–odd rule over all of them (inside an odd number of outlines: inside), as the drawing
+window leaves a zone cut by the ones drawn after it. `vertices` holds every outline's vertices, one outline
+after the other, and `sizes` how many each has (`polygon_rings`).
 """
 struct Polygon <: AbstractShape
     vertices::Vector{Vector{Float64}}
-    function Polygon(v)
-        vs = [Float64.(collect(p)) for p ∈ v]
-        length(vs) ≥ 3 && all(length.(vs) .== 2) || throw(ArgumentError("a Polygon needs at least 3 [x, z] vertices"))
-        return new(vs)
+    sizes::Vector{Int}
+    function Polygon(v, sizes=nothing)
+        nested = isnothing(sizes) && !isempty(v) && first(v) isa AbstractVector && !isempty(first(v)) && first(first(v)) isa AbstractVector
+        rings  = nested ? collect(v) : [v]
+        vs = [Float64.(collect(p)) for r ∈ rings for p ∈ r]
+        ns = isnothing(sizes) ? [length(r) for r ∈ rings] : collect(Int, sizes)
+        sum(ns) == length(vs) && all(≥(3), ns) && all(length.(vs) .== 2) ||
+            throw(ArgumentError("a Polygon needs at least 3 [x, z] vertices per outline"))
+        return new(vs, ns)
     end
+end
+"The outlines of a polygon, each a vector of its vertices."
+function polygon_rings(s::Polygon)
+    ends = cumsum(s.sizes)
+    return [s.vertices[e-n+1:e] for (n, e) ∈ zip(s.sizes, ends)]
 end
 """
     Block(lo, hi)
@@ -93,7 +108,14 @@ end
 
 # whether the point x (D coordinates) is in the shape; two-coordinate shapes act on (x, z)
 xz(x) = (x[1], x[end])
-inside(s::Polygon, x) = inpolygon(x[1], x[end], s.vertices)
+function inside(s::Polygon, x)                                # even–odd over all its outlines
+    odd, o = false, 0
+    for n ∈ s.sizes
+        inpolygon(x[1], x[end], view(s.vertices, o+1:o+n)) && (odd = !odd)
+        o += n
+    end
+    return odd
+end
 function inside(s::Block, x)
     c = length(s.lo) == length(x) ? x : xz(x)
     length(c) == length(s.lo) || throw(ArgumentError("a Block of $(length(s.lo)) coordinates in $(length(x))D"))

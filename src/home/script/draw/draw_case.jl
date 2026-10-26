@@ -5,9 +5,9 @@ export draw_case
     draw_case(case::Case)
     draw_case(file)
 
-Set up a case in a window, in four steps: **Domain** (optionally start from a case file; drag the domain's corner or
-type `Lx`, `Lz` and the element size; a width to extrude along y into 3D; points per element; a boundary condition
-per side; a picture to draw on),
+Set up a case in a window, in four steps: **Domain** (optionally start from a case file; draw on a domain, dragging
+its corner or typing `Lx`, `Lz`, or on a picture, scaled by a scale bar measured on it, which the domain then
+follows; the element size; a width to extrude along y into 3D; points per element; a boundary condition per side),
 **Zones** (draw the material as polygons, each with optional cohesion, residual cohesion, friction
 angle, temperature, Young's modulus, Poisson's ratio and density), **Options** (solver options from
 drop-down lists, any value for numeric ones, ticked to override the defaults; the plotted variables)

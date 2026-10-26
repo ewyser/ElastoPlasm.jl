@@ -27,22 +27,43 @@ function drawn_points(L, nel, ni, regions)
     return x[r .> 0], z[r .> 0], r[r .> 0]
 end
 
-# a zone as the window edits it: a polygon (its vertices) or a circle (a `Ball`: its centre and radius, and
-# no vertices), the constants of `PROPS` (SI, by key), and the zone's other properties (velocity, Hp, n₀,
-# cₚ, k) carried through unchanged
+# a zone as the window edits it: a polygon (its vertices; several outlines once cut by later zones, as `Polygon`)
+# or a circle (a `Ball`: its centre and radius, and no vertices), the constants of `PROPS` (SI, by key), and the
+# zone's other properties (velocity, Hp, n₀, cₚ, k) carried through unchanged
 mutable struct DrawnRegion
     name     :: String
-    vertices :: Vector{Vector{Float64}}
+    vertices :: Vector{Vector{Float64}}                      # every outline's vertices, one outline after the other
     props    :: Dict{String,Float64}
     extra    :: Dict{Symbol,Any}
     centre   :: Union{Nothing,Vector{Float64}}               # a circle: its centre (x, z) …
     radius   :: Float64                                      # … and radius
+    sizes    :: Vector{Int}                                  # how many vertices each outline has (a circle: none)
 end
-DrawnRegion(name, vertices, props, extra=Dict{Symbol,Any}()) = DrawnRegion(name, vertices, props, extra, nothing, 0.0)
+DrawnRegion(name, vertices, props, extra=Dict{Symbol,Any}()) = DrawnRegion(name, vertices, props, extra, nothing, 0.0, [length(vertices)])
 circle_region(name, centre, radius, props, extra=Dict{Symbol,Any}()) =
-    DrawnRegion(name, Vector{Float64}[], props, extra, Float64.(collect(centre)), Float64(radius))
+    DrawnRegion(name, Vector{Float64}[], props, extra, Float64.(collect(centre)), Float64(radius), Int[])
 iscircle(rg::DrawnRegion) = !isnothing(rg.centre)
-shape_of(rg::DrawnRegion) = iscircle(rg) ? Ball(rg.centre, rg.radius) : Polygon(rg.vertices)
+shape_of(rg::DrawnRegion) = iscircle(rg) ? Ball(rg.centre, rg.radius) : Polygon(rg.vertices, rg.sizes)
+"""
+    zone_rings(rg) -> outlines
+
+A zone's outlines [m]: a polygon's, or a circle's as an inscribed 32-gon. Its chords lie inside the circle, so
+cutting it out of an earlier zone leaves that zone the slivers between them and the arc, which the circle, drawn
+later, still wins (32 sides: fewer vertices to edit; their number changes no point).
+"""
+function zone_rings(rg::DrawnRegion)
+    iscircle(rg) && return [[rg.centre .+ rg.radius .* [cos(2π*j/32), sin(2π*j/32)] for j ∈ 0:31]]
+    return polygon_rings(shape_of(rg))
+end
+# a zone's bounding box (x0, x1, z0, z1) [m], and whether two boxes overlap
+function bbox(rg::DrawnRegion)
+    iscircle(rg) && return (rg.centre[1] - rg.radius, rg.centre[1] + rg.radius, rg.centre[2] - rg.radius, rg.centre[2] + rg.radius)
+    xs, zs = first.(rg.vertices), last.(rg.vertices)
+    return (minimum(xs), maximum(xs), minimum(zs), maximum(zs))
+end
+function overlap(a, b)
+    return a[1] ≤ b[2] && b[1] ≤ a[2] && a[3] ≤ b[4] && b[3] ≤ a[4]
+end
 
 # the window's regions from a case's zones: polygons, (x, z) blocks as their rectangle, (x, z) balls as circles
 function drawn_regions(case::Case)
@@ -56,7 +77,9 @@ function drawn_regions(case::Case)
         vs = s isa Polygon ? deepcopy(s.vertices) :
              s isa Block && length(s.lo) == 2 ? [[s.lo[1], s.lo[2]], [s.hi[1], s.lo[2]], [s.hi[1], s.hi[2]], [s.lo[1], s.hi[2]]] :
              throw(ArgumentError("the window draws polygons, (x, z) blocks and (x, z) balls; zone \"$(z.name)\" is a $(nameof(typeof(s)))"))
-        return DrawnRegion(z.name, vs, props, extra)
+        rg = DrawnRegion(z.name, vs, props, extra)
+        s isa Polygon && (rg.sizes = copy(s.sizes))
+        return rg
     end
 end
 
@@ -66,7 +89,18 @@ function closest_on_segment(p, a, b)
     t = iszero(d[1]^2 + d[2]^2) ? 0.0 : clamp(((p[1] - a[1])*d[1] + (p[2] - a[2])*d[2])/(d[1]^2 + d[2]^2), 0.0, 1.0)
     return a .+ t .* d
 end
-edges(rg) = ((i, mod1(i + 1, length(rg.vertices))) for i ∈ eachindex(rg.vertices))
+# a zone's edges as pairs of vertex indices, each outline closed on itself; and the outline vertex i is on
+function edges(rg)
+    out, o = Tuple{Int,Int}[], 0
+    for n ∈ rg.sizes
+        append!(out, [(o + i, o + mod1(i + 1, n)) for i ∈ 1:n])
+        o += n
+    end
+    return out
+end
+function outline_of(rg, i)
+    return findfirst(≥(i), cumsum(rg.sizes))
+end
 
 """
     snap_point(p, regions, step, L, tol; grid=true, shapes=true, skip=()) -> (point, kind)
@@ -119,9 +153,12 @@ function insert_on_edge!(regions, p, tol; exact=false)
     q, a, b = best
     exact && (q = p)
     for rg ∈ regions                                           # (two loops: `break` leaves only the inner one)
-        for (i, j) ∈ collect(edges(rg))
+        for (i, j) ∈ edges(rg)
             e = (rg.vertices[i], rg.vertices[j])
-            (e == (a, b) || e == (b, a)) && (insert!(rg.vertices, i + 1, copy(q)); break)
+            if e == (a, b) || e == (b, a)
+                rg.sizes[outline_of(rg, i)] += 1; insert!(rg.vertices, i + 1, copy(q))
+                break
+            end
         end
     end
     return q
@@ -130,13 +167,16 @@ end
 """
     delete_vertex!(regions, v) -> Bool
 
-Remove the vertex at `v` from every region that has it, unless one of them would keep fewer than 3
+Remove the vertex at `v` from every region that has it, unless one of their outlines would keep fewer than 3
 vertices: then from none, so a shared boundary stays shared.
 """
 function delete_vertex!(regions, v)
     at = filter(rg -> v ∈ rg.vertices, regions)
-    (isempty(at) || any(rg -> length(rg.vertices) ≤ 3, at)) && return false
-    foreach(rg -> deleteat!(rg.vertices, findfirst(==(v), rg.vertices)), at)
+    (isempty(at) || any(rg -> rg.sizes[outline_of(rg, findfirst(==(v), rg.vertices))] ≤ 3, at)) && return false
+    for rg ∈ at
+        i = findfirst(==(v), rg.vertices)
+        rg.sizes[outline_of(rg, i)] -= 1; deleteat!(rg.vertices, i)
+    end
     return true
 end
 

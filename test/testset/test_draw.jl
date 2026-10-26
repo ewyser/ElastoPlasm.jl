@@ -47,6 +47,61 @@
         @test cur().color == "#dc2626" && cur().shape == "ring"                             # drawing: red
         @test occursin("\"drawing\":true", ed.panel_json(e))                              # the crosshair, the highlighted button
     end
+    @testset "navigating: dragging the canvas, the middle button, a trackpad, fitting" begin
+        e = ed.Editor(Case(; L=[L1, L2], nel=[40, 10], zones=[Zone("base", Block([0, 0], [L1, 4]))])); v0 = e.view
+        ed.zoom!(e, 10.0, 2.0, 0.5); v = e.view
+        ed.press!(e, 20.0, 8.0); @test !isnothing(e.grab) && occursin("\"panning\":true", ed.panel_json(e))   # on nothing: pans
+        ed.move!(e, 25.0, 9.0); @test all(e.view .≈ v .- (5.0, 5.0, 1.0, 1.0))               # the grabbed point follows the cursor
+        ed.release!(e); @test isnothing(e.grab)
+        ed.press!(e, 30.0, 4.0); @test isnothing(e.grab) && !isempty(e.drag); ed.release!(e)   # on an edge: an edit, not a pan
+        ed.new_zone!(e); click!(e, 10.0, 8.0); v = e.view
+        ed.press!(e, 12.0, 8.0; pan=true); ed.move!(e, 11.0, 8.0); ed.release!(e)            # the middle button, while drawing
+        @test length(e.drawing) == 1 && all(e.view .≈ v .+ (1.0, 1.0, 0.0, 0.0))
+        v = e.view; ed.wheel!(e, 10.0, 8.0, 0.0, (2.0, -1.0))                                 # two fingers: the content follows
+        @test all(e.view .≈ v .- (2.0, 2.0, -1.0, -1.0))
+        v = e.view; ed.wheel!(e, 10.0, 8.0, 120.0, (2.0, -1.0); zoom=true); @test e.view[2] - e.view[1] ≈ 0.9(v[2] - v[1])   # Cmd: zoom
+        v = e.view; ed.wheel!(e, 10.0, 8.0, -120.0, (0.0, 0.0)); @test e.view[2] - e.view[1] ≈ (v[2] - v[1])/0.9   # a mouse wheel: zoom
+        ed.set_step!(e, 1); ed.press!(e, 1.0, 1.0); @test !isnothing(e.grab) && !e.resizing; ed.release!(e)   # away from the corner
+        ed.set_step!(e, 3); ed.press!(e, 1.0, 1.0); @test !isnothing(e.grab); ed.release!(e)   # options: the canvas only pans
+        ed.set_step!(e, 2); @test e.view == v0                                                # fitted (also the Fit view button)
+        t = ed.transform(e, 800.0, 600.0); P = ed.PAD                                       # a 4:1 domain on a 4:3 canvas:
+        @test t.box == (P.left, P.top, 800 - P.left - P.right, 600 - P.top - P.bottom)      # the axes fill the canvas,
+        @test all(t.view[1:2] .≈ e.view[1:2]) && t.view[3] < e.view[3] && t.view[4] > e.view[4]  # widened along z only,
+        @test all(t.todata(t.topx(3.0, 2.0)...) .≈ (3.0, 2.0)) && all(t.topx(1.0, 1.0) .- t.topx(0.0, 0.0) .≈ (t.s, -t.s))   # equal scales
+    end
+    @testset "the selected zone: clicked inside; zones drawn where they apply" begin
+        e = ed.Editor(Case(; L=[L1, L2], nel=[40, 10], zones=[Zone("base", Block([0, 0], [L1, 4])), Zone("top", Block([0, 4], [L1, 8]))]))
+        @test e.selected == 1
+        click!(e, 30.0, 6.0); @test e.selected == 2                                          # a click inside a zone selects it
+        ed.press!(e, 30.0, 2.0); ed.move!(e, 35.0, 2.0); ed.release!(e); @test e.selected == 2   # a drag pans, keeps it
+        j = ed.overlay_json(e, 800.0, 600.0)                                                  # drawn where it applies: outside
+        @test occursin("\"selected\":false,\"later\":[1]", j) && occursin("\"selected\":true,\"later\":[]", j)   # the later zones
+        push!(e.regions, ed.circle_region("lens", [50.0, 12.0], 1.0, Dict{String,Float64}()))   # away from both: covers neither
+        @test occursin("\"later\":[1]", ed.overlay_json(e, 800.0, 600.0)) && !occursin("\"later\":[1,2]", ed.overlay_json(e, 800.0, 600.0))
+        @test occursin("\"color\":\"$(ed.zone_color(2))\"", ed.panel_json(e))                # its swatch in the panel
+    end
+    @testset "a new zone is cut out of the earlier ones" begin
+        rock = [Zone("rock", Block([0, 0], [20, 8]))]                                      # on a 0.5 m lattice
+        fresh() = ed.Editor(Case(; L=[40, 20], nel=[40, 20], zones=rock))
+        rect!(e, a, b) = (ed.new_zone!(e, :rectangle); click!(e, a...); click!(e, b...))
+        points(e, rs=e.regions) = ed.drawn_points(e.L, e.nel, e.ni, rs)
+        e = fresh(); before = deepcopy(e.regions)                                           # a notch
+        rect!(e, (10, 4), (30, 12))
+        @test Set(e.regions[1].vertices) == Set([[0.0, 0], [20, 0], [20, 4], [10, 4], [10, 8], [0, 8]]) && e.regions[1].sizes == [6]
+        @test [20.0, 4.0] ∈ e.regions[2].vertices && [10.0, 8.0] ∈ e.regions[2].vertices   # where they cross: shared vertices
+        @test points(e) == points(e, [before; e.regions[2]]) && e.status == "Cut out of rock."   # the points: as before (later wins)
+        ed.undo!(e); @test length(e.regions) == 1 && e.regions[1].vertices == before[1].vertices   # one undo step
+        e = fresh(); rect!(e, (0, 3), (20, 5))                                              # a band across: two parts
+        @test e.regions[1].sizes == [4, 4] && points(e) == points(e, [before; e.regions[2]])
+        ed.press!(e, 0.0, 0.0; right=true); @test sort(e.regions[1].sizes) == [3, 4]             # an outline's vertex deleted …
+        ed.press!(e, 20.0, 0.0; right=true); @test sort(e.regions[1].sizes) == [3, 4]            # … down to 3
+        click!(e, 10.0, 8.0); @test sort(e.regions[1].sizes) == [3, 5]                            # one inserted on the other outline
+        e = fresh(); ed.new_zone!(e, :circle); click!(e, 10, 4); click!(e, 11, 4)            # a circle inside: a hole
+        @test sort(e.regions[1].sizes) == [4, 32] && ed.iscircle(e.regions[2]) && points(e) == points(e, [before; e.regions[2]])
+        e = fresh(); rect!(e, (20, 0), (30, 8)); @test e.regions[1].sizes == [4] && e.status == ""   # beside it: unchanged
+        e = fresh(); rect!(e, (0, 0), (30, 12))                                             # over all of it: removed
+        @test length(e.regions) == 1 && e.selected == 1 && e.status == "Covered by it, removed: rock."
+    end
     @testset "the picked vertex, typed" begin
         e = ed.Editor(Case(; L=[20.0, 10.0], nel=[20, 10],
                            zones=[Zone("A", Block([0, 0], [20, 4])), Zone("B", Polygon([[0, 4], [20, 4], [20, 8], [0, 8]]))]))
@@ -96,24 +151,29 @@
         @test occursin("\"circle\":{\"x\":", ed.panel_json(e)) && occursin("\"handles\"", ed.overlay_json(e, 800.0, 600.0))
     end
     @testset "a picture to draw on: its scale, and the domain fitted to it" begin
-        e = ed.Editor(Case(; L=[30.0, 15.0], nel=[30, 15]); step=1)                      # h = 1 m
+        e = ed.Editor(Case(; L=[30.0, 20.0], nel=[30, 20]); step=1)                      # h = 1 m
+        ed.use_picture!(e, true); @test e.picture && occursin("Choose a picture", e.status)   # the Domain step's choice
         ed.set_backdrop!(e, "section.png")
         @test occursin("\"backdrop\":null", ed.background_json(e, 800.0, 600.0))           # drawn once its size is known
         ed.backdrop_size!(e, 800, 400); b = e.backdrop
-        @test (b.x0, b.z0, b.width, ed.height(b)) == (0.0, 0.0, 30.0, 15.0)                 # until scaled: the domain's width
+        @test (b.x0, b.z0, b.width, ed.height(b)) == (0.0, 0.0, 30.0, 15.0) && e.L == [30.0, 15.0]   # the domain's width; fitted
         @test occursin("\"backdrop\":{\"url\":\"file://", ed.background_json(e, 800.0, 600.0))
         ed.set_backdrop_field!(e, "width", "24"); @test ed.height(b) == 12.0 && e.L == [24.0, 12.0] && e.nel == [24, 12]
         # a scale bar drawn 5 m long on the picture, as it shows at width 24: its ends 6 m apart; true width 20 m
         ed.scale_bar!(e); ed.key!(e, "escape"); @test isnothing(e.calib)                  # Escape cancels
         ed.scale_bar!(e); ed.press!(e, 2.0, 1.0); ed.press!(e, 8.0, 1.0)                  # its ends: clicks, not edits
-        @test length(e.calib) == 2 && !e.resizing
-        ed.set_scale_length!(e, "-5"); ed.apply_scale!(e); @test b.width == 24.0            # no valid length: nothing
-        ed.set_scale_length!(e, "5"); ed.apply_scale!(e)
+        @test length(e.calib) == 2 && !e.resizing && occursin("\"shown\":\"6.0\"", ed.panel_json(e))
+        ed.apply_scale!(e, "-5"); ed.apply_scale!(e, "abc"); @test b.width == 24.0 && length(e.calib) == 2   # no valid length
+        ed.apply_scale!(e, "5")
         @test b.width ≈ 20.0 && ed.height(b) ≈ 10.0 && e.L ≈ [20.0, 10.0] && isnothing(e.calib)   # scaled, domain fitted
-        ed.set_backdrop_field!(e, "x0", "-2"); @test b.x0 == -2.0 && e.L ≈ [20.0, 10.0]   # moved (cropped): domain kept
-        ed.fit_domain!(e); @test e.L ≈ [18.0, 10.0]                                       # … until fitted again
+        ed.set_backdrop_field!(e, "width", "20.3"); @test e.L == [20.0, 10.0] && e.nel == [20, 10]   # in whole square elements
+        ed.set_backdrop_field!(e, "width", "20")
+        ed.set_backdrop_field!(e, "x0", "-2"); @test b.x0 == -2.0 && e.L ≈ [18.0, 10.0]   # moved (cropped): the domain follows
         ed.set_backdrop_field!(e, "opacity", "3"); ed.set_backdrop_field!(e, "width", "abc")
         @test b.opacity == 1.0 && b.width ≈ 20.0                                            # clamped; ignored
+        ed.use_picture!(e, false)                                                           # a domain again: hidden, kept
+        @test occursin("\"backdrop\":null", ed.background_json(e, 800.0, 600.0)) && !isnothing(e.backdrop)
+        ed.use_picture!(e, true); @test occursin("\"backdrop\":{", ed.background_json(e, 800.0, 600.0))
         ed.remove_backdrop!(e); @test isnothing(e.backdrop) && occursin("\"backdrop\":null", ed.panel_json(e))
     end
     @testset "editing: snapping, shared edges, drag, undo" begin
@@ -167,7 +227,7 @@
         e2 = ed.Editor(Case(; L=[1, 1], nel=[2, 2])); ed.set_backdrop!(e2, "section.png")
         ed.load!(e2, joinpath(folder, "layers_case.toml"))                                  # Start from a case file
         @test length(e2.regions) == 1 && e2.width == 4.0 && e2.run["lstps"] == 20 && e2.run["folder"] == folder
-        @test e2.backdrop.file == "section.png"                                             # the picture stays
+        @test e2.backdrop.file == "section.png" && e2.picture                              # the picture stays
         @test_throws ArgumentError ed.Editor(Case(; L=[1, 1], nel=[2, 2], zones=[Zone("r", Region(x -> x[1] < 0.5))]))
         @test ed.qml_index(nothing) == -1 && ed.julia_index(ed.qml_index(3)) == 3              # indices crossing to QML
         @test ed.localpath("file:///a/%C3%89tudes%20x%23%25") == "/a/Études x#%" && ed.localpath("/a b") == "/a b"   # URLs from Qt
@@ -226,6 +286,10 @@
             @test all(k -> isfile(joinpath(d, "step$k.png")), 1:4)
             d2 = mktempdir()                                                                   # a second window, same session
             @test isnothing(ext.qml_window(case; shots=(d2, [2]))) && isfile(joinpath(d2, "step2.png"))
+            e = ext.Editor(case; step=1); png = joinpath(d2, "a picture.png")                   # 550 × 600 px, a space in its name
+            cp(joinpath(pkgdir(EP), "docs", "src", "misc", "test", "check_gimpm.png"), png); ext.set_backdrop!(e, png)
+            @test isnothing(ext.qml_window(e; shots=(d2, [1])))                                # Qt measured it, the domain followed:
+            @test e.backdrop.npx == (550, 600) && e.L == [20.0, 22.0]                          # 20 × 21.8 m, whole elements
         end
     end
 end
