@@ -117,7 +117,8 @@ commit to be the *only* behavior change from this refactor; not a regression.
 
 - `src/home/core/common/` — kernels/wrappers shared by **both** solver paths:
   `tplgy.jl` (`p2e2n`, topology), `shpfun.jl` (`shpfun!`/`Dij_nd`), `ignite.jl`
-  (`init_ignite`/`ignite()`). Both `elastodynamic!`/`elastoplastic!` *and*
+  (`init_ignite`/`ignite()`), `domain.jl` (`Uᵢᵢ`, GIMP's particle-domain update, registered as
+  `cairn.update.domain!` and called by the explicit update and the dynamic-relaxation workflow). Both `elastodynamic!`/`elastoplastic!` *and*
   `elastoquasistatic!` call the same `ignite(mpts,mesh,basis,solver::AbstractSolver)`
   wrapper, dispatching on the *abstract* solver type since `dynamic_relaxation` doesn't
   require a particular concrete `solution` value (unlike `elastodynamic!`/
