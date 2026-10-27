@@ -20,6 +20,7 @@ function generate_basis_cases()
     return [
         (which = "smpm"  ,),
         (which = "gimpm" ,),
+        (which = "gimpm" , domain = "undeformed"),
         (which = "bsmpm" ,),
         (which = "mlsmpm",),
     ]
@@ -81,16 +82,16 @@ end
     for (k, geom) in enumerate(cfg_geom)
         @testset "$(geom.dim)d geometry" verbose = true begin
             for (l, basis) in enumerate(cfg_basis)
-                @testset "$(basis.which) basis" verbose = true begin
+                @testset "$(basis.which)$(haskey(basis, :domain) ? " ($(basis.domain) domain)" : "") basis" verbose = true begin
                     for material in cfg_material, transfer in cfg_transfer, stab in cfg_stab, nonloc in cfg_nonloc
                         @testset "$(material.elastic), $(transfer.trsfr), locking=$(stab.locking), musl=$(stab.musl), nonloc=$(nonloc.status)" verbose = true begin
-                            name = "slump_$(geom.dim)d_$(basis.which)_$(material.elastic)_$(transfer.trsfr)_lock$(stab.locking)_musl$(stab.musl)_nl$(nonloc.status)"
+                            name = "slump_$(geom.dim)d_$(basis.which)$(haskey(basis, :domain) ? "_$(basis.domain)" : "")_$(material.elastic)_$(transfer.trsfr)_lock$(stab.locking)_musl$(stab.musl)_nl$(nonloc.status)"
                             status = false
                             try
                                 @suppress begin
                                     basiscfg = merge(basis, transfer)
-                                    jld2     = slump_problem(geom.L, geom.nel; fid="test/$(name)", grf=cfg_grf, basis=basiscfg, material=material, stab=stab, nonloc=nonloc)
-                                    status   = elastoplasm!(jld2; workflows=[elastodynamic!, elastoplastic!]).success
+                                    jld2     = setup_simulation(slump_case(geom.L, geom.nel; folder="test/$(name)", grf=cfg_grf, basis=basiscfg, material=material, stab=stab, nonloc=nonloc))
+                                    status   = execute!(jld2; workflows=[elastodynamic!, elastoplastic!]) == jld2
                                 end
                             catch e
                                 @warn "Test case failed" name exception=(e, catch_backtrace())

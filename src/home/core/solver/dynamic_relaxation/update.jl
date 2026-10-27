@@ -1,18 +1,19 @@
 """
     update(mpts, mesh, basis)
 
-End of a converged load step: accept `F`, the logarithmic strain and the stress as the new
-converged state, and move each material point by `Δu_p = Σ S_vp Δu_v` (Sutcliffe et al.
-2026, Eq 23), accumulating it into the total displacement `mpts.s.u`. Volume, porosity and
+End of a converged load step: accept `F` (and GIMP's domain with it, `particle_domain`), the logarithmic
+strain and the stress as the new converged state, and move each material point by `Δu_p = Σ S_vp Δu_v`
+(Sutcliffe et al. 2026, Eq 23), accumulating it into the total displacement `mpts.s.u`. Volume, porosity and
 density follow `deform.jl`, so the solid mass `ρ·Ω` stays equal to `mpts.s.m`.
 """
 @kernel inbounds = true function update(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D}) where {T1,T2,D}
     p = @index(Global)
     if p ≤ mpts.nmp
         mpts.s.Fn[p] = mpts.s.Fᵢⱼ[p]
+        mpts.ℓ[p]    = particle_domain(basis.kind, mpts.s.Fᵢⱼ[p], mpts.ℓ₀[p], mpts.ℓ[p])
         mpts.s.ϵn[p] = mpts.s.ϵᵢ[p]
         Δu = zero(SVector{D,T2})
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             Δu += basis.N[nn,p] * mesh.s.v[no]

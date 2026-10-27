@@ -22,17 +22,8 @@ end
 Load mesh, material points, and configuration from JLD2 simulation file.
 """
 function load_simulation_setup(sim_file::String)
-    jldopen(sim_file, "r") do file
-        problem = file["ic"]["problem"]
-        return (
-            mesh   = problem.mesh,
-            mpts   = problem.mpts,
-            time   = problem.time,
-            solver = file["cfg"]["solver"],
-            paths  = file["cfg"]["paths"],
-            misc   = file["cfg"]["misc"],
-        )
-    end
+    sim = load_simulation(sim_file); p = sim.problem
+    return (; p.mesh, p.mpts, p.time, p.solver, sim.folder)
 end
 
 """
@@ -47,11 +38,10 @@ function compute_column_error(jld2, l0, solver)
     z0    = getindex.(setup.mpts.x, idx)
 
     # Run simulation
-    out = elastoplasm!(jld2; workflows=[solver])
+    execute!(jld2; workflows=[solver])
 
     # Reload to get final state
-    jldopen(jld2, "r") do file
-        problem = file["ic/problem"]
+    let problem = load_simulation(jld2).problem
         mesh = problem.mesh
         mpts = problem.mpts
         ρ0   = (1 - mpts.n₀[1]) * mpts.s.ρ₀[1]   # effective density: mass is (1-n₀)ρ₀Ω₀
@@ -86,13 +76,13 @@ function run_column_convergence_tests(solver, fwrk)
             material = (; plastic = get_default().material.plastic, elastic = fwrk.elastic)
             basis    = merge(get_default().basis, (; which = "gimpm", trsfr = fwrk.trsfr, C_pf = fwrk.C_pf))
             stab     = merge(get_default().stab, (; locking = fwrk.locking, damping = fwrk.damping, musl = fwrk.musl))
-            sim = column_problem(nel, 0.0, 1.0e4, 80.0, l0; fid = "test/column", material=material, basis=basis, stab=stab)
+            sim = setup_simulation(column_case(nel, 0.0, 1.0e4, 80.0, l0; folder = "test/column", material=material, basis=basis, stab=stab))
 
             setup = load_simulation_setup(sim)
             err = compute_column_error(sim, l0, solver)
             errors[k+1] = err
             hs[k+1] = setup.mesh.prprt.h[end]
-            plot_path = setup.paths[:plot]
+            plot_path = setup.folder
             @test errors[k+1] < errors[k]
         end
     end

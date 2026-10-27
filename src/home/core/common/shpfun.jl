@@ -18,7 +18,7 @@ end
     if p ≤ mpts.nmp
         Dᵢⱼ   = zero(eltype(basis.transfer.Dᵢⱼ))
         nodes = basis.p2n[p]
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no  = nodes[nn]
             if iszero(no) continue end
             N   = basis.N[nn,p]

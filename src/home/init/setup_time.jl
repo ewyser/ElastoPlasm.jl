@@ -1,22 +1,9 @@
 """
-    setup_time(solver::S; te=0.0, tg=0.0, tep=0.0) where {S<:AbstractSolver} -> Time
+    setup_time(solver; te=0.0, tg=0.0, tep=0.0) -> Time
 
-Set up the time configuration for a simulation, including total, gravity, and elastoplastic time intervals.
-
-# Arguments
-- `solver::S`: Solver instance (e.g. `ExplicitSolver`), used only to infer the numeric type of time values.
-- `te`: (Optional) End time for the elastodynamic phase.
-- `tg`: (Optional) End time for the gravity ramp-up phase.
-- `tep`: (Optional) End time for the elastoplastic phase.
-
-# Returns
-- `Time`: Struct containing time vector `t`, and individual times `te`, `tg`, and `tep`.
-
-# Example
-```julia
-time = setup_time(solver; te=10.0, tg=5.0, tep=2.0)
-println(time.t)  # [0.0, 12.0]
-```
+The time stages of a run, in the solver's float type: an elastic stage until `te` with gravity
+ramped up over `tg` (cut at `te`), then a plastic stage of `tep`; `time.t = [0, te + tep]` holds the
+current and the final time.
 """
 function setup_time(solver::S; te=0.0,tg=0.0,tep=0.0) where {T1<:Integer,T2<:Real,D,S<:AbstractSolver{T1,T2,D}}
     return Time{T1,T2}(

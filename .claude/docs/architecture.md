@@ -25,11 +25,23 @@
   `InfinitesimalStrain`) and `EL<:AbstractElasticLaw` (`HenckySolid`/`ImprovedHenckySolid`/
   `HypoelasticSolid`, the elastic-law tag `elast.jl` and `get_dt`'s `_Ktan` dispatch on) are both
   picked together from `material.elastic` by `build_solid_phase`.
-- `MechanicalProblem{T1,T2,D,CM,ST,EL,L} <: AbstractProblem{T1,T2,D,SP}`
-  (`src/boot/needs/types/problem/problem.jl`) — bundles `mesh::Mesh`+
-  `mpts::Point`+`time::Time` as the IC-defining part of a simulation, built via
-  `setup_problem` (see "`Problem` type decoupling..." in `planned-improvements.md`).
-  Deliberately excludes `Basis`/`Solver` — those stay independent types.
+- `Problem{T1,T2,D,P,B,S}` (`src/boot/needs/types/problem/problem.jl`) — what is solved: `mpts`,
+  `mesh`, `basis`, `time`, `solver`, built by `Problem(case)`; what workflows run on
+  (`elastodynamic!(problem)`). The `Case` it was built from is not a field (see "`Problem`" in
+  `planned-improvements.md`).
+- `Simulation{P}` (`src/boot/needs/types/problem/simulation.jl`) — a problem ready to run:
+  `problem`, `workflow` (a name, one of `WORKFLOWS`), `lstps`, `folder` (absolute; a name given is
+  under `dump/`), built by `Simulation(problem; workflow, lstps, folder)`; the default workflow follows the
+  solver (`"elastoquasistatic!"` for an `ImplicitSolver`), and an explicit workflow on an implicit solver is
+  refused there rather than as a `MethodError` at `execute!`. A `.jld2` is a saved one
+  (`save_simulation`/`load_simulation`); `execute!(sim)` / `execute!(jld2)` run it in place (`execute` on a copy). The chain is
+  `Case` → `Problem` → `Simulation`, each built from the one above.
+- `Case` (`src/boot/needs/types/problem/case.jl`) — the plain-data description a problem is built from: domain, zones
+  (`Zone` = shape `Polygon`/`Block`/`Ball`/`Region` + material overrides), default material
+  (`MATERIAL`), boundary conditions, solver overrides, thermal flag, run settings. `case_points`
+  turns it into `PointData`, the explicit per-point contract `setup_mpts` reads. One build path
+  (`setup_simulation`), one TOML format (`save_case`/`load_case`); the drawing window edits it. See
+  "Describing a case" in `operations.md`.
 - `Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}`
   (`src/boot/needs/types/basis/basis.jl`) — independent struct owning ALL
   mesh/point connectivity (`e2n`, `e2e`, `p2n`, `p2e` — `e2e` also doubles as the
@@ -82,7 +94,7 @@ constructor, since `D*D` on a bare `TypeVar` isn't valid in a struct's own field
 declaration). These fields used to live on `Point` unconditionally (`Δnp`/`Bᵢⱼ`/`Dᵢⱼ`,
 100% APIC-exclusive, allocated on every particle even under `std`/`tpic`); `Δnp` was
 dead code and got deleted, `Bᵢⱼ`/`Dᵢⱼ` moved onto `ApicTransfer` (`basis.transfer.Bᵢⱼ`,
-not `mpts.Bᵢⱼ`). They persist as part of `ic["basis"]` now, not `ic["problem"]`. Removing
+not `mpts.Bᵢⱼ`). They persist with the basis (`problem.basis`), not on `mpts`. Removing
 this dead/wasted per-`Point` allocation measured **-18.3% memory / -5.4% allocs / 0.0%
 time** on `test_performance.jl` vs. the pre-refactor baseline.
 
@@ -91,7 +103,7 @@ time** on `test_performance.jl` vs. the pre-refactor baseline.
 (MUSL velocity reprojection) lives under `stab`, since it's a stabilization technique
 applied regardless of which transfer scheme ran, not transfer-scheme-specific. There is
 no `transfer` config section anymore. See `operations.md` for the full config layout and
-a real shallow-merge bug this reorganization surfaced twice.
+the per-field merge (a shallow merge caused a real bug twice during this reorganization).
 
 **Known, deliberate behavior change**: thermal-only workflows now work under any
 `basis.trsfr` (previously threw `MethodError` for `apic`/`tpic`) — that restriction was
@@ -105,7 +117,12 @@ commit to be the *only* behavior change from this refactor; not a regression.
 
 - `src/home/core/common/` — kernels/wrappers shared by **both** solver paths:
   `tplgy.jl` (`p2e2n`, topology), `shpfun.jl` (`shpfun!`/`Dij_nd`), `ignite.jl`
-  (`init_ignite`/`ignite()`). Both `elastodynamic!`/`elastoplastic!` *and*
+  (`init_ignite`/`ignite()`), `domain.jl` (`particle_domain(basis.kind, F, ℓ₀, ℓ)`, GIMP's particle-domain
+  update, a no-op for the other kinds: called per particle where `F` is updated, in the explicit `deform` and
+  the dynamic relaxation's end-of-load-step `update`; no kernel or `basis.which` branch of its own). Which
+  update is the `GimpBasis`'s `domain` field (`StretchDomain`/`UndeformedDomain`, from `basis.domain` by
+  `get_domain`, `types/basis/gimpm.jl`), dispatched on in `particle_domain`; another update is one
+  `AbstractDomain` type and one method. Both `elastodynamic!`/`elastoplastic!` *and*
   `elastoquasistatic!` call the same `ignite(mpts,mesh,basis,solver::AbstractSolver)`
   wrapper, dispatching on the *abstract* solver type since `dynamic_relaxation` doesn't
   require a particular concrete `solution` value (unlike `elastodynamic!`/
@@ -130,7 +147,7 @@ commit to be the *only* behavior change from this refactor; not a regression.
   Hencky P-wave estimate of Eqs 35/38/50 (`fictitious_mass`, `ζ_M=2`, no `N` weight),
   assembled once per step where `ΔF=I`. Converges on `‖R‖/‖fᵉˣᵗ‖ < tol` (1e-9) over free
   DOFs; the workflow returns the iteration count per load step. `mpts.s.u` accumulates the total displacement over the workflow (the explicit path stores the per-step increment `dt·v` there instead). Finite strain only
-  (`hypoelastic` throws). Pass options through `elastoplasm` as a closure:
+  (`hypoelastic` throws). Pass options through `execute!` as a closure:
   `workflows=[(a...)->elastoquasistatic!(a...; lstps=40)]`.
 
   **Eq 35 takes one element size `h`**, so on elongated cells (`h = minimum(h)`) the

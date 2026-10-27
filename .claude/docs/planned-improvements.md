@@ -1,26 +1,27 @@
 ## Planned improvements (not bugs, just known follow-up work)
 
-- **`Problem` type decoupling mesh/point generation from basis — done, as a thin
-  wrapper.** `MechanicalProblem` bundles `Mesh`+`Point`+`Time` — the expensive,
-  IC-defining part of a simulation — as one object, reusing the existing
-  `MaterialPointPhase` hierarchy rather than a second "phase" concept. `Basis`/`Solver`
-  remain separate, un-bundled types, since `basis.which` and `basis.trsfr` vary
-  independently. `types/problem/` holds every file that feeds `MechanicalProblem`
-  construction — `constitutive.jl`, `geometry.jl`, `eulerian.jl` (Mesh), `tensor.jl`
-  (the `AbstractStrain`/`AbstractStress` tensor types `Point` stores), `lagrangian.jl`
-  (Point), `time.jl` (Time), `problem.jl` (the bundle itself) — loaded in that explicit
-  order by `boot.jl`'s hand-ordered include list (see the main `CLAUDE.md`'s "Project
-  shape" section), not by alphabetical file order.
-
-  `setup_problem` (`src/home/init/setup_problem.jl`) is the entry point — calls
-  `setup_mesh`/`setup_material_constants`/`setup_mpts`/`setup_time` internally and
-  returns a `Problem`; `slump_problem` (renamed from `ic_slump`) uses it.
-  `export_problem` writes a single `ic["problem"]` entry instead of separate
-  `ic["mesh"]`/`ic["mpts"]`/`ic["time"]` keys — see `persistence.md`.
-  `Basis` stays its own top-level `ic["basis"]` key, deliberately independent of
-  `Problem`. Kernel/workflow signatures (`workflow!(mpts,mesh,basis,time,solver)`) are
-  untouched — `Problem` is, for now, only an outer-API/persistence convenience, not
-  threaded through kernels. `setup_basis` takes `(problem::MechanicalProblem, solver)`.
+- **`Problem` — done: one object holding a run.** `Problem` (`types/problem/problem.jl`) bundles
+  `mpts`, `mesh`, `basis`, `time`, `solver`, built by `Problem(case)` from a `Case`; it replaced
+  `MechanicalProblem` (`mesh`/`mpts`/`time` only, whose docstring kept `Basis`/`Solver` out because
+  `basis.which`/`basis.trsfr` vary independently, which does not argue against bundling them for a
+  run). The `Case` is deliberately not a field: the built objects already hold all it describes, it
+  would drift once `mpts` evolves, and a `Region` closure does not serialise; its TOML beside the
+  `.jld2` is the provenance. Kernels keep their `(mpts, mesh, basis, …)` arguments; workflows are
+  functions of a `Problem`, and a `Simulation` (problem + workflow + folder) is what runs and what a
+  `.jld2` holds (see `architecture.md`). Possible follow-up: the
+  solver mixes configuration (part of the problem) with the kernel table `cairn` (machinery,
+  rebuilt from the configuration); rebuilding `cairn` on load would make the stored `Problem` pure
+  data. `types/problem/` files load in `boot.jl`'s explicit order, `problem.jl` last (it needs
+  `Point`, `Mesh`, `Basis`, `Time`, `Case`).
+- **Next: a `Solver` level, Case → Problem → Solver → Simulation** (separating what is solved from
+  how). Split the solver options into *build* options, which decide the `Problem`'s types and contents
+  (`dtype`, `basis` which/trsfr, `material` laws, `bcs`, `grf`), and *run* options (`solution` and the
+  kernel table `cairn`, `stab`, `nonloc`, `plot`/`output`, `backend`, the time stages, the workflow,
+  `lstps`). `Problem` keeps `mpts`, `mesh`, `basis` (no `solver`, no `time`); `Solver` holds the run
+  options; `Simulation` becomes problem + solver + folder (its `workflow`/`lstps` move into the
+  solver); workflows take `(problem, solver)`. Gain: one `Problem` solved several ways without
+  rebuilding. Cost: `get_default`/`get_solver`/`cli`, the case's solver overrides and their TOML
+  sections, every `problem.solver` reader (18); everything bit-identical. Own branch.
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task, rather than one monolithic kernel body.
   `update.jl`'s `elastoplast`/`elasto` dispatch functions (branch on
@@ -166,11 +167,17 @@
   results (149/192 passed overall, 3D not meaningfully less stable than 2D) and the
   related `plast.status` finding.
 - **`basis.how` and the alternative GIMP domain updates — removed.** GIMP's particle domain
-  is always updated by `Uᵢᵢ` (stretch `U` from `F`, `domain.jl`). The six alternatives
+  is always updated from the stretch `U` of `F` (`particle_domain`, `common/domain.jl`, inside `deform`
+  and the dynamic relaxation's `update`; it was a kernel of its own, `Uᵢᵢ`, until `fix-gimpm-stability`:
+  dynamic relaxation bit-identical, the explicit slump to round-off, 1 ulp of ℓ per step from `muladd`
+  fusing differently inside `deform`, relative ≤1e-8 after the run). The six alternatives
   (`undeformed`, `detFᵢᵢ`, `Fᵢᵢ`, `detΔFᵢᵢ`, `ΔFᵢᵢ`, `ΔUᵢᵢ`) and the `basis.how` knob meant to
   pick between them were only ever referenced from a commented-out block, so `how` was read
   nowhere. `test_workflow.jl`'s GIMP case passed `how="undeformed"` while actually running
-  `Uᵢᵢ`. (`basis.ghost` no longer exists either.)
+  `Uᵢᵢ`. (`basis.ghost` no longer exists either.) **The choice is back, typed**: `basis.domain` =
+  `"stretch"` (default) or `"undeformed"` (uGIMP), a `GimpBasis` type parameter dispatched in
+  `particle_domain` (default bit-identical to before, slump, column and §4.3 block). The other old
+  alternatives were not restored; a further one (diag(F), splitting) is a type and a method.
 - **`Basis.N`/`∂N` storage rework**: currently plain `Matrix{T2}`/`Array{T2,3}`
   specifically to dodge the StaticArrays allocation-elision limits (see `gotchas.md`)
   — correct and fast, but a workaround rather than a considered data-layout design.
@@ -187,7 +194,7 @@
   independently before coupling. `PointFluidPhase` (`lagrangian.jl`) needs real fields
   first — currently a literal empty placeholder, `mpts.f` always `nothing`.
 - **Thermal solution — fixed and viable.** `thermal_problem` (renamed from
-  `ic_thermal`) → `elastoplasm(jld2; workflows=[thermodynamic!])` runs end-to-end
+  `ic_thermal`) → `execute!(jld2; workflows=[thermodynamic!])` runs end-to-end
   (verified: temperature stays bounded, cools monotonically from the boundary inward,
   both with `musl=true`/`false`). What was broken: stale `mpts.ϕ∂ϕ` reads across
   several kernels (replaced with the same `basis.N`/`∂Nrow(basis.∂N,...)` caching
@@ -206,7 +213,7 @@
   `.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`; 1D APIC has a
   similar unfixed inconsistency (1D is essentially never exercised in this codebase).
 - **Consider a persistent Julia session for iteration (Kaimon/Revise pattern, seen in
-  sibling repo FEMTools.jl).** A `slump_problem`→`elastoplasm!` smoke test costs full
+  sibling repo FEMTools.jl).** A `setup_simulation(slump_case(…))`→`execute!` smoke test costs full
   Julia startup+precompile every invocation today (~30-40s), and
   a finely meshed `elastoquasistatic!` run adds more — exactly the kind of loop a persistent
   `Revise`-backed session amortizes. FEMTools.jl's `.agents/`-documented setup
@@ -215,15 +222,14 @@
   is a candidate pattern to port if the user sets up the equivalent tooling here — not
   something to install unprompted, since it's an external dependency/process the user
   needs running before a session starts.
-- **Add a JLD2 time-series export option, as an alternative to plot-only checkpoints.**
-  Every workflow's time loop calls `bake(mpts,mesh,t,solver)` at each checkpoint, but
-  `bake` only renders a PNG when `solver.plot.status` is true — there's no way to
-  record a field's evolution as raw data today. A natural fix reuses the same
-  `checks` cadence and `solver.plot.what`-style field selection to append values into
-  a JLD2 dataset at each checkpoint (`export.status`/`export.what`, sitting next to
-  `bake()`). Writing the export is only half the feature — a companion loader/plotter
-  for the saved time series would need to be built alongside it, not as a separate
-  follow-up.
+- **Time-series output — done, as HDF5** (`output` solver section, `src/home/api/io/output/` (`fields.jl`, `write.jl`, `read.jl`),
+  `src/home/plot/output_plots.jl`; what can be recorded is `quantities()`, `src/home/api/io/quantities.jl`,
+  shared with the live plots; each dataset carries its name, SI unit and label as attributes; see
+  "Recording a run" in `operations.md`). Follow-ups:
+  whole-model series (kinetic energy, run-out, max displacement; one value per frame, `/series/…`);
+  an XDMF sidecar so ParaView opens the `.h5` as an animated point cloud; fields of the fluid phase
+  once it has some (entries under `quantities().point.fluid`); `plot_output` in 3D shows the x–z projection of all points (a slab or slice option
+  would help); the figures share the live plots' cramped sizing.
 - **Improved Hencky's porosity is its own elastic-strain measure — decided, keep.**
   `_trial_elastic_stress_improved` (`elasticity.jl`) and `_Ktan` (`explicit/get.jl`) compute
   `n = 1-(1-n₀)/exp(ϵᵥᵉ)`, i.e. Eqs. 22-23 of Pretti et al. (2024) written in the stored
@@ -239,10 +245,9 @@
 - **DP apex `ϵpII` increment misses the shear-flow part** — deferred follow-up of the fixed
   apex return (`.claude/bug/fixed/dp-apex-return-wrong-pressure.md`). Needs a corner-return
   source (de Souza Neto, Perić & Owen 2008 §8.3) added to `refs/` first.
-- **Dead or drifting code worth removing, one small verified step at a time:** the five remaining
-  `#= … =#` blocks under `src/` (`update/fun/nonlocal.jl:1`, `retmap/DP.jl`'s WIP tangent
-  block (removed with the storage switch), `get_column.jl`'s 3D branch); `MeshSolidPhase.oobp`
-  and `.p`, used only by the removed dynamic-relaxation u-P path. See also `PerfectlyElastic` and `DynamicRelaxationSolver` above.
+- **Dead or drifting code worth removing, one small verified step at a time:** no `#= … =#` blocks
+  are left under `src/`, and `MeshSolidPhase.oobp`/`.p` (the removed u–P path) are removed. Still
+  open: `PerfectlyElastic` and `DynamicRelaxationSolver` above.
 - **`_fast` kernels and the `perf` config section — removed.** `deform_fast`/`elast_fast`
   (hand-unrolled 2D/3D scalar versions, a legacy port of the original C code) were only
   selected by `perf.status`, which also forced `material.elastic="hypoelastic"` and
@@ -273,37 +278,25 @@
   cost of touching every `solver.xxx` access.
 - **`test_workflow.jl` doesn't cover `material.elastic="improved_hencky"`** — add it once
   `.claude/bug/known/improved-hencky-explicit-admissibility-crossing.md` is fixed.
-- **Lighter `src/home/init/` — in progress** (branches `refactor-lighter-init` →
-  `fix-grf-point-evaluation`). Each step verified bit-identical with a scratch harness that
-  builds every example's *initial problem* (slump 2D/3D/with random field, collapse, column,
-  thermal, collision), flattens `mesh`/`mpts`/`time`/`basis` to plain arrays, and compares field
-  by field, plus one full slump run. Setup-only comparison is fast and is the right check for
-  `init/` changes. Done:
-  - `Geometry`: one constructor for any dimension; the 1D "padding" is the general
-    `[nel..., prod(nel)]` rule.
-  - `get_slump`: the 200-sample slope loop reduced to one half-plane test (the samples all lie on
-    one line, so every iteration gave the same answer), written once for 2D/3D.
-  - `mpts_populate`: one grid construction for any dimension (vertical axis fastest); returns
-    positions only.
-  - `material_fields(mat, nmp; coh0, cr, ϕ)` (`init/mpts/material_fields.jl`): the per-particle
-    fields all five `get_*` helpers used to copy; callers keep only their specific tweaks and
-    choose explicitly whether cohesion is random.
-
-  Remaining:
-  - **Step 6, one construction path:** `setup_problem` takes material overrides so
-    `collapse_problem`/`column_problem` stop re-implementing the pipeline; `n₀ = 0.1`
-    (`setup_mpts.jl`) and the cohesion/friction/softening literals in
-    `setup_material_constants` become keyword defaults. That also closes the usability finding
-    that `slump_problem` can't change any material parameter.
-  - **Step 7, smaller signatures:** `build_solid_phase`'s 11 positional arguments; a clear error for
-    3D `column_problem`, whose branch is commented out (bare `UndefVarError` today).
-  - **Step 8:** `init/` docstrings to describe behaviour, not history.
+- **Lighter `src/home/init/` — done** (branches `refactor-lighter-init` → `fix-grf-point-evaluation`
+  → `refactor-init-problem-spec`). Every problem is a `Case` built by `setup_simulation`; the
+  six hand-written pipelines and the `get_*` generators are gone (see "Describing a case" in
+  `operations.md`). Material constants live in `MATERIAL` (`setup_material_constants` removed, `n₀`
+  a material constant), `PointData` replaced the implicit generator NamedTuple and
+  `build_solid_phase`'s 11 positional arguments, `get_solver` merges per field, a 3D column works.
+  Verified bit-identical setup by setup with `test_setup.jl` (a stored digest reference, which
+  replaced the scratch harness used for the earlier steps). The `Geometry` type is gone too:
+  `setup_mesh(L, nel, solver)` builds the node grid once, for any dimension (`mesh_coords`, which
+  errors if a floating-point range misses a node), instead of a `Geometry` whose counts `get_coords`
+  recomputed and `MeshProperties` stored again. Earlier steps: one `mpts_populate` grid
+  construction, the slump slope as one half-plane test.
+  `init/` docstrings describe behaviour (Step 8). Remaining:
   - **Step 5b, per-property random fields (deferred until a second random property is needed):**
-    `material_fields` would take `xp` and a per-property `grf.fields` config and call
-    `property_field` for each listed property. Open questions: truncation at a floor vs lognormal
-    mapping for positive-only properties (needs a reference in `refs/`, e.g. Fenton & Griffiths
-    2008); whether problem tweaks (slump's `ϕr` base layer) override or centre the random value;
-    independent vs cross-correlated fields (shared harmonics).
+    `case_points` would take a per-property `grf.fields` config and call `property_field` for each
+    listed property. Open questions: truncation at a floor vs lognormal mapping for positive-only
+    properties (needs a reference in `refs/`, e.g. Fenton & Griffiths 2008); whether zone values
+    override or centre the random value (today a zone setting `c0` overrides it); independent vs
+    cross-correlated fields (shared harmonics).
 - **Setup cost — `e2e` fixed; IC plot and export are what's left.** `e2e` (`init/basis/e2e.jl`)
   filled a `SparseMatrixCSC` entry by entry; in 1D/3D each row insert shifted all later storage, so
   the build was quadratic (3D slump `[40,10,10]`: 2.4 s; `[60,15,15]`: 28 s; 32,000 elements:
@@ -311,18 +304,28 @@
   dimension: 4 ms and 17 ms for those meshes, near-linear up to ~1e6 elements. Same sparsity
   pattern (the only thing `nonlocal.jl` reads); 2D and 3D slumps bit-identical. Whole setup
   (compilation excluded): 3D `[40,10,10]` 4.6 → 2.7 s, `[60,15,15]` 36.6 → 8.5 s. What remains is
-  the IC plot (`slump_problem` with `plot.status`, 2.1 s / 5.2 s) and `export_problem` (0.3 s /
+  the IC plot (`slump_problem` with `plot.status`, 2.1 s / 5.2 s) and the `.jld2` export (0.3 s /
   2.1 s); both linear, not yet looked at.
 - **Random field (`GRF.jl`) open points**, none blocking: (a) the per-axis extension of the
   Gaussian covariance is derived in-repo, not stated in Räss et al. (2019); Sabelfeld (1991) is
   a candidate source. (b) Point sampling at particle centres vs local averaging over the
   particle volume (Vanmarcke; Fenton & Griffiths), which matters more for the rougher
   exponential covariance and when particle spacing approaches the correlation length.
-- **Usability findings (second `agent-user` pass), not yet addressed:** a mistyped nested config
-  key (e.g. `material=(;elastik=...)`) replaces the whole section and fails in `get_solver` with
-  a cryptic "NamedTuple has no field" error; reading typed tensors (`.p`/`.dev`, `get_tensor`) and the
-  `dump/` flush on `using` are undocumented in `README.md`/`docs/src`; `worflow.jl` is misspelled
-  in both solver folders.
+- **Drawing window, possible follow-ups:** the traced-over picture is not saved with the case (a
+  `[drawing]` TOML section, ignored by `load_case`'s problem data, could keep its file and placement);
+  a rotated scan cannot be straightened (an angle, or a second scale-bar direction). Zones are cut only when
+  one is drawn (`cut_earlier!`): a vertex dragged into another zone overlaps it again (shown dashed, later wins),
+  and a later zone deleted or moved leaves a gap; a "cut again"/"merge back" action would cover both. Trackpad pinch
+  and the middle button were checked only through the Julia logic (`wheel!`, `press!(…; pan)`), not on hardware.
+- **Mesh quantities can't be plotted.** `plot.what` picks plottable *point* quantities only
+  (`plottable()`); the mesh entries of `quantities()` can be recorded but have no plot label, and
+  `what_plot_field(mesh, opts)` (the `opts.what == "v"` branches in `display.jl`) is not reached. (The old
+  mesh plot entry `m` extracted the plastic strain; `quantities()` gives it the nodal mass.)
+- **The initial-fields figure is unreadable at the usual `dpi`.** `plot_initial_fields` sizes it
+  `dpi × L/L[1]` (300 × 75 px for the 4:1 slump at `dpi = 300`), so its two panels are cramped.
+- **Usability findings (second `agent-user` pass), not yet addressed:** reading typed tensors
+  (`.p`/`.dev`, `get_tensor`) are undocumented in `README.md`/`docs/src`.
+  (The mistyped nested config key it also found now errors naming the valid fields, see `operations.md`.)
 
 - **Implicit dynamic-relaxation MPM (Sutcliffe et al. 2026) — Algorithm 1 and plasticity
   done**, see `architecture.md`. Remaining, in order:
@@ -373,6 +376,17 @@
     every step, which accumulates. The explicit runs were stable without it.
   - Follow-ups: an extrapolated (not zero) displacement at fixed nodes would remove the surface bias
     but needs a reference; this stays open alongside the paper's aggregation, which is not planned.
+- **`get_dt` against Nakamura et al. (2023) Eq 35.** Since the smallest-cell fix
+  (`.claude/bug/fixed/get-dt-maximum-over-axes.md`) the step is `0.5·min_d h_d/(c_max + v_max,d)`. Eq 35
+  uses the speed `‖v_p‖` (not the largest component per axis, which is smaller by up to √D) and
+  `max_p(c_p + ‖v_p‖)` (the code adds the two maxima, which is larger). Matching it means `n2p.jl` tracking
+  `max_p(c_p + ‖v_p‖)` instead of `vmax` per axis; it changes every explicit run slightly, so check it the
+  same way (old and new reduction in one session, figure).
+- **`test_performance.jl` rewrites its tracked baseline on any machine not in it.** The baseline
+  (`test/dataset/performance_baseline.jld2`) holds one AMD Ryzen entry; elsewhere the test saves the
+  current run as that machine's entry (a change to a tracked file) and then compares the run with
+  itself (0.0% everywhere). Restore the file after running it on another machine, or keep machine
+  baselines out of git.
 - **`test_performance.jl` benchmarks `elast!` on NaN state.** The suite runs the mapping and
   deformation kernels repeatedly on an unsettled problem without resetting it, so `elast!` sees
   NaN input, whose 3×3 symmetric `eigen` is ~4000× slower than a valid one. Its `elast` number is

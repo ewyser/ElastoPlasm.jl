@@ -3,7 +3,7 @@
 `dtype=(;T0=(Int32,Float32),bits=Int32(32),...)` is a supported but rarely-exercised
 path — the default is always `(Int64,Float64)`, so bugs that only manifest under
 `T1=Int32`/`T2=Float32` silently pass every day-to-day test. Two concrete patterns
-found and fixed by actually running an `Int32`/`Float32` `slump_problem`→`elastoplasm`
+found and fixed by actually running an `Int32`/`Float32` `slump_case`→`execute!`
 end-to-end (not just skimming the code):
 
 - **`@index(Global)` inside a `@kernel` function is always `Int64`**, regardless of the
@@ -32,3 +32,13 @@ via `M[nn,:]` still allocates for a runtime `nn`, so read it via a small `Val`-u
 `ntuple` (see `∂Nrow`) instead of array-slicing syntax. Always verify with
 `@allocated`/`@code_typed` in a wrapping *function* (not top-level REPL scope, which
 has its own unrelated allocation noise).
+
+## Thread count and bit-identity checks
+
+Multi-threaded runs are not reproducible to the last bit: the atomic nodal sums of P2G add in
+thread order. With 8 threads the §4.3 block under dynamic relaxation (thousands of iterations)
+differs by ~1e-10 m in position between two runs of the *same* code, while the explicit slump
+happened to agree. So compare a refactor against its parent with `-t 1`: single-threaded, the
+block matched the pre-refactor commit exactly (`refactor-init-problem-spec`). Setup-only checks
+(`test_setup.jl`) are not affected.
+

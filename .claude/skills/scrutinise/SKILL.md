@@ -22,7 +22,7 @@ Read every changed file in full, not just the hunks.
 The package layout is: `src/boot/` (includer + hand-ordered `types/`),
 `src/home/core/common/` (shared ignite/shpfun/topology kernels), `src/home/core/solver/
 explicit/` and `.../dynamic_relaxation/` (the two solver paths), `src/home/init/`
-(setup_mesh/setup_mpts/setup_problem/setup_basis), `src/home/api/solver/` (get_default,
+(Case → setup_simulation: setup_mesh/case_points/setup_mpts/setup_basis), `src/home/api/solver/` (get_default,
 get_solver, cli). Full detail: `.claude/docs/architecture.md`.
 
 For each new/changed type, method, or helper check:
@@ -58,7 +58,7 @@ For each new/changed type, method, or helper check:
 - Are new tests in the right file (`test_basis.jl`, `test_column.jl`,
   `test_performance.jl`, `test_workflow.jl`) rather than a new file?
 - Is a refactor verified the way `conventions.md` requires — an actual
-  `slump_problem` → `elastoplasm!(...; workflows=[...])` run with real post-run field
+  `setup_simulation(slump_case(...))` → `execute!(jld2; workflows=[...])` run with real post-run field
   values inspected, not just a clean-load/`success=true` check?
 - If the change touches `test_performance.jl`-benchmarked kernels, was it checked
   against `test/dataset/performance_baseline.jld2`, and is any intentional shift

@@ -2,9 +2,6 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     update[:deform!] = deform(CPU())
     
     update[:heat!] = heatflux(CPU())
-    if instr[:basis][:which] == "gimpm"
-        update[:domain!] = Uᵢᵢ(CPU())
-    end
     if instr[:stab][:locking]
         update[:ΔJn!] = ΔJn(CPU())
         update[:ΔJp!] = ΔJp(CPU())
@@ -41,10 +38,6 @@ function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,
         # compute determinant Jbar
         solver.cairn.update.ΔJp!(mpts,mesh,basis,dim; ndrange=mpts.nmp);sync(CPU())
     end
-    # update material point's domain
-    if solver.basis.which == "gimpm"
-        solver.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())
-    end
     # update {kirchoff|cauchy} stresses
     solver.cairn.update.elast!(mpts; ndrange=mpts.nmp);sync(CPU())
     # update mp's coordinates
@@ -55,10 +48,6 @@ end
 function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     # update {logarithmic|infinitesimal} strains
     solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
-    # update material point's domain
-    if solver.basis.which == "gimpm"
-        solver.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())
-    end
     # volumetric locking correction
     if solver.stab.locking
         # init mesh quantities to zero

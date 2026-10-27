@@ -26,7 +26,7 @@ accumulators from `basis.transfer.Bᵢⱼ`/`.Dᵢⱼ` (moved here from `Point`, 
         Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
         D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{1,1,T2}(I)
         σxx      = get_tensor(mpts.s.σᵢ[p])[1,1]
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(1))
@@ -48,7 +48,7 @@ end
         Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
         D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{2,2,T2}(I)
         σᵢⱼ      = get_tensor(mpts.s.σᵢ[p])
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(2))
@@ -72,7 +72,7 @@ end
         Bᵢⱼ, Dᵢⱼ = basis.transfer.Bᵢⱼ[p], basis.transfer.Dᵢⱼ[p]
         D⁻¹      = abs(det(Dᵢⱼ)) > T2(1e-12) ? inv(Dᵢⱼ) : SMatrix{3,3,T2}(I)
         σᵢⱼ      = get_tensor(mpts.s.σᵢ[p])
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(3))

@@ -23,7 +23,7 @@ type parameter — see `Basis`'s docstring.
         xp     = mpts.x[p]        
         vp, ∇v = mpts.s.v[p]          , mpts.s.∇vᵢⱼ[p]
         σxx    = get_tensor(mpts.s.σᵢ[p])[1,1]
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(1))
@@ -43,7 +43,7 @@ end
         xp     = mpts.x[p]        
         vp, ∇v = mpts.s.v[p]          , mpts.s.∇vᵢⱼ[p]
         σᵢⱼ    = get_tensor(mpts.s.σᵢ[p])
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(2))
@@ -65,7 +65,7 @@ end
         xp     = mpts.x[p]        
         vp, ∇v = mpts.s.v[p]          , mpts.s.∇vᵢⱼ[p]
         σᵢⱼ    = get_tensor(mpts.s.σᵢ[p])
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N, ∂N = basis.N[nn,p], ∂Nrow(basis.∂N, nn, p, Val(3))

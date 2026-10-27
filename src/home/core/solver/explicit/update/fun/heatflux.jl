@@ -17,7 +17,7 @@ Update material point velocities and positions from thermal-type mesh nodes usin
         # compute heat flux
         for dim ∈ 1:D
             dQᵢ = T2(0.0)
-            for nn ∈ 1:mesh.prprt.nn
+            for nn ∈ 1:stencil_size(basis)
                 no = basis.p2n[p][nn]
                 if iszero(no) continue end
                 ∂N   = ∂Nrow(basis.∂N, nn, p, Val(D))

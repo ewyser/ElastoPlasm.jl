@@ -15,7 +15,7 @@ Accumulate material point momentum to mesh nodes for DM augmentation.
     if p ≤ mpts.nmp
         ms = mpts.s.m[p]
         mv = ms * mpts.s.v[p]
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N = basis.N[nn,p]
@@ -29,7 +29,7 @@ end
     if p ≤ mpts.nmp
         ms = mpts.s.m[p]
         mv = ms * mpts.s.v[p]
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N = basis.N[nn,p]
@@ -91,7 +91,7 @@ Accumulate material point heat capacity to mesh nodes for DM augmentation.
     p = @index(Global)
     if p ≤ mpts.nmp
         # accumulation
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             @atom mesh.mcT[no]+= basis.N[nn,p] * mpts.s.m[p] * mpts.t.c[p] * mpts.t.T[p]

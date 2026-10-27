@@ -3,7 +3,7 @@
     if p ≤ mpts.nmp
         # buffering
         ms, ΔJ = mpts.s.m[p], mpts.ΔJ[p]
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N  = basis.N[nn,p]
@@ -17,7 +17,7 @@ end
     if p ≤ mpts.nmp
         # mapping back to mpts's
         ΔJ, ΔJ₀⁻¹ = T2(0.0), T2(1.0) / mpts.ΔJ[p]
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N  = basis.N[nn,p]

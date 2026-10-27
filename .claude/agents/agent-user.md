@@ -98,9 +98,9 @@ rediscover them from scratch, and don't repeat them as new findings. Examples of
 *category* of thing to look for (see the docs for full detail, don't assume these
 specific ones are still findable — check current state):
 
-- A silent footgun: calling `elastoplasm` (no `!`) and expecting to inspect mutated
-  state afterward — it opens read-only and never writes back, so the caller silently
-  gets the untouched pre-simulation state instead of an error.
+- A silent footgun: inspecting a `.jld2` while a run is still writing it, or reading a
+  stale one from `dump/` (emptied only by `clean_dump()`) and taking it for
+  the current run's result.
 - A shallow-merge trap: overriding one field of a nested config section (e.g. just
   `basis.trsfr`) requires passing the *whole* section, because `merge` replaces whole
   NamedTuple entries rather than recursing — this has silently dropped fields in

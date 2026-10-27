@@ -1,56 +1,27 @@
-export slump_problem 
+export slump_case
 
 """
-    slump_problem(L::Vector{Float64}, nel::Vector{Int64}; fid::String=..., kwargs...) -> NamedTuple, NamedTuple
+    slump_case(L, nel; lz=12.8, ni=2, folder="slump", kwargs...) -> Case
 
-Initializes the mesh, material points, and simulation configuration for a slump test.
+The slump: a slope `z = 0.625 Lx − 1.25 x` cut into a layer of height `lz` on a base layer
+`z < 0.15 lz` that spans the domain; below `z = 0.3 lz` the material is weaker (friction angle 7.5°)
+and three times warmer. `L`, `nel` are 2D (x, z) or 3D (x, y, z, extruded along y); the material
+fills the sub-cells wholly below `lz` (the slope polygon's top is on the sub-cell lattice). `kwargs`
+are solver options (`get_solver`), e.g. `cli()...`; the random field `grf` perturbs the cohesion.
+`setup_simulation(slump_case(…))` builds it and returns the `.jld2` path.
 
-# Arguments
-- `L::Vector{Float64}`: Domain dimensions.
-- `nel::Vector{Int64}`: Number of elements in each dimension.
-- `fid::String`: (Optional) File or run identifier.
-- `kwargs...`: Additional keyword arguments for simulation configuration.
-
-# Returns
-- `(ic, cfg)`: Two named tuples containing mesh/material point/compression info (`ic`) and instructions/paths (`cfg`).
-
-# Example
 ```julia
-ic, cfg = slump_problem([64.0, 16.0], [40, 10]; fid="run1")
+jld2 = setup_simulation(slump_case([64.1584, 16.0396], [40, 10]; cli()...))
+execute!(jld2; workflows=[elastodynamic!, elastoplastic!])
 ```
 """
-function slump_problem(L,nel; fid::String=first(splitext(basename(@__FILE__))), kwargs...)
-    @info "Setting up mesh & material point system for $(length(L))d slump problem"
-    # get solver and paths
-    solver = get_solver(; dim=length(L), kwargs...)
-    paths  = mkpaths(fid,self.sys.dump;interactive=false)
-    # mesh, mpts, mat & time initial conditions
-    geom    = setup_geometry(L,nel,solver)
-    problem = setup_problem(geom,solver,get_slump; te = 10.0, tg = 10.0, tep = 5.0)
-    basis   = setup_basis(problem,solver)
-    # plot initial cohesion field
-    if solver.plot.status
-        @info "Plotting initial cohesion & friction fields..."
-        dims  = solver.plot.dpi.*(problem.mesh.prprt.L[1]./problem.mesh.prprt.L)
-        ms    = dims[1]/(problem.mesh.prprt.nel[1]*2)
-
-        # phi0 (friction angle) only exists on DruckerPrager's constitutive constants —
-        # VonMises (material.plastic=="VM") has no friction angle at all (J2 yield has
-        # no pressure dependence, see VonMises's docstring), so plotting it there would
-        # either crash (no .ϕ₀ field) or fake a value that doesn't mean anything.
-        names = solver.material.plastic == "DP" ? ["coh0", "phi0"] : ["coh0"]
-        what = [(;mpts=get_mpts_variable_config()[name]) for name ∈ names]
-        opts = (;
-            dims    = solver.plot.dpi.*(problem.mesh.prprt.L./problem.mesh.prprt.L[1]),
-            what    = what,
-            xlim    = (minimum(getindex.(problem.mesh.x, 1)), maximum(getindex.(problem.mesh.x, 1))),
-            ylim    = (minimum(getindex.(problem.mesh.x, 2)), maximum(getindex.(problem.mesh.x, 2))),
-            tit     = L" t = "*string(round(0.0,digits=1))*" [s]",
-            backend = gr(legend=true,markersize=ms,markershape=:circle,markerstrokewidth=0.75,),
-            file    = joinpath(paths[:plot],"$(length(problem.mesh.prprt.nel)-1)d_std_coh0_phi0.png"),
-        )
-        get_plot_field(problem.mpts,problem.mesh,opts);save_plot(opts)
-    end
-    # export to jld2 file and return path
-    return export_problem(problem,basis,solver,paths; file = "slump_simulation")
+function slump_case(L, nel; lz=12.80, ni::Integer=2, folder::String="slump", kwargs...)
+    Lx, sub = L[1], L[end]/(nel[end]*ni)                      # sub-cell height
+    wl   = 0.15*lz
+    top  = min(sub*floor(lz/sub), 0.625*Lx)                    # top of the whole sub-cells below lz (or of the slope)
+    xs(z) = (0.625*Lx - z)/1.25                                # the slope line
+    slope = Polygon([[0.0, 0.0], [Lx, 0.0], [Lx, wl], [xs(wl), wl], [xs(top), top], [0.0, top]])
+    base  = Polygon([[0.0, 0.0], [Lx, 0.0], [Lx, wl], [xs(wl), wl], [xs(2wl), 2wl], [0.0, 2wl]])
+    zones = [Zone("slope", slope), Zone("base", base; phi=7.5*π/180, T=3.0*MATERIAL.T)]
+    return Case(; L, nel, ni, zones, solver=(; kwargs...), run=(; folder, te=10.0, tg=10.0, tep=5.0))
 end

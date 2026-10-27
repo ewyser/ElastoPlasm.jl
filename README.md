@@ -59,11 +59,24 @@
     ┌ Welcome to ϵlastσPlasm 👻 v0.4.2
     │ New comer ? Try slumping out
     │   L,nel = [64.1584,64.1584/4.0],[40,10];
-    │   jld2  = slump_problem(L,nel;cli()...);
-    └   out   = elastoplasm!(jld2; workflows = [elastodynamic!,elastoplastic!]);
+    │   jld2  = setup_simulation(slump_case(L,nel;cli()...));
+    └   execute!(jld2);
 
     julia> 
     # plasming begins here!
+    ```
+5. **Your own problem:** describe it as data (domain, zones of material, boundaries, solver options,
+   run settings), or draw it in a window (needs QML in your default environment, see `?draw_case`):
+    ```julia
+    case = Case(; L=[20.0, 10.0], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
+                  zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7)],
+                  run=(; folder="layers"))
+    check_case(case)          # points, time step, warnings
+    execute!(setup_simulation(case))   # results under dump/layers/ (kept until clean_dump())
+    save_case("layers.toml", case)
+
+    using QML
+    case = draw_case()        # draw the domain, zones, options and run settings
     ```
 
 ---

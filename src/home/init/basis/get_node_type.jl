@@ -1,21 +1,9 @@
 """
-    get_node_type(ndim::T1, nno::Vector{T1}) where {T1}
+    get_node_type(ndim, nno) -> Matrix
 
-Classify mesh nodes by boundary layer: interior nodes vs. the two layers of nodes nearest each
-domain edge, along every spatial axis.
-
-# Arguments
-- `ndim::T1`: Number of spatial dimensions.
-- `nno::Vector{T1}`: Number of nodes in each direction and total.
-
-# Returns
-- `node_type::Matrix{T1}`: `ndim × nno[end]` matrix; each row classifies nodes along one axis as
-  `1` (outermost layer), `2` (second layer), `4` (second-to-last layer), or `3` (interior).
-
-# Example
-```julia
-node_type = get_node_type(2, [11, 11, 121])
-```
+The position of each node relative to the domain edges, per axis (`ndim × nno[end]`): `1` the
+outermost layer, `2` the second, `4` the second-to-last, `3` interior. `BSplineBasis` uses it for
+its boundary-modified splines.
 """
 function get_node_type(ndim::T1,nno::Vector{T1}) where {T1}
     if ndim == 1

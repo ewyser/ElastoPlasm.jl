@@ -17,7 +17,12 @@ includes every `.jl` file — files in a directory load before its subdirectorie
 sorted alphabetically, so load order is deterministic there. A failed include only
 `@warn`s, it doesn't crash — so a stale/broken file can silently go unused; always
 check for `@warn "Failed to include..."` after `using ElastoPlasm` when touching files
-under `home/`.
+under `home/`. The warning appears only while the package **precompiles** (the first
+`using` after an edit): later sessions load the cached image, which silently lacks the
+broken file's definitions (an `UndefVarError` for something that exists in the source).
+To see it again, `include` the file directly or force recompilation. Adding or removing a
+file recompiles (`superDir` registers every directory with `include_dependency`; before
+that, a new file was silently missing from the cached image).
 
 `src/boot/needs/types/` is loaded differently: `boot.jl` includes its files through an
 explicit, hand-ordered list rather than `superInc`/`collect_and_include_jls`, because
@@ -31,22 +36,29 @@ position; it is NOT picked up automatically the way `home/` files are.
 
 ## Core method, at a glance
 
+- A problem starts from a `Case`, plain data (domain, zones, material, boundaries, solver overrides, run
+  settings), built by `setup_simulation` and stored as TOML (`save_case`/`load_case`); every example
+  is a case constructor (`slump_case`, …) and the drawing window (`ext/`) only edits one. See
+  "Describing a case" in `.claude/docs/operations.md`.
 - Construction order is always **mesh → material points → basis** (basis depends on
   both). Function argument order is always **`(mpts, mesh, basis, ...)`**.
 - Three core types: `Mesh` (Eulerian grid), `Point` (Lagrangian material points),
-  `Basis` (owns all connectivity + shape-function kind + transfer-scheme dispatch).
+  `Basis` (owns all connectivity + shape-function kind + transfer-scheme dispatch); a `Problem`
+  bundles them with `Time` and the solver, built from a `Case` by `Problem(case)`, and a
+  `Simulation` is a problem ready to run (workflow, folder): `Case` → `Problem` → `Simulation`,
+  run by `execute!`.
   Full field-by-field detail, transfer-scheme dispatch, and the explicit vs.
   dynamic_relaxation solver split: `.claude/docs/architecture.md`.
 - Config/behavior knobs (`basis.which`, `material.elastic`, `material.plastic`, `stab.locking`,
   `nonloc.*`, ...) live on one `NamedTuple` built by `get_default()`/`get_solver` and
-  merged shallowly per-section. Full reference and the standard end-to-end run:
+  merged per field (`merge_config`). Full reference and the standard end-to-end run:
   `.claude/docs/operations.md`.
-- Persistence layout (`ic["problem"]`/`ic["basis"]`/`cfg["solver"]` in JLD2):
+- Persistence layout (one `"simulation"` key, the whole `Simulation`, in JLD2):
   `.claude/docs/persistence.md`.
 - 32-bit precision and StaticArrays allocation-elision gotchas:
   `.claude/docs/gotchas.md`.
 - House rules (unicode subscript tensor-rank convention, refactor-verification
-  discipline, `dump/` flushing on load, etc.): `.claude/docs/conventions.md`.
+  discipline, `dump/` emptied only by `clean_dump()`, etc.): `.claude/docs/conventions.md`.
 - Known-follow-up design work (not bugs): `.claude/docs/planned-improvements.md`.
 - Open bugs: `.claude/bug/known/*.md`. Resolved bugs, kept for archaeology: `.claude/bug/fixed/*.md`.
   **When picking up an open bug: create a new branch off the current branch, named so

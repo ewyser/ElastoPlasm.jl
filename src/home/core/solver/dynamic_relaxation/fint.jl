@@ -12,7 +12,7 @@ forward (Eq 16) and no state carries over from one iteration to the next.
     if p ≤ mpts.nmp
         TM = eltype(mpts.s.ΔFᵢⱼ)
         ∇u = zeros(MMatrix{D,D,T2})
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             ∂N = ∂Nrow(basis.∂N, nn, p, Val(D))
@@ -43,7 +43,7 @@ Eqs 19-22): `fⁱⁿᵗ = Σ ∇ₓS·τ/det(F)·V_p` with `∂S/∂x = ∂S/∂
         σᵢⱼ  = get_tensor(mpts.s.τᵢ[p], Val(D)) / det(mpts.s.Fᵢⱼ[p])
         Ω    = mpts.Ω[p] * det(ΔFᵢⱼ)
         m    = mpts.s.m[p]
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N  = basis.N[nn,p]

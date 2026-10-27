@@ -1,34 +1,37 @@
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Problem Types and subtypes
+# Problem: everything a run needs, built from a Case
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-abstract type AbstractProblem{T1,T2,D,SP<:AbstractMaterialPointPhase{T1,T2}} end
-
-export MechanicalProblem
+export Problem
 
 """
-    MechanicalProblem{T1,T2,D,CM,ST,EL,L} <: AbstractProblem{T1,T2,D,SP}
+    Problem(mpts, mesh, basis, time, solver)
+    Problem(case::Case) -> Problem
 
-Bundles the IC-defining, expensive-to-regenerate part of a simulation — `Mesh`,
-`Point` and `Time` — as one object, distinct from `Basis` (cheap, swappable,
-still geometry-derived, built *against* a `Problem`) and `Solver` (config +
-kernels). `SP` (the phase type parameter on `AbstractProblem`) is tied to
-`PointSolidPhase{T1,T2,D,CM,ST,EL,L}`, i.e. the type of `mpts.s` — reusing
-the existing `MaterialPointPhase` hierarchy rather than introducing a second,
-disconnected "phase" concept at the problem level.
+Everything a run needs: the material points `mpts`, the background `mesh`, the `basis` linking them
+(connectivity, shape functions, transfer scheme), the `time` stages and the `solver` (configuration
+and kernels). Workflows run on it (`elastodynamic!(problem)`), and a `Simulation` holds it, ready to run
+(`execute!`).
 
-`Basis`/`Solver` are deliberately *not* part of `Problem` — `basis.which` and
-`basis.trsfr` (which basis kind, which P2G/G2P transfer scheme — sibling config
-knobs, but genuinely independent axes: any basis kind pairs with any transfer
-scheme) vary independently in practice, so bundling them into `Problem` would
-model a relationship that doesn't exist. `Problem` is also, for now, only an outer-API/
-persistence convenience: kernel/workflow signatures still take `mesh`/`mpts`/
-`time` as separate positional args, not `Problem` itself — threading `Problem`
-through every kernel call site is a much larger, currently out-of-scope lift.
+`Problem(case)` builds it from a `Case`: the solver (`case_solver_options`), the mesh (`setup_mesh`),
+the material points (`case_points`, `setup_mpts`), the time stages (`case.run`) and the basis
+(`setup_basis`). The case itself is not kept: everything it describes is in the built objects, and
+`setup_simulation` writes it as TOML beside the `.jld2`.
 """
-struct MechanicalProblem{T1,T2,D,CM<:AbstractConstitutiveModel{T2,D},ST<:AbstractStrain,EL<:AbstractElasticLaw,L} <: AbstractProblem{T1,T2,D,PointSolidPhase{T1,T2,D,CM,ST,EL,L}}
-    mesh ::Mesh{T1,T2,D}
-    mpts ::Point{T1,T2,D,CM,ST,EL,L}
-    time ::Time{T1,T2}
+struct Problem{T1,T2,D,P<:Point{T1,T2,D},B<:Basis{T1,T2,D},S<:AbstractSolver{T1,T2,D}}
+    mpts   :: P
+    mesh   :: Mesh{T1,T2,D}
+    basis  :: B
+    time   :: Time{T1,T2}
+    solver :: S
 end
-@adapt_struct MechanicalProblem
+@adapt_struct Problem
+
+function Problem(case::Case)
+    L, nel = domain(case)
+    solver = get_solver(; dim=length(L), case_solver_options(case)...)
+    mesh   = setup_mesh(L, nel, solver; thermal=case.thermal)
+    mpts   = setup_mpts(mesh, solver, case_points(case, mesh, solver); thermal=case.thermal)
+    time   = setup_time(solver; te=case.run.te, tg=case.run.tg, tep=case.run.tep)
+    return Problem(mpts, mesh, setup_basis(mesh, mpts, solver), time, solver)
+end

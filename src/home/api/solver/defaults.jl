@@ -16,7 +16,7 @@ println(cfg.basis.which)  # prints the default basis type
 
 # Configuration Keys
 - `:dtype`    — Arithmetic precision (e.g., 64 for Float64)
-- `:basis`    — Shape function type/options, and the P2G/G2P transfer scheme and its blend knob
+- `:basis`    — Shape function type/options, and the P2G/G2P transfer scheme and its blend knob, and GIMP's particle-domain update (`domain`)
 - `:stab`     — Numerical stabilization (F-bar locking correction, damping, MUSL reprojection)
 - `:bcs`      — Boundary condition settings
 - `:grf`     — Gaussian Random Field generator options
@@ -41,6 +41,7 @@ function get_default()
             which = "bsmpm",
             trsfr = "std",
             C_pf = 1.0,
+            domain = "stretch",
         ),
         stab     = (;
             locking = true,
@@ -76,7 +77,15 @@ function get_default()
             status = true,
             freq   = 1.0,
             dpi    = 500,
-            what   = [(;mpts=get_mpts_variable_config()["P"]),],
+            what   = ["p"],                    # plottable quantities, by key (`quantities()`)
+        ),
+        output = (;                          # HDF5 time series beside the .jld2 (output.jl)
+            status = false,
+            every  = 1.0,                    # [s] between frames of the explicit workflows
+            what   = (;                      # fields to record, by object and phase (`quantities()`)
+                point = (; base=["x", "J"], solid=["u", "v", "p", "dev", "epII"], fluid=String[], thermal=String[]),
+                mesh  = (; solid=String[], thermal=String[]),
+            ),
         ),
         backend = (;
             select="host",

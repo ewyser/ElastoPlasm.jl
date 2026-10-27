@@ -12,7 +12,6 @@ struct MeshProperties{T1,T2,D}
     # general information
     nel  ::Vector{T1}
     nno  ::Vector{T1}
-    nn   ::T1
     L    ::Vector{T2}
     h    ::SVector{D,T2}
     xB   ::Matrix{T2}
@@ -29,11 +28,9 @@ struct MeshSolidPhase{T1,T2,D} <: AbstractMeshPhase{T1,T2}
     bcs   ::MeshBoundary
     m     ::Vector{T2} # consistent lumped mass matrix
     oobf  ::Matrix{T2} # out-of-balance mechanical load (atomic writes: keep Matrix)
-    oobp  ::Vector{T2} # out-of-balance continuity residual (u-P)
     a     ::Vector{SVector{D,T2}} # acceleration per node : SVector{ndim,T2}
     mv    ::Matrix{T2} # momentum (atomic writes: keep Matrix)
     v     ::Vector{SVector{D,T2}} # velocity per node    : SVector{ndim,T2}
-    p     ::Vector{T2} # nodal pressure (u-P)
 end
 @adapt_struct MeshSolidPhase
 

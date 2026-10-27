@@ -35,9 +35,9 @@ function get_dt(mpts::Point{T1,T2,D,CM,ST,EL},props::MeshProperties{T1,T2,D},tim
         cmp   = mpts.s.cmp[p]
         cwave = max(cwave, sqrt((_Ktan(EL,mpts.s.ϵᵢ[p],cmp,mpts.n₀[p])+T2(4.0/3.0)*cmp.Gc)/mpts.s.ρ[p]))
     end
-    # calculte dt
+    # dt: the CFL bound of the most restrictive axis, Courant number 0.5 (Nakamura et al. 2023, Eq 35)
     cmax = props.h./(mpts.vmax.+cwave); mpts.vmax.=T2(0.0)
-    dt   = min(T2(0.5)*maximum(cmax),ΔT-time.t[1])
+    dt   = min(T2(0.5)*minimum(cmax),ΔT-time.t[1])
     return dt::T2
 end
 
@@ -102,4 +102,21 @@ function get_spacetime(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},time::Time{T1
         g = get_g(mesh.prprt; G = T2(9.81)                  )
     end
     return g,dt
+end
+
+"""
+    checkpoints(time, solver, stop) -> Vector{Tuple{T, Bool, Bool}}
+
+The stops of an explicit workflow from the current time to `stop`, as `(t, plot, record)`: the
+`plot.freq` grid (a live plot) and, with `output.status`, the `output.every` grid (an output frame),
+each ending at `stop` itself when the grid misses it, so the run ends at `stop` rather than at the last
+grid point before it (with `stop < plot.freq` the grid holds only the start: no step at all). Without
+output the stops are the plot grid alone.
+"""
+function checkpoints(time::Time{T1,T2}, solver, stop) where {T1,T2}
+    grid(step) = (ts = collect(time.t[1]:step:stop); isempty(ts) || last(ts) ≈ stop || push!(ts, stop); T2.(ts))
+    plots = grid(solver.plot.freq)
+    solver.output.status || return [(t, true, false) for t ∈ plots]
+    recs  = grid(solver.output.every)
+    return [(t, t ∈ plots, t ∈ recs) for t ∈ sort(unique([plots; recs]))]
 end

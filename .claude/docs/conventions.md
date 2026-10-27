@@ -6,29 +6,35 @@
   `σᵢⱼ = get_tensor(...)`). This replaced an earlier rule tied to physical tensor rank. Don't
   give a temporary, differently-shaped object a stored field's name (e.g. a 3×3 embedding of
   `ΔFᵢⱼ`); convert visibly inside the function, under a comment saying what it models.
-- `NN` (nodes-per-element count) belongs to `Basis`, never to `Point` or `Mesh` — it's
-  topology, not point/mesh state.
+- `NN` (nodes a point's shape functions reach) belongs to `Basis`, never to `Point` or `Mesh` — it's
+  topology, not point/mesh state. Read it as `stencil_size(basis)` (the `NN` type parameter, so
+  `for nn ∈ 1:stencil_size(basis)` has a compile-time bound). `MeshProperties.nn` and `Point.nn`,
+  copies of it, were removed; the switch was bit-identical and speed-neutral (2 s slump, bsmpm and
+  gimpm, single thread: 1.10 s before and after).
 - Prefer `SVector`/`SMatrix` (StaticArrays.jl) over runtime-sized arrays for per-point
   fixed-size data.
 - When converting one solver path to a new convention, apply the identical mechanical
   pattern already validated on the sibling path (explicit ↔ dynamic_relaxation) rather
   than reinventing it — these two solver directories are meant to stay structurally
   parallel.
-- Verify refactors by actually running the `slump_problem` → `elastoplasm!(...;
-  workflows=[...])` pipeline end-to-end and inspecting real post-run field values, not
-  just a clean-load check or `success=true` — a file can `include` cleanly, a workflow
-  can return `success=true`, and the run can still be functionally broken (wrong
-  kwarg name, stale dict key, matrix-style indexing into what's now a `Vector{SVector}`,
-  or — as happened once — silently operating on the untouched pre-simulation state
-  because `elastoplasm` was used instead of `elastoplasm!`).
+- Verify refactors by actually running the `setup_simulation(slump_case(...))` → `execute!(jld2)`
+  pipeline end-to-end and inspecting real post-run field values (`load_simulation(jld2).problem`),
+  not just a clean load — a file can `include` cleanly and a run can finish and still be
+  functionally broken (wrong kwarg name, stale dict key, matrix-style indexing into what's now a
+  `Vector{SVector}`, or — as happened once with the old `elastoplasm(jld2)`, which discarded its result — silently
+  operating on the untouched pre-simulation state; `execute(jld2)` returns its result but leaves the
+  file, so read a run's results from what it returns, or run `execute!`). For plumbing changes, compare final states bit for bit
+  against the parent commit, single-threaded (`gotchas.md`).
 - `test/testset/test_performance.jl` benchmarks core kernels directly via
   `solver.cairn.*`; keep it in sync with the `Cairn` dispatch-table shape whenever that
   shape changes.
-- `using ElastoPlasm` flushes (deletes) everything under `dump/` on load if that
-  directory already has contents. Never run more than one `julia --project=. -e '...'`
-  invocation against this repo concurrently while any of them is still writing to
-  `dump/` — a second session's `using ElastoPlasm` will delete the first session's
-  still-in-progress output out from under it.
+- `dump/` is never emptied automatically; `clean_dump()` empties it on request. (Until
+  `merge-hdf5-output` it was emptied by top-level code in `boot.jl`, i.e. whenever the package
+  precompiled: the first `using` after a source change deleted every output, also those of another
+  session still running; the user chose no automatic emptying over a prompt in `__init__`, which
+  would hang scripts, tests and CI.) `boot.jl` only creates it, since git does not track it.
+  `setup_simulation` overwrites the files of its own simulation and removes its stale output, so
+  older simulations' folders stay until `clean_dump()`.
 - When doing a mechanical rename across a codebase (e.g. via sed/substring match),
   verify each occurrence semantically before trusting it — a blind rename can catch
   things that only textually match but mean something different (see the `σᵢ`/`τᵢ`

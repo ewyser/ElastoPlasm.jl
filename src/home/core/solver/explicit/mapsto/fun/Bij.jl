@@ -19,7 +19,7 @@ unconditionally instead of behind an `if basis.trsfr=="apic"` check.
     if p ≤ mpts.nmp
         # Bᵢⱼ update
         Bᵢⱼ,xₚ = zero(eltype(basis.transfer.Bᵢⱼ)), mpts.x[p]
-        for nn ∈ 1:mesh.prprt.nn
+        for nn ∈ 1:stencil_size(basis)
             no = basis.p2n[p][nn]
             if iszero(no) continue end
             N    = basis.N[nn,p]

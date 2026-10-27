@@ -1,17 +1,8 @@
 """
-    set_dirichlet(bc, xn, lower_upper_lim, dim; node::Symbol=:roller)
+    set_dirichlet(bc, xn, limit, dim; node=:roller)
 
-Flag Dirichlet boundary nodes in `bc` on dimension `dim`, at the coordinate `lower_upper_lim`.
-
-# Arguments
-- `bc`: Boolean matrix (ndim × nno) to update in-place.
-- `xn`: Matrix of nodal coordinates.
-- `lower_upper_lim`: Boundary coordinate value to match nodes against.
-- `dim`: Dimension along which to apply the condition.
-- `node::Symbol=:roller`: `:roller` flags only dimension `dim`; `:fixed` flags all dimensions.
-
-# Returns
-- `nothing`. Updates `bc` in-place.
+Flag the nodes of `xn` lying at `limit` along axis `dim` in `bc` (axes × nodes): `:roller` blocks
+the motion along `dim` only, `:fixed` along every axis, `:free` nothing.
 """
 function set_dirichlet(bc,xn,lower_upper_lim,dim; node::Symbol=:roller)
     id = findall(x-> x ∈ lower_upper_lim,xn[dim,:])
@@ -24,22 +15,11 @@ function set_dirichlet(bc,xn,lower_upper_lim,dim; node::Symbol=:roller)
 end
 
 """
-    get_bc(xn::Matrix{T2}, solver::S) where {S<:AbstractSolver}
+    get_bc(xn, solver) -> (bc, xB)
 
-Compute the boundary condition matrix and boundary coordinates for a mesh, using boundary condition types specified in `solver.bcs.dirichlet`.
-
-# Arguments
-- `xn::Matrix{T2}`: Matrix of nodal coordinates (size: ndim × nno).
-- `solver::S`: Solver instance (e.g. `ExplicitSolver`), must have `bcs.dirichlet` as a matrix of Symbols (e.g., `:roller`, `:fixed`).
-
-# Returns
-- `bc::Matrix{Bool}`: Boolean matrix (ndim × nno) indicating where boundary conditions are applied.
-- `xB::Matrix{T2}`: Matrix (ndim × 2) of minimum and maximum boundary coordinates.
-
-# Example
-```julia
-bc, xB = get_bc(xn, solver)
-```
+The Dirichlet flags of the nodes `xn` (axes × nodes, `true` where the motion along that axis is
+blocked) from `solver.bcs.dirichlet` (one `[lower upper]` row per axis), and the domain bounds `xB`
+(axes × 2) the nodes span.
 """
 function get_bc(xn::Matrix{T2},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     xB = hcat(

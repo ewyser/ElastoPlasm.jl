@@ -23,7 +23,7 @@ println(opts.material.elastic)  # ["hencky", "improved_hencky", "hypoelastic"]
 function get_option()
     return (
 
-            solution = ("Select solver formulation",["explicit","implicit","dynamic relaxation"]),
+            solution = ("Select solver formulation",["explicit","implicit"]),
             dtype = (
                 T0 = ("Select arithmetic types",[(Int64,Float64),(Int32,Float32)]),
                 bits = ("Select arithmetic precision",[Int64(64),Int32(32)]),
@@ -33,6 +33,7 @@ function get_option()
                 which = ("Select basis type",["bsmpm", "gimpm", "smpm", "mlsmpm"]),
                 trsfr = ("Select the mapping scheme",["std", "tpic", "apic"]),
                 C_pf = ("Select picflip ratio",[1.0, 0.99, 0.95]),
+                domain = ("Select GIMP's particle-domain update",["stretch", "undeformed"]),
             ),
             stab     = (
                 locking = ("Enable volumetric locking mitigation",[true, false]),
@@ -62,7 +63,12 @@ function get_option()
                 status = ("Enable plotting",[true, false]),
                 freq   = ("Select plot frequency",[0.1, 0.5, 1.0, 5.0]),
                 dpi    = ("Select plot resolution",[100, 300, 500, 1000]),
-                what   = ("Select plot variable(s)", get_variable_plot_options()),
+                what   = ("Select plot variable(s)", first.(plottable())),
+            ),
+            output = (
+                status = ("Record an HDF5 time series of the run",[true, false]),
+                every  = ("Select time between recorded frames [s]",[0.1, 0.5, 1.0, 5.0]),
+                what   = output_what_options(),
             ),
             backend = (
                 select = ("Select backend",["host", "cuda", "rocm"]),
@@ -112,19 +118,10 @@ function process_cli_option(value, default_val, key_path=())
         return NamedTuple{keys(value)}(process_cli_option(getfield(value, k), getfield(default_val, k), (key_path..., k)) for k in keys(value))
     elseif isa(value, Tuple) && length(value) == 2 && isa(value[1], AbstractString)
         prompt, vals = value
-        # Special handling for plot.what: allow multi-selection of NamedTuples, keep original definition
-        if key_path[end] == :what && occursin("plot", string(key_path))
-            # Extract names from either mpts or mesh variables
-            names = String[] # sorter is names = [string(haskey(v, :mpts) ? v.mpts.name : v.mesh.name) for v ∈ vals]
-            for v ∈ vals
-                if haskey(v, :mpts)
-                    push!(names, string(v.mpts.name))
-                elseif haskey(v, :mesh)
-                    push!(names, string(v.mesh.name))
-                else
-                    push!(names, string(v))
-                end
-            end
+        isempty(vals) && return default_val                      # nothing to choose (e.g. the fluid fields, for now)
+        # a multi-selection (plot.what, the output.what lists): several values, kept as they are defined
+        if default_val isa AbstractVector && !(default_val isa AbstractVector{<:Real})
+            names = [shown_name(string.(key_path), v) for v ∈ vals]   # readable names (quantities)
             menu  = MultiSelectMenu(names, pagesize=length(names))
             idxs  = request(prompt * " (Space to select, Enter to confirm):", menu)
             selected = [vals[i] for i in idxs]
@@ -157,11 +154,11 @@ The function automatically:
 - Skips sub-options when `status = false` is selected
 
 # Returns
-- `Dict`: Configuration dictionary ready to be splatted as kwargs into `slump_problem`/`get_solver`.
+- `Dict`: Configuration dictionary ready to be splatted as kwargs into `slump_case`/`get_solver`.
 
 # Example
 ```julia
-jld2 = slump_problem(L, nel; cli(ui=true)...)
+jld2 = setup_simulation(slump_case(L, nel; cli(ui=true)...))
 # Presents interactive menus for:
 # - dtype (Float32/Float64)
 # - basis functions

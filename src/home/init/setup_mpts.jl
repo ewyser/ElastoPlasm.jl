@@ -1,10 +1,11 @@
 
 """
-    build_solid_phase(T1,T2,D,solver,mat,geom,nmp,v0,vp,ρ0,n0) -> PointSolidPhase
+    build_solid_phase(T1, T2, D, solver, pts::PointData, v0) -> PointSolidPhase
 
-Build the per-particle solid-phase state (`PointSolidPhase`) — per-particle
-constitutive-model bundle (`cmp`, via `setup_cmp`), and all mechanical state fields,
-zero-initialized except `v`/`ρ`/`m` (`m = ρ·Ω₀`, the constant solid mass).
+Build the per-particle solid-phase state (`PointSolidPhase`) of the points `pts` with initial
+volumes `v0`: the per-particle constitutive-model bundle (`cmp`, via `setup_cmp`) and all mechanical
+state fields, zero-initialized except `v` (`pts.vp`), `ρ₀`, `ρ = (1 − n₀)ρ₀` and `m = ρ·Ω₀` (the
+constant solid mass).
 
 `ST` (the typed strain storage of `ϵᵢ`/`ϵn`, see `tensor.jl`) and `EL`
 (`Point`'s elastic law, see `AbstractElasticLaw` in `lagrangian.jl`) are
@@ -15,9 +16,10 @@ separate strain-formulation config key. `"hypoelastic"` → `InfinitesimalStrain
 of `cmp`) is picked by `solver.material.plastic`: `DruckerPrager` for `"DP"`,
 `VonMises` for `"VM"` — see `setup_cmp`.
 """
-function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,v0,vp,ρ0,n0)
+function build_solid_phase(T1,T2,D,solver,pts::PointData,v0)
     L  = D*D
-    ρ  = T2.(vec(copy((1.0.-n0).*ρ0)))
+    nmp, ρ0, vp = length(pts.zone), pts.rho0, pts.vp
+    ρ  = T2.((1.0 .- pts.n0) .* ρ0)
     TM = SMatrix{D,D,T2,L}
     TV = SVector{D,T2}
     ST,EL = if solver.material.elastic == "hypoelastic"
@@ -29,14 +31,15 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,v0,vp,ρ0,n0)
     else
         throw(error("InvalidElasticLaw: $(solver.material.elastic) (expected \"hypoelastic\", \"hencky\" or \"improved_hencky\")"))
     end
-    cmp = setup_cmp(nmp,T2.(vec(copy(geom.coh0))),T2.(vec(copy(geom.cohr))),T2.(vec(copy(geom.phi))); E=T2(mat[:E]),ν=T2(mat[:ν]),Hp=T2(mat[:Hp]),D=Int(D),constitutive=solver.material.plastic)
+    cmp = setup_cmp(nmp, T2.(pts.c0), T2.(pts.cr), T2.(pts.phi); E=T2.(pts.E), ν=T2.(pts.nu), Hp=T2.(pts.Hp), D=Int(D),
+                    constitutive=solver.material.plastic)
     CM  = eltype(cmp)
 
     s = PointSolidPhase{T1,T2,D,CM,ST,EL,L}(
         [zero(TV)  for _ in 1:nmp]                         , # u
         [TV(T2.(vp[:,p])) for p in 1:nmp]                  , # v
         # mechanical properties
-        T2.(vec(copy(ρ0)))                                 , # ρ₀
+        T2.(ρ0)                                            , # ρ₀
         ρ                                                  , # ρ
         ρ .* T2.(vec(copy(v0)))                            , # m = ρ·Ω₀
         T2.(zeros(nmp))                                    , # Δλ
@@ -62,76 +65,42 @@ function build_solid_phase(T1,T2,D,solver,mat,geom,nmp,v0,vp,ρ0,n0)
 end
 
 """
-    build_thermal_phase(T1,T2,D,geom,nmp; thermal::Bool=false) -> Union{Nothing,PointThermalPhase}
+    build_thermal_phase(T1, T2, D, pts::PointData; thermal::Bool=false) -> Union{Nothing,PointThermalPhase}
 
-Build the per-particle thermal-phase state (`PointThermalPhase`) from
-`geom.c`/`geom.k`/`geom.T` when `thermal=true` (see `get_thermal`), otherwise `nothing`.
+Build the per-particle thermal-phase state (`PointThermalPhase`) from `pts.cp`/`pts.k`/`pts.T`
+when `thermal=true`, otherwise `nothing`.
 """
-function build_thermal_phase(T1,T2,D,geom,nmp; thermal::Bool=false)
+function build_thermal_phase(T1,T2,D,pts::PointData; thermal::Bool=false)
     return thermal ? PointThermalPhase{T1,T2,D}(
-        T2.(vec(copy(geom.c)))                            , # c::Vector{T2} specific heat capacity vector
-        T2.(vec(copy(geom.k)))                             , # k::Vector{T2} thermal conductivity vector
-        T2.(zeros(D,nmp))                                  , # q::Matrix{T2} heat flux array
-        T2.(vec(copy(geom.T)))                            , # T::Vector{T2} temperature vector
+        T2.(pts.cp)                                       , # c::Vector{T2} specific heat capacity vector
+        T2.(pts.k)                                        , # k::Vector{T2} thermal conductivity vector
+        T2.(zeros(D,length(pts.zone)))                    , # q::Matrix{T2} heat flux array
+        T2.(pts.T)                                        , # T::Vector{T2} temperature vector
     ) : nothing
 end
 
 """
-    setup_mpts(mesh::Mesh{T1,T2,D}, solver::S, mat::NamedTuple; geom::NamedTuple=(), thermal::Bool=false) -> Point
+    setup_mpts(mesh, solver, pts::PointData; thermal=false) -> Point
 
-Construct the material point system (mpts) for a simulation, initializing all relevant fields.
-Connectivity (`p2n`, `p2e`, `e2p`, `p2p`) is built separately by `setup_basis`, after both `Mesh`
-and `Point` exist.
-
-# Arguments
-- `mesh::Mesh{T1,T2,D}`: Mesh object containing geometry.
-- `solver::S`: Solver instance (e.g. `ExplicitSolver`) with matching `T1,T2,D`.
-- `mat::NamedTuple`: Raw material constants (`setup_material_constants`) — transient, used only to
-  build the per-particle `cmp::Vector{<:AbstractConstitutiveModel}` here (via `setup_cmp`),
-  not persisted or stored on `Point` itself.
-- `geom::NamedTuple=()`: (Optional) Geometry definition (e.g., number of intervals, number of material points, geometry struct).
-  When `thermal=true`, must additionally carry `c`/`k`/`T` (per-particle specific heat capacity,
-  thermal conductivity, initial temperature — see `get_thermal`).
-- `thermal::Bool=false`: (Optional) Build a real `PointThermalPhase` from `geom.c`/`geom.k`/`geom.T`
-  instead of leaving `mpts.t` as `nothing`. Only `thermal_problem` sets this.
-
-# Returns
-- `Point`: Material point data structure with all fields initialized for simulation.
-
-# Example
-```julia
-mpts = setup_mpts(mesh, solver, mat; geom=get_slump(mesh, mat, solver))
-println(mpts.nmp)  # Number of material points
-```
-
-# Notes
-- Initializes material point positions, volumes, densities, and all state variables. Phase
-  construction itself is delegated to `build_solid_phase`/`build_thermal_phase` above.
-- Handles both 2D and 3D cases.
+Construct the material point system of a simulation from its points (`case_points`):
+positions, domains (`ℓ₀`, from the element size and `pts.ni`), volumes `Ω₀`, porosity `n₀`, the
+solid phase (`build_solid_phase`) and, with `thermal=true`, the thermal phase. Connectivity is built
+separately by `setup_basis`, once both `Mesh` and `Point` exist.
 """
-function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,mat::NamedTuple; geom::NamedTuple=(;), thermal::Bool=false) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
-    props = mesh.prprt
-    # unpack material geometry
-    ni,nmp,xp = geom.ni,geom.nmp,geom.xp
-    # scalars & vectors
-    n0 = 0.1.*ones(nmp)
-    l0 = ones(size(xp)).*0.5.*(props.h./ni)
-    v0 = prod(2 .* l0; dims=1)
-    ρ0 = fill(mat[:ρ0],nmp)
-    # initial velocity (if provided)
-    vp = haskey(geom, :vp) ? geom.vp : zeros(size(xp))
-
-    # constructor - create components
-    s = build_solid_phase(T1,T2,D,solver,mat,geom,nmp,v0,vp,ρ0,n0)
-    t = build_thermal_phase(T1,T2,D,geom,nmp; thermal=thermal)
-
+function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,pts::PointData; thermal::Bool=false) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+    props   = mesh.prprt
+    ni,xp   = pts.ni,pts.xp
+    nmp     = size(xp,2)
+    l0      = ones(size(xp)).*0.5.*(props.h./ni)
+    v0      = prod(2 .* l0; dims=1)
+    s       = build_solid_phase(T1,T2,D,solver,pts,v0)
+    t       = build_thermal_phase(T1,T2,D,pts; thermal=thermal)
+    n0      = pts.n0
     mpts = Point(                              # type parameters inferred from `s`
         # general information
         T1(D)                              , # ndim
         T1(nmp)                              , # nmp
         T2.(zeros(D))                      , # vmax
-        # connectivity
-        T1(props.nn)                          , # nn
         # material point properties
         [SVector{D,T2}(xp[:,i]) for i in 1:nmp]           , # x
         [SVector{D,T2}(l0[:,i]) for i in 1:nmp]     , # ℓ₀

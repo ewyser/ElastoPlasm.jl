@@ -18,16 +18,17 @@ per-read construction stays a zero-allocation stack value.
 @inline ∂Nrow(∂N::AbstractArray{T2,3}, nn, p, ::Val{D}) where {T2,D} = SVector{D,T2}(ntuple(d -> ∂N[nn,d,p], Val(D)))
 
 """
-    get_basis(which::String, ::Type{T1}, dim::Integer) -> AbstractBasis
+    get_basis(which::String, ::Type{T1}, dim::Integer; domain="stretch") -> AbstractBasis
 
 Map a solver's `basis.which` string to its concrete `AbstractBasis` instance, parametrized
-by index type `T1` and problem dimension `dim`.
+by index type `T1` and problem dimension `dim`; GIMP's carries its domain update (`basis.domain`,
+`get_domain`).
 """
-function get_basis(which::String, ::Type{T1}, D::Integer) where {T1}
+function get_basis(which::String, ::Type{T1}, D::Integer; domain::String="stretch") where {T1}
     if which == "bsmpm"
         return BSplineBasis{T1,D}()
     elseif which == "gimpm"
-        return GimpBasis{T1,D}()
+        return GimpBasis{T1,D}(get_domain(domain))
     elseif which == "smpm"
         return LinearBasis{T1,D}()
     elseif which == "mlsmpm"
@@ -77,3 +78,12 @@ struct Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}
     ∂N   ::Array{T2,3}
 end
 @adapt_struct Basis
+
+"""
+    stencil_size(basis) -> Int
+
+The number of nodes a material point's shape functions reach (`NN`, the length of each
+`basis.p2n[p]`): 4/9/16 in 2D for linear/GIMP/cubic B-spline bases. A type parameter, so loops
+`for nn ∈ 1:stencil_size(basis)` have a compile-time bound.
+"""
+stencil_size(::Basis{T1,T2,D,NN}) where {T1,T2,D,NN} = NN

@@ -102,6 +102,9 @@ println(tree)
 """
 function superDir(DIR::String)
     d = Dict{String,Any}()
+    # a file added to (or removed from) DIR changes its mtime: recompile then, or the new file would be
+    # silently missing from the cached image (precompilation tracks only the files it included)
+    include_dependency(DIR)
     for entry ∈ readdir(DIR; join=true)
         name = splitpath(entry)[end]
         if isdir(entry)
