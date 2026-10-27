@@ -10,7 +10,7 @@ step by the `p2e2n` and `shpfun!` kernels.
 """
 function setup_basis(mesh::Mesh{T1,T2,D}, mpts::Point{T1,T2,D}, solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     nel, nno = mesh.prprt.nel, mesh.prprt.nno
-    kind     = get_basis(solver.basis.which, T1, D)
+    kind     = get_basis(solver.basis.which, T1, D; domain=solver.basis.domain)
     NN       = prod(length.(kind.stencils))
     e2n_data = get_element_to_nodes(nel, nno, kind.stencils)
     e2e_data = e2e(nel, collect(mesh.prprt.h), solver)

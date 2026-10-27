@@ -92,11 +92,11 @@
     @testset "zone constants, boundaries and options reach the problem" begin
         s = Case(; L=[20, 10], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
                    zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7, nu=0.2, rho0=2900.0)],
-                   solver=(; basis=(; which="gimpm", C_pf=0.37), stab=(; locking=false), material=(; plastic="VM"), plot=(; status=false)),
+                   solver=(; basis=(; which="gimpm", C_pf=0.37, domain="undeformed"), stab=(; locking=false), material=(; plastic="VM"), plot=(; status=false)),
                    run=(; folder="test/case_zones"))
         pb = load_simulation(setup_simulation(s)).problem; solver = pb.solver
         m = pb.mpts
-        @test solver.basis == (; which="gimpm", trsfr=get_default().basis.trsfr, C_pf=0.37) && !solver.stab.locking &&
+        @test solver.basis == (; which="gimpm", trsfr=get_default().basis.trsfr, C_pf=0.37, domain="undeformed") && !solver.stab.locking &&
               solver.stab.damping == get_default().stab.damping && solver.material.plastic == "VM" && solver.bcs.dirichlet == s.bcs
         rock = getindex.(m.x, 2) .< 2.0
         K, G = EP.get_elastic_moduli(5e7, 0.2); K0, G0 = EP.get_elastic_moduli(MATERIAL.E, MATERIAL.nu)
@@ -104,6 +104,11 @@
         @test all(c -> (c.Kc, c.Gc) == (K0, G0), m.s.cmp[.!rock]) && all(m.s.ρ₀[.!rock] .== MATERIAL.rho0)
         base = [i for i ∈ eachindex(pb.mesh.x) if pb.mesh.x[i][2] == 0]
         @test all(pb.mesh.s.bcs.status[:, base])
+        F, ℓ₀, ℓ = EP.SMatrix{2,2}(2.0, 0.0, 0.0, 0.5), EP.SVector(0.25, 0.25), EP.SVector(0.3, 0.2)   # GIMP's domain updates
+        @test pb.basis.kind.domain isa EP.UndeformedDomain && EP.particle_domain(pb.basis.kind, F, ℓ₀, ℓ) == ℓ₀
+        @test EP.particle_domain(EP.GimpBasis{Int,2}(EP.StretchDomain()), F, ℓ₀, ℓ) ≈ [0.5, 0.125]          # ℓ₀ ∘ diag(U)
+        @test EP.particle_domain(EP.LinearBasis{Int,2}(), F, ℓ₀, ℓ) === ℓ                                  # other kinds: kept
+        @test_throws ArgumentError EP.get_domain("cpdi")
     end
     @testset "free option values" begin
         @test EP.option_value(["basis", "C_pf"], 0.37) == 0.37 && EP.option_value(["grf", "param", "Nₕ"], "2000") === 2000

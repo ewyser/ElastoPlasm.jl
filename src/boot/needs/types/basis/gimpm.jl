@@ -4,13 +4,31 @@
 
 export GimpBasis
 
-struct GimpBasis{T,D,NN} <: AbstractBasis
+# how GIMP updates a particle's domain (`basis.domain`, `particle_domain` in `common/domain.jl`)
+abstract type AbstractDomain end
+"The stretch update, `ℓ = ℓ₀ ∘ diag(U)` with `U = √(FᵀF)` (Charlton et al. 2017; AMPLE, Coombs & Augarde 2020 Eq 34)."
+struct StretchDomain <: AbstractDomain end
+"uGIMP: the domain keeps its initial size (Bardenhagen & Kober 2004)."
+struct UndeformedDomain <: AbstractDomain end
+"""
+    get_domain(which::String) -> AbstractDomain
+
+Map a solver's `basis.domain` string (`"stretch"`, `"undeformed"`) to its domain update.
+"""
+function get_domain(which::String)
+    which == "stretch"    && return StretchDomain()
+    which == "undeformed" && return UndeformedDomain()
+    throw(ArgumentError("basis.domain = \"$which\" is not one of \"stretch\", \"undeformed\""))
+end
+
+struct GimpBasis{T,D,NN,P<:AbstractDomain} <: AbstractBasis
     stencils::NTuple{D,UnitRange{T}}
+    domain  ::P                                              # how a particle's domain is updated
     #
-    function GimpBasis{T,D}() where {T,D}
+    function GimpBasis{T,D}(domain::P) where {T,D,P<:AbstractDomain}
         stencils = ntuple(_ -> UnitRange{T}(-1:2), D)
         NN       = prod(length.(stencils))
-        return new{T,D,NN}(stencils)
+        return new{T,D,NN,P}(stencils, domain)
     end
 end
 

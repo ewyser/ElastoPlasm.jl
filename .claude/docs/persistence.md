@@ -27,6 +27,10 @@ regenerate them with `setup_simulation(<example>_case(...))`.
 (`load_case`) and rebuilt without the `.jld2` (provenance; skipped with a warning when a zone is a
 `Region` predicate, which TOML cannot hold). The `.jld2` layout is unchanged.
 
+**Format change:** `GimpBasis` gained a `domain` field and type parameter (`basis.domain`), so GIMP `.jld2`
+files written before don't load (checked; other bases' files still load, the new `basis.domain` option is read only
+at setup); set them up again from their case TOML, which still loads (a missing `domain` is the default).
+
 **Format change:** `MeshSolidPhase` lost its unused `oobp` and `p` fields, `MeshProperties` and
 `Point` their `nn`, and the file moved to the one `"problem"` key (`refactor-init-problem-spec`), so
 `.jld2` files written before don't load; regenerate them with

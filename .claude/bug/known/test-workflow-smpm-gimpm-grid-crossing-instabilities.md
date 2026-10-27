@@ -29,6 +29,12 @@ domain pokes through the base. The upright box that the stretch update makes of 
 means); ghost nodes (Steffen) as the fuller boundary treatment, also correcting rollers. Not applied: the user
 postponed it.
 
+**uGIMP is now selectable** (`basis.domain = "undeformed"`, branch `fix-gimpm-stability`) and part of the sweep
+(`generate_basis_cases`, 240 cases): **190/240**, uGIMP **46/48**, its two failures
+`gimpm_undeformed_hypoelastic_apic_locktrue_muslfalse_nl{true,false}` (a particle leaving the mesh), exactly as
+in the scratch experiment; the 192 earlier cases unchanged (smpm 24/48, gimpm with the default stretch update
+24/48, bsmpm and mlsmpm 48/48). The renormalized F-bar map back is still not applied.
+
 **Latest sweep** (branch `fix-explicit-end-time-and-cfl-step`, after `get_dt` took the smallest cell,
 see `.claude/bug/fixed/get-dt-maximum-over-axes.md`): **144/192**, the 47 cases below plus
 `slump_2d_gimpm_hencky_std_locktrue_musltrue_nlfalse` (BoundsError at a negative element index, like its
