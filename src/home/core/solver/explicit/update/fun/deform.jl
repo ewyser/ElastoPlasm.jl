@@ -20,6 +20,7 @@
         mpts.s.∇vᵢⱼ[p] = ∇vᵢⱼ
         mpts.s.ΔFᵢⱼ[p] = ΔFᵢⱼ
         mpts.s.Fᵢⱼ[p]  = Fᵢⱼ
+        mpts.ℓ[p]      = particle_domain(basis.kind, Fᵢⱼ, mpts.ℓ₀[p], mpts.ℓ[p])
         ΔJ = det(ΔFᵢⱼ)
         J  = det(Fᵢⱼ)
         mpts.ΔJ[p]  = ΔJ

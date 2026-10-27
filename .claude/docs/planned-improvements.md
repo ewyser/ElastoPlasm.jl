@@ -167,7 +167,10 @@
   results (149/192 passed overall, 3D not meaningfully less stable than 2D) and the
   related `plast.status` finding.
 - **`basis.how` and the alternative GIMP domain updates — removed.** GIMP's particle domain
-  is always updated by `Uᵢᵢ` (stretch `U` from `F`, `domain.jl`). The six alternatives
+  is always updated from the stretch `U` of `F` (`particle_domain`, `common/domain.jl`, inside `deform`
+  and the dynamic relaxation's `update`; it was a kernel of its own, `Uᵢᵢ`, until `fix-gimpm-stability`:
+  dynamic relaxation bit-identical, the explicit slump to round-off, 1 ulp of ℓ per step from `muladd`
+  fusing differently inside `deform`, relative ≤1e-8 after the run). The six alternatives
   (`undeformed`, `detFᵢᵢ`, `Fᵢᵢ`, `detΔFᵢᵢ`, `ΔFᵢᵢ`, `ΔUᵢᵢ`) and the `basis.how` knob meant to
   pick between them were only ever referenced from a commented-out block, so `how` was read
   nowhere. `test_workflow.jl`'s GIMP case passed `how="undeformed"` while actually running

@@ -21,9 +21,6 @@ function elastoquasistatic!(mpts::Point{T1,T2,D,CM,ST},mesh::Mesh{T1,T2,D},basis
         ignite(mpts,mesh,basis,instr)
         its[k] = it = relax!(mpts,mesh,basis,g,instr; tol=T2(tol), plastic=plastic, sf=sf)
         instr.cairn.implicit.update!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
-        if instr.basis.which == "gimpm"
-            instr.cairn.update.domain!(mpts; ndrange=mpts.nmp);sync(CPU())
-        end
         time.t[1] += T2(1.0)
         bake(mpts,mesh,time.t[1],instr; title="load step $k/$lstps")
         record!(mpts,mesh,time,instr; step=k, loadstep=true)
