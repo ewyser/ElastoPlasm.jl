@@ -33,6 +33,7 @@ function get_option()
                 which = ("Select basis type",["bsmpm", "gimpm", "smpm", "mlsmpm"]),
                 trsfr = ("Select the mapping scheme",["std", "tpic", "apic"]),
                 C_pf = ("Select picflip ratio",[1.0, 0.99, 0.95]),
+                domain = ("Select GIMP's particle-domain update",["stretch", "undeformed"]),
             ),
             stab     = (
                 locking = ("Enable volumetric locking mitigation",[true, false]),

@@ -167,11 +167,17 @@
   results (149/192 passed overall, 3D not meaningfully less stable than 2D) and the
   related `plast.status` finding.
 - **`basis.how` and the alternative GIMP domain updates — removed.** GIMP's particle domain
-  is always updated by `Uᵢᵢ` (stretch `U` from `F`, `domain.jl`). The six alternatives
+  is always updated from the stretch `U` of `F` (`particle_domain`, `common/domain.jl`, inside `deform`
+  and the dynamic relaxation's `update`; it was a kernel of its own, `Uᵢᵢ`, until `fix-gimpm-stability`:
+  dynamic relaxation bit-identical, the explicit slump to round-off, 1 ulp of ℓ per step from `muladd`
+  fusing differently inside `deform`, relative ≤1e-8 after the run). The six alternatives
   (`undeformed`, `detFᵢᵢ`, `Fᵢᵢ`, `detΔFᵢᵢ`, `ΔFᵢᵢ`, `ΔUᵢᵢ`) and the `basis.how` knob meant to
   pick between them were only ever referenced from a commented-out block, so `how` was read
   nowhere. `test_workflow.jl`'s GIMP case passed `how="undeformed"` while actually running
-  `Uᵢᵢ`. (`basis.ghost` no longer exists either.)
+  `Uᵢᵢ`. (`basis.ghost` no longer exists either.) **The choice is back, typed**: `basis.domain` =
+  `"stretch"` (default) or `"undeformed"` (uGIMP), a `GimpBasis` type parameter dispatched in
+  `particle_domain` (default bit-identical to before, slump, column and §4.3 block). The other old
+  alternatives were not restored; a further one (diag(F), splitting) is a type and a method.
 - **`Basis.N`/`∂N` storage rework**: currently plain `Matrix{T2}`/`Array{T2,3}`
   specifically to dodge the StaticArrays allocation-elision limits (see `gotchas.md`)
   — correct and fast, but a workaround rather than a considered data-layout design.

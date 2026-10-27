@@ -390,7 +390,9 @@ knob and its out-of-the-box value.
   abstract `AbstractSolver` instead, since both paths call it regardless of `solution`.
 - `dtype` — arithmetic precision (`bits`, element types `T0`)
 - `basis` — `which` (`"bsmpm"`/`"gimpm"`/`"smpm"`/`"mlsmpm"`, see `get_basis`), `trsfr` (P2G/G2P transfer scheme: `"std"`/`"tpic"`/
-  `"apic"`, see `get_transfer`), `C_pf` (PIC/FLIP blend). `trsfr`/`C_pf` live here
+  `"apic"`, see `get_transfer`), `C_pf` (PIC/FLIP blend), `domain` (GIMP's particle-domain update, read by
+  `gimpm` only: `"stretch"`, the default, `ℓ = ℓ₀ ∘ diag(U)` after Charlton et al. 2017 and AMPLE Eq 34, or
+  `"undeformed"`, uGIMP, `ℓ = ℓ₀`; see `get_domain`, `particle_domain`). `trsfr`/`C_pf` live here
   rather than a separate `transfer` section since `Basis` (the struct) owns both
   `kind` and `transfer` as sibling fields — see "Transfer scheme dispatch" in
   `architecture.md`.

@@ -117,7 +117,12 @@ commit to be the *only* behavior change from this refactor; not a regression.
 
 - `src/home/core/common/` — kernels/wrappers shared by **both** solver paths:
   `tplgy.jl` (`p2e2n`, topology), `shpfun.jl` (`shpfun!`/`Dij_nd`), `ignite.jl`
-  (`init_ignite`/`ignite()`). Both `elastodynamic!`/`elastoplastic!` *and*
+  (`init_ignite`/`ignite()`), `domain.jl` (`particle_domain(basis.kind, F, ℓ₀, ℓ)`, GIMP's particle-domain
+  update, a no-op for the other kinds: called per particle where `F` is updated, in the explicit `deform` and
+  the dynamic relaxation's end-of-load-step `update`; no kernel or `basis.which` branch of its own). Which
+  update is the `GimpBasis`'s `domain` field (`StretchDomain`/`UndeformedDomain`, from `basis.domain` by
+  `get_domain`, `types/basis/gimpm.jl`), dispatched on in `particle_domain`; another update is one
+  `AbstractDomain` type and one method. Both `elastodynamic!`/`elastoplastic!` *and*
   `elastoquasistatic!` call the same `ignite(mpts,mesh,basis,solver::AbstractSolver)`
   wrapper, dispatching on the *abstract* solver type since `dynamic_relaxation` doesn't
   require a particular concrete `solution` value (unlike `elastodynamic!`/

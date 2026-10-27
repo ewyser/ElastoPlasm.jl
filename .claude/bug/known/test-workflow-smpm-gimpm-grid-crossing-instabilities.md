@@ -2,6 +2,39 @@
 
 **Status: open** (root cause narrowed but not fully confirmed; `bsmpm`/`mlsmpm` pass cleanly).
 
+## GIMP: diagnosed (branch `fix-gimpm-stability`, 2026-10-27), fix not yet applied
+
+With the current code **gimpm fails in all 24 sweep cases with `locking=true` and in none with `false`**,
+every time a particle leaving the mesh (`BoundsError` at element ≈ −22) about 160 steps into the plastic
+stage. Two departures from GIMP's published requirements, exposed by F-bar:
+1. **No ghost nodes at the mesh boundary.** Steffen et al. (2008, *CMES* 31:107, §3.4.2) require "extra"/"ghost"
+   nodes beyond the boundary to keep GIMP's partition of unity (Bardenhagen & Kober 2004, Eq 18); the code skips
+   them (`p2n = 0`). A particle whose domain crosses the base loses weight (Σ N down to 0.96), and F-bar's map back
+   (`ΔJp`, Zhao et al. 2022 Eq 20, which assumes Σ N = 1) then scales its ΔF by about Σ N every step: 3–6 % volume
+   loss per step until it exits. Velocity transfers are unaffected at a fixed base (ghost velocities are zero
+   there); at a roller the ghost nodes should mirror the normal velocity (Steffen §3.4.2), which skipping does not.
+2. **Domains outgrow the GIMP formula.** `S∂S` (Bardenhagen & Kober's piecewise form, as AMPLE) holds for
+   `ℓ ≤ h/2`, the 4-node stencil for `ℓ ≤ h`; the stretch update (Charlton et al. 2017, AMPLE Eq 34) let a base
+   particle reach `ℓ_x = 2.8 m` in `h = 1.6 m` cells.
+
+**Why only in the plastic stage** (`dump/gimp/gimp_track.png`): in the elastic stage the ground compresses
+vertically, `U_zz = F_zz`, so a bottom-row particle and its domain shrink together and the domain stays tangent
+to the base (`z = ℓ_z`, Σ N = 1 to rounding). When the weak base layer yields it shears (`F_xz` 0.03 → 0.30);
+the domain's height follows `U_zz ≈ √(F_zz² + F_xz²)`, above the material's actual `F_zz`, so `ℓ_z > z` and the
+domain pokes through the base. The upright box that the stretch update makes of a sheared particle is too tall.
+
+**Experiments** (scratch kernel redefinitions, the 24 failing cases): renormalized F-bar map back (`Σ N J̄ / Σ N`)
+14/24; uGIMP (domain kept at `ℓ₀`) 22/24; both 24/24, with the slump close to the bsmpm reference
+(`dump/gimp/gimp_slump_compare.png`). Candidate fix: both (published uGIMP; Eq 20 as the weighted average it
+means); ghost nodes (Steffen) as the fuller boundary treatment, also correcting rollers. Not applied: the user
+postponed it.
+
+**uGIMP is now selectable** (`basis.domain = "undeformed"`, branch `fix-gimpm-stability`) and part of the sweep
+(`generate_basis_cases`, 240 cases): **190/240**, uGIMP **46/48**, its two failures
+`gimpm_undeformed_hypoelastic_apic_locktrue_muslfalse_nl{true,false}` (a particle leaving the mesh), exactly as
+in the scratch experiment; the 192 earlier cases unchanged (smpm 24/48, gimpm with the default stretch update
+24/48, bsmpm and mlsmpm 48/48). The renormalized F-bar map back is still not applied.
+
 **Latest sweep** (branch `fix-explicit-end-time-and-cfl-step`, after `get_dt` took the smallest cell,
 see `.claude/bug/fixed/get-dt-maximum-over-axes.md`): **144/192**, the 47 cases below plus
 `slump_2d_gimpm_hencky_std_locktrue_musltrue_nlfalse` (BoundsError at a negative element index, like its
