@@ -38,13 +38,20 @@ position; it is NOT picked up automatically the way `home/` files are.
 included here as a **git submodule**, usable without ElastoPlasm (a friend's finite-difference
 code, finite elements): the shapes and `Zone`, layouts, the drawing window (QML, a dependency loaded by the first window),
 sampling and the partition for Gmsh. A change to EasyDraw is committed and pushed in `lib/EasyDraw` (its repository),
-then ElastoPlasm commits the new submodule commit (`git add lib/EasyDraw`); see "Working with the EasyDraw submodule"
+then ElastoPlasm commits the new submodule commit (`git add lib/EasyDraw`); see "Working with the submodules"
 in `.claude/docs/gotchas.md`. ElastoPlasm depends on it by path (`Pkg.develop`, recorded in
 the Manifest; Julia 1.10 has no `[sources]`) and is one host of its window (`get_catalog`,
 `layout_of`/`case_of`, `case_hooks`); a `Case` works wherever EasyDraw takes a layout and `load_case`
 reads layout files, with the same points to the bit; its tests run from `test/testset/test_easydraw.jl`. Changing
 EasyDraw's dependencies needs `Pkg.resolve()` in ElastoPlasm's environment. See "Drawing a case" in
 `.claude/docs/operations.md`.
+
+`lib/UnifiedBackend/` is UnifiedBackend.jl (https://github.com/ewyser/UnifiedBackend.jl), also a submodule developed by
+path: the registry of execution backends (a `Host` per CPU core, a `Device` per GPU through its CUDA/ROCm extensions,
+each with its KernelAbstractions backend and array type). `get_solver` stores its selection
+(`UnifiedBackend.select_execution_backend`, `backend.select` = `"host"`/`"device"`) as `solver.backend.exec`.
+ElastoPlasm does `import UnifiedBackend` and qualifies its names, since KernelAbstractions also exports `Backend` and
+`get_backend`. It replaced ElastoPlasm's own, older copy of the same code (`src/boot/needs/backend.jl`, `ext/`).
 
 ## Core method, at a glance
 

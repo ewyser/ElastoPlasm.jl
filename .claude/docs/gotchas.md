@@ -49,17 +49,19 @@ The Manifest is written by Julia 1.10.10; this machine runs 1.10.5. Any `Pkg.dev
 `julia_version = "1.10.5"` and downgrades the stdlib `OpenLibm_jll` (0.8.5+0 → 0.8.1+2). Restore those two lines
 before committing, so that the Manifest diff is only the intended change (adding EasyDraw by path was).
 
-## Working with the EasyDraw submodule
+## Working with the submodules
 
-`lib/EasyDraw` is a git submodule: a checkout of EasyDraw.jl's own repository, of which ElastoPlasm records one commit.
+`lib/EasyDraw` and `lib/UnifiedBackend` are git submodules: checkouts of EasyDraw.jl's and UnifiedBackend.jl's own
+repositories, of which ElastoPlasm records one commit each. Below, `lib/X` is either.
 - **Clone** with `git clone --recursive`, or run `git submodule update --init` after a plain clone; without it
-  `lib/EasyDraw` is empty and the package does not load (the Manifest finds EasyDraw by that path).
-- **Change EasyDraw:** in `lib/EasyDraw`, `git switch main` first (a submodule is checked out on a detached commit),
-  commit and push there, then in ElastoPlasm `git add lib/EasyDraw` and commit, which records the new EasyDraw commit.
-  Push EasyDraw before ElastoPlasm, or others get a commit they cannot fetch. `git status` in ElastoPlasm shows
-  `modified: lib/EasyDraw (new commits)` until then.
-- **Take another EasyDraw commit:** `git -C lib/EasyDraw pull` (or `git submodule update --remote lib/EasyDraw`),
-  then `git add lib/EasyDraw` and commit; after switching ElastoPlasm branches, `git submodule update` checks out the
-  commit that branch records.
-- **Branches from before the submodule** (`dev`, …) have no `lib/EasyDraw`: switching to one leaves the folder there,
-  untracked; it does no harm and comes back into use when switching back.
+  `lib/X` is empty and the package does not load (the Manifest finds both by path).
+- **Change one:** in `lib/X`, switch to its working branch first (a submodule is checked out on a detached commit;
+  EasyDraw's is `main`, UnifiedBackend's `dev`, merged into its `main` by pull request), commit and push there, then in
+  ElastoPlasm `git add lib/X` and commit, which records the new commit. Push the submodule before ElastoPlasm, or others
+  get a commit they cannot fetch. `git status` in ElastoPlasm shows `modified: lib/X (new commits)` until then.
+- **Take another commit:** `git -C lib/X pull` (or `git submodule update --remote lib/X`), then `git add lib/X` and
+  commit; after switching ElastoPlasm branches, `git submodule update` checks out the commits that branch records.
+- **Branches from before a submodule** (`dev`, …) do not have it: switching to one leaves the folder there, untracked;
+  it does no harm and comes back into use when switching back.
+- A sibling clone of UnifiedBackend.jl (`../UnifiedBackend.jl`) is a separate checkout: `git pull` it after pushing
+  from `lib/UnifiedBackend`.

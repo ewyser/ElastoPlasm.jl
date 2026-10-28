@@ -12,12 +12,6 @@ Base.@kwdef mutable struct Distributed
     root     ::NamedTuple = (;name = "root", val = 0,)
     glob     ::String     = "glob.jld2"
 end
-Base.@kwdef mutable struct Execution
-    functional::Vector{String} = ["Available execution platform(s):"]
-    prompt::Bool = false
-	cpu::Dict = Dict()
-	gpu::Dict = Dict()
-end
 Base.@kwdef mutable struct UI
 	ui    ::Bool       = true
     plot  ::Bool       = true
@@ -27,6 +21,5 @@ end
 Base.@kwdef mutable struct Self
 	sys ::Path
 	ui  ::UI
-	bckd::Execution
     mpi ::Distributed
 end

@@ -71,7 +71,7 @@ function get_option()
                 what   = output_what_options(),
             ),
             backend = (
-                select = ("Select backend",["host", "cuda", "rocm"]),
+                select = ("Select backend (device: a GPU, when one is registered)",["host", "device"]),
                 distributed = ("Enable distributed computing",[true, false])
             ),
         )

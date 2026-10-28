@@ -56,7 +56,7 @@ function get_solver(; dim::Number=2, kwargs...)
     end    
     # Set execution backend
     if !haskey(instr[:backend],:exec)
-        exec  = select_execution_backend(ElastoPlasm.self.bckd, instr[:backend][:select]; distributed=instr[:backend][:distributed], prompt=ElastoPlasm.self.bckd.prompt)
+        exec  = UnifiedBackend.select_execution_backend(UnifiedBackend.get_backend().exec, instr[:backend][:select]; distributed=instr[:backend][:distributed])
         instr = merge(instr, (; backend = merge(instr[:backend], (; exec = exec,)),))
     end
     # Add cairns to instr     

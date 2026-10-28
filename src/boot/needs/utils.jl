@@ -72,7 +72,7 @@ end
 """
     get_version() -> String
 
-Return the current project version as a string, as specified in the Julia project file.
+Return ElastoPlasm's own version (its Project.toml's, whichever project is active) as a string.
 
 # Returns
 - `String`: The project version.
@@ -84,5 +84,5 @@ println(v)
 ```
 """
 function get_version()
-    return string(Pkg.project().version)
+    return string(pkgversion(@__MODULE__))
 end

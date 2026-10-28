@@ -2,7 +2,7 @@
 
 julia_version = "1.10.10"
 manifest_format = "2.0"
-project_hash = "fb32aab396e7fd8941749faf0329f999146e78c8"
+project_hash = "7ac76e18aad3f5cfcc39b78126555fc7c771cd98"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -1068,6 +1068,20 @@ deps = ["REPL"]
 git-tree-sha1 = "53915e50200959667e78a92a418594b428dffddf"
 uuid = "1cfade01-22cf-5700-b092-accc4b62d6e1"
 version = "0.4.1"
+
+[[deps.UnifiedBackend]]
+deps = ["KernelAbstractions", "REPL"]
+path = "lib/UnifiedBackend"
+uuid = "53203a36-6468-4ce1-9d2a-5f04ad17d58e"
+version = "0.0.1"
+
+    [deps.UnifiedBackend.extensions]
+    CUDAExt = "CUDA"
+    ROCmExt = "AMDGPU"
+
+    [deps.UnifiedBackend.weakdeps]
+    AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 
 [[deps.UnsafeAtomics]]
 git-tree-sha1 = "b13c4edda90890e5b04ba24e20a310fbe6f249ff"

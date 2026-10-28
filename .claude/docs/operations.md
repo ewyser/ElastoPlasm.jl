@@ -465,7 +465,8 @@ knob and its out-of-the-box value.
 - `nonloc` — non-local plastic strain regularization (`status`, `ls` length scale)
 - `plot` — `status`, `freq` (plot every N `Time` checkpoints), `dpi`, `what` (keys of the plottable
   quantities, `plottable()` in `quantities.jl`, e.g. `["p", "epII"]`)
-- `backend` — `select` (execution backend, `"host"`/GPU target) and `distributed`
+- `backend` — `select` (`"host"`, or `"device"`: a GPU UnifiedBackend registered, through its CUDA/ROCm extension,
+  else the host with a message) and `distributed`; `get_solver` stores the selection as `backend.exec`
 
 Two ways to change solver behaviour:
 
@@ -516,5 +517,6 @@ kwargs suitable for splatting into `slump_problem`/`get_solver` as `cli()...`.
   earlier one in the kwargs, then merges per field over the defaults).
 - `get_option()` is a reference for valid values per key (e.g.
   `get_option().basis.trsfr` → `["std", "tpic", "apic"]`) — but not every listed value is
-  wired up: `backend.select` offers `"cuda"`/`"rocm"` while every kernel is hard-coded to
-  `CPU()` (see the GPU item in `planned-improvements.md`).
+  wired up: `backend.select = "device"` selects a GPU while every kernel is still hard-coded to
+  `CPU()` (see the GPU item in `planned-improvements.md`). It offered `"cuda"`/`"rocm"` until
+  UnifiedBackend's adoption, values the selection refused (`ArgumentError`).
