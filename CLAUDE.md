@@ -34,11 +34,23 @@ implements its concrete subtype(s) (no central `abstract.jl`) — see
 `types/` means adding it to that explicit list in `boot.jl`, in the right dependency
 position; it is NOT picked up automatically the way `home/` files are.
 
+`lib/EasyDraw/` is EasyDraw.jl (https://github.com/ewyser/EasyDraw.jl), a package and repository of its own,
+included here as a **git submodule**, usable without ElastoPlasm (a friend's finite-difference
+code, finite elements): the shapes and `Zone`, layouts, the drawing window (QML, a dependency loaded by the first window),
+sampling and the partition for Gmsh. A change to EasyDraw is committed and pushed in `lib/EasyDraw` (its repository),
+then ElastoPlasm commits the new submodule commit (`git add lib/EasyDraw`); see "Working with the EasyDraw submodule"
+in `.claude/docs/gotchas.md`. ElastoPlasm depends on it by path (`Pkg.develop`, recorded in
+the Manifest; Julia 1.10 has no `[sources]`) and is one host of its window (`get_catalog`,
+`layout_of`/`case_of`, `case_hooks`); a `Case` works wherever EasyDraw takes a layout and `load_case`
+reads layout files, with the same points to the bit; its tests run from `test/testset/test_easydraw.jl`. Changing
+EasyDraw's dependencies needs `Pkg.resolve()` in ElastoPlasm's environment. See "Drawing a case" in
+`.claude/docs/operations.md`.
+
 ## Core method, at a glance
 
 - A problem starts from a `Case`, plain data (domain, zones, material, boundaries, solver overrides, run
   settings), built by `setup_simulation` and stored as TOML (`save_case`/`load_case`); every example
-  is a case constructor (`slump_case`, …) and the drawing window (`ext/`) only edits one. See
+  is a case constructor (`slump_case`, …) and the drawing window (EasyDraw's) only edits one. See
   "Describing a case" in `.claude/docs/operations.md`.
 - Construction order is always **mesh → material points → basis** (basis depends on
   both). Function argument order is always **`(mpts, mesh, basis, ...)`**.

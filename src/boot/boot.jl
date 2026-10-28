@@ -4,6 +4,8 @@ using Plots,LaTeXStrings,ProgressMeter,REPL.TerminalMenus
 using LinearAlgebra,StaticArrays,SparseArrays,Random
 using JLD2,HDF5
 using TOML
+using EasyDraw: EasyDraw, AbstractShape, Polygon, Block, Ball, Region, Zone, inside, inpolygon, polygon_rings, shape_dict, parse_shape, outside,
+                zone_at, zone_index, property, points, partition, write_geo, save_layout, write_catalog
 using KernelAbstractions,Adapt,Base.Threads
 import KernelAbstractions.@atomic as @atom
 import KernelAbstractions.Kernel as Cairn

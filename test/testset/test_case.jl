@@ -1,21 +1,5 @@
 @testset "+ $(basename(@__FILE__))" verbose = true begin
     EP = ElastoPlasm
-    @testset "shapes" begin
-        @test EP.inside(Block([0, 0], [1, 1]), [1.0, 0.0]) && !EP.inside(Block([0, 0], [1, 1]), [1.0 + 1e-12, 0.5])   # bounds included
-        @test EP.inside(Block([0, 0], [1, 1]), [0.5, 9.0, 1.0])                                    # (x, z) box extruded along y
-        @test EP.inside(Block([0, 0, 0], [1, 1, 1]), [0.5, 0.5, 0.5]) && !EP.inside(Block([0, 0, 0], [1, 1, 1]), [0.5, 2.0, 0.5])
-        @test EP.inside(Ball([0, 0], 1.0), [0.6, 0.8]) && !EP.inside(Ball([0, 0], 1.0), [0.6, 0.81])
-        @test EP.inside(Ball([0, 0, 0], 1.0), [0.0, 0.6, 0.8]) && EP.inside(Ball([0, 0], 1.0), [0.6, 5.0, 0.8])   # sphere; cylinder
-        ell = Polygon([[0, 0], [2, 0], [2, 1], [1, 1], [1, 2], [0, 2]])                          # concave
-        @test EP.inside(ell, [0.5, 1.5]) && EP.inside(ell, [1.5, 0.5]) && !EP.inside(ell, [1.5, 1.5])
-        @test EP.inside(Region(x -> x[1] > x[end]), [2.0, 1.0])
-        @test_throws ArgumentError Polygon([[0, 0], [1, 0]])
-        donut = Polygon([[[0, 0], [4, 0], [4, 4], [0, 4]], [[1, 1], [3, 1], [3, 3], [1, 3]], [[5, 0], [6, 0], [6, 1]]])   # several outlines:
-        @test EP.inside(donut, [0.5, 0.5]) && !EP.inside(donut, [2.0, 2.0]) && EP.inside(donut, [5.8, 0.2])   # a hole, a second part
-        @test donut.sizes == [4, 4, 3]
-        @test_throws ArgumentError Polygon([[[0, 0], [1, 0], [1, 1]], [[2, 2], [3, 3]]])
-        @test_throws ArgumentError Block([1, 0], [0, 1])
-    end
     @testset "specification and validation" begin
         s = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 2]))], material=Dict("c0" => 1.0e3),
                    solver=(; basis=(; which="gimpm"), bcs=(; dirichlet=[:fixed :fixed; :fixed :free])))
@@ -29,7 +13,8 @@
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], run=(; workflow="x"))
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], bcs=[:fixed :glued; :free :free])
         @test_throws ArgumentError Case(; L=[1, 1, 1], nel=[1, 1, 1], width=1.0, nely=1)
-        @test_throws ArgumentError Zone("z", Block([0, 0], [1, 1]); EE=1.0)
+        @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], zones=[Zone("z", Block([0, 0], [1, 1]); EE=1.0)])   # ZONE_PROPS only
+        @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], zones=[Zone("z", Block([0, 0], [1, 1]); E="stiff")])
     end
     @testset "points: last zone wins, overrides, velocity" begin
         s = Case(; L=[4, 2], nel=[4, 2], ni=2,

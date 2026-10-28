@@ -51,7 +51,7 @@ function option_value(path, x)
         y isa AbstractVector{<:Real} || throw(ArgumentError("solver option $name = $x is not a list of numbers"))
         return Float64.(y)
     end
-    y isa Real && !(y isa Bool) || throw(ArgumentError("solver option $name = $x is not a number"))
+    y isa Real && !(y isa Bool) && isfinite(y) || throw(ArgumentError("solver option $name = $x is not a (finite) number"))
     d isa Integer && !isinteger(y) && throw(ArgumentError("solver option $name = $x is not an integer"))
     return d isa Integer ? typeof(d)(y) : Float64(y)
 end
@@ -67,26 +67,8 @@ config_dict(x) = x isa NamedTuple || x isa AbstractDict ? Dict{String,Any}(strin
 
 # ---- the case on disk
 
-const SHAPES = ("polygon", "block", "ball")
 deg(k, v) = k == :phi ? round(rad2deg(v); sigdigits=12) : v   # angles: degrees in files (12 digits: 30, not 29.999999999999996)
 rad(k, v) = k == :phi ? deg2rad(v) : v
-
-function shape_dict(s::AbstractShape)
-    if s isa Polygon                                         # one outline as `vertices`; several as `rings`
-        rs = polygon_rings(s)
-        return Dict{String,Any}("shape" => "polygon", length(rs) == 1 ? "vertices" => only(rs) : "rings" => rs)
-    end
-    s isa Block     && return Dict{String,Any}("shape" => "block", "lo" => s.lo, "hi" => s.hi)
-    s isa Ball    && return Dict{String,Any}("shape" => "ball", "centre" => s.centre, "radius" => s.radius)
-    throw(ArgumentError("a $(nameof(typeof(s))) zone (a Julia predicate) cannot be written to TOML"))
-end
-function parse_shape(z::AbstractDict, name)
-    kind = get(z, "shape", "")
-    kind == "polygon" && return Polygon(haskey(z, "rings") ? z["rings"] : z["vertices"])
-    kind == "block"     && return Block(z["lo"], z["hi"])
-    kind == "ball"    && return Ball(z["centre"], z["radius"])
-    throw(ArgumentError("zone \"$name\": shape = \"$kind\" is not one of $(SHAPES)"))
-end
 
 """
     case_dict(case) -> Dict
@@ -144,6 +126,10 @@ a numeric option, variable names for `plot.what`), `[run]` (`folder`, `te`, `tg`
 for several outlines, `"block"` with
 `lo`/`hi`, or `"ball"` with `centre`/`radius`, and any material constant or `v`). A zone given as a
 Julia predicate (`Region`) cannot be written.
+
+`load_case` also reads a layout file (EasyDraw's `save_layout`: drawn with `get_catalog()`, or written from a case by
+`save_layout(file, case)`), as `case_of` turns it into a case: its sides as `bcs`, its zone defaults as the material,
+its options as the solver overrides, values in SI (φ in radians, unlike a case file), its folder the file's.
 """
 function save_case(file::AbstractString, s::Case)
     d = case_dict(s)
@@ -151,4 +137,8 @@ function save_case(file::AbstractString, s::Case)
     open(io -> TOML.print(io, d; sorted=true), file, "w")
     return file
 end
-load_case(file::AbstractString) = parse_case(TOML.parsefile(file))
+function load_case(file::AbstractString)
+    d = TOML.parsefile(file)
+    layout = any(k -> haskey(d, k), ("sides", "defaults", "options")) && !any(k -> haskey(d, k), ("bcs", "material", "solver"))
+    return layout ? case_of(EasyDraw.load_layout(file)) : parse_case(d)
+end

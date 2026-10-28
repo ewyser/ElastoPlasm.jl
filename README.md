@@ -44,9 +44,11 @@
 1. **Install Julia:** [Download here](https://julialang.org/downloads/) and follow the instructions.
 2. **Clone the repo:**
    ```sh
-   git clone https://github.com/ewyser/ElastoPlasm.jl.git
+   git clone --recursive https://github.com/ewyser/ElastoPlasm.jl.git
    cd ElastoPlasm.jl
    ```
+   `--recursive` also fetches [EasyDraw.jl](https://github.com/ewyser/EasyDraw.jl), the drawing window, into
+   `lib/EasyDraw`. Already cloned without it? Run `git submodule update --init`.
 3. **Start Julia** (on macOS, drag & drop `start_macOS.sh` in the terminal).
    ```sh
    julia --project=. 
@@ -66,7 +68,7 @@
     # plasming begins here!
     ```
 5. **Your own problem:** describe it as data (domain, zones of material, boundaries, solver options,
-   run settings), or draw it in a window (needs QML in your default environment, see `?draw_case`):
+   run settings), or draw it in a window (see `?draw_case`):
     ```julia
     case = Case(; L=[20.0, 10.0], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
                   zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7)],
@@ -75,7 +77,6 @@
     execute!(setup_simulation(case))   # results under dump/layers/ (kept until clean_dump())
     save_case("layers.toml", case)
 
-    using QML
     case = draw_case()        # draw the domain, zones, options and run settings
     ```
 

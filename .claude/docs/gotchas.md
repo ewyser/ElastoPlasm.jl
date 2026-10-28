@@ -42,3 +42,24 @@ happened to agree. So compare a refactor against its parent with `-t 1`: single-
 block matched the pre-refactor commit exactly (`refactor-init-problem-spec`). Setup-only checks
 (`test_setup.jl`) are not affected.
 
+
+## Pkg on this machine rewrites the Manifest's Julia version
+
+The Manifest is written by Julia 1.10.10; this machine runs 1.10.5. Any `Pkg.develop`/`Pkg.resolve` here sets
+`julia_version = "1.10.5"` and downgrades the stdlib `OpenLibm_jll` (0.8.5+0 → 0.8.1+2). Restore those two lines
+before committing, so that the Manifest diff is only the intended change (adding EasyDraw by path was).
+
+## Working with the EasyDraw submodule
+
+`lib/EasyDraw` is a git submodule: a checkout of EasyDraw.jl's own repository, of which ElastoPlasm records one commit.
+- **Clone** with `git clone --recursive`, or run `git submodule update --init` after a plain clone; without it
+  `lib/EasyDraw` is empty and the package does not load (the Manifest finds EasyDraw by that path).
+- **Change EasyDraw:** in `lib/EasyDraw`, `git switch main` first (a submodule is checked out on a detached commit),
+  commit and push there, then in ElastoPlasm `git add lib/EasyDraw` and commit, which records the new EasyDraw commit.
+  Push EasyDraw before ElastoPlasm, or others get a commit they cannot fetch. `git status` in ElastoPlasm shows
+  `modified: lib/EasyDraw (new commits)` until then.
+- **Take another EasyDraw commit:** `git -C lib/EasyDraw pull` (or `git submodule update --remote lib/EasyDraw`),
+  then `git add lib/EasyDraw` and commit; after switching ElastoPlasm branches, `git submodule update` checks out the
+  commit that branch records.
+- **Branches from before the submodule** (`dev`, …) have no `lib/EasyDraw`: switching to one leaves the folder there,
+  untracked; it does no harm and comes back into use when switching back.

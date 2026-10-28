@@ -1,20 +1,12 @@
 export check_case, estimate_dt
 
-# the zone of each candidate point (sub-cell centres, as `mpts_populate`, vertical axis fastest; 0 =
-# none), without building a solver or mesh; an extruded problem is counted in its x–z plane
+# the zone of each candidate point (sub-cell centres, those of `mpts_populate` and of the drawing window,
+# `EasyDraw.subcell_centres`; vertical axis fastest; 0 = none), without building a solver or mesh; an extruded
+# problem is counted in its x–z plane
 function case_zones(s::Case)
-    L, nel = s.L, s.nel
-    axs = [collect(0.5*L[d]/(nel[d]*s.ni):L[d]/(nel[d]*s.ni):L[d] - 0.5*L[d]/(nel[d]*s.ni)) for d ∈ eachindex(L)]
+    axs = EasyDraw.subcell_centres(s.L, s.nel, s.ni)
     pts = Iterators.product(axs[end], axs[1:end-1]...)
-    return [something(findlast(z -> inside(z.shape, (t[2:end]..., t[1])), s.zones), 0) for t ∈ pts][:]
-end
-# whether a shape reaches outside the domain [0, L] (the x–z plane for two-coordinate shapes)
-function outside(shape::AbstractShape, L)
-    lims(c) = length(c) == length(L) ? L : [L[1], L[end]]
-    shape isa Polygon && return any(v -> !(0 ≤ v[1] ≤ L[1] && 0 ≤ v[2] ≤ L[end]), shape.vertices)
-    shape isa Block     && return any(shape.lo .< 0) || any(shape.hi .> lims(shape.lo))
-    shape isa Ball    && return any(shape.centre .- shape.radius .< 0) || any(shape.centre .+ shape.radius .> lims(shape.centre))
-    return false
+    return [zone_at(s.zones, (t[2:end]..., t[1])) for t ∈ pts][:]
 end
 # a solver option of the case, or its default
 option_of(s::Case, sec, key) = (o = get(s.solver, sec, (;)); o isa NamedTuple && haskey(o, key) ? getfield(o, key) : getfield(getfield(get_default(), sec), key))

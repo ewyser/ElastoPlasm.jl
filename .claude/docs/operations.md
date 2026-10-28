@@ -89,7 +89,9 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   `setup_simulation` writes the simulation and the case TOML, named after its last part: a name under `dump/`
   or a path; older cases' `fid`/`dir` are read into it).
 - **Zones:** `Zone(name, shape; props...)`, props any `MATERIAL` key or `v` (initial velocity; two
-  (x, z) components in 3D). Shapes: `Polygon` (x–z, even–odd, extruded in 3D; several outlines, `Polygon(rings)`, make one zone of
+  (x, z) components in 3D). `Zone` and the shapes are EasyDraw's (`lib/EasyDraw/src/{shapes,layout}.jl`, imported and
+  re-exported in `boot.jl`), where a zone takes any property; `Case` checks them against `ZONE_PROPS` (an unknown
+  one errors when the case is built, naming the zone). Shapes: `Polygon` (x–z, even–odd, extruded in 3D; several outlines, `Polygon(rings)`, make one zone of
   several parts or with holes: flat `vertices` plus `sizes`, `polygon_rings`), `Block(lo, hi)` (bounds
   included; D coordinates, or two for an extruded block), `Ball(centre, r)` (disk, sphere, or cylinder
   along y), `Region(f)` (a predicate on the point, code only, not writable to TOML). `Block` is not named
@@ -119,26 +121,66 @@ save_case("layers.toml", case); case = load_case("layers.toml")
 ### Drawing a case
 
 ```julia
-using ElastoPlasm, QML
+using ElastoPlasm
 case = draw_case()                       # opens on the domain step, blocks until Create…; returns a Case
 case = draw_case(slump_case([64.16, 16.04], [40, 10]))   # edit a case (opens on the zones step)
 case = draw_case("layers.toml")          # or a case file
 execute!(setup_simulation(case))
 ```
 
-- The window is the weak-dependency extension `ext/DrawQMLExt/` (Qt Quick). `src/` keeps `draw_case`
-  (`script/draw/draw_case.jl`) and the stub `drawing_window(case; step)`, whose fallback errors with
-  the install command; the extension adds the `drawing_window(::Case)` method (`qml_window`).
-  - `editing.jl` is everything that needs no Qt, included by `DrawQMLExt.jl` and, on its own, by
-    `test_draw.jl` (so it is tested where QML is not installed): `editor.jl`, the state and every edit as
-    a plain Julia `Editor` (`press!`/`move!`/`release!`/`key!`, `set_domain!`, `set_option!`, `ready!`/`create!`,
-    `load!`, …); `helpers.jl`, GUI-independent pieces (zone constants `PROPS`, the preview points
-    `drawn_points`, `snap_point`, `insert_on_edge!`, `delete_vertex!`, the solver options `OPTIONS`, built once, and
-    their pages `SECTIONS`); `view.jl`, the JSON the window reads (`background_json`, `overlay_json`,
-    `panel_json`). `DrawQMLExt.jl` keeps only the QML glue: one table, `CALLS`, of what QML may call by
+- **The window is EasyDraw's** (`lib/EasyDraw/`, EasyDraw.jl, a package and repository of its own included as a git
+  submodule, usable without ElastoPlasm, e.g. for finite differences or finite elements; its `README.md`): it edits an `EasyDraw.Layout` (domain, zones, a boundary kind per
+  side, the zone properties' defaults, options, run settings) with what a host's `EasyDraw.Catalog` offers (zone
+  properties, boundary kinds, options, run settings as `Field`s: menu, numeric, integer, list; a display `scale`,
+  `min`, `show_if`), TOML both. ElastoPlasm is one host: `get_catalog()` (`src/home/api/solver/catalog.jl`, beside `get_default`/`get_option`) builds its catalog
+  from `get_option()`, `get_default()`, `MATERIAL` and `WORKFLOWS` (no hand-written copy) as plain data, a `Dict` shaped
+  like the catalog's TOML, which EasyDraw reads (`EasyDraw.Catalog(dict)`; `draw` and `write_catalog` take either), so
+  ElastoPlasm builds no EasyDraw type for it (the user's request: it first built `EasyDraw.Field`s, tying ElastoPlasm to
+  EasyDraw's API rather than to the file format); EasyDraw stays a dependency for the shapes and `draw_case`.
+  `layout_of`/`case_of` (`src/home/script/draw/draw_case.jl`) convert a case (bcs as sides, the material as the zone defaults, solver overrides as options,
+  the run settings with the thermal flag carried through, an absolute run folder as the layout's folder) and
+  `case_hooks()` gives what a file cannot: the checks (`check_case`), what Create… writes (`<name>_case.toml`), what
+  "Start from a file…" reads (a case file), the title. `draw_case(case)` is `EasyDraw.draw(layout_of(case);
+  catalog=get_catalog(), case_hooks()...)` then `case_of`.
+  - **The window is not optional** (the user's decision: EasyDraw exists to draw interactively): QML is one of
+    EasyDraw's dependencies, so `draw`/`draw_case` work without `using QML`. It was an extension (`EasyDrawQMLExt`, QML a
+    weakdep the user installed in the default environment with Qt pins) until then. **QML loads with the first window, not
+    with `using`** (`qml()` in `window/window.jl`: `Base.require(EasyDraw, :QML)`, its functions called through
+    `invokelatest`): loaded with EasyDraw, it made `using ElastoPlasm` take 15–20 s instead of 4.6–5.8 s (QML itself
+    ~8 s, mostly CxxWrap compiling, then ElastoPlasm's code recompiling, ~8 s more, as QML invalidates it); lazily,
+    `using ElastoPlasm` is unchanged and `using EasyDraw` alone takes 0.01 s. A session's first window takes ~20 s
+    (QML ~8 s, then compiling the window's code), the next ones 0.6 s; the very first in a new environment took ~2 min
+    once (first-time caches). Checked in a fresh environment with EasyDraw alone (no ElastoPlasm): it resolves the same
+    QML and Qt, and the window opens without `using QML`.
+    In ElastoPlasm's environment the resolver keeps QML on Plots/GR's Qt (QML 0.12.1, jlqml_jll 0.9.0, every Qt6 library
+    6.8.2), so the `_qt_version_tag` failure of a QML built for another Qt, which forced the pins while QML lived in
+    another environment, cannot happen.
+  - **Between the two, without loss** (asked for: "seamless compatibility"). *Points:* the window's preview,
+    `EasyDraw.points`, `check_case`'s counts (`case_zones`) and the simulation's material points (`case_points`) are the
+    same to the bit: one lattice, `EasyDraw.subcell_centres` (the range arithmetic of `mpts_populate`; the preview's own
+    `(i - 0.5)h` formula differed by up to 7e-15 m, so a point on a zone's edge could change zone), and one membership
+    rule, `EasyDraw.zone_at(zones, x)`, which `case_points` calls (setups bit-identical, `test_setup`). *Files:*
+    `load_case` also reads a layout file (`case_of(load_layout(file))`; values in SI, its folder the file's), so
+    `draw_case`, "Start from a file…" and `setup_simulation(load_case(…))` take a layout drawn with `get_catalog()`;
+    `save_layout(file, case)` writes one for EasyDraw alone; EasyDraw's `load_layout` warns about the tables of a case
+    file it ignores (a case file keeps φ in degrees). *Functions:* a `Case` works wherever EasyDraw takes a layout
+    (`zone_at`, also 3D, `zone_index`, `property` with the case's material as defaults, `points`, `partition`,
+    `write_geo`, `save_layout`), exported by `using ElastoPlasm`. *Option values:* a case file (`option_value`) and the
+    window (`EasyDraw.field_value`) parse them separately, so `test_draw` checks they agree on every option over a set of
+    inputs (438 cases); it found `option_value` accepting `Inf`/`NaN`, now refused as the window does.
+  - Until `feat-easydraw-package` the window was ElastoPlasm's extension `ext/DrawQMLExt/`, editing a `Case` with
+    ElastoPlasm's tables built in.
+  - EasyDraw's `src/editor/` is everything that needs no Qt (tested without a window): `editor.jl`, the
+    state and every edit as a plain Julia `Editor` (`press!`/`move!`/`release!`/`key!`, `set_domain!`, `set_option!`,
+    `set_run!`/`pick_run!`, `ready!`/`create!`, `load!`, …); `helpers.jl`, GUI-independent pieces (the preview points
+    `drawn_points`, `snap_point`, `insert_on_edge!`, `delete_vertex!`, the options' nested storage); `view.jl`, the
+    JSON the window reads (`background_json`, `overlay_json`, `panel_json`). `src/window/window.jl` (beside
+    `EasyDraw.qml`) keeps only the QML glue: one table, `CALLS`, of what QML may call by
     name, mostly `act(f)` (the open editor, QML strings as Julia strings, returns nothing), so a call cannot
     be defined and left unregistered; any parsing or logic lives in `editor.jl`, tested without Qt. QML counts from 0, Julia from 1: every index crosses through `qml_index`/`julia_index`
-    (`view.jl`), and the QML file does no index arithmetic (it gets the tab, `panel.tab`, not the step).
+    (`view.jl`), and the QML file does no index arithmetic: it gets the tabs and the current one (`panel.tabs`,
+    `panel.tab`; `tab_steps`: no Options tab when the catalog has no options) and the page (`panel.page`), and
+    `set_step` takes a tab, which Julia maps to its step.
   - **Cost per mouse move.** The canvas has two layers (`background_json`/`overlay_json`): the
     background (grid, domain, sides, the zones' fills and the points over them) repaints after an edit,
     a zoom or a resize; the overlay (outlines, vertices, the polygon being drawn, the cursor, the
@@ -153,24 +195,16 @@ execute!(setup_simulation(case))
     the window offscreen (`Date.now()` around each layer's paint): with one layer, every move re-parsed
     and redrew all the points, ~70 ms at 62,800 points (15 ms Julia and the string to Qt, 19 ms
     `JSON.parse` of 0.8 MB, 35 ms drawing); with the overlay, a move costs ~1 ms at any size (<0.5 kB).
-  - `DrawCase.qml` is only a view: two `Canvas` layers draw `Julia.background()`/`Julia.overlay()`, the panel reads
+  - `EasyDraw.qml` is only a view: two `Canvas` layers draw `Julia.background()`/`Julia.overlay()`, the panel reads
     `Julia.panel()`, both JSON strings (nested vectors don't convert through QML.jl, and property-map
     updates arrive asynchronously), and each widget calls one of `CALLS` through `win.act(() => Julia.…)`,
     which refreshes the panel and canvas after it. The calls are registered (`QML.qmlfunction`) by
-    `qml_window` for each window (`register_functions`), not in
+    `EasyDraw.window` for each window (`register_functions`), not in
     `__init__`: QML.jl forgets them when a window's application ends, so a second `draw_case` in the
     same session got a `Julia` object without them ("Property 'panel' … is not a function").
-  - **Install** QML in the default environment with Qt pinned to the project's version, since the
-    project's Plots/GR already loads `Qt6Base_jll` 6.8.2 and a QML built on Qt 6.10 then fails with a
-    missing `_qt_version_tag_6_10` symbol: `] activate; add QML Qt6Base_jll@6.8.2
-    Qt6Declarative_jll@6.8.2 Qt6ShaderTools_jll@6.8.2 Qt6Svg_jll@6.8.2 Qt6Wayland_jll@6.8.2` (the set
-    verified; resolves QML 0.12.1, jlqml_jll 0.9.0). Bump the pins together with the project's Qt. Without
-    the window, `draw_case`'s error (`drawing_window_help`) says whether QML is missing or only not
-    loaded, explains the `_qt_version_tag` failure, and gives the pins with the Qt version the session
-    actually loads (`session_qt`, from `Base.loaded_modules`), so it stays right when Plots/GR move Qt.
   - Offscreen (tests, CI): `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software
-    QT_QUICK_CONTROLS_STYLE=Fusion`; `qml_window(case; shots=(dir, steps))` saves a PNG of each listed
-    step and closes (`grabToImage` on a child item: the window's `contentItem` gives an empty image).
+    QT_QUICK_CONTROLS_STYLE=Fusion`; `draw(layout; shots=(dir, steps))` (or `draw_case(case; shots)`,
+    `EasyDraw.window(editor; shots)`) saves a PNG of each listed step and closes (`grabToImage` on a child item: the window's `contentItem` gives an empty image).
     **Not what a user sees on macOS**: without the style override the window uses Qt's native macOS style,
     which follows dark mode and cannot render offscreen (it crashes in `QMacStyle`). Check a visual change
     there too, with `QT_QPA_PLATFORM=cocoa` and no style or backend override (the window shows for the shots
@@ -184,22 +218,24 @@ execute!(setup_simulation(case))
   problem is refused. The preview uses each zone's own `inside` rule (`shape_of`), so it equals
   `case_points` (checked on the collision case). Zone properties it does not
   show (`v`, `Hp`, `n0`, `cp`, `k`), the problem's material and its thermal flag are carried through.
-- Four tabs: **Domain** (first a choice, *Domain* or *Picture to draw on*, the latter with its own panel,
+- Four tabs (three without options): **Domain** (first a choice, *Domain* or *Picture to draw on*, the latter with its own panel,
   below; drag the upper-right corner handle, snapped to a tenth of the order of
-  magnitude, `nice_step`, or type `Lx`, `Lz` and the element size `h`, square cells, `nel_for`; a
-  width along y for 3D, `nely` from `h`; points per element; one drop-down per side), **Zones** (the
-  editor below; c₀, cᵣ [kPa], φ [°], T, E [MPa], ν, ρ₀; φ hidden when the options pick
-  `material.plastic = "VM"`; "+ New zone ▾" opens a menu of shapes, `new_zone!(e, shape)`: Draw (a polygon,
+  magnitude, `nice_step`, or type `Lx`, `Lz` and the cell size `h`, square cells, `nel_for`; a
+  width along y for 3D, `nely` from `h`; points per cell; one drop-down per side, its kinds and colours the
+  catalog's), **Zones** (the
+  editor below; the catalog's zone properties, for ElastoPlasm c₀, cᵣ [kPa], φ [°], T, E [MPa], ν, ρ₀; φ hidden when the options pick
+  `material.plastic = "VM"` (its `show_if`); "+ New zone ▾" opens a menu of shapes, `new_zone!(e, shape)`: Draw (a polygon,
   vertex by vertex), Rectangle (two opposite corners; every corner lying on another zone's edge splits
   it), Triangle (three corners, closes by itself), Circle (centre, then a point on it); the vertex last
   clicked or dragged (`picked`, outlined on the canvas) has one row, x and z typed exactly and "×"
   deleting it, `set_picked!`/`remove_picked!`, which move or delete it in every zone sharing it, through
-  undo; the vertices are not listed), **Options** (one row per `get_option()` field: checkbox, name,
-  drop-down; numeric fields, `free_numeric`, take any typed value plus presets; picking or typing a
+  undo; the vertices are not listed), **Options** (one row per catalog option, pages by the first part of its key:
+  checkbox, name, drop-down; numeric fields take any typed value plus presets; picking or typing a
   value ticks the box, unticking restores the default; multi-selections such as `plot.what` are
-  checkbox grids; the `dtype` fields are the one `precision` choice and
-  `solution` follows the workflow; `OPTIONS`) and **Run** (workflow, `te`/`tg`/`tep` or the load
-  steps; `check_case` live; then **Create…** and **Cancel**).
+  checkbox grids; for ElastoPlasm every `get_option()` field but `dtype.T0`/`bits` (the one `precision` choice sets
+  them) and `solution` (it follows the workflow)) and **Run** (the catalog's run settings, a drop-down or a field
+  each, shown by `show_if`: for ElastoPlasm the workflow, then `te`/`tg`/`tep` or the load steps; the host's checks
+  live, `check_case` for ElastoPlasm; then **Create…** and **Cancel**).
 - A picture to draw on (a scanned section or a map, any image Qt reads), drawn under the grid at an
   adjustable opacity (`Backdrop`: file, pixel size reported by a hidden QML `Image`, lower-left corner and
   width in metres, the height from the aspect). The Domain step starts with a choice, *Domain* (sized by
@@ -218,20 +254,27 @@ execute!(setup_simulation(case))
   wide, it gives a picture 20.41 m wide and a 20.5 × 10 m domain of 41 × 20 elements at `h = 0.5`. A drawing
   aid only: not saved with the case (TOML).
   - **Loading, two Qt traps** (both hit by the user on a macOS screenshot, invisible in the tests until the
-    window test loaded a picture, `qml_window(editor; shots)`): the hidden `Image` loads a local file at once,
+    window test loaded a picture, `EasyDraw.window(editor; shots)`): the hidden `Image` loads a local file at once,
     inside the refresh that set its source, so its size report (another refresh) is deferred with
     `Qt.callLater` (called directly: a binding loop on `source`; `asynchronous: true` delayed the report
     past the first paints instead). And the canvas's `loadImage` of a picture Qt already holds (the hidden
     `Image` loaded it) completes at once *without* `imageLoaded`, so the canvas draws it in the same pass
     when `isImageLoaded` turns true; before, the picture stayed blank until the next repaint (another tab, a zoom).
-- Only the tabs and the status line are always visible. "Start from a case file…" (top of the Domain
-  step) loads a case TOML (`load!`; replaces the whole state and clears undo). **Create…** (end of the
+- Only the tabs and the status line are always visible. "Start from a file…" (top of the Domain
+  step) loads a file through the host's `load` (`load!`; a case TOML for ElastoPlasm, a layout TOML by default;
+  replaces the whole state and clears undo). "Load catalog…" beside it replaces the catalog with a TOML file's (asked
+  for: a friend loads their own solver's catalog; `load_catalog!`): each zone keeps all its properties, shown or carried
+  by the new catalog's list (in the undo steps too), still-valid option overrides and run settings kept, the old
+  catalog's others dropped, a host's own run settings kept, an unknown side kind set to the default; not undoable. `draw`'s
+  `catalog` may itself be the file (`Catalog(file)`). Checked by loading ElastoPlasm's catalog file
+  (`write_catalog(file, get_catalog())`) into a window opened with a two-field catalog: the Options tab appears, a zone's
+  `rho` stays carried. **Create…** (end of the
   Run step) runs `check_case` first (`ready!`: errors block it, warnings need a second click), then opens
   Qt's folder dialog (choose, or make with its New Folder button): `create!` sets the run's folder
   (`run.folder`), writes `<name>_case.toml` there and closes with the case;
   `setup_simulation` then writes the simulation (`.jld2`, plots, outputs) into that folder instead of
   `dump/<name>/` (a plain name, as for cases made in code). There is no Save…: the case file is written by
-  Create…. The dialogs start in the current directory (`qml_window(…; startdir=pwd())`), not in `dump/`,
+  Create…. The dialogs start in the current directory (`draw(…; startdir=pwd())`), not in `dump/`,
   the solver's scratch folder (`clean_dump()` empties it).
 - Editing: clicks snap to existing vertices, then edges, then the sub-cell lattice `h/ni`
   (`snap_point`; particles sit at sub-cell centres, so never on a vertex), within a snap radius of 1.5%
@@ -254,7 +297,7 @@ execute!(setup_simulation(case))
   zones** it overlaps (`cut_earlier!`, asked for next; the user chose automatic over on demand): their outlines then
   follow it, sharing its vertices (where outlines cross, the new zone gets a vertex too), so a zone may get several
   outlines (parts, holes); one covered entirely is removed; a cut circle becomes a polygon. The points do not change
-  (the new zone won them anyway), checked against the priority rule in `test_draw.jl`, but for a cut circle's next to
+  (the new zone won them anyway), checked against the priority rule in EasyDraw's tests, but for a cut circle's next to
   its arc; a circle cuts as an inscribed 32-gon, whose slivers it still wins. Deleting or moving the later zone then
   leaves a gap (undo restores it, one step with the drawing). `cut` (`cut.jl`): the edges of both split where they
   cross or touch, each piece kept when the difference lies on exactly one side of it (probed 1e-7·L away with the
@@ -357,11 +400,18 @@ block, column, thermal, collision) with `test/dataset/setup_reference.jld2`: per
 change; regenerate the reference (delete the file) only for an intended setup change, and say why.
 `test_case.jl` covers `Case`: shapes, validation, zone membership and overrides, TOML round
 trip, `check_case`/`estimate_dt` (= `get_dt`, 2D and extruded), zone constants reaching the particles,
-free option values, workflows, a short `execute!`, and the `Simulation` (build, save, load, in memory equal to the file run, older files). `test_draw.jl` covers the drawing window: its Qt-free
-part (`editing.jl`, loaded into a test module) everywhere, driven as a user would (drawing, snapping and
-shared edges, drag, undo, domain, zone constants, options, run, Create… (its warning confirmation, the folder) and loading a case,
-the caches and the readout, the JSON the view reads); then, where QML is installed, the window itself
-offscreen, a PNG of each step, twice in one session, then once on a picture (Qt measures it, the domain follows).
+free option values, workflows, a short `execute!`, and the `Simulation` (build, save, load, in memory equal to the file run, older files).
+`test_easydraw.jl` runs EasyDraw's own tests (`lib/EasyDraw/test/runtests.jl`, also `] test EasyDraw` in an
+environment that has it): shapes, zones, layouts and catalogs as TOML, sampling (`zone_at`,
+`property`, `points`), the partition (areas by hand, shared edges, sides, holes, a circle) and its `.geo`, the editor
+with a small test catalog and with none, driven as a user would (drawing, snapping and shared edges, drag, undo,
+cutting, circles, the picture, domain, sides, zone properties, options, run, Create… (its warning confirmation, the
+folder) and loading a file, the caches and the readout, the JSON the view reads); then the window offscreen, a PNG
+of each step, twice in one session, then once on a picture (a BMP written by
+the test: Qt measures it, the domain follows). `test_draw.jl` covers ElastoPlasm's side: `get_catalog` (every
+solver option, the zone constants and `show_if`, the run fields, as TOML), a case as a layout and back, a collision's
+preview points equal to the problem's, a case drawn through the editor (options, run, `check_case`, Create… writing a
+loadable `<name>_case.toml`, loading a case file), and `draw_case`'s window offscreen.
 
 `test_basis.jl` builds a small `n×m` mesh and, for every basis kind, sweeps a particle
 along the mid-height node row, plotting each tracked node's `Nᵢ(x)`/`∂Nᵢ/∂x(x)` and the

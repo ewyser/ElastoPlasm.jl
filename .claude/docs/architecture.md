@@ -37,11 +37,12 @@
   (`save_simulation`/`load_simulation`); `execute!(sim)` / `execute!(jld2)` run it in place (`execute` on a copy). The chain is
   `Case` → `Problem` → `Simulation`, each built from the one above.
 - `Case` (`src/boot/needs/types/problem/case.jl`) — the plain-data description a problem is built from: domain, zones
-  (`Zone` = shape `Polygon`/`Block`/`Ball`/`Region` + material overrides), default material
+  (`Zone` = shape `Polygon`/`Block`/`Ball`/`Region` + material overrides; `Zone` and the shapes are EasyDraw's,
+  `lib/EasyDraw`, re-exported, with `ZONE_PROPS` checked by `Case`), default material
   (`MATERIAL`), boundary conditions, solver overrides, thermal flag, run settings. `case_points`
   turns it into `PointData`, the explicit per-point contract `setup_mpts` reads. One build path
-  (`setup_simulation`), one TOML format (`save_case`/`load_case`); the drawing window edits it. See
-  "Describing a case" in `operations.md`.
+  (`setup_simulation`), one TOML format (`save_case`/`load_case`); the drawing window (EasyDraw's) edits it, as an
+  `EasyDraw.Layout` (`layout_of`/`case_of`). See "Describing a case" and "Drawing a case" in `operations.md`.
 - `Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}`
   (`src/boot/needs/types/basis/basis.jl`) — independent struct owning ALL
   mesh/point connectivity (`e2n`, `e2e`, `p2n`, `p2e` — `e2e` also doubles as the

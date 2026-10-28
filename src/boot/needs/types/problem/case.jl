@@ -21,140 +21,8 @@ const ZONE_PROPS = (keys(MATERIAL)..., :v)
 # gravity ramp, plastic stage), workflow (`WORKFLOWS`), load steps of the quasi-static workflows
 const RUN = (; folder="problem", te=10.0, tg=10.0, tep=5.0, workflow="elastodynamic! + elastoplastic!", lstps=10)
 const BOUNDARY_KINDS = (:free, :roller, :fixed)
-
-"""
-    inpolygon(x, z, v) -> Bool
-
-Whether the point `(x, z)` lies inside the polygon with vertices `v` (`[x, z]` pairs, not repeated
-at the end), by the even–odd rule, so concave polygons work.
-"""
-function inpolygon(x::Real, z::Real, v)
-    inside, j = false, length(v)
-    for i ∈ eachindex(v)
-        xi, zi, xj, zj = v[i][1], v[i][2], v[j][1], v[j][2]
-        if (zi > z) != (zj > z) && x < (xj - xi)*(z - zi)/(zj - zi) + xi
-            inside = !inside
-        end
-        j = i
-    end
-    return inside
-end
-
-abstract type AbstractShape end
-"""
-    Polygon(vertices)
-    Polygon(rings)
-    Polygon(vertices, sizes)
-
-A polygon in the x–z plane (`[x, z]` vertices, not repeated at the end; even–odd rule); in 3D it is
-extruded along y. Several outlines (`rings`, each a vector of vertices) make one zone of several parts or
-with holes, by the even–odd rule over all of them (inside an odd number of outlines: inside), as the drawing
-window leaves a zone cut by the ones drawn after it. `vertices` holds every outline's vertices, one outline
-after the other, and `sizes` how many each has (`polygon_rings`).
-"""
-struct Polygon <: AbstractShape
-    vertices::Vector{Vector{Float64}}
-    sizes::Vector{Int}
-    function Polygon(v, sizes=nothing)
-        nested = isnothing(sizes) && !isempty(v) && first(v) isa AbstractVector && !isempty(first(v)) && first(first(v)) isa AbstractVector
-        rings  = nested ? collect(v) : [v]
-        vs = [Float64.(collect(p)) for r ∈ rings for p ∈ r]
-        ns = isnothing(sizes) ? [length(r) for r ∈ rings] : collect(Int, sizes)
-        sum(ns) == length(vs) && all(≥(3), ns) && all(length.(vs) .== 2) ||
-            throw(ArgumentError("a Polygon needs at least 3 [x, z] vertices per outline"))
-        return new(vs, ns)
-    end
-end
-"The outlines of a polygon, each a vector of its vertices."
-function polygon_rings(s::Polygon)
-    ends = cumsum(s.sizes)
-    return [s.vertices[e-n+1:e] for (n, e) ∈ zip(s.sizes, ends)]
-end
-"""
-    Block(lo, hi)
-
-The axis-aligned box `lo ≤ x ≤ hi` (bounds included): `D` coordinates, or two (x, z) for a box
-extruded along y in 3D.
-"""
-struct Block <: AbstractShape
-    lo::Vector{Float64}
-    hi::Vector{Float64}
-    function Block(lo, hi)
-        length(lo) == length(hi) || throw(ArgumentError("Block bounds need the same length"))
-        all(lo .≤ hi) || throw(ArgumentError("Block needs lo ≤ hi"))
-        return new(Float64.(collect(lo)), Float64.(collect(hi)))
-    end
-end
-"""
-    Ball(centre, radius)
-
-The points at most `radius` from `centre` (bounds included): a disk in 2D, a sphere in 3D, or, with
-an (x, z) centre in 3D, a cylinder along y.
-"""
-struct Ball <: AbstractShape
-    centre::Vector{Float64}
-    radius::Float64
-    Ball(c, r) = r ≥ 0 ? new(Float64.(collect(c)), Float64(r)) : throw(ArgumentError("Ball needs radius ≥ 0"))
-end
-"""
-    Region(f)
-
-The points `x` (a vector of `D` coordinates) for which `f(x)` is true: any shape, from code. A
-`Region` cannot be written to a TOML file.
-"""
-struct Region{F} <: AbstractShape
-    f::F
-end
-
-# whether the point x (D coordinates) is in the shape; two-coordinate shapes act on (x, z)
-xz(x) = (x[1], x[end])
-function inside(s::Polygon, x)                                # even–odd over all its outlines
-    odd, o = false, 0
-    for n ∈ s.sizes
-        inpolygon(x[1], x[end], view(s.vertices, o+1:o+n)) && (odd = !odd)
-        o += n
-    end
-    return odd
-end
-function inside(s::Block, x)
-    c = length(s.lo) == length(x) ? x : xz(x)
-    length(c) == length(s.lo) || throw(ArgumentError("a Block of $(length(s.lo)) coordinates in $(length(x))D"))
-    return all(i -> s.lo[i] ≤ c[i] ≤ s.hi[i], eachindex(s.lo))
-end
-function inside(s::Ball, x)
-    c = length(s.centre) == length(x) ? x : xz(x)
-    length(c) == length(s.centre) || throw(ArgumentError("a Ball of $(length(s.centre)) coordinates in $(length(x))D"))
-    d2 = 0.0
-    for i ∈ eachindex(s.centre)
-        Δ = c[i] - s.centre[i]; d2 += Δ*Δ
-    end
-    return sqrt(d2) ≤ s.radius
-end
-inside(s::Region, x) = s.f(x)::Bool
-
-"""
-    Zone(name, shape; props...)
-    Zone(name, shape, props::AbstractDict)
-
-A part of the material: the material points whose sub-cell centre lies in `shape`, with `props`
-replacing the case's material (`MATERIAL` keys, SI, angles in radians) and an initial velocity `v`.
-A point belongs to the last zone that contains it.
-"""
-struct Zone
-    name::String
-    shape::AbstractShape
-    props::Dict{Symbol,Any}
-    function Zone(name::AbstractString, shape::AbstractShape, props::AbstractDict)
-        p = Dict{Symbol,Any}(Symbol(k) => v for (k, v) ∈ props)
-        bad = setdiff(keys(p), ZONE_PROPS)
-        isempty(bad) || throw(ArgumentError("zone \"$name\": unknown properties $(collect(bad)); known: $(ZONE_PROPS)"))
-        for (k, v) ∈ p
-            p[k] = k == :v ? Float64.(collect(v)) : Float64(v)
-        end
-        return new(String(name), shape, p)
-    end
-end
-Zone(name::AbstractString, shape::AbstractShape; props...) = Zone(name, shape, Dict{Symbol,Any}(props))
+# the shapes (`Polygon`, `Block`, `Ball`, `Region`, their `inside` rule) and `Zone` are EasyDraw's (lib/EasyDraw),
+# imported in boot.jl; a case's zones may set only `ZONE_PROPS`, checked by `Case`
 
 """
     Case(; L, nel, ni=2, zones, material=(;), bcs, solver=(;), thermal=false, run=(;), width=nothing, nely=nothing)
@@ -208,6 +76,12 @@ function Case(; L, nel, ni::Integer=2, zones=Zone[], material=(;), bcs=nothing, 
     size(b) == (D, 2) && all(∈(BOUNDARY_KINDS), b) ||
         throw(ArgumentError("bcs is one [lower upper] row per axis ($(D)×2), each one of $(BOUNDARY_KINDS)"))
     merge_config(get_default(), (; (k => v for (k, v) ∈ pairs(s) if haskey(get_default(), k))...))   # unknown fields: error now
+    for z ∈ zones                                            # material constants (numbers) and a velocity (numbers)
+        bad = setdiff(keys(z.props), ZONE_PROPS)
+        isempty(bad) || throw(ArgumentError("zone \"$(z.name)\": unknown properties $(collect(bad)); known: $(ZONE_PROPS)"))
+        all(((k, v),) -> k == :v ? v isa Vector{Float64} : v isa Float64, z.props) ||
+            throw(ArgumentError("zone \"$(z.name)\": its material constants are numbers, its velocity v a list of numbers"))
+    end
     return Case(L, nel, Int(ni), isnothing(width) ? nothing : Float64(width), isnothing(nely) ? nothing : Int(nely),
                        collect(Zone, zones), mat, b, s, thermal, case_run(run))
 end

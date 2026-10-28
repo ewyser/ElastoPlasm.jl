@@ -317,6 +317,22 @@
   one is drawn (`cut_earlier!`): a vertex dragged into another zone overlaps it again (shown dashed, later wins),
   and a later zone deleted or moved leaves a gap; a "cut again"/"merge back" action would cover both. Trackpad pinch
   and the middle button were checked only through the Julia logic (`wheel!`, `press!(…; pan)`), not on hardware.
+- **EasyDraw (`lib/EasyDraw`), possible follow-ups:** its own repository is done (EasyDraw.jl, a submodule here);
+  registration once the interface settles (then ElastoPlasm could add it by version instead of the submodule; with
+  Julia ≥ 1.11 a `[sources]` entry could replace the Manifest's path); make public what ElastoPlasm uses of it
+  (`subcell_centres`, `shape_dict`, `parse_shape`, `outside`, unexported; `test_draw` drives the editor's internals),
+  since a change there now lands in another repository;
+  for finite differences, the fraction of each zone per cell (sub-cell accuracy at interfaces, e.g. averaged
+  viscosities), since `zone_index`/`property` sample one point per grid node; for finite elements, `Physical Curve`s
+  for the interfaces between zones (`write_geo` writes the domain's sides only), and circles as Gmsh arcs where nothing
+  cuts them (an inscribed `ngon`-gon today, for the regions to fit); 3D beyond extrusion; the window's checks for a
+  layout without a host are minimal (`default_check`); a session's first window takes ~20 s, ~12 s of it compiling the
+  window's code, which a PrecompileTools workload over the Qt-free editor (`Editor`, edits, `panel_json`,
+  `background_json`) could move to precompilation. EasyDraw's compat holds QML at 0.12 (0.12.1, on Qt 6.8.2 like
+  Plots/GR); QML 0.13.2 exists: moving to it means checking the window on it, and in ElastoPlasm's environment it needs
+  a Qt that Plots/GR accept. The native macOS screenshots taken in the background show the
+  tab labels dimmer than when the window has focus; not checked in a focused window since the tabs became a
+  `Repeater`.
 - **Mesh quantities can't be plotted.** `plot.what` picks plottable *point* quantities only
   (`plottable()`); the mesh entries of `quantities()` can be recorded but have no plot label, and
   `what_plot_field(mesh, opts)` (the `opts.what == "v"` branches in `display.jl`) is not reached. (The old

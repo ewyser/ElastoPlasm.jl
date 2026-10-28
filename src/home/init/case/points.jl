@@ -12,7 +12,7 @@ zone's velocity `v` has `D` components, or two (x, z) in 3D.
 """
 function case_points(case::Case, mesh::Mesh{T1,T2,D}, solver) where {T1,T2,D}
     cand = mpts_populate(mesh.prprt; ni=case.ni)
-    zone = [something(findlast(z -> inside(z.shape, view(cand, :, p)), case.zones), 0) for p ∈ axes(cand, 2)]
+    zone = [zone_at(case.zones, view(cand, :, p)) for p ∈ axes(cand, 2)]         # EasyDraw's rule, as the window's
     keep = zone .> 0
     xp, zone = cand[:, keep], zone[keep]
     nmp, m = size(xp, 2), case.material
