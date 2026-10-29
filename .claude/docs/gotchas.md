@@ -42,6 +42,16 @@ happened to agree. So compare a refactor against its parent with `-t 1`: single-
 block matched the pre-refactor commit exactly (`refactor-init-problem-spec`). Setup-only checks
 (`test_setup.jl`) are not affected.
 
+**GIMP's stretch domain update is sensitive to how `deform` compiles.** `particle_domain` (`common/domain.jl`)
+computes `eigen(Symmetric(F'F))` and `n*diagm(√λ)*n'` with StaticArrays, whose products use `muladd`: LLVM fuses
+them into FMAs or not depending on the code around them, so a change elsewhere in the `deform` kernel can move `ℓ` by
+one ulp per step, and the whole GIMP (stretch) run by round-off. Seen twice: `fix-gimpm-stability` (moving the update
+into `deform`), and `feat-gpu-explicit`'s parametrized containers (`MeshProperties.nel` a static vector, so the
+kernel's loop bounds became constants): the first difference was `mpts.ℓ` at step 2, nothing upstream of it, and the
+GIMP·APIC·von Mises·hypoelastic slump ended at most 5e-14 relative apart (stress), 2e-16 (positions); uGIMP, which has
+no update, stayed bit-identical. In a bit-identity check, treat this case's difference as round-off once its first
+divergence is `ℓ`.
+
 
 ## Pkg on this machine rewrites the Manifest's Julia version
 

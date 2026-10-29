@@ -8,4 +8,3 @@ struct Time{T1<:Integer,T2<:Real}
     tg ::T2
     tep::T2
 end
-@adapt_struct Time

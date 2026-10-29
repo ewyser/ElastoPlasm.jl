@@ -134,6 +134,16 @@
         qs = Simulation(q; lstps=3)
         @test length(only(case_workflows(qs))(qs.problem)) == 3                                   # 3 load steps
     end
+    @testset "containers adapt: host arrays and back, unchanged" begin
+        p = Problem(EP.slump_case([64.1584, 16.0396], [16, 4]; plot=(; status=false), basis=(; which="gimpm", trsfr="apic")))
+        for x ∈ (p.mpts, p.mesh, p.basis)                                                  # the array types are parameters
+            y = EP.Adapt.adapt(Array, x)
+            @test typeof(y) == typeof(x)
+            @test all(f -> getfield(x, f) isa EP.AbstractTransfer || getfield(y, f) == getfield(x, f), fieldnames(typeof(x)))
+        end
+        @test EP.Adapt.adapt(Array, p.basis).transfer.Bᵢⱼ == p.basis.transfer.Bᵢⱼ
+        @test isbits(p.mesh.prprt) && p.basis.e2e isa EP.Adjacency                         # plain value; index vectors
+    end
     @testset "workflows and a short run" begin
         s = Case(; L=[20, 10], nel=[20, 10], width=4.0, nely=4, zones=[Zone("soil", Block([0, 0], [20, 6]))],
                    solver=(; plot=(; status=false)), run=(; folder="test/case_run", te=0.2, tg=0.1, tep=0.0, workflow="elastodynamic!"))

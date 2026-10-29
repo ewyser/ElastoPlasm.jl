@@ -1,4 +1,4 @@
-@inline function element_to_nodes_topology(xp::SVector{1,T2},x₀::SVector{1,T2},e2n::Vector{SVector{NN,T1}},h::SVector{1,T2},nel::Vector{T1}) where {T1,T2,NN}
+@inline function element_to_nodes_topology(xp::SVector{1,T2},x₀::SVector{1,T2},e2n::AbstractVector{SVector{NN,T1}},h::SVector{1,T2},nel::AbstractVector{T1}) where {T1,T2,NN}
     # Compute element indices
     elx = fld(xp[1]-x₀[1],h[1]) #clamp(fld(xp[1]-x₀[1],h[1]),0,nel[1]-1)
     el  = round(T1,1+elx)
@@ -6,7 +6,7 @@
     p2n = e2n[el]
     return el,p2n
 end
-@inline function element_to_nodes_topology(xp::SVector{2,T2},x₀::SVector{2,T2},e2n::Vector{SVector{NN,T1}},h::SVector{2,T2},nel::Vector{T1}) where {T1,T2,NN}
+@inline function element_to_nodes_topology(xp::SVector{2,T2},x₀::SVector{2,T2},e2n::AbstractVector{SVector{NN,T1}},h::SVector{2,T2},nel::AbstractVector{T1}) where {T1,T2,NN}
     # Compute element indices
     elx = fld(xp[1] - x₀[1], h[1]) #clamp(fld(xp[1] - x₀[1], h[1]), 0, nel[1] - 1)
     ely = fld(xp[2] - x₀[2], h[2]) #clamp(fld(xp[2] - x₀[2], h[2]), 0, nel[2] - 1)
@@ -15,7 +15,7 @@ end
     p2n = e2n[el]
     return el,p2n
 end
-@inline function element_to_nodes_topology(xp::SVector{3,T2},x₀::SVector{3,T2},e2n::Vector{SVector{NN,T1}},h::SVector{3,T2},nel::Vector{T1}) where {T1,T2,NN}
+@inline function element_to_nodes_topology(xp::SVector{3,T2},x₀::SVector{3,T2},e2n::AbstractVector{SVector{NN,T1}},h::SVector{3,T2},nel::AbstractVector{T1}) where {T1,T2,NN}
     # Compute element indices
     elx = fld(xp[1] - x₀[1], h[1]) #clamp(fld(xp[1] - x₀[1], h[1]), 0, nel[1] - 1)
     ely = fld(xp[2] - x₀[2], h[2]) #clamp(fld(xp[2] - x₀[2], h[2]), 0, nel[2] - 1)

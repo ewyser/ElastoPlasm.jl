@@ -66,18 +66,47 @@ accumulators, 100% APIC-exclusive — see its own docstring), the same kind-spec
 lives-on-the-kind-struct pattern `GimpBasis`'s `stencils` already uses.
 Threaded through the solver as a third argument alongside `mpts`/`mesh`, e.g. `p2e2n(mpts,mesh,basis)`.
 """
-struct Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}
+struct Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer,VN,A,VI,MI,M,A3}
     kind    ::K                              # BSplineBasis()/GimpBasis()/LinearBasis()/MLSBasis()
     transfer::TR                             # StdTransfer()/TpicTransfer()/ApicTransfer()
-    e2n  ::Vector{SVector{NN,T1}}
-    e2e  ::SparseMatrixCSC{T1,T1}
-    p2n  ::Vector{SVector{NN,T1}}
-    p2e  ::Vector{T1}
-    type ::Matrix{T1}
-    N    ::Matrix{T2}
-    ∂N   ::Array{T2,3}
+    e2n  ::VN
+    e2e  ::A                                 # an Adjacency{T1}
+    p2n  ::VN
+    p2e  ::VI
+    type ::MI
+    N    ::M
+    ∂N   ::A3
 end
-@adapt_struct Basis
+function Basis{T1,T2,D,NN}(kind::K, transfer::TR, e2n::VN, e2e::A, p2n::VN, p2e::VI, type::MI, N::M,
+                           ∂N::A3) where {T1,T2,D,NN,K,TR,VN,A,VI,MI,M,A3}
+    return Basis{T1,T2,D,NN,K,TR,VN,A,VI,MI,M,A3}(kind, transfer, e2n, e2e, p2n, p2e, type, N, ∂N)
+end
+function Adapt.adapt_structure(to, basis::Basis{T1,T2,D,NN}) where {T1,T2,D,NN}
+    return adapt_fields(to, basis, Basis{T1,T2,D,NN})
+end
+
+"""
+    Adjacency{T1}(ptr, idx)
+
+A sparse adjacency list in compressed-column form, as a `SparseMatrixCSC`'s pattern without its values: the entries
+of column `j` are `idx[ptr[j]:ptr[j+1]-1]`, read with `nzrange(a, j)` and `rowvals(a)` like a sparse matrix's. Two
+plain index vectors, so it lives on a device as well as on the host. `basis.e2e` is one (the elements near each
+element).
+"""
+struct Adjacency{T1,V}
+    ptr ::V
+    idx ::V
+end
+function Adjacency(ptr::V, idx::V) where {T1,V<:AbstractVector{T1}}
+    return Adjacency{T1,V}(ptr, idx)
+end
+@adapt_struct Adjacency
+@inline function SparseArrays.nzrange(a::Adjacency, j::Integer)
+    return a.ptr[j]:(a.ptr[j+1]-1)
+end
+@inline function SparseArrays.rowvals(a::Adjacency)
+    return a.idx
+end
 
 """
     stencil_size(basis) -> Int

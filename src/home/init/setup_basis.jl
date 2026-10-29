@@ -9,14 +9,14 @@ node and element indices (`p2n`, `p2e`) and shape values (`N`, `∂N`), zero her
 step by the `p2e2n` and `shpfun!` kernels.
 """
 function setup_basis(mesh::Mesh{T1,T2,D}, mpts::Point{T1,T2,D}, solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
-    nel, nno = mesh.prprt.nel, mesh.prprt.nno
+    nel, nno = collect(mesh.prprt.nel), collect(mesh.prprt.nno)
     kind     = get_basis(solver.basis.which, T1, D; domain=solver.basis.domain)
     NN       = prod(length.(kind.stencils))
     e2n_data = get_element_to_nodes(nel, nno, kind.stencils)
     e2e_data = e2e(nel, collect(mesh.prprt.h), solver)
     nmp      = mpts.nmp
     transfer = get_transfer(solver.basis.trsfr, T2, D, nmp)
-    return Basis{T1,T2,D,NN,typeof(kind),typeof(transfer)}(
+    return Basis{T1,T2,D,NN}(
         kind,
         transfer,
         e2n_data,

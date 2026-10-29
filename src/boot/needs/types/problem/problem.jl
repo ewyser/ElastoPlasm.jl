@@ -18,14 +18,13 @@ the material points (`case_points`, `setup_mpts`), the time stages (`case.run`) 
 (`setup_basis`). The case itself is not kept: everything it describes is in the built objects, and
 `setup_simulation` writes it as TOML beside the `.jld2`.
 """
-struct Problem{T1,T2,D,P<:Point{T1,T2,D},B<:Basis{T1,T2,D},S<:AbstractSolver{T1,T2,D}}
+struct Problem{T1,T2,D,P<:Point{T1,T2,D},B<:Basis{T1,T2,D},S<:AbstractSolver{T1,T2,D},M<:Mesh{T1,T2,D}}
     mpts   :: P
-    mesh   :: Mesh{T1,T2,D}
+    mesh   :: M
     basis  :: B
     time   :: Time{T1,T2}
     solver :: S
 end
-@adapt_struct Problem
 
 function Problem(case::Case)
     L, nel = domain(case)

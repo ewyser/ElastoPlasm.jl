@@ -32,19 +32,21 @@ size its vectors, unlike `StdTransfer`/`TpicTransfer`'s zero-arg constructors. `
 is a separate type parameter since
 `SMatrix{D,D,T,D*D}` — computing the length inline from `D` — isn't valid inside a
 struct's own field-type declaration (`D*D` on a bare `TypeVar`); `L` is only computed
-once `D` is a concrete value, inside the inner constructor.
+once `D` is a concrete value, in `ApicTransfer{T,D}(nmp)`. `VM` is the arrays' type (host or device).
 """
-struct ApicTransfer{T,D,L} <: AbstractTransfer
-    Bᵢⱼ::Vector{SMatrix{D,D,T,L}}
-    Dᵢⱼ::Vector{SMatrix{D,D,T,L}}
-    #
-    function ApicTransfer{T,D}(nmp::Integer) where {T,D}
-        L = D*D
-        return new{T,D,L}(
-            [zero(SMatrix{D,D,T,L}) for _ in 1:nmp],
-            [zero(SMatrix{D,D,T,L}) for _ in 1:nmp],
-        )
-    end
+struct ApicTransfer{T,D,L,VM} <: AbstractTransfer
+    Bᵢⱼ::VM
+    Dᵢⱼ::VM
+end
+function ApicTransfer{T,D}(nmp::Integer) where {T,D}
+    L = D*D
+    return ApicTransfer{T,D,L}([zero(SMatrix{D,D,T,L}) for _ in 1:nmp], [zero(SMatrix{D,D,T,L}) for _ in 1:nmp])
+end
+function ApicTransfer{T,D,L}(Bᵢⱼ::VM, Dᵢⱼ::VM) where {T,D,L,VM}
+    return ApicTransfer{T,D,L,VM}(Bᵢⱼ, Dᵢⱼ)
+end
+function Adapt.adapt_structure(to, tr::ApicTransfer{T,D,L}) where {T,D,L}
+    return adapt_fields(to, tr, ApicTransfer{T,D,L})
 end
 
 """

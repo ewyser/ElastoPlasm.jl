@@ -2,8 +2,20 @@
 
 - `Mesh{T1,T2,D}` — Eulerian background grid. Carries no connectivity (`e2n`/`e2e` live
   on `Basis`).
-- `Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L}`
-  — material points (Lagrangian). Every parameter but `L` is a real dispatch axis; `L == D*D`
+- **Host or device arrays: the containers' array types are type parameters.** `Point`, `PointSolidPhase`, `Mesh`,
+  `MeshSolidPhase`, the thermal phases, `Basis` and `ApicTransfer` take one parameter per distinct array type (`V`, `VV`,
+  `VM`, …), appended after the parameters code dispatches on, so `Point{T1,T2,D,CM,ST,EL}`, `Mesh{T1,T2,D}`,
+  `Basis{T1,T2,D,NN,K,TR}` still match every version and field syntax is unchanged. These parameters are unbounded:
+  bounds such as `V<:AbstractVector{T2}` refer to the other parameters and made subtype checks, hence compilation,
+  about three times slower (a first `Problem(case)` 10 → 34 s, `test_case` 43 s → 9 min); partial constructors
+  (`Mesh{T1,T2,D}(…)`, `Basis{T1,T2,D,NN}(…)`, …) take the arrays' types from the arguments. Each container's
+  `Adapt.adapt_structure` rebuilds it through `adapt_fields` (`boot/needs/utils.jl`), keeping plain-bits fields, so
+  `adapt(backend, mpts)` holds that backend's arrays and `adapt(Array, ·)` brings them back with the same type.
+  `MeshProperties{T1,T2,D,N,M}` is a plain value (static vectors), read alike on the host and in kernels; `mpts.f`/`t`
+  and `mesh.t` are `Nothing` or the phase through parameters, not `Union` fields; `basis.e2e` is an `Adjacency`
+  (`ptr`/`idx`, `nzrange`/`rowvals` like a sparse matrix's). The CPU code is unchanged (bit-identical, single thread).
+- `Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L,…}`
+  — material points (Lagrangian). Every parameter up to `EL` is a real dispatch axis; `L == D*D`
   only exists to keep the `D×D` kinematic fields (`SMatrix{D,D,T2,L}`: `F`, `ΔF`, `∇v`, ...)
   concrete, since Julia can't compute `D*D` in a field type —
   kernels never dispatch on it and recover a field's type via `eltype`. `ST` is the typed

@@ -67,69 +67,92 @@ strain in 2D), see `AbstractStrain`/`AbstractStress`.
 `m` is the solid mass `(1−n₀)ρ₀Ω₀`, set once at setup: `deform!` keeps `ρ·Ω` equal to it
 (solid mass conservation), so kernels read `m` rather than recomputing `ρ·Ω`.
 """
-struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L} <: AbstractMaterialPointPhase{T1,T2}
-    u    ::Vector{SVector{D,T2}}   # displacement per MP
-    v    ::Vector{SVector{D,T2}}   # velocity per MP
+# The arrays' types are parameters appended after the dispatched ones (`VV`: of SVector{D,T2}, `V`: of T2, `V2`: of
+# SVector{2,T2}, `VC`/`VK`: of Cauchy/Kirchhoff stress, `VM`: of SMatrix{D,D,T2,L}, `VS`: of ST, `VCM`: of CM), so the
+# struct holds host or device arrays alike (see eulerian.jl).
+struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L,
+                       VV,V,V2,VC,VK,VM,VS,VCM} <: AbstractMaterialPointPhase{T1,T2}
+    u    ::VV   # displacement per MP
+    v    ::VV   # velocity per MP
     # mechanical properties
-    ρ₀   ::Vector{T2}
-    ρ    ::Vector{T2}
-    m    ::Vector{T2}   # solid mass per MP, constant (solid mass conservation)
-    Δλ   ::Vector{T2}
-    ϵpII ::Vector{SVector{2,T2}}
-    ϵpV  ::Vector{T2}
+    ρ₀   ::V
+    ρ    ::V
+    m    ::V    # solid mass per MP, constant (solid mass conservation)
+    Δλ   ::V
+    ϵpII ::V2
+    ϵpV  ::V
     # typed stress tensors (see tensor.jl): pressure `.p` and deviator `.dev`; tensor via `get_tensor`
-    σᵢ   ::Vector{CauchyStress{T2}}
-    σn   ::Vector{CauchyStress{T2}}
-    τᵢ   ::Vector{KirchhoffStress{T2}}
+    σᵢ   ::VC
+    σn   ::VC
+    τᵢ   ::VK
     # tensor in matrix notation (SMatrix{ndim,ndim,T2} per MP)
-    ∇vᵢⱼ ::Vector{SMatrix{D,D,T2,L}}
-    ∇uᵢⱼ ::Vector{SMatrix{D,D,T2,L}}
-    ΔFᵢⱼ ::Vector{SMatrix{D,D,T2,L}}
-    Fᵢⱼ  ::Vector{SMatrix{D,D,T2,L}}
-    Fn   ::Vector{SMatrix{D,D,T2,L}}
-    ϵᵢ   ::Vector{ST}
-    ϵn   ::Vector{ST}
-    ωᵢⱼ  ::Vector{SMatrix{D,D,T2,L}}
+    ∇vᵢⱼ ::VM
+    ∇uᵢⱼ ::VM
+    ΔFᵢⱼ ::VM
+    Fᵢⱼ  ::VM
+    Fn   ::VM
+    ϵᵢ   ::VS
+    ϵn   ::VS
+    ωᵢⱼ  ::VM
     # per-particle static constitutive-model constants (Gc,Kc,Del,Hp,c₀,cᵣ,ϕ₀, ...)
-    cmp  ::Vector{CM}
+    cmp  ::VCM
 end
-@adapt_struct PointSolidPhase
+function PointSolidPhase{T1,T2,D,CM,ST,EL,L}(u::VV, v::VV, ρ₀::V, ρ::V, m::V, Δλ::V, ϵpII::V2, ϵpV::V, σᵢ::VC, σn::VC,
+                                             τᵢ::VK, ∇vᵢⱼ::VM, ∇uᵢⱼ::VM, ΔFᵢⱼ::VM, Fᵢⱼ::VM, Fn::VM, ϵᵢ::VS, ϵn::VS,
+                                             ωᵢⱼ::VM, cmp::VCM) where {T1,T2,D,CM,ST,EL,L,VV,V,V2,VC,VK,VM,VS,VCM}
+    return PointSolidPhase{T1,T2,D,CM,ST,EL,L,VV,V,V2,VC,VK,VM,VS,VCM}(u, v, ρ₀, ρ, m, Δλ, ϵpII, ϵpV, σᵢ, σn, τᵢ,
+                                                                      ∇vᵢⱼ, ∇uᵢⱼ, ΔFᵢⱼ, Fᵢⱼ, Fn, ϵᵢ, ϵn, ωᵢⱼ, cmp)
+end
+function Adapt.adapt_structure(to, s::PointSolidPhase{T1,T2,D,CM,ST,EL,L}) where {T1,T2,D,CM,ST,EL,L}
+    return adapt_fields(to, s, PointSolidPhase{T1,T2,D,CM,ST,EL,L})   # pins T1 and EL, which no field carries
+end
 
 struct PointFluidPhase{T1,T2,D} <: AbstractMaterialPointPhase{T1,T2}
     # Add concrete fields as needed, e.g.:
     # v    ::Matrix{T2}
 end
-@adapt_struct PointFluidPhase
 
-struct PointThermalPhase{T1,T2,D} <: AbstractMaterialPointPhase{T1,T2}
-    c   ::Vector{T2} # specific heat capacity vector
-    k   ::Vector{T2} # thermal conductivity vector
-    q   ::Matrix{T2} # heat flux array
-    T   ::Vector{T2} # temperature vector
+struct PointThermalPhase{T1,T2,D,V,M} <: AbstractMaterialPointPhase{T1,T2}
+    c   ::V # specific heat capacity vector
+    k   ::V # thermal conductivity vector
+    q   ::M # heat flux array
+    T   ::V # temperature vector
 end
-@adapt_struct PointThermalPhase
+function PointThermalPhase{T1,T2,D}(c::V, k::V, q::M, T::V) where {T1,T2,D,V,M}
+    return PointThermalPhase{T1,T2,D,V,M}(c, k, q, T)
+end
+function Adapt.adapt_structure(to, t::PointThermalPhase{T1,T2,D}) where {T1,T2,D}
+    return adapt_fields(to, t, PointThermalPhase{T1,T2,D})
+end
 
-struct Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L} <: AbstractMaterialPoint{T1,T2}
+struct Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L,V,VV,S,F,TH} <: AbstractMaterialPoint{T1,T2}
     # general information
     ndim ::T1
     nmp  ::T1
     # CFL-related quantity
-    vmax ::Vector{T2}
+    vmax ::V
     # material point properties
-    x    ::Vector{SVector{D,T2}}  # coordinates per MP
-    ℓ₀   ::Vector{SVector{D,T2}}  # reference domain half-lengths per MP
-    ℓ    ::Vector{SVector{D,T2}}  # current domain half-lengths per MP
-    n₀   ::Vector{T2}
-    n    ::Vector{T2}    
-    Ω₀   ::Vector{T2}
-    Ω    ::Vector{T2}
-    ΔJ   ::Vector{T2}
-    J    ::Vector{T2}
+    x    ::VV  # coordinates per MP
+    ℓ₀   ::VV  # reference domain half-lengths per MP
+    ℓ    ::VV  # current domain half-lengths per MP
+    n₀   ::V
+    n    ::V
+    Ω₀   ::V
+    Ω    ::V
+    ΔJ   ::V
+    J    ::V
     # solid phase
-    s    ::PointSolidPhase{T1,T2,D,CM,ST,EL,L}
-    # fluid phase
-    f    ::Union{Nothing, PointFluidPhase{T1,T2,D}}
-    # thermal phase
-    t    ::Union{Nothing, PointThermalPhase{T1,T2,D}}
+    s    ::S
+    # fluid phase (nothing without one)
+    f    ::F
+    # thermal phase (nothing without one)
+    t    ::TH
 end
-@adapt_struct Point
+# the dispatched parameters are the solid phase's
+function Point(ndim::T1, nmp::T1, vmax::V, x::VV, ℓ₀::VV, ℓ::VV, n₀::V, n::V, Ω₀::V, Ω::V, ΔJ::V, J::V,
+               s::PointSolidPhase{T1,T2,D,CM,ST,EL,L}, f::F, t::TH) where {T1,T2,D,CM,ST,EL,L,V,VV,F,TH}
+    return Point{T1,T2,D,CM,ST,EL,L,V,VV,typeof(s),F,TH}(ndim, nmp, vmax, x, ℓ₀, ℓ, n₀, n, Ω₀, Ω, ΔJ, J, s, f, t)
+end
+function Adapt.adapt_structure(to, mpts::Point)
+    return adapt_fields(to, mpts, Point)
+end

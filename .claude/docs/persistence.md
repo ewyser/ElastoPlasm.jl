@@ -36,6 +36,11 @@ at setup); set them up again from their case TOML, which still loads (a missing 
 `.jld2` files written before don't load; regenerate them with
 `setup_simulation(<example>_case(...))` or `setup_simulation(load_case(<name>_case.toml))`.
 
+**Format change:** the mesh, point and basis containers hold their arrays through type parameters (`feat-gpu-explicit`,
+so that a device's arrays fit them), `MeshProperties` holds static vectors, and `basis.e2e` is an `Adjacency` (two index
+vectors) instead of a `SparseMatrixCSC`: `.jld2` files written before don't load, and `load_simulation` says so (a
+file whose stored types no longer match is not a `Simulation` once read); set them up again from their case TOML.
+
 **HDF5 output beside it:** with `output.status`, a run also writes `<name>_output.h5` in the simulation's
 folder (plain HDF5, one array per recorded field with frames last); see "Recording a run" in
 `operations.md`. The `.jld2` stays the setup/restart file, the `.h5` the time series for analysis.

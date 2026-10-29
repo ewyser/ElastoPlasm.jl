@@ -15,7 +15,6 @@ struct PerfectlyElastic{T2,D} <: AbstractConstitutiveModel{T2,D}
     Gc::T2
     Kc::T2
 end
-@adapt_struct PerfectlyElastic
 
 """
     DruckerPrager{T2,D} <: AbstractConstitutiveModel{T2,D}
@@ -50,7 +49,6 @@ struct DruckerPrager{T2,D} <: AbstractConstitutiveModel{T2,D}
     cᵣ ::T2
     ϕ₀ ::T2
 end
-@adapt_struct DruckerPrager
 
 """
     VonMises{T2,D} <: AbstractConstitutiveModel{T2,D}
@@ -69,4 +67,3 @@ struct VonMises{T2,D} <: AbstractConstitutiveModel{T2,D}
     c₀ ::T2
     cᵣ ::T2
 end
-@adapt_struct VonMises

@@ -18,5 +18,7 @@ function load_simulation(file::AbstractString)
                                                        "setup_simulation(load_case(<name>_case.toml))"))
         f["simulation"]
     end
+    s isa Simulation || throw(ArgumentError("$file was written by an earlier ElastoPlasm whose types differ: set it up " *
+                                            "again, setup_simulation(load_case(<name>_case.toml))"))
     return Simulation(s.problem, s.workflow, s.lstps, dirname(abspath(file)))
 end
