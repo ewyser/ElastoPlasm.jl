@@ -55,7 +55,8 @@ function relax!(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g
     # reset grid, lumped mass and external force fᵉˣᵗ = Σ S m g (Eq 22)
     fill!(mesh.s.m, T2(0.0))
     fill!(mesh.s.v, zero(eltype(mesh.s.v)))
-    instr.cairn.implicit.mass_assembly!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
+    instr.cairn.implicit.mass_assembly!(mpts, mesh, basis; ndrange=mpts.nmp)
+    sync(bk)
     M̃    = fictitious_mass(mpts,mesh,basis)
     free = .!mesh.s.bcs.status .& (M̃ .> T2(0.0))'
     # (if stab.sfrac > 0) fix ill-conditioned nodes: exclude them from the update, residual and damping
@@ -70,13 +71,17 @@ function relax!(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g
     for it ∈ 0:itmax
         # stress and out-of-balance force for the current Δu
         fill!(mesh.s.oobf, T2(0.0))
-        instr.cairn.implicit.kinematics!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
-        instr.cairn.update.elast!(mpts; ndrange=mpts.nmp);sync(bk)
+        instr.cairn.implicit.kinematics!(mpts, mesh, basis; ndrange=mpts.nmp)
+        sync(bk)
+        instr.cairn.update.elast!(mpts; ndrange=mpts.nmp)
+        sync(bk)
         if plastic
             copyto!(mpts.s.ϵpII, ϵpIIₙ)
-            instr.cairn.update.retmap!(mpts; ndrange=mpts.nmp);sync(bk)
+            instr.cairn.update.retmap!(mpts; ndrange=mpts.nmp)
+            sync(bk)
         end
-        instr.cairn.implicit.fint!(mpts,mesh,basis,g; ndrange=mpts.nmp);sync(bk)
+        instr.cairn.implicit.fint!(mpts, mesh, basis, g; ndrange=mpts.nmp)
+        sync(bk)
         r = sqrt(sum(abs2, mesh.s.oobf[free]))
         r / nfᵉˣᵗ < tol && return it
         # critical damping α = 2ω₀ from the Rayleigh quotient (Eqs 39-40), fⁱⁿᵗᵢ − fⁱⁿᵗᵢ₋₁ = −(oobfᵢ − oobfᵢ₋₁)

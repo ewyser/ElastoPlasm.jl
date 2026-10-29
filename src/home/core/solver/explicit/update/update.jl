@@ -32,7 +32,8 @@ end
 function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     bk = exec_backend(solver)
     # update {logarithmic|infinitesimal} strains
-    solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(bk)
+    solver.cairn.update.deform!(mpts, mesh, basis, dt; ndrange=mpts.nmp)
+    sync(bk)
     # volumetric locking correction
     if solver.stab.locking
         # init mesh quantities to zero
@@ -40,21 +41,26 @@ function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,
         # calculate dimensional cst.
         dim = T2(1.0/(length(mesh.prprt.nel)-1))
         # mapping to mesh
-        solver.cairn.update.ΔJn!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
+        solver.cairn.update.ΔJn!(mpts, mesh, basis; ndrange=mpts.nmp)
+        sync(bk)
         # compute determinant Jbar
-        solver.cairn.update.ΔJp!(mpts,mesh,basis,dim; ndrange=mpts.nmp);sync(bk)
+        solver.cairn.update.ΔJp!(mpts, mesh, basis, dim; ndrange=mpts.nmp)
+        sync(bk)
     end
     # update {kirchoff|cauchy} stresses
-    solver.cairn.update.elast!(mpts; ndrange=mpts.nmp);sync(bk)
+    solver.cairn.update.elast!(mpts; ndrange=mpts.nmp)
+    sync(bk)
     # update mp's coordinates
-    solver.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(bk)
+    solver.cairn.update.coords!(mpts, mesh; ndrange=mpts.nmp)
+    sync(bk)
     return nothing
 end
 
 function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     bk = exec_backend(solver)
     # update {logarithmic|infinitesimal} strains
-    solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(bk)
+    solver.cairn.update.deform!(mpts, mesh, basis, dt; ndrange=mpts.nmp)
+    sync(bk)
     # volumetric locking correction
     if solver.stab.locking
         # init mesh quantities to zero
@@ -62,12 +68,15 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt
         # calculate dimensional cst.
         dim = T2(1.0/(length(mesh.prprt.nel)-1))
         # mapping to mesh
-        solver.cairn.update.ΔJn!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
+        solver.cairn.update.ΔJn!(mpts, mesh, basis; ndrange=mpts.nmp)
+        sync(bk)
         # compute determinant Jbar
-        solver.cairn.update.ΔJp!(mpts,mesh,basis,dim; ndrange=mpts.nmp);sync(bk)
+        solver.cairn.update.ΔJp!(mpts, mesh, basis, dim; ndrange=mpts.nmp)
+        sync(bk)
     end
     # update {kirchoff|cauchy} stresses
-    solver.cairn.update.elast!(mpts; ndrange=mpts.nmp);sync(bk)
+    solver.cairn.update.elast!(mpts; ndrange=mpts.nmp)
+    sync(bk)
     # plastic corrector
     if solver.nonloc.status
         map!(e -> SVector{2,T2}(e[1], T2(0.0)), mpts.s.ϵpII, mpts.s.ϵpII)   # element-wise: any device
@@ -75,22 +84,27 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt
         # an O(nmp²) scan (see nonlocal.jl's docstring)
         el2p = element_particles(mpts,mesh,basis,solver)
         W    = fill!(similar(mpts.Ω), T2(0.0))
-        solver.cairn.update.nonloc_pq!(W,mpts,basis,T2(solver.nonloc.ls),el2p; ndrange=mpts.nmp);sync(bk)
-        solver.cairn.update.nonloc_qp!(W,mpts,basis,T2(solver.nonloc.ls),el2p; ndrange=mpts.nmp);sync(bk)
+        solver.cairn.update.nonloc_pq!(W, mpts, basis, T2(solver.nonloc.ls), el2p; ndrange=mpts.nmp)
+        sync(bk)
+        solver.cairn.update.nonloc_qp!(W, mpts, basis, T2(solver.nonloc.ls), el2p; ndrange=mpts.nmp)
+        sync(bk)
     else
         map!(e -> SVector{2,T2}(e[1], e[1]), mpts.s.ϵpII, mpts.s.ϵpII)
     end
     # plastic return-mapping dispatcher
-    solver.cairn.update.retmap!(mpts; ndrange=mpts.nmp);sync(bk)
+    solver.cairn.update.retmap!(mpts; ndrange=mpts.nmp)
+    sync(bk)
     # update mp's coordinates
-    solver.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(bk)
+    solver.cairn.update.coords!(mpts, mesh; ndrange=mpts.nmp)
+    sync(bk)
     return nothing
 end
 
 function thermo(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
     bk = exec_backend(solver)
     # update temperature
-    solver.cairn.update.heat!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
+    solver.cairn.update.heat!(mpts, mesh, basis; ndrange=mpts.nmp)
+    sync(bk)
     return nothing
 end
 

@@ -49,7 +49,8 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Abst
     bk = exec_backend(solver)
     # get cauchy stress
     if solver.material.elastic != "hypoelastic"
-        solver.cairn.mapsto.map.σᵢ!(ndrange=mpts.nmp,mpts);sync(bk)
+        solver.cairn.mapsto.map.σᵢ!(mpts; ndrange=mpts.nmp)
+        sync(bk)
     end
     # reset nodal quantities
     fill!(mesh.s.m   , zero(eltype(mesh.s.m   )))
@@ -58,11 +59,14 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Abst
     fill!(mesh.s.a   , zero(eltype(mesh.s.a   )))
     fill!(mesh.s.v   , zero(eltype(mesh.s.v   )))
     # mapping to mesh
-    solver.cairn.mapsto.map.p2n!(mpts,mesh,basis,g; ndrange=mpts.nmp);sync(bk)
+    solver.cairn.mapsto.map.p2n!(mpts, mesh, basis, g; ndrange=mpts.nmp)
+    sync(bk)
     # solve Eulerian momentum equation
-    solver.cairn.mapsto.map.solve!(mesh,dt,T2(solver.stab.damping); ndrange=mesh.prprt.nno[end]);sync(bk)
+    solver.cairn.mapsto.map.solve!(mesh, dt, T2(solver.stab.damping); ndrange=mesh.prprt.nno[end])
+    sync(bk)
     # maps back solution to material point
-    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.basis.C_pf); ndrange=mpts.nmp);sync(bk)
+    solver.cairn.mapsto.map.n2p!(mpts, mesh, basis, dt, T2(solver.basis.C_pf); ndrange=mpts.nmp)
+    sync(bk)
     # the largest particle speed per axis, for the next step's CFL bound (get_dt, which zeroed vmax): a reduction,
     # exact in any order (it was an atomic store in n2p, which raced between threads and has no CUDA version)
     vmax = mapreduce(v -> abs.(v), (a, b) -> max.(a, b), mpts.s.v; init=zero(eltype(mpts.s.v)))
@@ -73,13 +77,16 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Abst
         fill!(mesh.s.mv, zero(eltype(mesh.s.mv)))
         fill!(mesh.s.v , zero(eltype(mesh.s.v )))
         # accumulate material point contributions
-        solver.cairn.mapsto.augm.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
+        solver.cairn.mapsto.augm.p2n!(mpts, mesh, basis; ndrange=mpts.nmp)
+        sync(bk)
         # solve for nodal incremental displacement
-        solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(bk)
+        solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end])
+        sync(bk)
     end
     # (for APIC) compute Bᵢⱼ for material points — Bij's TR<:StdTransfer/TpicTransfer
     # methods are no-ops, so this is safe to call unconditionally.
-    solver.cairn.mapsto.map.Bᵢⱼ!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
+    solver.cairn.mapsto.map.Bᵢⱼ!(mpts, mesh, basis; ndrange=mpts.nmp)
+    sync(bk)
     return nothing
 end
 
@@ -110,16 +117,21 @@ function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1
     fill!(mesh.oobq,T2(0.0))
     fill!(mesh.dT  ,T2(0.0))
     # mapping to mesh
-    solver.cairn.mapsto.map.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
+    solver.cairn.mapsto.map.p2n!(mpts, mesh, basis; ndrange=mpts.nmp)
+    sync(bk)
     # solve nodal heat-balance equation
-    solver.cairn.mapsto.map.solve!(mesh,dt; ndrange=mesh.prprt.nno[end]);sync(bk)
+    solver.cairn.mapsto.map.solve!(mesh, dt; ndrange=mesh.prprt.nno[end])
+    sync(bk)
     # maps back solution to material point
-    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.basis.C_pf); ndrange=mpts.nmp);sync(bk)
+    solver.cairn.mapsto.map.n2p!(mpts, mesh, basis, dt, T2(solver.basis.C_pf); ndrange=mpts.nmp)
+    sync(bk)
     # (if musl) reproject nodal temperature
     if solver.stab.musl
         fill!(mesh.mcT,T2(0.0))
-        solver.cairn.mapsto.augm.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
-        solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(bk)
+        solver.cairn.mapsto.augm.p2n!(mpts, mesh, basis; ndrange=mpts.nmp)
+        sync(bk)
+        solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end])
+        sync(bk)
     end
     return nothing
 end

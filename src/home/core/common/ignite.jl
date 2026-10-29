@@ -40,12 +40,15 @@ Initialize and compute shape functions and topological relations for material po
 function ignite(mpts::Point,mesh::Mesh,basis::Basis,solver::AbstractSolver)
     bk = exec_backend(solver)
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
-    solver.cairn.ignite.tplgy!(mpts,mesh,basis; ndrange=(mpts.nmp));sync(bk)
+    solver.cairn.ignite.tplgy!(mpts, mesh, basis; ndrange=mpts.nmp)
+    sync(bk)
     # cache shape values/gradients for all NN neighbors of every particle
-    solver.cairn.ignite.shpfun!(mpts,mesh,basis; ndrange=(mpts.nmp));sync(bk)
+    solver.cairn.ignite.shpfun!(mpts, mesh, basis; ndrange=mpts.nmp)
+    sync(bk)
     # calculate identity shape functions
     if solver.basis.trsfr == "apic"
-        solver.cairn.ignite.Dᵢⱼ!(mpts,mesh,basis; ndrange=(mpts.nmp));sync(bk)
+        solver.cairn.ignite.Dᵢⱼ!(mpts, mesh, basis; ndrange=mpts.nmp)
+        sync(bk)
     end
     return nothing
 end

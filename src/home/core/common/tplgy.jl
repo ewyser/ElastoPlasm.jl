@@ -51,13 +51,16 @@ function element_particles(mpts::Point{T1},mesh::Mesh{T1},basis::Basis{T1},solve
     bk     = exec_backend(solver)
     nel    = Int(mesh.prprt.nel[end])
     counts = fill!(similar(basis.p2e, nel), zero(T1))
-    solver.cairn.update.el2p_count!(counts, basis; ndrange=mpts.nmp);sync(bk)
+    solver.cairn.update.el2p_count!(counts, basis; ndrange=mpts.nmp)
+    sync(bk)
     starts = vcat(one(T1), one(T1) .+ cumsum(Array(counts)))          # ptr: each element's first slot
     ptr    = copyto!(similar(basis.p2e, nel + 1), starts)
     cursor = copyto!(similar(basis.p2e, nel), starts[1:nel])
     idx    = similar(basis.p2e, Int(mpts.nmp))
-    solver.cairn.update.el2p_fill!(idx, cursor, basis; ndrange=mpts.nmp);sync(bk)
-    solver.cairn.update.el2p_sort!(idx, ptr; ndrange=nel);sync(bk)
+    solver.cairn.update.el2p_fill!(idx, cursor, basis; ndrange=mpts.nmp)
+    sync(bk)
+    solver.cairn.update.el2p_sort!(idx, ptr; ndrange=nel)
+    sync(bk)
     return Adjacency(ptr, idx)
 end
 @kernel inbounds = true function el2p_count(counts, basis::Basis{T1}) where {T1}
