@@ -8,10 +8,8 @@
   would drift once `mpts` evolves, and a `Region` closure does not serialise; its TOML beside the
   `.jld2` is the provenance. Kernels keep their `(mpts, mesh, basis, …)` arguments; workflows are
   functions of a `Problem`, and a `Simulation` (problem + workflow + folder) is what runs and what a
-  `.jld2` holds (see `architecture.md`). Possible follow-up: the
-  solver mixes configuration (part of the problem) with the kernel table `cairn` (machinery,
-  rebuilt from the configuration); rebuilding `cairn` on load would make the stored `Problem` pure
-  data. `types/problem/` files load in `boot.jl`'s explicit order, `problem.jl` last (it needs
+  `.jld2` holds (see `architecture.md`). The stored solver is its configuration only: the kernel table `cairn` and
+  the selected devices are rebuilt on load (`build_solver`, `persistence.md`), so the stored `Problem` is pure data. `types/problem/` files load in `boot.jl`'s explicit order, `problem.jl` last (it needs
   `Point`, `Mesh`, `Basis`, `Time`, `Case`).
 - **Next: a `Solver` level, Case → Problem → Solver → Simulation** (separating what is solved from
   how). Split the solver options into *build* options, which decide the `Problem`'s types and contents

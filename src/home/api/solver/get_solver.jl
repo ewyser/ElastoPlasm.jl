@@ -12,6 +12,23 @@ function exec_backend(x)
 end
 
 """
+    solver_config(solver) -> NamedTuple
+
+A solver's configuration, the sections `build_solver` takes: what `save_simulation` keeps of a solver, without the
+selected devices (`backend.exec`) or the kernels (`cairn`), which `load_simulation` rebuilds where the file is loaded.
+`stored_solver(solver)` is the solver holding only it (no kernels: `cairn = nothing`).
+"""
+function solver_config(s::AbstractSolver)
+    return (; solution=s.solution, dtype=s.dtype, basis=s.basis, stab=s.stab, bcs=s.bcs, grf=s.grf, material=s.material,
+              nonloc=s.nonloc, plot=s.plot, output=s.output, backend=(; select=s.backend.select, distributed=s.backend.distributed))
+end
+function stored_solver(s::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+    c = solver_config(s)
+    return Base.typename(S).wrapper{T1,T2,D}(c.solution, c.dtype, c.basis, c.stab, c.bcs, c.grf, c.material, c.nonloc,
+                                             c.plot, c.output, c.backend, nothing)
+end
+
+"""
     merge_config(ref, user; path="") -> NamedTuple
 
 `user`'s settings over `ref`'s, section by section: nested sections are merged field by field
@@ -64,7 +81,19 @@ function get_solver(; dim::Number=2, kwargs...)
     # Verify plotting status from ui
     if !ElastoPlasm.self.ui.plot
         instr = merge(instr, (; plot = merge(instr.plot, (; status = false,)),))
-    end    
+    end
+    return build_solver(instr, dim)
+end
+
+"""
+    build_solver(instr, dim) -> ExplicitSolver or ImplicitSolver
+
+The solver of a complete configuration `instr` (`get_default()`'s sections, merged): the execution backend selected
+(`backend.select`, through UnifiedBackend, unless `backend.exec` is given) and the kernels built on it (`cairn`).
+`get_solver` ends with it, and `load_simulation` rebuilds a saved solver with it from its stored configuration
+(`solver_config`), so the device is picked on the machine that loads the file.
+"""
+function build_solver(instr::NamedTuple, dim::Integer)
     # Set execution backend
     if !haskey(instr[:backend],:exec)
         exec  = UnifiedBackend.select_execution_backend(UnifiedBackend.get_backend().exec, instr[:backend][:select]; distributed=instr[:backend][:distributed])

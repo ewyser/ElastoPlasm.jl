@@ -14,6 +14,13 @@ workflow. `mpts.s.cmp` (constitutive constants) and APIC's `Bᵢⱼ`/`Dᵢⱼ` (
 scripts, was never the key.) `test_column.jl` once lagged a layout change for a long stretch, see
 `.claude/bug/fixed/test-collapse-renamed-and-fixed.md`.
 
+**The solver is stored as its configuration** (`feat-gpu-explicit`): `save_simulation` writes `stored_solver(solver)`,
+the same solver type with `backend = (; select, distributed)` (no `exec`, the devices UnifiedBackend selected) and
+`cairn = nothing` (no kernel objects), and `load_simulation` rebuilds it with `build_solver(solver_config(…), D)`, the
+code `get_solver` ends with: the kernels are built again and the device picked on the machine that loads the file
+(a file written on a GPU machine opens on a laptop, which runs it on its host unless it has a GPU). Files written
+before still load (their kernels and `exec` are ignored).
+
 **Format change:** `solver.plot.what` holds quantity keys (`["p", "epII"]`) instead of NamedTuples of
 plot settings (`quantities()`), so a `.jld2` written before plots nothing it can resolve; set it up
 again from its case TOML (`plot.what` there was written by name, which still loads).
