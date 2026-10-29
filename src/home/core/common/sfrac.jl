@@ -55,7 +55,7 @@ Mark the nodes that carry material but whose relative solid fraction `r_I / V_I`
 (`ignite`) for the current configuration.
 """
 function inactive_nodes!(inactive::Vector{Bool},r::Vector{T2},mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},V::Vector{T2},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
-    bk = get_backend(mpts.x)   # the backend the arrays live on
+    bk = exec_backend(solver)
     fill!(r, T2(0.0))
     solver.cairn.ignite.sfrac!(mpts,mesh,basis,r; ndrange=mpts.nmp);sync(bk)
     ε = T2(solver.stab.sfrac)

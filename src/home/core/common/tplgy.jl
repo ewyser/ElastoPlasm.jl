@@ -48,7 +48,7 @@ over it stay deterministic. With `basis.e2e` it bounds `nonlocal.jl`'s neighbour
 `O(nmp²)` (see its docstring).
 """
 function element_particles(mpts::Point{T1},mesh::Mesh{T1},basis::Basis{T1},solver::AbstractSolver) where {T1}
-    bk     = get_backend(mpts.x)
+    bk     = exec_backend(solver)
     nel    = Int(mesh.prprt.nel[end])
     counts = fill!(similar(basis.p2e, nel), zero(T1))
     solver.cairn.update.el2p_count!(counts, basis; ndrange=mpts.nmp);sync(bk)

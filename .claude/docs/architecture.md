@@ -154,7 +154,8 @@ commit to be the *only* behavior change from this refactor; not a regression.
   `solver.cairn.mapsto.map.p2n!`, `solver.cairn.update.deform!`, ...), built by
   `init_ignite`/`init_mapsto`/`init_update`/`init_implicit` in `get_solver.jl`, on the solver's backend
   (`exec_backend(instr)`, the device `backend.exec` selected; `CPU()` for the host); each launch is followed by
-  `sync(bk)`, `bk = get_backend(mpts.x)` the backend the arrays live on. Every
+  `sync(bk)`, `bk = exec_backend(solver)`: the solver owns the backend, and the kernels, the syncs and `to_device`
+  all take it from there (not from the arrays, `get_backend(mpts.x)`, as at first). Every
   kernel/function in this path takes `basis::Basis` as its 3rd positional arg after
   `(mpts, mesh, ...)`.
 - `src/home/core/solver/dynamic_relaxation/` — implicit quasi-static path

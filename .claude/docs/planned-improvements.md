@@ -260,8 +260,8 @@
   `.claude/bug/fixed/hypoelastic-jaumann-rotation-is-zero.md`.
 - **GPU execution — explicit path wired, not yet run on a GPU** (branch `feat-gpu-explicit`; see "Running on a GPU" in
   `operations.md`). Done, each bit-identical on the CPU: UnifiedBackend (`lib/UnifiedBackend`) selects the device;
-  the containers hold host or device arrays; the kernels are built on the selected device's backend and synchronize
-  where the arrays live; the time step has no host loop (`get_dt` and `vmax` are reductions, the `ϵpII` resets a
+  the containers hold host or device arrays; the kernels are built and synchronized on the solver's backend
+  (`exec_backend`); the time step has no host loop (`get_dt` and `vmax` are reductions, the `ϵpII` resets a
   `map!`, the nonlocal element buckets built by kernels, `norm` of a column written out); `elastodynamic!`/
   `elastoplastic!` run on a device and copy back at checkpoints; saved simulations hold no kernels or devices. Tested on
   JLArrays (`test_device.jl`). Left, in order:

@@ -46,7 +46,7 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 - `nothing`. Updates fields in-place.
 """
 function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::AbstractVector{T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
-    bk = get_backend(mpts.x)   # the backend the arrays live on
+    bk = exec_backend(solver)
     # get cauchy stress
     if solver.material.elastic != "hypoelastic"
         solver.cairn.mapsto.map.σᵢ!(ndrange=mpts.nmp,mpts);sync(bk)
@@ -103,7 +103,7 @@ minus the gravity/finite-strain/APIC concerns that don't apply to the thermal ph
 - `nothing`. Updates fields in-place.
 """
 function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
-    bk = get_backend(mpts.x)   # the backend the arrays live on
+    bk = exec_backend(solver)
     # reset nodal quantities
     fill!(mesh.cᵢ  ,T2(0.0))
     fill!(mesh.mcT ,T2(0.0))

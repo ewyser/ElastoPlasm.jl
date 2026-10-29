@@ -38,7 +38,7 @@ Initialize and compute shape functions and topological relations for material po
 - `nothing`. Updates fields in-place.
 """
 function ignite(mpts::Point,mesh::Mesh,basis::Basis,solver::AbstractSolver)
-    bk = get_backend(mpts.x)   # the backend the arrays live on
+    bk = exec_backend(solver)
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
     solver.cairn.ignite.tplgy!(mpts,mesh,basis; ndrange=(mpts.nmp));sync(bk)
     # cache shape values/gradients for all NN neighbors of every particle

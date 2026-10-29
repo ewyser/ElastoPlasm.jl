@@ -5,7 +5,8 @@ export get_solver
 
 The backend a solver runs on, for the solver or its configuration (`instr`): its platform's (`backend.exec`, the
 UnifiedBackend `Platform` `get_solver` selected), `CPU()` for the host. The kernels are built on it (`init_ignite`,
-`init_mapsto`, `init_update`, `init_implicit`).
+`init_mapsto`, `init_update`, `init_implicit`), the workflows synchronize on it and `to_device` moves a problem to it:
+the solver is where the backend is read, never the arrays.
 """
 function exec_backend(x)
     return x.backend.exec.backend

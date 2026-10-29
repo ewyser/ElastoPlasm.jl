@@ -30,7 +30,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
 end
 
 function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
-    bk = get_backend(mpts.x)   # the backend the arrays live on
+    bk = exec_backend(solver)
     # update {logarithmic|infinitesimal} strains
     solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(bk)
     # volumetric locking correction
@@ -52,7 +52,7 @@ function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,
 end
 
 function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
-    bk = get_backend(mpts.x)   # the backend the arrays live on
+    bk = exec_backend(solver)
     # update {logarithmic|infinitesimal} strains
     solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(bk)
     # volumetric locking correction
@@ -88,7 +88,7 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt
 end
 
 function thermo(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
-    bk = get_backend(mpts.x)   # the backend the arrays live on
+    bk = exec_backend(solver)
     # update temperature
     solver.cairn.update.heat!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
     return nothing
