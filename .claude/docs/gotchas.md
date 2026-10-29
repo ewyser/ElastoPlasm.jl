@@ -75,3 +75,12 @@ repositories, of which ElastoPlasm records one commit each. Below, `lib/X` is ei
   it does no harm and comes back into use when switching back.
 - A sibling clone of UnifiedBackend.jl (`../UnifiedBackend.jl`) is a separate checkout: `git pull` it after pushing
   from `lib/UnifiedBackend`.
+
+## Device runs differ from host runs by round-off
+
+StaticArrays' small matrix products use `muladd`, which LLVM fuses into FMAs or not depending on how the kernel is
+compiled. A kernel compiled for a device's array types fuses differently from the host's: on JLArrays (the local
+stand-in device, `test_device.jl`), `F = ΔF·F` in `deform` first differed by one ulp while `∇v` and `ΔF` were equal,
+and a short plastic slump ended at most 9e-12 relative apart (Float64), 8e-7 (Float32); integer and Bool arrays were
+equal. Compare device and host runs with a relative tolerance, not bit for bit; a GPU's own `exp`/`log`/`sqrt` add to
+it. JLArrays has no `KernelAbstractions.synchronize` method (the test defines a no-op one).

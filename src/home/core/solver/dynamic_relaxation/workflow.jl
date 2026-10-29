@@ -13,6 +13,7 @@ iteration (non-local regularization is not applied). Finite strain only. To chan
 """
 function elastoquasistatic!(mpts::Point{T1,T2,D,CM,ST},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S; lstps::Int=10, tol::Real=1e-9, plastic::Bool=false, G::Real=9.81) where {T1,T2,D,CM,ST,S<:AbstractSolver{T1,T2,D}}
     bk = get_backend(mpts.x)   # the backend the arrays live on
+    host_only(instr, "elastoquasistatic!")
     ST <: LogarithmicStrain || throw(ArgumentError("elastoquasistatic! is finite-strain only: material.elastic=\"hypoelastic\" is not supported"))
     its  = zeros(Int, lstps)
     sf   = node_exclusion(mpts,mesh,instr)

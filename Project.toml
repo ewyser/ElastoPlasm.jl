@@ -25,3 +25,9 @@ Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 UnifiedBackend = "53203a36-6468-4ce1-9d2a-5f04ad17d58e"
+
+[extras]
+JLArrays = "27aeb0d3-9eb9-45fb-866b-73c2ecf80fcb"
+
+[targets]
+test = ["JLArrays"]

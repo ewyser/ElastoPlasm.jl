@@ -413,6 +413,14 @@ solver option, the zone constants and `show_if`, the run fields, as TOML), a cas
 preview points equal to the problem's, a case drawn through the editor (options, run, `check_case`, Create… writing a
 loadable `<name>_case.toml`, loading a case file), and `draw_case`'s window offscreen.
 
+`test_device.jl` runs the explicit workflows on a device: JLArrays (GPUArrays' reference array, on the CPU; a
+test-only dependency, `[extras]`, installed by `Pkg.test()`; the file is skipped without it), registered as a
+UnifiedBackend device, with host element access forbidden (`allowscalar(false)`). Five 2D configurations, 3D and
+Float32 match the host run to round-off (Float64 1e-9 relative, Float32 1e-5; integers and Bools exactly; see
+`gotchas.md`), the device copy holds device arrays only and returns to the same types, and dynamic relaxation and
+thermal refuse a device. To run it outside `Pkg.test()`, put an environment with JLArrays on the load path
+(`JULIA_LOAD_PATH="@:<env with JLArrays>:@stdlib"`).
+
 `test_basis.jl` builds a small `n×m` mesh and, for every basis kind, sweeps a particle
 along the mid-height node row, plotting each tracked node's `Nᵢ(x)`/`∂Nᵢ/∂x(x)` and the
 partition-of-unity `Σᵢ Nᵢ(x)` — useful as a quick correctness check on a new/changed

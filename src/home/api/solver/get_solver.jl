@@ -68,6 +68,8 @@ function get_solver(; dim::Number=2, kwargs...)
     # Set execution backend
     if !haskey(instr[:backend],:exec)
         exec  = UnifiedBackend.select_execution_backend(UnifiedBackend.get_backend().exec, instr[:backend][:select]; distributed=instr[:backend][:distributed])
+        length(exec) > 1 && @warn "$(length(exec)) devices selected: the solver runs on the first, $(first(values(exec)).name)"
+        UnifiedBackend.device_wakeup!(first(values(exec)).handle)   # a GPU becomes the current device; nothing for a host
         instr = merge(instr, (; backend = merge(instr[:backend], (; exec = exec,)),))
     end
     # Add cairns to instr     

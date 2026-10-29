@@ -141,6 +141,13 @@ commit to be the *only* behavior change from this refactor; not a regression.
   require a particular concrete `solution` value (unlike `elastodynamic!`/
   `elastoplastic!`, typed to `ExplicitSolver` specifically — see `solution` in
   `operations.md`).
+- **Running on a device (explicit path).** `elastodynamic!`/`elastoplastic!` move the points, mesh and basis to the
+  solver's device once (`to_device`, `src/home/core/device.jl`: the same objects on the host, no copy; otherwise
+  `adapt(exec_backend(solver), ·)`), step there, and copy the arrays back into the host problem (`to_host!`) at each
+  checkpoint that plots or records and at the end: the host problem stays what a `Simulation` holds, saves and plots.
+  A step touches the device arrays only through kernels and whole-array operations (`mapreduce`, `map!`, `fill!`,
+  `copyto!`): `get_dt`'s wave speed and `mapsto`'s `vmax` are reductions, the nonlocal element buckets are built by
+  kernels (`element_particles`). `elastoquasistatic!` and `thermodynamic!` refuse a device (`host_only`).
 - `src/home/core/solver/explicit/` — the primary, actively-used path
   (`elastodynamic!`, `elastoplastic!`). Kernel dispatch table lives on
   `solver.cairn` (a `NamedTuple`, dot-accessed: `solver.cairn.ignite.tplgy!`,
