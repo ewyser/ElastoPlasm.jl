@@ -258,20 +258,23 @@
   The removal also silently dropped the hypoelastic Jaumann rotation, which only the `_fast`
   kernels applied (the generic term was identically zero); see
   `.claude/bug/fixed/hypoelastic-jaumann-rotation-is-zero.md`.
-- **GPU execution — in progress, explicit path first** (branch `feat-gpu-explicit`; plan: UnifiedBackend in `lib/`,
-  device-ready containers, kernels on the solver's backend, the time step without host loops, JLArrays tests, a CUDA
-  script). Done, each bit-identical on the CPU: UnifiedBackend (`lib/UnifiedBackend`) selects the device
-  (`backend.exec`); the containers hold host or device arrays (`architecture.md`); the kernels are built on
-  `exec_backend(instr)` (the selected device's KernelAbstractions backend) and every launch synchronizes on
-  `get_backend(mpts.x)` (where the arrays live; no `CPU()` literal is left); `g` is an `SVector`. Left: the host loops
-  in a step (`get_dt`'s reduction over particles, the `vmax` race in `n2p.jl`, the `ϵpII` resets, nonlocal's
-  `build_el2p`), moving the problem to the device in the explicit workflows (DR and thermal refusing a device),
-  JLArrays tests, persistence without kernels, and a validation script for an NVIDIA machine.
-- **`@adapt_struct PointSolidPhase` likely can't rebuild the struct on GPU, unverified.**
-  `Adapt` reconstructs a struct from its adapted field values, which needs every type parameter
-  to be inferable from the fields. `PointSolidPhase`'s `T1` and `EL` appear in no field.
-  (`Point` had the same problem through the phantom `TS` parameter until the type-parameter
-  cleanup removed it.) Not testable on the CPU-only setup used so far.
+- **GPU execution — explicit path wired, not yet run on a GPU** (branch `feat-gpu-explicit`; see "Running on a GPU" in
+  `operations.md`). Done, each bit-identical on the CPU: UnifiedBackend (`lib/UnifiedBackend`) selects the device;
+  the containers hold host or device arrays; the kernels are built on the selected device's backend and synchronize
+  where the arrays live; the time step has no host loop (`get_dt` and `vmax` are reductions, the `ϵpII` resets a
+  `map!`, the nonlocal element buckets built by kernels, `norm` of a column written out); `elastodynamic!`/
+  `elastoplastic!` run on a device and copy back at checkpoints; saved simulations hold no kernels or devices. Tested on
+  JLArrays (`test_device.jl`). Left, in order:
+  1. Run `test/cuda/validate_cuda.jl` on an NVIDIA machine and fix what its compile check lists. Likely candidates,
+     each with a bit-identical rewrite ready: `MMatrix` scratch in `deform.jl` (accumulate an `SMatrix` instead), in
+     MLS's moment matrix (`mlsmpm.jl`) and in the return maps (`DP.jl`/`J2.jl`: `ϵpII` as an `SVector{2}`, `ftol`/`ηmax`
+     positional); `eigen(Symmetric(SMatrix))` (analytic in StaticArrays, should compile).
+  2. Performance: `basis.N`/`∂N` are `(NN, nmp)`/`(NN, D, nmp)`, so neighbouring threads read strided memory: `(nmp, NN)`
+     would coalesce; each step copies `vmax` and the element counts to the host (two small syncs).
+  3. Dynamic relaxation and thermal on a device (they refuse it today, `host_only`): `relax!` reduces and updates nodes in
+     host loops (`fictitious_mass`, the damping, the midpoint update), `nodal_volume` scatters on the host.
+- ~~`@adapt_struct PointSolidPhase` likely can't rebuild the struct on GPU~~ — **fixed**: every container has an
+  explicit adapt rule through `adapt_fields`, pinning the parameters no field carries (`architecture.md`).
 - **`ExplicitSolver`/`ImplicitSolver` are two identical 15-parameter structs kept in lockstep
   by hand**, one parameter per config section. A single solver struct holding the config
   `NamedTuple` as one field plus an explicit/implicit tag would remove most of that, at the

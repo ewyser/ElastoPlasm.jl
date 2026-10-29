@@ -74,6 +74,11 @@ ElastoPlasm does `import UnifiedBackend` and qualifies its names, since KernelAb
   `.claude/docs/operations.md`.
 - Persistence layout (one `"simulation"` key, the whole `Simulation`, in JLD2):
   `.claude/docs/persistence.md`.
+- GPUs: the explicit path runs on a device (`backend = (; select = "device")`, a GPU UnifiedBackend registered): the
+  containers' array types are type parameters, the kernels are built on the solver's backend, the workflows move
+  the problem to the device and back (`core/device.jl`). Tested on JLArrays (`test_device.jl`), validated on an
+  NVIDIA machine by `test/cuda/validate_cuda.jl`; dynamic relaxation and thermal still host only. See "Running on a
+  GPU" in `.claude/docs/operations.md`.
 - 32-bit precision and StaticArrays allocation-elision gotchas:
   `.claude/docs/gotchas.md`.
 - House rules (unicode subscript tensor-rank convention, refactor-verification

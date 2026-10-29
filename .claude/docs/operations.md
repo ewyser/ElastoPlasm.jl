@@ -368,6 +368,29 @@ plot_output(f, "point/solid/p"; frame=7); animate_output(f, "point/solid/p"); pl
   plot of the same time; `test_output.jl` covers shapes, cadence, last frame = saved state, append,
   skipped phases, load steps and the plotting.
 
+### Running on a GPU (explicit path)
+
+```julia
+using CUDA, ElastoPlasm               # CUDA in the environment: UnifiedBackend's CUDA extension registers the GPU
+case = slump_case(L, nel; backend=(; select="device"))
+execute!(setup_simulation(case))      # elastodynamic!/elastoplastic! on the GPU; results back on the host
+```
+
+- `backend.select = "device"` picks the first GPU UnifiedBackend registered (CUDA, ROCm); without one, the host, with
+  a message. The kernels are built on its backend (`exec_backend`), the workflows move the problem there once and
+  copy it back at the checkpoints that plot or record, and at the end (`to_device`/`to_host!`, `core/device.jl`), so
+  plots, HDF5 output and the `.jld2` are as on the host; a saved simulation reloads anywhere, on that machine's device
+  (`persistence.md`). Same precision as on the host (`dtype`); Float64 atomics need compute capability ≥ 6.0, and
+  consumer GPUs run Float64 much slower than Float32.
+- Not yet on a device: dynamic relaxation (`elastoquasistatic!`) and thermal (`thermodynamic!`) refuse it with an
+  `ArgumentError`.
+- Results differ from a host run by round-off (`gotchas.md`): compare with a relative tolerance.
+- **Validation on an NVIDIA machine:** `julia -t 1 test/cuda/validate_cuda.jl` from the repository root (cloned with
+  `--recursive`) sets up its own environment (`test/cuda`, gitignored), reports the GPU, compiles and runs a few steps
+  of every configuration (all errors collected), compares device and host runs, times a step on both and checks that a
+  file saved there loads without CUDA; it writes `dump/cuda_validation/report.toml`. `EP_DEVICE=jlarrays` runs it with
+  JLArrays instead, without a GPU (small sizes).
+
 ### Running tests / benchmarks
 
 ```julia
