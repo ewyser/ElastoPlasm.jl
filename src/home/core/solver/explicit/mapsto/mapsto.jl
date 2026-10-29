@@ -63,6 +63,10 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Abst
     solver.cairn.mapsto.map.solve!(mesh,dt,T2(solver.stab.damping); ndrange=mesh.prprt.nno[end]);sync(bk)
     # maps back solution to material point
     solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.basis.C_pf); ndrange=mpts.nmp);sync(bk)
+    # the largest particle speed per axis, for the next step's CFL bound (get_dt, which zeroed vmax): a reduction,
+    # exact in any order (it was an atomic store in n2p, which raced between threads and has no CUDA version)
+    vmax = mapreduce(v -> abs.(v), (a, b) -> max.(a, b), mpts.s.v; init=zero(eltype(mpts.s.v)))
+    copyto!(mpts.vmax, collect(vmax))
     # (if musl) reproject nodal velocities
     if solver.stab.musl
         # reset nodal quantities
