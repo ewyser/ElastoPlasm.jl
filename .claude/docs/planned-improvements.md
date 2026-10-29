@@ -260,14 +260,15 @@
   The removal also silently dropped the hypoelastic Jaumann rotation, which only the `_fast`
   kernels applied (the generic term was identically zero); see
   `.claude/bug/fixed/hypoelastic-jaumann-rotation-is-zero.md`.
-- **GPU execution is unwired — now the goal (explicit path first; plan: UnifiedBackend in `lib/`, then device-ready
-  containers, kernels on the solver's backend, the time step without host loops, JLArrays tests, a CUDA script).**
-  `get_solver` resolves `backend.exec` from `backend.select` (through UnifiedBackend), but nothing reads it: every kernel factory in
-  `init_ignite`/`init_mapsto`/`init_update` and every `sync(...)` call is a literal `CPU()`
-  (61 occurrences under `explicit/` and `common/`). `get_dt` also reduces over particles in a
-  host loop with scalar indexing, which device arrays don't allow. Wiring it is broad,
-  mechanical work (thread one backend object through the factories and syncs, verified
-  bit-identical on `CPU()` first), only worth doing if GPU runs are actually wanted.
+- **GPU execution — in progress, explicit path first** (branch `feat-gpu-explicit`; plan: UnifiedBackend in `lib/`,
+  device-ready containers, kernels on the solver's backend, the time step without host loops, JLArrays tests, a CUDA
+  script). Done, each bit-identical on the CPU: UnifiedBackend (`lib/UnifiedBackend`) selects the device
+  (`backend.exec`); the containers hold host or device arrays (`architecture.md`); the kernels are built on
+  `exec_backend(instr)` (the selected device's KernelAbstractions backend) and every launch synchronizes on
+  `get_backend(mpts.x)` (where the arrays live; no `CPU()` literal is left); `g` is an `SVector`. Left: the host loops
+  in a step (`get_dt`'s reduction over particles, the `vmax` race in `n2p.jl`, the `ϵpII` resets, nonlocal's
+  `build_el2p`), moving the problem to the device in the explicit workflows (DR and thermal refusing a device),
+  JLArrays tests, persistence without kernels, and a validation script for an NVIDIA machine.
 - **`@adapt_struct PointSolidPhase` likely can't rebuild the struct on GPU, unverified.**
   `Adapt` reconstructs a struct from its adapted field values, which needs every type parameter
   to be inferable from the fields. `PointSolidPhase`'s `T1` and `EL` appear in no field.

@@ -1,32 +1,34 @@
 function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol,Cairn}())
-    update[:deform!] = deform(CPU())
+    backend = exec_backend(instr)   # the solver's device (backend.exec), CPU() for the host
+    update[:deform!] = deform(backend)
     
-    update[:heat!] = heatflux(CPU())
+    update[:heat!] = heatflux(backend)
     if instr[:stab][:locking]
-        update[:ΔJn!] = ΔJn(CPU())
-        update[:ΔJp!] = ΔJp(CPU())
+        update[:ΔJn!] = ΔJn(backend)
+        update[:ΔJp!] = ΔJp(backend)
     end
     
-    update[:elast!] = elast(CPU())
+    update[:elast!] = elast(backend)
 
 
-    update[:nonloc_pq!] = nonlocal_pq(CPU())
-    update[:nonloc_qp!] = nonlocal_qp(CPU())
+    update[:nonloc_pq!] = nonlocal_pq(backend)
+    update[:nonloc_qp!] = nonlocal_qp(backend)
     # dispatch resolves at kernel launch from Point's CM (DruckerPrager/VonMises) and ST
     # (LogarithmicStrain/InfinitesimalStrain) type parameters — see DP.jl's `retmap`
     # docstring. Unrecognized `material.plastic` strings now fail fast in `setup_cmp`
     # (setup time), not here.
-    update[:retmap!] = retmap(CPU())
+    update[:retmap!] = retmap(backend)
 
     # update mp's coordinates
-    update[:coords!] = coord(CPU())
+    update[:coords!] = coord(backend)
     
     return (;update...)
 end
 
 function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+    bk = get_backend(mpts.x)   # the backend the arrays live on
     # update {logarithmic|infinitesimal} strains
-    solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(bk)
     # volumetric locking correction
     if solver.stab.locking
         # init mesh quantities to zero
@@ -34,20 +36,21 @@ function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,
         # calculate dimensional cst.
         dim = T2(1.0/(length(mesh.prprt.nel)-1))
         # mapping to mesh
-        solver.cairn.update.ΔJn!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+        solver.cairn.update.ΔJn!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
         # compute determinant Jbar
-        solver.cairn.update.ΔJp!(mpts,mesh,basis,dim; ndrange=mpts.nmp);sync(CPU())
+        solver.cairn.update.ΔJp!(mpts,mesh,basis,dim; ndrange=mpts.nmp);sync(bk)
     end
     # update {kirchoff|cauchy} stresses
-    solver.cairn.update.elast!(mpts; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.update.elast!(mpts; ndrange=mpts.nmp);sync(bk)
     # update mp's coordinates
-    solver.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
+    solver.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(bk)
     return nothing
 end
 
 function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+    bk = get_backend(mpts.x)   # the backend the arrays live on
     # update {logarithmic|infinitesimal} strains
-    solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.update.deform!(mpts,mesh,basis,dt; ndrange=mpts.nmp);sync(bk)
     # volumetric locking correction
     if solver.stab.locking
         # init mesh quantities to zero
@@ -55,12 +58,12 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt
         # calculate dimensional cst.
         dim = T2(1.0/(length(mesh.prprt.nel)-1))
         # mapping to mesh
-        solver.cairn.update.ΔJn!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+        solver.cairn.update.ΔJn!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
         # compute determinant Jbar
-        solver.cairn.update.ΔJp!(mpts,mesh,basis,dim; ndrange=mpts.nmp);sync(CPU())
+        solver.cairn.update.ΔJp!(mpts,mesh,basis,dim; ndrange=mpts.nmp);sync(bk)
     end
     # update {kirchoff|cauchy} stresses
-    solver.cairn.update.elast!(mpts; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.update.elast!(mpts; ndrange=mpts.nmp);sync(bk)
     # plastic corrector
     if solver.nonloc.status
         for p ∈ 1:mpts.nmp
@@ -71,23 +74,24 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt
         # e2p/p2p scan — see nonlocal.jl's docstring.
         ptr,idx = build_el2p(basis.p2e, T1(mesh.prprt.nel[end]))
         W       = zeros(T2,mpts.nmp)
-        solver.cairn.update.nonloc_pq!(W,mpts,basis,T2(solver.nonloc.ls),ptr,idx; ndrange=mpts.nmp);sync(CPU())
-        solver.cairn.update.nonloc_qp!(W,mpts,basis,T2(solver.nonloc.ls),ptr,idx; ndrange=mpts.nmp);sync(CPU())
+        solver.cairn.update.nonloc_pq!(W,mpts,basis,T2(solver.nonloc.ls),ptr,idx; ndrange=mpts.nmp);sync(bk)
+        solver.cairn.update.nonloc_qp!(W,mpts,basis,T2(solver.nonloc.ls),ptr,idx; ndrange=mpts.nmp);sync(bk)
     else
         for p ∈ 1:mpts.nmp
             mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], mpts.s.ϵpII[p][1])
         end
     end
     # plastic return-mapping dispatcher
-    solver.cairn.update.retmap!(mpts; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.update.retmap!(mpts; ndrange=mpts.nmp);sync(bk)
     # update mp's coordinates
-    solver.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(CPU())
+    solver.cairn.update.coords!(mpts,mesh; ndrange=(mpts.nmp));sync(bk)
     return nothing
 end
 
 function thermo(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
+    bk = get_backend(mpts.x)   # the backend the arrays live on
     # update temperature
-    solver.cairn.update.heat!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.update.heat!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
     return nothing
 end
 

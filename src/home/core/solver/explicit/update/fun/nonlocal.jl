@@ -38,7 +38,7 @@ kernel embarrassingly parallel per-particle, no cross-particle writes or atomics
 # Returns
 - Updates `W` (`nonlocal_pq`) or `mpts.s.ϵpII` (`nonlocal_qp`) in-place.
 """
-@views @kernel inbounds = true function nonlocal_pq(W,mpts::Point{T1,T2},basis::Basis{T1,T2},ls::T2,ptr::Vector{T1},idx::Vector{T1}) where {T1,T2}
+@views @kernel inbounds = true function nonlocal_pq(W,mpts::Point{T1,T2},basis::Basis{T1,T2},ls::T2,ptr::AbstractVector{T1},idx::AbstractVector{T1}) where {T1,T2}
     p = @index(Global)
 
     if p ≤ mpts.nmp && mpts.s.Δλ[p] != T2(0.0)
@@ -56,7 +56,7 @@ kernel embarrassingly parallel per-particle, no cross-particle writes or atomics
     end
 end
 
-@views @kernel inbounds = true function nonlocal_qp(W,mpts::Point{T1,T2},basis::Basis{T1,T2},ls::T2,ptr::Vector{T1},idx::Vector{T1}) where {T1,T2}
+@views @kernel inbounds = true function nonlocal_qp(W,mpts::Point{T1,T2},basis::Basis{T1,T2},ls::T2,ptr::AbstractVector{T1},idx::AbstractVector{T1}) where {T1,T2}
     p = @index(Global)
 
     if p ≤ mpts.nmp && mpts.s.Δλ[p] != T2(0.0)

@@ -11,43 +11,45 @@ Initialize mapping, solving and transfering kernels for MPM cycle based on dimen
 - `Dict`: Dictionary of mapping and augmentation kernels.
 """
 function init_mapsto(instr::NamedTuple; mapsto::Dict = Dict(:map => Dict{Symbol,Cairn}(),:augm => Dict{Symbol,Cairn}()))
+    backend = exec_backend(instr)   # the solver's device (backend.exec), CPU() for the host
     if instr.material.elastic != "hypoelastic"
-        mapsto[:map][:σᵢ!] = transform(CPU())
+        mapsto[:map][:σᵢ!] = transform(backend)
     end
     # dispatch resolves at kernel launch from Basis's TR (StdTransfer/TpicTransfer/
     # ApicTransfer) type parameter — see Basis's docstring. Unrecognized
     # basis.trsfr strings fail fast in get_transfer (setup_basis.jl), not here.
-    mapsto[:map][:p2n!] = p2n!(CPU())
-    mapsto[:map][:Bᵢⱼ!] = Bij(CPU())
-    mapsto[:map][:solve!] = euler(CPU())
-    mapsto[:map][:n2p!]   = picflip_n2p(CPU())
+    mapsto[:map][:p2n!] = p2n!(backend)
+    mapsto[:map][:Bᵢⱼ!] = Bij(backend)
+    mapsto[:map][:solve!] = euler(backend)
+    mapsto[:map][:n2p!]   = picflip_n2p(backend)
     if instr.stab.musl
-        mapsto[:augm][:p2n!]   = augm_p2n(CPU())
-        mapsto[:augm][:solve!] = augm_solve(CPU())
+        mapsto[:augm][:p2n!]   = augm_p2n(backend)
+        mapsto[:augm][:solve!] = augm_solve(backend)
         return (; map = (; mapsto[:map]...), augm = (; mapsto[:augm]...))
     else
         return (; map = (; mapsto[:map]...), augm = nothing)
     end
 end
 """
-    mapsto(mpts::Point{T1,T2,D,CM},mesh::MeshSolidPhase{T1,T2,D},g::Vector{T2},dt::T2,instr::NamedTuple) where {T1,T2,D,CM}
+    mapsto(mpts::Point{T1,T2,D,CM},mesh::MeshSolidPhase{T1,T2,D},g::AbstractVector{T2},dt::T2,instr::NamedTuple) where {T1,T2,D,CM}
 
 Resolution of mechanical problem: project material points to nodes, solve, and map back.
 
 # Arguments
 - `mpts::Point{T1,T2,D,CM}`: Material point data structure.
 - `mesh::MeshSolidPhase{T1,T2,D}`: Mesh data structure for solid phase.
-- `g::Vector{T2}`: Gravity vector.
+- `g::AbstractVector{T2}`: Gravity vector.
 - `dt::T2`: Time step.
 - `instr::NamedTuple`: Instruction/configuration dictionary.
 
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Vector{T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::AbstractVector{T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+    bk = get_backend(mpts.x)   # the backend the arrays live on
     # get cauchy stress
     if solver.material.elastic != "hypoelastic"
-        solver.cairn.mapsto.map.σᵢ!(ndrange=mpts.nmp,mpts);sync(CPU())
+        solver.cairn.mapsto.map.σᵢ!(ndrange=mpts.nmp,mpts);sync(bk)
     end
     # reset nodal quantities
     fill!(mesh.s.m   , zero(eltype(mesh.s.m   )))
@@ -56,24 +58,24 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Vect
     fill!(mesh.s.a   , zero(eltype(mesh.s.a   )))
     fill!(mesh.s.v   , zero(eltype(mesh.s.v   )))
     # mapping to mesh
-    solver.cairn.mapsto.map.p2n!(mpts,mesh,basis,g; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.mapsto.map.p2n!(mpts,mesh,basis,g; ndrange=mpts.nmp);sync(bk)
     # solve Eulerian momentum equation
-    solver.cairn.mapsto.map.solve!(mesh,dt,T2(solver.stab.damping); ndrange=mesh.prprt.nno[end]);sync(CPU())
+    solver.cairn.mapsto.map.solve!(mesh,dt,T2(solver.stab.damping); ndrange=mesh.prprt.nno[end]);sync(bk)
     # maps back solution to material point
-    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.basis.C_pf); ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.basis.C_pf); ndrange=mpts.nmp);sync(bk)
     # (if musl) reproject nodal velocities
     if solver.stab.musl
         # reset nodal quantities
         fill!(mesh.s.mv, zero(eltype(mesh.s.mv)))
         fill!(mesh.s.v , zero(eltype(mesh.s.v )))
         # accumulate material point contributions
-        solver.cairn.mapsto.augm.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+        solver.cairn.mapsto.augm.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
         # solve for nodal incremental displacement
-        solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
+        solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(bk)
     end
     # (for APIC) compute Bᵢⱼ for material points — Bij's TR<:StdTransfer/TpicTransfer
     # methods are no-ops, so this is safe to call unconditionally.
-    solver.cairn.mapsto.map.Bᵢⱼ!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.mapsto.map.Bᵢⱼ!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
     return nothing
 end
 
@@ -97,22 +99,23 @@ minus the gravity/finite-strain/APIC concerns that don't apply to the thermal ph
 - `nothing`. Updates fields in-place.
 """
 function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+    bk = get_backend(mpts.x)   # the backend the arrays live on
     # reset nodal quantities
     fill!(mesh.cᵢ  ,T2(0.0))
     fill!(mesh.mcT ,T2(0.0))
     fill!(mesh.oobq,T2(0.0))
     fill!(mesh.dT  ,T2(0.0))
     # mapping to mesh
-    solver.cairn.mapsto.map.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.mapsto.map.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
     # solve nodal heat-balance equation
-    solver.cairn.mapsto.map.solve!(mesh,dt; ndrange=mesh.prprt.nno[end]);sync(CPU())
+    solver.cairn.mapsto.map.solve!(mesh,dt; ndrange=mesh.prprt.nno[end]);sync(bk)
     # maps back solution to material point
-    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.basis.C_pf); ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.mapsto.map.n2p!(mpts,mesh,basis,dt,T2(solver.basis.C_pf); ndrange=mpts.nmp);sync(bk)
     # (if musl) reproject nodal temperature
     if solver.stab.musl
         fill!(mesh.mcT,T2(0.0))
-        solver.cairn.mapsto.augm.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
-        solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(CPU())
+        solver.cairn.mapsto.augm.p2n!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
+        solver.cairn.mapsto.augm.solve!(mesh; ndrange=mesh.prprt.nno[end]);sync(bk)
     end
     return nothing
 end

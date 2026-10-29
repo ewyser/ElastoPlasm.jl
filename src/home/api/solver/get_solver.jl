@@ -1,6 +1,17 @@
 export get_solver
 
 """
+    exec_backend(x) -> KernelAbstractions backend
+
+The backend a solver runs on, for the solver or its configuration (`instr`): its first selected device's
+(`backend.exec`, set by `get_solver` through UnifiedBackend), `CPU()` for the host. The kernels are built on it
+(`init_ignite`, `init_mapsto`, `init_update`, `init_implicit`).
+"""
+function exec_backend(x)
+    return first(values(x.backend.exec)).Backend
+end
+
+"""
     merge_config(ref, user; path="") -> NamedTuple
 
 `user`'s settings over `ref`'s, section by section: nested sections are merged field by field

@@ -145,7 +145,9 @@ commit to be the *only* behavior change from this refactor; not a regression.
   (`elastodynamic!`, `elastoplastic!`). Kernel dispatch table lives on
   `solver.cairn` (a `NamedTuple`, dot-accessed: `solver.cairn.ignite.tplgy!`,
   `solver.cairn.mapsto.map.p2n!`, `solver.cairn.update.deform!`, ...), built by
-  `init_ignite`/`init_mapsto`/`init_update`/`init_implicit` in `get_solver.jl`. Every
+  `init_ignite`/`init_mapsto`/`init_update`/`init_implicit` in `get_solver.jl`, on the solver's backend
+  (`exec_backend(instr)`, the device `backend.exec` selected; `CPU()` for the host); each launch is followed by
+  `sync(bk)`, `bk = get_backend(mpts.x)` the backend the arrays live on. Every
   kernel/function in this path takes `basis::Basis` as its 3rd positional arg after
   `(mpts, mesh, ...)`.
 - `src/home/core/solver/dynamic_relaxation/` — implicit quasi-static path

@@ -42,7 +42,7 @@ function get_dt(mpts::Point{T1,T2,D,CM,ST,EL},props::MeshProperties{T1,T2,D},tim
 end
 
 """
-    get_g(mesh::Mesh{T1,T2,D}; G::T2=9.81) -> Vector{T2}
+    get_g(props::MeshProperties{T1,T2,D}; G::T2=9.81) -> SVector{D,T2}
 
 Calculate the gravity vector for the mesh, with magnitude `G` in the negative last direction.
 
@@ -58,15 +58,8 @@ Calculate the gravity vector for the mesh, with magnitude `G` in the negative la
 g = get_g(mesh)
 ```
 """
-function get_g(props::MeshProperties{T1,T2,D}; G::T2=9.81) where {T1,T2,D}
-    if D == 1
-        g = [-G]
-    elseif D == 2
-        g = [T2(0.0),-G]
-    elseif D == 3
-        g = [T2(0.0),T2(0.0),-G]
-    end
-    return g::Vector{T2}
+function get_g(props::MeshProperties{T1,T2,D}; G::T2=T2(9.81)) where {T1,T2,D}
+    return SVector{D,T2}(ntuple(d -> d == D ? -G : T2(0.0), Val(D)))   # a plain value: a kernel argument on any device
 end
 
 """

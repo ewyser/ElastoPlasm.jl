@@ -35,7 +35,7 @@ Accumulate `Σ_p S_Ip V_p (1 − n_p)/(1 − n₀_p)` into `r`: the solid volume
 each material point's initial solid fraction, so that `r_I / V_I` is 1 inside the material and
 falls to 0 across a free surface.
 """
-@kernel inbounds = true function solid_fraction(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},r::Vector{T2}) where {T1,T2,D}
+@kernel inbounds = true function solid_fraction(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},r::AbstractVector{T2}) where {T1,T2,D}
     p = @index(Global)
     if p ≤ mpts.nmp
         vs = mpts.Ω[p] * (T2(1.0) - mpts.n[p]) / (T2(1.0) - mpts.n₀[p])
@@ -55,8 +55,9 @@ Mark the nodes that carry material but whose relative solid fraction `r_I / V_I`
 (`ignite`) for the current configuration.
 """
 function inactive_nodes!(inactive::Vector{Bool},r::Vector{T2},mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},V::Vector{T2},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+    bk = get_backend(mpts.x)   # the backend the arrays live on
     fill!(r, T2(0.0))
-    solver.cairn.ignite.sfrac!(mpts,mesh,basis,r; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.ignite.sfrac!(mpts,mesh,basis,r; ndrange=mpts.nmp);sync(bk)
     ε = T2(solver.stab.sfrac)
     @. inactive = (r > T2(0.0)) & (r < ε * V)
     return inactive

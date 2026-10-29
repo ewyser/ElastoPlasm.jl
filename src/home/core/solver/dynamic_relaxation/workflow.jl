@@ -12,6 +12,7 @@ iteration (non-local regularization is not applied). Finite strain only. To chan
 `workflows = [(a...) -> elastoquasistatic!(a...; lstps=40)]`.
 """
 function elastoquasistatic!(mpts::Point{T1,T2,D,CM,ST},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S; lstps::Int=10, tol::Real=1e-9, plastic::Bool=false, G::Real=9.81) where {T1,T2,D,CM,ST,S<:AbstractSolver{T1,T2,D}}
+    bk = get_backend(mpts.x)   # the backend the arrays live on
     ST <: LogarithmicStrain || throw(ArgumentError("elastoquasistatic! is finite-strain only: material.elastic=\"hypoelastic\" is not supported"))
     its  = zeros(Int, lstps)
     sf   = node_exclusion(mpts,mesh,instr)
@@ -20,7 +21,7 @@ function elastoquasistatic!(mpts::Point{T1,T2,D,CM,ST},mesh::Mesh{T1,T2,D},basis
         g  = get_g(mesh.prprt; G=T2(G*k/lstps))
         ignite(mpts,mesh,basis,instr)
         its[k] = it = relax!(mpts,mesh,basis,g,instr; tol=T2(tol), plastic=plastic, sf=sf)
-        instr.cairn.implicit.update!(mpts,mesh,basis; ndrange=mpts.nmp);sync(CPU())
+        instr.cairn.implicit.update!(mpts,mesh,basis; ndrange=mpts.nmp);sync(bk)
         time.t[1] += T2(1.0)
         bake(mpts,mesh,time.t[1],instr; title="load step $k/$lstps")
         record!(mpts,mesh,time,instr; step=k, loadstep=true)
