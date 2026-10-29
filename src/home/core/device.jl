@@ -41,5 +41,5 @@ with an `ArgumentError` naming the device, rather than failing deep inside a ker
 function host_only(solver::AbstractSolver, name::AbstractString)
     exec_backend(solver) isa CPU && return nothing
     throw(ArgumentError("$name runs on the host only for now, and this solver runs on " *
-                        "$(first(values(solver.backend.exec)).name): set backend = (; select = \"host\")"))
+                        "$(solver.backend.exec.name): set backend = (; select = \"host\")"))
 end

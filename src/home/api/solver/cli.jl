@@ -72,7 +72,6 @@ function get_option()
             ),
             backend = (
                 select = ("Select backend (device: a GPU, when one is registered)",["host", "device"]),
-                distributed = ("Enable distributed computing",[true, false])
             ),
         )
 end

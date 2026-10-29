@@ -3,24 +3,24 @@ export get_solver
 """
     exec_backend(x) -> KernelAbstractions backend
 
-The backend a solver runs on, for the solver or its configuration (`instr`): its first selected device's
-(`backend.exec`, set by `get_solver` through UnifiedBackend), `CPU()` for the host. The kernels are built on it
-(`init_ignite`, `init_mapsto`, `init_update`, `init_implicit`).
+The backend a solver runs on, for the solver or its configuration (`instr`): its platform's (`backend.exec`, the
+UnifiedBackend `Platform` `get_solver` selected), `CPU()` for the host. The kernels are built on it (`init_ignite`,
+`init_mapsto`, `init_update`, `init_implicit`).
 """
 function exec_backend(x)
-    return first(values(x.backend.exec)).Backend
+    return x.backend.exec.backend
 end
 
 """
     solver_config(solver) -> NamedTuple
 
 A solver's configuration, the sections `build_solver` takes: what `save_simulation` keeps of a solver, without the
-selected devices (`backend.exec`) or the kernels (`cairn`), which `load_simulation` rebuilds where the file is loaded.
+selected platform (`backend.exec`) or the kernels (`cairn`), which `load_simulation` rebuilds where the file is loaded.
 `stored_solver(solver)` is the solver holding only it (no kernels: `cairn = nothing`).
 """
 function solver_config(s::AbstractSolver)
     return (; solution=s.solution, dtype=s.dtype, basis=s.basis, stab=s.stab, bcs=s.bcs, grf=s.grf, material=s.material,
-              nonloc=s.nonloc, plot=s.plot, output=s.output, backend=(; select=s.backend.select, distributed=s.backend.distributed))
+              nonloc=s.nonloc, plot=s.plot, output=s.output, backend=(; select=s.backend.select))
 end
 function stored_solver(s::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     c = solver_config(s)
@@ -96,9 +96,7 @@ The solver of a complete configuration `instr` (`get_default()`'s sections, merg
 function build_solver(instr::NamedTuple, dim::Integer)
     # Set execution backend
     if !haskey(instr[:backend],:exec)
-        exec  = UnifiedBackend.select_execution_backend(UnifiedBackend.get_backend().exec, instr[:backend][:select]; distributed=instr[:backend][:distributed])
-        length(exec) > 1 && @warn "$(length(exec)) devices selected: the solver runs on the first, $(first(values(exec)).name)"
-        UnifiedBackend.device_wakeup!(first(values(exec)).handle)   # a GPU becomes the current device; nothing for a host
+        exec  = UnifiedBackend.activate!(UnifiedBackend.select_platform(instr[:backend][:select]))   # a GPU becomes the current device
         instr = merge(instr, (; backend = merge(instr[:backend], (; exec = exec,)),))
     end
     # Add cairns to instr     

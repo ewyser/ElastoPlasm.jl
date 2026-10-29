@@ -89,7 +89,6 @@ function get_default()
         ),
         backend = (;
             select="host",
-            distributed=false
         ),
     )
     return default

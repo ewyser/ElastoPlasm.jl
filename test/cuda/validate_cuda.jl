@@ -29,10 +29,10 @@ if MODE == "cuda"
     CUDA.capability(CUDA.device()) ≥ v"6.0" || @warn "compute capability below 6.0: no native Float64 atomic add"
 else
     @eval KA.synchronize(::JLBackend) = nothing                                   # JLArrays has none
-    UB.get_backend().exec.device[:dev1] = UB.Device(platform=:JLArrays, name="JLArrays", Backend=JLBackend(), wrapper=JLArray)
+    UB.register!(UB.Platform(; platform=:JLArrays, name="JLArrays", backend=JLBackend(), arraytype=JLArray))
     report["device"] = Dict("name" => "JLArrays (CPU stand-in)")
 end
-isempty(UB.get_backend().exec.device) && error("no GPU registered by UnifiedBackend: is CUDA functional? (CUDA.functional())")
+isempty(UB.device_platforms()) && error("no GPU registered by UnifiedBackend: is CUDA functional? (CUDA.functional())")
 const DEVICE = (; backend=(; select="device"))
 noplot = (; plot=(; status=false))
 L2 = [64.1584, 64.1584/4]

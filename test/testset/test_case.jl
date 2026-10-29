@@ -115,8 +115,8 @@
         @test jld2 == joinpath(dir, "mycase_simulation.jld2") && isfile(joinpath(dir, "mycase_case.toml"))
         l = load_simulation(jld2); @test (l.workflow, l.lstps, l.folder) == (sim.workflow, sim.lstps, sim.folder)
         saved = jldopen(f -> f["simulation"].problem.solver, jld2)
-        @test saved.cairn === nothing && keys(saved.backend) == (:select, :distributed)          # no kernels, no devices
-        @test l.problem.solver.cairn isa NamedTuple && l.problem.solver.backend.exec.dev1.Backend isa EP.CPU   # rebuilt
+        @test saved.cairn === nothing && keys(saved.backend) == (:select,)                       # no kernels, no devices
+        @test l.problem.solver.cairn isa NamedTuple && l.problem.solver.backend.exec.backend isa EP.CPU   # rebuilt
         state(p) = (p.mpts.x, getfield.(p.mpts.s.σᵢ, :p), p.mpts.s.v)
         s0 = state(sim.problem); r = execute(jld2)
         @test state(r.problem) != s0 && state(load_simulation(jld2).problem) == s0               # ran a copy, file untouched

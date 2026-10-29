@@ -47,11 +47,13 @@ EasyDraw's dependencies needs `Pkg.resolve()` in ElastoPlasm's environment. See 
 `.claude/docs/operations.md`.
 
 `lib/UnifiedBackend/` is UnifiedBackend.jl (https://github.com/ewyser/UnifiedBackend.jl), also a submodule developed by
-path: the registry of execution backends (a `Host` per CPU core, a `Device` per GPU through its CUDA/ROCm extensions,
-each with its KernelAbstractions backend and array type). `get_solver` stores its selection
-(`UnifiedBackend.select_execution_backend`, `backend.select` = `"host"`/`"device"`) as `solver.backend.exec`.
-ElastoPlasm does `import UnifiedBackend` and qualifies its names, since KernelAbstractions also exports `Backend` and
-`get_backend`. It replaced ElastoPlasm's own, older copy of the same code (`src/boot/needs/backend.jl`, `ext/`).
+path: the registry of where kernels run, `Platform`s with their KernelAbstractions `backend` and `arraytype` (the host,
+any CPU, registered at load; GPUs registered by its CUDA/ROCm extensions when CUDA.jl/AMDGPU.jl loads and works).
+`get_solver` stores `UnifiedBackend.select_platform(backend.select)` (`"host"`/`"device"`, the first GPU or else the
+host) as `solver.backend.exec`, activated (`activate!`); `exec_backend(solver)` is its backend. ElastoPlasm does
+`import UnifiedBackend` and qualifies its names. It replaced ElastoPlasm's own, older copy of the same code
+(`src/boot/needs/backend.jl`, `ext/`); version 0.1.0 replaced the earlier API (`Host`/`Device`, `get_backend`,
+`select_execution_backend`, menus).
 
 ## Core method, at a glance
 

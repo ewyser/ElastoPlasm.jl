@@ -15,7 +15,7 @@ scripts, was never the key.) `test_column.jl` once lagged a layout change for a 
 `.claude/bug/fixed/test-collapse-renamed-and-fixed.md`.
 
 **The solver is stored as its configuration** (`feat-gpu-explicit`): `save_simulation` writes `stored_solver(solver)`,
-the same solver type with `backend = (; select, distributed)` (no `exec`, the devices UnifiedBackend selected) and
+the same solver type with `backend = (; select)` (no `exec`, the platform UnifiedBackend selected) and
 `cairn = nothing` (no kernel objects), and `load_simulation` rebuilds it with `build_solver(solver_config(…), D)`, the
 code `get_solver` ends with: the kernels are built again and the device picked on the machine that loads the file
 (a file written on a GPU machine opens on a laptop, which runs it on its host unless it has a GPU). Files written

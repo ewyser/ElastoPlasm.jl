@@ -73,8 +73,6 @@ repositories, of which ElastoPlasm records one commit each. Below, `lib/X` is ei
   commit; after switching ElastoPlasm branches, `git submodule update` checks out the commits that branch records.
 - **Branches from before a submodule** (`dev`, …) do not have it: switching to one leaves the folder there, untracked;
   it does no harm and comes back into use when switching back.
-- A sibling clone of UnifiedBackend.jl (`../UnifiedBackend.jl`) is a separate checkout: `git pull` it after pushing
-  from `lib/UnifiedBackend`.
 
 ## Device runs differ from host runs by round-off
 

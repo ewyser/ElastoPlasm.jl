@@ -497,7 +497,9 @@ knob and its out-of-the-box value.
 - `plot` — `status`, `freq` (plot every N `Time` checkpoints), `dpi`, `what` (keys of the plottable
   quantities, `plottable()` in `quantities.jl`, e.g. `["p", "epII"]`)
 - `backend` — `select` (`"host"`, or `"device"`: a GPU UnifiedBackend registered, through its CUDA/ROCm extension,
-  else the host with a message) and `distributed`; `get_solver` stores the selection as `backend.exec`
+  else the host with a message); `get_solver` stores the selected UnifiedBackend `Platform` as `backend.exec`. (A
+  `backend.distributed` option existed for multi-device selection, which nothing used; removed with UnifiedBackend 0.1.0,
+  so a case file setting it is refused as an unknown option.)
 
 Two ways to change solver behaviour:
 

@@ -1070,10 +1070,10 @@ uuid = "1cfade01-22cf-5700-b092-accc4b62d6e1"
 version = "0.4.1"
 
 [[deps.UnifiedBackend]]
-deps = ["KernelAbstractions", "REPL"]
+deps = ["KernelAbstractions"]
 path = "lib/UnifiedBackend"
 uuid = "53203a36-6468-4ce1-9d2a-5f04ad17d58e"
-version = "0.0.1"
+version = "0.1.0"
 
     [deps.UnifiedBackend.extensions]
     CUDAExt = "CUDA"
