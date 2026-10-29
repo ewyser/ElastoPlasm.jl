@@ -28,15 +28,16 @@ dt = get_dt(mpts, mesh, time, ΔT)
 ```
 """
 function get_dt(mpts::Point{T1,T2,D,CM,ST,EL},props::MeshProperties{T1,T2,D},time::Time{T1,T2},ΔT::T2) where {T1,T2,D,CM,ST,EL}
-    # per-particle elastic wave speed, max over particles (real correctness improvement
-    # over the old single global `cmpr.c` scalar if `cmp`/`ρ` ever become heterogeneous)
-    cwave = T2(0.0)
-    @inbounds for p ∈ 1:mpts.nmp
-        cmp   = mpts.s.cmp[p]
-        cwave = max(cwave, sqrt((_Ktan(EL,mpts.s.ϵᵢ[p],cmp,mpts.n₀[p])+T2(4.0/3.0)*cmp.Gc)/mpts.s.ρ[p]))
-    end
-    # dt: the CFL bound of the most restrictive axis, Courant number 0.5 (Nakamura et al. 2023, Eq 35)
-    cmax = props.h./(mpts.vmax.+cwave); mpts.vmax.=T2(0.0)
+    # per-particle elastic wave speed, max over particles: a reduction, so the arrays may live on any device (over a
+    # lazy broadcast: no temporary array, as fast as a loop)
+    c = Broadcast.instantiate(Broadcast.broadcasted(mpts.s.cmp, mpts.s.ϵᵢ, mpts.n₀, mpts.s.ρ) do cmp, ϵ, n₀, ρ
+        sqrt((_Ktan(EL,ϵ,cmp,n₀)+T2(4.0/3.0)*cmp.Gc)/ρ)
+    end)
+    cwave = reduce(max, c; init=T2(0.0))
+    # dt: the CFL bound of the most restrictive axis, Courant number 0.5 (Nakamura et al. 2023, Eq 35); vmax, the
+    # largest speed per axis (mapsto), read once and zeroed for the next step
+    vmax = SVector{D,T2}(Array(mpts.vmax)); fill!(mpts.vmax, T2(0.0))
+    cmax = props.h./(vmax.+cwave)
     dt   = min(T2(0.5)*minimum(cmax),ΔT-time.t[1])
     return dt::T2
 end

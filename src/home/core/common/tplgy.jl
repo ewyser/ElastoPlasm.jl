@@ -37,33 +37,54 @@ end
 end
 
 """
-    build_el2p(p2e::Vector{T1}, nel::T1) -> (ptr::Vector{T1}, idx::Vector{T1})
+    element_particles(mpts, mesh, basis, solver) -> Adjacency
 
-Counting-sort `p2e` (particle → its element, already populated by `p2e2n` every step)
-into a CSR-style element→particle bucket list: particles in element `el` are
-`idx[ptr[el]:ptr[el+1]-1]`. `O(nmp+nel)`, sequential (not a `@kernel`) — replaces the
-old `Basis.e2p`/`p2p` dense `nmp×nel`/`nmp×nmp` matrices `nonlocal.jl` used to rebuild
-and scan every timestep; see `nonlocal.jl`'s docstring for why this bucket + `e2e`
-(genuinely sparse element neighbor structure) is enough to bound the neighbor search to
-`O(nmp × k)` instead of `O(nmp²)`.
+The particles of each element (`p2e`, set by `p2e2n` every step) as an `Adjacency`: those in element `el` are
+`rowvals(a)[nzrange(a, el)]`, in ascending order. Built by kernels where the particles live: count the particles per
+element (`el2p_count`, atomic), sum the counts on the host (`O(nel)`, one copy each way), put each particle in its
+element's next free slot (`el2p_fill`, atomic), then sort each element's few indices (`el2p_sort`), so the order is
+the same on every device and thread count, that of the sequential counting sort this replaced, and the nonlocal sums
+over it stay deterministic. With `basis.e2e` it bounds `nonlocal.jl`'s neighbour search to `O(nmp × k)` instead of
+`O(nmp²)` (see its docstring).
 """
-function build_el2p(p2e::Vector{T1}, nel::T1) where {T1}
-    nmp    = length(p2e)
-    counts = zeros(T1, nel)
-    for p ∈ 1:nmp
-        counts[p2e[p]] += 1
+function element_particles(mpts::Point{T1},mesh::Mesh{T1},basis::Basis{T1},solver::AbstractSolver) where {T1}
+    bk     = get_backend(mpts.x)
+    nel    = Int(mesh.prprt.nel[end])
+    counts = fill!(similar(basis.p2e, nel), zero(T1))
+    solver.cairn.update.el2p_count!(counts, basis; ndrange=mpts.nmp);sync(bk)
+    starts = vcat(one(T1), one(T1) .+ cumsum(Array(counts)))          # ptr: each element's first slot
+    ptr    = copyto!(similar(basis.p2e, nel + 1), starts)
+    cursor = copyto!(similar(basis.p2e, nel), starts[1:nel])
+    idx    = similar(basis.p2e, Int(mpts.nmp))
+    solver.cairn.update.el2p_fill!(idx, cursor, basis; ndrange=mpts.nmp);sync(bk)
+    solver.cairn.update.el2p_sort!(idx, ptr; ndrange=nel);sync(bk)
+    return Adjacency(ptr, idx)
+end
+@kernel inbounds = true function el2p_count(counts, basis::Basis{T1}) where {T1}
+    p = @index(Global)
+    if p ≤ length(basis.p2e)
+        @atom counts[basis.p2e[p]] += one(T1)
     end
-    ptr = Vector{T1}(undef, nel+1)
-    ptr[1] = 1
-    for el ∈ 1:nel
-        ptr[el+1] = ptr[el] + counts[el]
+end
+@kernel inbounds = true function el2p_fill(idx, cursor, basis::Basis{T1}) where {T1}
+    p = @index(Global)
+    if p ≤ length(basis.p2e)
+        i      = (@atom cursor[basis.p2e[p]] += one(T1)) - one(T1)   # the slot taken (@atom returns the new value)
+        idx[i] = T1(p)
     end
-    cursor = copy(ptr[1:nel])
-    idx    = Vector{T1}(undef, nmp)
-    for p ∈ 1:nmp
-        el         = p2e[p]
-        idx[cursor[el]] = p
-        cursor[el] += 1
+end
+# insertion sort of an element's indices: a handful per element
+@kernel inbounds = true function el2p_sort(idx, ptr)
+    el = @index(Global)
+    if el < length(ptr)
+        lo, hi = ptr[el], ptr[el+1] - one(eltype(ptr))
+        for i ∈ lo+one(lo):hi
+            q, j = idx[i], i - one(i)
+            while j ≥ lo && idx[j] > q
+                idx[j+one(j)] = idx[j]
+                j -= one(j)
+            end
+            idx[j+one(j)] = q
+        end
     end
-    return ptr, idx
 end

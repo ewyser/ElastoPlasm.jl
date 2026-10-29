@@ -13,6 +13,10 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
 
     update[:nonloc_pq!] = nonlocal_pq(backend)
     update[:nonloc_qp!] = nonlocal_qp(backend)
+    # the particles of each element, for the nonlocal neighbour search (element_particles, tplgy.jl)
+    update[:el2p_count!] = el2p_count(backend)
+    update[:el2p_fill!]  = el2p_fill(backend)
+    update[:el2p_sort!]  = el2p_sort(backend)
     # dispatch resolves at kernel launch from Point's CM (DruckerPrager/VonMises) and ST
     # (LogarithmicStrain/InfinitesimalStrain) type parameters — see DP.jl's `retmap`
     # docstring. Unrecognized `material.plastic` strings now fail fast in `setup_cmp`
@@ -66,20 +70,15 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt
     solver.cairn.update.elast!(mpts; ndrange=mpts.nmp);sync(bk)
     # plastic corrector
     if solver.nonloc.status
-        for p ∈ 1:mpts.nmp
-            mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], T2(0.0))
-        end
-        # CSR element→particle bucket list (O(nmp+nel), sequential) bounds nonlocal's
-        # neighbor search to O(nmp×k) via basis.e2e, instead of the old O(nmp²) dense
-        # e2p/p2p scan — see nonlocal.jl's docstring.
-        ptr,idx = build_el2p(basis.p2e, T1(mesh.prprt.nel[end]))
-        W       = zeros(T2,mpts.nmp)
-        solver.cairn.update.nonloc_pq!(W,mpts,basis,T2(solver.nonloc.ls),ptr,idx; ndrange=mpts.nmp);sync(bk)
-        solver.cairn.update.nonloc_qp!(W,mpts,basis,T2(solver.nonloc.ls),ptr,idx; ndrange=mpts.nmp);sync(bk)
+        map!(e -> SVector{2,T2}(e[1], T2(0.0)), mpts.s.ϵpII, mpts.s.ϵpII)   # element-wise: any device
+        # the particles of each element bound nonlocal's neighbour search to O(nmp×k) via basis.e2e, instead of
+        # an O(nmp²) scan (see nonlocal.jl's docstring)
+        el2p = element_particles(mpts,mesh,basis,solver)
+        W    = fill!(similar(mpts.Ω), T2(0.0))
+        solver.cairn.update.nonloc_pq!(W,mpts,basis,T2(solver.nonloc.ls),el2p; ndrange=mpts.nmp);sync(bk)
+        solver.cairn.update.nonloc_qp!(W,mpts,basis,T2(solver.nonloc.ls),el2p; ndrange=mpts.nmp);sync(bk)
     else
-        for p ∈ 1:mpts.nmp
-            mpts.s.ϵpII[p] = SVector{2,T2}(mpts.s.ϵpII[p][1], mpts.s.ϵpII[p][1])
-        end
+        map!(e -> SVector{2,T2}(e[1], e[1]), mpts.s.ϵpII, mpts.s.ϵpII)
     end
     # plastic return-mapping dispatcher
     solver.cairn.update.retmap!(mpts; ndrange=mpts.nmp);sync(bk)

@@ -87,7 +87,7 @@ end
     elseif node_type == T1(4)
         ϕ,∂ϕ = t4_ϕ∂ϕ(ξ*Δx⁻¹)
     else
-        error("Invalid type: $(node_type)")
+        error("invalid B-spline node type")   # constant text: a GPU kernel cannot build a string
     end   
     return ϕ,∂ϕ*Δx⁻¹ 
 end
