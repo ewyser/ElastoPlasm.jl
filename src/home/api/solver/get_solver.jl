@@ -97,7 +97,8 @@ The solver of a complete configuration `instr` (`get_default()`'s sections, merg
 function build_solver(instr::NamedTuple, dim::Integer)
     # Set execution backend
     if !haskey(instr[:backend],:exec)
-        exec  = UnifiedBackend.activate!(UnifiedBackend.select_platform(instr[:backend][:select]))   # a GPU becomes the current device
+        exec = UnifiedBackend.select_platform(instr[:backend][:select])
+        UnifiedBackend.activate!(exec)   # a GPU becomes the current device
         instr = merge(instr, (; backend = merge(instr[:backend], (; exec = exec,)),))
     end
     # Add cairns to instr     

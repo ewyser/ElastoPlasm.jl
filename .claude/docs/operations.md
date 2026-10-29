@@ -549,7 +549,7 @@ kwargs suitable for splatting into `slump_problem`/`get_solver` as `cli()...`.
   first then override afterward — later kwargs win (a later section replaces the
   earlier one in the kwargs, then merges per field over the defaults).
 - `get_option()` is a reference for valid values per key (e.g.
-  `get_option().basis.trsfr` → `["std", "tpic", "apic"]`) — but not every listed value is
-  wired up: `backend.select = "device"` selects a GPU while every kernel is still hard-coded to
-  `CPU()` (see the GPU item in `planned-improvements.md`). It offered `"cuda"`/`"rocm"` until
-  UnifiedBackend's adoption, values the selection refused (`ArgumentError`).
+  `get_option().basis.trsfr` → `["std", "tpic", "apic"]`). `backend.select = "device"` runs the
+  explicit workflows on a GPU, while dynamic relaxation and thermal refuse it (see "Running on a
+  GPU" above). It offered `"cuda"`/`"rocm"` until UnifiedBackend's adoption, values the selection
+  refused (`ArgumentError`).
