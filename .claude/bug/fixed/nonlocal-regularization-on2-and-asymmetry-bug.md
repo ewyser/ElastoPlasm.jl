@@ -23,7 +23,8 @@ scanned **all** `nmp` particles per yielding particle instead of using
 structure — to narrow the search).
 
 Fix: a per-step CSR element→particle bucket list (`build_el2p`, `tplgy.jl`,
-`O(nmp+nel)`, sequential) combined with `basis.e2e` bounds the neighbor
+`O(nmp+nel)`, sequential; since `feat-gpu-explicit` built by kernels, `element_particles`, in
+`explicit/update/fun/nonlocal.jl`, same order) combined with `basis.e2e` bounds the neighbor
 search to `O(nmp×k)` (`k` = local particle density within `ls`,
 resolution-independent); `Basis.e2p`/`p2p` and the per-step `w` matrix are
 gone entirely (pairwise weights are cheap enough — one `sqrt`+`exp` — to

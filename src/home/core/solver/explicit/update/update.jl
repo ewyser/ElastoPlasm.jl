@@ -13,7 +13,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
 
     update[:nonloc_pq!] = nonlocal_pq(backend)
     update[:nonloc_qp!] = nonlocal_qp(backend)
-    # the particles of each element, for the nonlocal neighbour search (element_particles, tplgy.jl)
+    # the particles of each element, for the nonlocal neighbour search (element_particles, nonlocal.jl)
     update[:el2p_count!] = el2p_count(backend)
     update[:el2p_fill!]  = el2p_fill(backend)
     update[:el2p_sort!]  = el2p_sort(backend)
