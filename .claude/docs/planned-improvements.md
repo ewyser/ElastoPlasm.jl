@@ -20,6 +20,10 @@
   solver); workflows take `(problem, solver)`. Gain: one `Problem` solved several ways without
   rebuilding. Cost: `get_default`/`get_solver`/`cli`, the case's solver overrides (the layout's `[options]`) and their TOML
   sections, every `problem.solver` reader (18); everything bit-identical. Own branch.
+  Since `refactor-case-from-layout` a case is an EasyDraw `Layout` (geometry) plus its `Settings` (values), read as
+  typed fields (`material`, `properties`, `bcs`, `solver`, `thermal`, `run`): the Solver split now means moving the
+  reading of `settings.options`/`settings.run` (the run options) out of `Case` into a `Solver`, leaving `Case` the
+  physics (materials, boundary conditions, constitutive laws). Planned with the user as the next step, its own plan.
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task, rather than one monolithic kernel body.
   `update.jl`'s `elastoplast`/`elasto` dispatch functions (branch on
