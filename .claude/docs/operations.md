@@ -106,8 +106,8 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   `load_settings`, `save_settings` are re-exported by `using ElastoPlasm`. `Case(; L, nel, ni, zones, properties,
   material, bcs, solver, thermal, run)` builds both, so the examples kept their shape (`slump` and `collision` moved
   their zone keywords into `properties`):
-  - `properties`: by zone name, `Dict("base" => (; phi=…, T=…))`, any `MATERIAL` key or `v`; the settings' `zones`;
-  - `material`: overrides of `MATERIAL` (E, nu, rho0, c0, cr, phi, Hp, n0, T, cp, k; SI, angles in radians), the
+  - `properties`: by zone name, `Dict("base" => (; phi=…, T=…))`, any `get_material()` key or `v`; the settings' `zones`;
+  - `material`: overrides of `get_material()` (E, nu, rho0, c0, cr, phi, Hp, n0, T, cp, k; SI, angles in radians), the
     settings' `defaults`;
   - `bcs`: D×2 `:free`/`:roller`/`:fixed` (extra rows ignored; `bcs` passed among the solver options moves here), the
     settings' `sides` through `side_axes(D)`: x `left`/`right`, z `bottom`/`top`, and in 3D y `front`/`back`, roller
@@ -115,7 +115,7 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   - `solver`: option overrides, physics and numerics alike, the settings' `options` in their file form
     (`option_labels`; `Case` validates them all against `get_default()`, keeps the physics as `case.laws` and
     `case.grf`; `Solver(case)` reads the numerics). Every example's options round-trip exactly;
-  - `thermal`, `run`: the settings' `run`, every `RUN` setting (`folder`, `te`, `tg`, `tep`, `workflow` ∈ `WORKFLOWS`,
+  - `thermal`, `run`: the settings' `run`, every `get_run()` setting (`folder`, `te`, `tg`, `tep`, `workflow` ∈ `get_workflows()`,
     `lstps`) and `thermal` when true; `Solver(case)` reads all but the folder as `solver.run` (`solver_run`). The
     folder is the case's, `case_folder(case)`: where `setup_simulation` writes the simulation and the case TOML, named
     after its last part, a name under `dump/` or a path; without one in `run`, the layout's own folder (a file's). It
@@ -126,10 +126,10 @@ save_case("layers.toml", case); case = load_case("layers.toml")
     from `get_default()`) and run settings, so `Solver(load_case(file))` is the same solver.
   - No `width`/`nely`: a 2D model extruded along y is a 3D case of x–z shapes (they extend along y), its y sides roller
     by default as the extruded form forced. EasyDraw has the same single 3D form.
-- **Zones:** `Zone(name, shape)`, geometry only; a zone's constants are its `properties` (any `MATERIAL` key or `v`,
+- **Zones:** `Zone(name, shape)`, geometry only; a zone's constants are its `properties` (any `get_material()` key or `v`,
   initial velocity; two (x, z) components in 3D). `Zone`, `Layout`, `Settings` and the shapes are EasyDraw's
   (`lib/EasyDraw/src/{shapes,layout}.jl`, imported and re-exported in `boot.jl`), where a zone's values can be anything;
-  `Case` checks them against `ZONE_PROPS` (an unknown one errors when the case is built, naming the zone). Shapes: `Polygon` (x–z, even–odd, extruded in 3D; several outlines, `Polygon(rings)`, make one zone of
+  `Case` checks them against `get_zone_properties()` (an unknown one errors when the case is built, naming the zone). Shapes: `Polygon` (x–z, even–odd, extruded in 3D; several outlines, `Polygon(rings)`, make one zone of
   several parts or with holes: flat `vertices` plus `sizes`, `polygon_rings`), `Block(lo, hi)` (bounds
   included; D coordinates, or two for an extruded block), `Ball(centre, r)` (disk, sphere, or cylinder
   along y), `Region(f)` (a predicate on the point, code only, not writable to TOML). `Block` is not named
@@ -178,7 +178,7 @@ execute!(setup_simulation(case))
   side, the zone properties' defaults, options, run settings) with what a host's `EasyDraw.Catalog` offers (zone
   properties, boundary kinds, options, run settings as `Field`s: menu, numeric, integer, list; a display `scale`,
   `min`, `show_if`), TOML both. ElastoPlasm is one host: `get_catalog()` (`src/home/api/solver/catalog.jl`, beside `get_default`/`get_option`) builds its catalog
-  from `get_option()`, `get_default()`, `MATERIAL` and `WORKFLOWS` (no hand-written copy) as plain data, a `Dict` shaped
+  from `get_option()`, `get_default()`, `get_material()` and `get_workflows()` (no hand-written copy) as plain data, a `Dict` shaped
   like the catalog's TOML, which EasyDraw reads (`EasyDraw.Catalog(dict)`; `draw` and `write_catalog` take either), so
   ElastoPlasm builds no EasyDraw type for it (the user's request: it first built `EasyDraw.Field`s, tying ElastoPlasm to
   EasyDraw's API rather than to the file format); EasyDraw stays a dependency for the shapes and `draw_case`.
@@ -508,7 +508,7 @@ knob and its out-of-the-box value. Its physics sections (`material`, `grf`, `bcs
 `case.grf`, `case.bcs`): `Solver` refuses them, and the solver holds the others.
 
 - `solution` — `"explicit"`/`"implicit"`, the solver's `solution` marker (`ExplicitSolution()`/`ImplicitSolution()`,
-  `get_solution`, `get_solutions()`): one `Solver` struct, `ExplicitSolver`/`ImplicitSolver` its aliases. Printed (as
+  from the table `get_solutions()`): one `Solver` struct, `ExplicitSolver`/`ImplicitSolver` its aliases. Printed (as
   `solution_name(solver)`) in `execute.jl`'s generated filenames and `logs.jl`'s startup banner. Picking `solution=
   "explicit"` then calling an implicit-only workflow fails with `MethodError` at the
   workflow call, not silently — `elastodynamic!`/`elastoplastic!` take an
@@ -577,7 +577,7 @@ existing pattern before adding a new one. If the new field belongs on the solver
 struct itself (like `run` did), it also needs threading through
 `Solver`'s field list (`src/boot/needs/types/solver.jl`), its partial constructor, `solver_config`/`stored_solver`
 and the corresponding positional arg in `api/solver/build.jl`'s final constructor call. A new physics option (one a case
-holds, like the laws) goes into `PHYSICS_SECTIONS` and a `Case` field instead.
+holds, like the laws) goes into `get_physics_sections()` and a `Case` field instead.
 
 ### Using `cli()`
 

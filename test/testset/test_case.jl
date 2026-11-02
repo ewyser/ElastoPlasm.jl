@@ -3,7 +3,7 @@
     @testset "specification and validation" begin
         s = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 2]))], material=Dict("c0" => 1.0e3),
                    solver=(; basis=(; which="gimpm"), bcs=(; dirichlet=[:fixed :fixed; :fixed :free])))
-        @test s.material.c0 == 1.0e3 && s.material.E == MATERIAL.E && s.bcs == [:fixed :fixed; :fixed :free] && !haskey(s.settings.options, "bcs")
+        @test s.material.c0 == 1.0e3 && s.material.E == get_material().E && s.bcs == [:fixed :fixed; :fixed :free] && !haskey(s.settings.options, "bcs")
         @test (s.laws, s.grf) == (get_default().material, get_default().grf)                # the physics: defaults
         @test Solver(s).run == EP.solver_run((;)) && Solver(s) isa ExplicitSolver
         q = Case(; L=[4, 1, 2], nel=[4, 2, 2], run=(; workflow="elastoquasistatic!"))
@@ -15,7 +15,7 @@
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], bcs=[:fixed :glued; :free :free])
         @test_throws ArgumentError Case(; L=[1, 1, 1, 1], nel=[1, 1, 1, 1])                    # 2D or 3D
         z = [Zone("z", Block([0, 0], [1, 1]))]
-        @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], zones=z, properties=Dict("z" => (; EE=1.0)))   # ZONE_PROPS only
+        @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], zones=z, properties=Dict("z" => (; EE=1.0)))   # get_zone_properties() only
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], zones=z, properties=Dict("z" => (; E="stiff")))
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], zones=z, properties=Dict("cliff" => (; E=1.0)))   # no such zone
         one = Layout(; L=[1, 1], nel=[1, 1])
@@ -77,7 +77,7 @@
         p      = case_points(s, mesh)
         left   = p.xp[1, :] .< 1
         @test size(p.xp, 2) == 32 && count(left) == 8 && all(p.zone[left] .== 2) && all(p.zone[.!left] .== 1)
-        @test all(p.E[left] .== 5e6) && all(p.E[.!left] .== MATERIAL.E) && all(p.phi[left] .== 0.1) && all(p.c0 .== MATERIAL.c0)
+        @test all(p.E[left] .== 5e6) && all(p.E[.!left] .== get_material().E) && all(p.phi[left] .== 0.1) && all(p.c0 .== get_material().c0)
         @test all(p.vp[:, left] .== [1.0, -2.0]) && all(p.vp[:, .!left] .== 0)
         x3 = case_points(Case(; L=[4, 1, 2], nel=[4, 1, 2], zones=s.layout.zones, properties=Dict("left" => (; v=[1.0, -2.0]))),
                          EP.setup_mesh([4.0, 1.0, 2.0], [4, 1, 2], fill(:roller, 3, 2), Solver(; dim=3, plot=(; status=false))))
@@ -150,9 +150,9 @@
         @test solver.basis == (; which="gimpm", trsfr=get_default().basis.trsfr, C_pf=0.37, domain="undeformed") && !solver.stab.locking &&
               solver.stab.damping == get_default().stab.damping && EP.laws(m).plastic == "VM"
         rock = getindex.(m.x, 2) .< 2.0
-        K, G = EP.get_elastic_moduli(5e7, 0.2); K0, G0 = EP.get_elastic_moduli(MATERIAL.E, MATERIAL.nu)
+        K, G = EP.get_elastic_moduli(5e7, 0.2); K0, G0 = EP.get_elastic_moduli(get_material().E, get_material().nu)
         @test all(c -> (c.Kc, c.Gc) == (K, G), m.s.cmp[rock]) && all(m.s.ρ₀[rock] .== 2900.0)
-        @test all(c -> (c.Kc, c.Gc) == (K0, G0), m.s.cmp[.!rock]) && all(m.s.ρ₀[.!rock] .== MATERIAL.rho0)
+        @test all(c -> (c.Kc, c.Gc) == (K0, G0), m.s.cmp[.!rock]) && all(m.s.ρ₀[.!rock] .== get_material().rho0)
         base = [i for i ∈ eachindex(pb.mesh.x) if pb.mesh.x[i][2] == 0]
         @test all(pb.mesh.s.bcs.status[:, base])
         F, ℓ₀, ℓ = EP.SMatrix{2,2}(2.0, 0.0, 0.0, 0.5), EP.SVector(0.25, 0.25), EP.SVector(0.3, 0.2)   # GIMP's domain updates
@@ -224,7 +224,7 @@
         s = Case(; L=[20, 4, 10], nel=[20, 4, 10], zones=[Zone("soil", Block([0, 0], [20, 6]))],
                    solver=(; plot=(; status=false)), run=(; folder="test/case_run", te=0.2, tg=0.1, tep=0.0, workflow="elastodynamic!"))
         @test case_workflows(Solver(s).run.workflow, Solver(s).run.lstps) == Function[elastodynamic!]
-        @test case_workflows(EP.RUN.workflow, 1) == Function[elastodynamic!, elastoplastic!]
+        @test case_workflows(EP.get_run().workflow, 1) == Function[elastodynamic!, elastoplastic!]
         @test length(case_workflows("elastoquasistatic! (plastic)", 10)) == 1
         @test isfile(execute!(setup_simulation(s)))                                               # 3D, its own times
     end

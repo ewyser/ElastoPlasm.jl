@@ -17,7 +17,7 @@ struct Simulation{P}
     problem ::P
     folder  ::String
 end
-function Simulation(problem::Problem; folder::AbstractString=RUN.folder)
+function Simulation(problem::Problem; folder::AbstractString=get_run().folder)
     dir = rstrip(isabspath(folder) ? normpath(folder) : joinpath(self.sys.dump, folder), ['/', '\\'])
     return Simulation(problem, String(dir))
 end

@@ -18,11 +18,18 @@
   - Parameter lists without spaces (`{T1,T2,D}`); fields as `name ::T`, aligned.
   - An abstract type only when code dispatches on it, named after the role of the field it types
     (`AbstractBasisKind` for `Basis`'s `kind`, `AbstractTransfer`, `AbstractDomain`, `AbstractSolution`); its concrete
-    markers named `<Name><Role>` (`StdTransfer`, `StretchDomain`, `ExplicitSolution`), each made from an option by a
-    `get_<role>` function. Where an option's values name types, one function returns the table of both, a NamedTuple
-    keyed by the option's values in their listed order (`get_constitutive_laws()`, `get_solutions()`, read by
-    `table_value`): a function, not a `const`, like `get_default()`; a NamedTuple, not a `Dict`, for the order and like
-    the other in-memory tables (`Dict`s are the file form). `get_option`'s lists derive from it.
+    markers named `<Name><Role>` (`StdTransfer`, `StretchDomain`, `ExplicitSolution`). Where an option's values name
+    types, one function returns the table of both, a NamedTuple keyed by the option's values in their listed order
+    (`get_constitutive_laws()`, `get_solutions()`): a marker is read from it, `get_solutions().implicit`, or
+    `table_value(get_solutions(), name, "solution")` for a name given as text (no per-name `get_solution(name)`, which
+    the user called deprecated); a NamedTuple, not a `Dict`, for the order and like the other in-memory tables (`Dict`s
+    are the file form). `get_option`'s lists derive from it. `get_basis`, `get_transfer` and `get_domain` still build
+    their markers from a name (`planned-improvements.md`).
+- **Every table is a function, never a `const`** (agreed with the user, like `get_default()`, `get_option()`):
+  `get_<what>()`, plural for a collection (`get_workflows()`, `get_boundary_kinds()`, `get_zone_properties()`,
+  `get_physics_sections()`, `get_solutions()`, `get_constitutive_laws()`), singular for one record (`get_material()`,
+  `get_run()`). A table read in one function only is a local there (the catalog's page order). `const` stays for what
+  is not a table: type aliases (`ExplicitSolver`), the source path (`SRC`).
   - Every type's docstring in the house layout: the signature with its parameters, a summary, `# Fields` (each field's
     type, values and units; then what the type parameters are), `# Constructors`, `# Throws`, `# Examples`,
     `See also`, only the sections that apply. A field nothing reads says so.

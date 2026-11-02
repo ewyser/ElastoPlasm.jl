@@ -18,9 +18,9 @@
         @test first(ED.sections(c)) == "basis" && ED.field(c.options, "grf.param.Nₕ").kind == :integer
         @test ED.field(c.options, "grf.param.Iₓ").kind == :numeric && ED.field(c.options, "basis.which").kind == :menu
         w = ED.field(c.options, "plot.what"); @test w.kind == :list && w.names[findfirst(==("epII"), w.values)] == "plastic strain"
-        @test [f.key for f ∈ c.zone] == ["c0", "cr", "phi", "T", "E", "nu", "rho0"] && all(f -> f.default == getfield(MATERIAL, Symbol(f.key)), c.zone)
+        @test [f.key for f ∈ c.zone] == ["c0", "cr", "phi", "T", "E", "nu", "rho0"] && all(f -> f.default == getfield(get_material(), Symbol(f.key)), c.zone)
         @test ED.field(c.zone, "phi").show_if == Dict("material.plastic" => ["DP"]) && c.side == "roller"
-        @test [f.key for f ∈ c.run] == ["workflow", "te", "tg", "tep", "lstps"] && ED.field(c.run, "workflow").values == collect(EP.WORKFLOWS)
+        @test [f.key for f ∈ c.run] == ["workflow", "te", "tg", "tep", "lstps"] && ED.field(c.run, "workflow").values == collect(EP.get_workflows())
         back = ED.read_catalog(ED.write_catalog(joinpath(mktempdir(), "c.toml"), d))                # as TOML
         @test all(k -> ED.field_dict.(getfield(back, k)) == ED.field_dict.(getfield(c, k)), (:zone, :options, :run))
     end
@@ -74,7 +74,7 @@
         xs, zs = 0.5:1.0:19.5, 0.5:1.0:9.5
         @test zone_index(case, xs, zs)[:, 1] == fill(2, 20) && zone_index(case, xs, zs)[:, 10] == fill(0, 20)
         E, c0 = property(case, "E", xs, zs), property(case, "c0", xs, zs)
-        @test E[1, 1] == 5e7 && E[1, 4] == MATERIAL.E && all(==(1.0e4), c0)                # the case's material where not set
+        @test E[1, 1] == 5e7 && E[1, 4] == get_material().E && all(==(1.0e4), c0)                # the case's material where not set
         @test_throws ArgumentError property(case, "v", xs, zs)                             # not a number
         @test length(points(case).x)*4*3 == count(>(0), EP.case_zones(case))               # the x–z plane; the case counts 3D
         @test sort(unique(r.zone for r ∈ partition(case).regions)) == [0, 1, 2]
@@ -100,7 +100,7 @@
         ED.set_step!(e, 2); ED.new_zone!(e); foreach(p -> click!(e, p...), [(0, 0), (13, 0), (13, 3), (0, 3)]); ED.key!(e, "enter")
         ED.set_prop!(e, "E", "50"); ED.set_prop!(e, "nu", "0.2"); ED.set_prop!(e, "phi", "30")
         @test e.regions[1].props == Dict("E" => 5e7, "nu" => 0.2, "phi" => 30π/180)
-        @test occursin("default 20.0", ED.panel_json(e))                                    # c₀'s default, MATERIAL's, in kPa
+        @test occursin("default 20.0", ED.panel_json(e))                                    # c₀'s default, get_material()'s, in kPa
         ED.set_option!(e, "basis.which", findfirst(==("gimpm"), ED.field(e.catalog.options, "basis.which").values))
         @test e.options["basis"]["which"] == "gimpm"
         ED.type_option!(e, "grf.param.σ", "7500"); @test e.options["grf"]["param"]["σ"] == 7500.0
@@ -108,7 +108,7 @@
         @test e.options["plot"]["what"] == ["p", "epII"]
         e.section = "plot"; @test occursin("\"plastic strain\"", ED.panel_json(e))           # shown by its readable name
         ED.set_option!(e, "material.plastic", 2); @test !occursin("φ [°]", ED.panel_json(e))  # von Mises: no friction angle
-        ED.pick_run!(e, "workflow", findfirst(==("elastoquasistatic!"), collect(EP.WORKFLOWS)))
+        ED.pick_run!(e, "workflow", findfirst(==("elastoquasistatic!"), collect(EP.get_workflows())))
         ED.set_run!(e, "lstps", "20"); ED.set_run!(e, "lstps", "-1")
         @test e.run["workflow"] == "elastoquasistatic!" && e.run["lstps"] == 20
         @test occursin("20 load steps", join(ED.checks(e).info))                              # check_case's

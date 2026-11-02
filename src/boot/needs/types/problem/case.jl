@@ -4,26 +4,35 @@
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 export AbstractShape, Polygon, Block, Ball, Region, Zone, Layout, Settings, load_layout, load_settings, save_settings,
-       Case, PointData, MATERIAL, inpolygon
+       Case, PointData, get_material, inpolygon
 
 """
-    MATERIAL
+    get_material() -> NamedTuple
 
-The default material of a `Case`, in SI units with angles in radians: Young's modulus `E`
-[Pa], Poisson's ratio `nu`, grain density `rho0` [kg/m³], cohesion `c0` and residual cohesion `cr`
-[Pa], friction angle `phi` [rad], softening modulus `Hp` [Pa], initial porosity `n0`, temperature
-`T` [K], specific heat capacity `cp` [J/(kg·K)], thermal conductivity `k` [W/(m·K)].
+The default material of a `Case`, in SI units with angles in radians: Young's modulus `E` [Pa], Poisson's ratio `nu`,
+grain density `rho0` [kg/m³], cohesion `c0` and residual cohesion `cr` [Pa], friction angle `phi` [rad], softening
+modulus `Hp` [Pa], initial porosity `n0`, temperature `T` [K], specific heat capacity `cp` [J/(kg·K)], thermal
+conductivity `k` [W/(m·K)]. A case's settings override it (`defaults`, then each zone's values).
 """
-const MATERIAL = (; E=1.0e6, nu=0.3, rho0=2700.0, c0=20.0e3, cr=4.0e3, phi=20.0*π/180, Hp=-30.0e3, n0=0.1,
-                    T=293.15, cp=10.0, k=3000.0)
+function get_material()
+    return (; E=1.0e6, nu=0.3, rho0=2700.0, c0=20.0e3, cr=4.0e3, phi=20.0*π/180, Hp=-30.0e3, n0=0.1, T=293.15,
+              cp=10.0, k=3000.0)
+end
 # what a zone may set: any material constant, and an initial velocity `v` [m/s]
-const ZONE_PROPS = (keys(MATERIAL)..., :v)
-# the run settings of a case: output folder under dump/, times [s] for `setup_time` (elastic stage,
-# gravity ramp, plastic stage), workflow (`WORKFLOWS`), load steps of the quasi-static workflows
-const RUN = (; folder="problem", te=10.0, tg=10.0, tep=5.0, workflow="elastodynamic! + elastoplastic!", lstps=10)
-const BOUNDARY_KINDS = (:free, :roller, :fixed)
+function get_zone_properties()
+    return (keys(get_material())..., :v)
+end
+# the default run settings of a case: output folder under dump/, times [s] for `setup_time` (elastic stage, gravity
+# ramp, plastic stage), workflow (`get_workflows()`), load steps of the quasi-static workflows
+function get_run()
+    return (; folder="problem", te=10.0, tg=10.0, tep=5.0, workflow="elastodynamic! + elastoplastic!", lstps=10)
+end
+# the boundary condition a side may have
+function get_boundary_kinds()
+    return (:free, :roller, :fixed)
+end
 # the shapes (`Polygon`, `Block`, `Ball`, `Region`, their `inside` rule) and `Zone` are EasyDraw's (lib/EasyDraw),
-# imported in boot.jl; a case's zones may set only `ZONE_PROPS`, checked by `Case`
+# imported in boot.jl; a case's zones may set only `get_zone_properties()`, checked by `Case`
 
 """
     Case
@@ -43,8 +52,8 @@ geometry can take several settings, `Case(layout, settings_a)` and `Case(layout,
 - `settings::EasyDraw.Settings`: the values, as plain data: `zones` (by zone name), `defaults`, `sides`, `options`,
   `run`. The case reads the physics below and its folder (`case_folder`); `Solver(case)` the numerical options and
   the run settings. With the layout, the case's file (`save_case`, `load_case`).
-- `material::NamedTuple`: the material constants: `MATERIAL`, with the settings' `defaults`.
-- `properties::Dict{String,NamedTuple}`: each zone's own constants, by zone name: `MATERIAL` keys, or an initial
+- `material::NamedTuple`: the material constants: `get_material()`, with the settings' `defaults`.
+- `properties::Dict{String,NamedTuple}`: each zone's own constants, by zone name: `get_material()` keys, or an initial
   velocity `v`; where a zone does not set one, the material's.
 - `bcs::Matrix{Symbol}`: the boundary condition of each side, one `[lower upper]` row per axis (x, then y in 3D,
   then z): the settings' `sides`, `"left"`/`"right"`, `"front"`/`"back"`, `"bottom"`/`"top"`, each `:free`,
@@ -61,15 +70,15 @@ geometry can take several settings, `Case(layout, settings_a)` and `Case(layout,
     Case(; L, nel, ni=2, zones=[], properties=Dict(), material=(;), bcs=nothing, solver=(;), thermal=false, run=(;))
 
 The keyword form builds both, then reads them: `zones` (a name and a shape each) as the layout; `properties` (by zone
-name, e.g. `Dict("rock" => (; E=5e7))`) as the zones' values; `material` (overrides of `MATERIAL`) as the defaults;
-`bcs` (or `solver.bcs.dirichlet`, as the solver options give them; a row per axis, extra rows ignored) as the sides;
-`solver` (overrides of `get_default()`) as the options in their file form (`option_labels`); and every run setting,
-with `thermal`.
+name, e.g. `Dict("rock" => (; E=5e7))`) as the zones' values; `material` (overrides of `get_material()`) as the
+defaults; `bcs` (or `solver.bcs.dirichlet`, as the solver options give them; a row per axis, extra rows ignored) as the
+sides; `solver` (overrides of `get_default()`) as the options in their file form (`option_labels`); and every run
+setting, with `thermal`.
 
 # Throws
 - `ArgumentError`: when a zone sets something other than a material constant or a velocity `v`, a default is not a
-  material constant, a side's kind is not one of `BOUNDARY_KINDS`, an option or a run setting is unknown or invalid
-  (all are checked here, also the numerical ones), or the layout and settings are invalid or do not agree
+  material constant, a side's kind is not one of `get_boundary_kinds()`, an option or a run setting is unknown or
+  invalid (all are checked here, also the numerical ones), or the layout and settings are invalid or do not agree
   (`EasyDraw.check_settings`).
 """
 struct Case
@@ -125,36 +134,38 @@ function named_tuple(x)
 end
 # each zone's constants, by zone name: material constants (numbers) and a velocity (numbers)
 function case_properties(zones)
-    out = Dict{String,NamedTuple}()
+    out, known = Dict{String,NamedTuple}(), get_zone_properties()
     for (name, values) ∈ zones
         p   = Dict{Symbol,Any}(Symbol(k) => v for (k, v) ∈ values)
-        bad = setdiff(keys(p), ZONE_PROPS)
-        isempty(bad) || throw(ArgumentError("zone \"$name\": unknown properties $(collect(bad)); known: $(ZONE_PROPS)"))
+        bad = setdiff(keys(p), known)
+        isempty(bad) || throw(ArgumentError("zone \"$name\": unknown properties $(collect(bad)); known: $(known)"))
         all(((k, v),) -> k == :v ? v isa Vector{Float64} : v isa Float64, p) ||
             throw(ArgumentError("zone \"$name\": its material constants are numbers, its velocity v a list of numbers"))
         out[name] = (; p...)
     end
     return out
 end
-# the material: MATERIAL with the layout's defaults
+# the material: `get_material()` with the layout's defaults
 function case_material(defaults)
-    m   = Dict{Symbol,Any}(Symbol(k) => v for (k, v) ∈ defaults)
-    bad = setdiff(keys(m), keys(MATERIAL))
-    isempty(bad) || throw(ArgumentError("unknown material constants $(collect(bad)); known: $(keys(MATERIAL))"))
-    return (; (k => Float64(get(m, k, getfield(MATERIAL, k))) for k ∈ keys(MATERIAL))...)
+    m, d = Dict{Symbol,Any}(Symbol(k) => v for (k, v) ∈ defaults), get_material()
+    bad  = setdiff(keys(m), keys(d))
+    isempty(bad) || throw(ArgumentError("unknown material constants $(collect(bad)); known: $(keys(d))"))
+    return (; (k => Float64(get(m, k, getfield(d, k))) for k ∈ keys(d))...)
 end
 # the boundary conditions: the layout's sides, roller where a side is not set
 function case_bcs(sides, D)
-    bcs = fill(:roller, D, 2)
+    bcs, kinds = fill(:roller, D, 2), get_boundary_kinds()
     for (side, (axis, k)) ∈ side_axes(D)
         kind = Symbol(get(sides, side, "roller"))
-        kind ∈ BOUNDARY_KINDS || throw(ArgumentError("side $side: $kind is not one of $(BOUNDARY_KINDS)"))
+        kind ∈ kinds || throw(ArgumentError("side $side: $kind is not one of $(kinds)"))
         bcs[axis, k] = kind
     end
     return bcs
 end
 # the option sections that are physics, read by the case; the others are numerics, read by `Solver(case)`
-const PHYSICS_SECTIONS = (:material, :grf)
+function get_physics_sections()
+    return (:material, :grf)
+end
 # a case's options as values, checked against get_default() (an unknown field errors)
 function case_options(options)
     s = named_tuple(option_values(options))
@@ -162,7 +173,7 @@ function case_options(options)
     return s
 end
 
-# the run settings of a layout's settings: `RUN` with them (`thermal` aside); the folder, when they set none, the
+# the run settings of a layout's settings: `get_run()` with them (`thermal` aside); the folder, when they set none, the
 # layout's own (a file's)
 function case_run(l::EasyDraw.Layout, s::EasyDraw.Settings)
     run = Dict{String,Any}(s.run)
@@ -170,7 +181,7 @@ function case_run(l::EasyDraw.Layout, s::EasyDraw.Settings)
     haskey(run, "folder") || isempty(l.folder) || (run["folder"] = l.folder)
     return case_run(run)
 end
-# where a case's simulation is written: its run folder, else its layout's file's folder, else `RUN.folder`
+# where a case's simulation is written: its run folder, else its layout's file's folder, else `get_run().folder`
 function case_folder(case::Case)
     return case_run(case.layout, case.settings).folder
 end
@@ -183,24 +194,27 @@ end
 """
     case_run(run) -> NamedTuple
 
-Run settings (`RUN`: `folder`, where the simulation is written, a name under `dump/` or a path;
+Run settings (`get_run()`: `folder`, where the simulation is written, a name under `dump/` or a path;
 `te`, `tg`, `tep`, `workflow`, `lstps`), given as a `Dict` or `NamedTuple`, missing ones from the
-defaults; `workflow` is one of `WORKFLOWS`. The `fid`/`dir` of older cases are read as `folder`.
+defaults; `workflow` is one of `get_workflows()`. The `fid`/`dir` of older cases are read as `folder`.
 """
 function case_run(run)
-    unknown = setdiff(string.(keys(run)), [string.(keys(RUN))..., "fid", "dir"])
-    isempty(unknown) || throw(ArgumentError("unknown run settings $(unknown); known: $(string.(keys(RUN)))"))
-    val(k, d=getfield(RUN, k)) = run isa AbstractDict ? get(run, string(k), get(run, k, d)) : get(run, k, d)
-    old = (d = val(:dir, ""); isempty(d) ? val(:fid, RUN.folder) : d)  # older cases
+    default, workflows = get_run(), get_workflows()
+    unknown = setdiff(string.(keys(run)), [string.(keys(default))..., "fid", "dir"])
+    isempty(unknown) || throw(ArgumentError("unknown run settings $(unknown); known: $(string.(keys(default)))"))
+    val(k, d=getfield(default, k)) = run isa AbstractDict ? get(run, string(k), get(run, k, d)) : get(run, k, d)
+    old = (d = val(:dir, ""); isempty(d) ? val(:fid, default.folder) : d)  # older cases
     r = (; folder=String(val(:folder, old)), te=Float64(val(:te)), tg=Float64(val(:tg)), tep=Float64(val(:tep)),
            workflow=String(val(:workflow)), lstps=Int(val(:lstps)))
-    r.workflow ∈ WORKFLOWS || throw(ArgumentError("run.workflow = \"$(r.workflow)\" is not one of $(WORKFLOWS)"))
+    r.workflow ∈ workflows || throw(ArgumentError("run.workflow = \"$(r.workflow)\" is not one of $(workflows)"))
     (r.te ≥ 0 && r.tg ≥ 0 && r.tep ≥ 0 && r.lstps ≥ 1) || throw(ArgumentError("run times must be ≥ 0 and lstps ≥ 1"))
     return r
 end
 # the workflows a case may run (`case_workflows`); the quasi-static ones need `solution = "implicit"`
-const WORKFLOWS = ("elastodynamic! + elastoplastic!", "elastodynamic!", "elastoplastic!",
-                   "elastoquasistatic!", "elastoquasistatic! (plastic)")
+function get_workflows()
+    return ("elastodynamic! + elastoplastic!", "elastodynamic!", "elastoplastic!", "elastoquasistatic!",
+            "elastoquasistatic! (plastic)")
+end
 quasistatic(workflow) = startswith(workflow, "elastoquasistatic!")
 
 
@@ -225,7 +239,7 @@ The material points a problem starts from, one column or entry per point: the ex
 
 # Constructors
     PointData(xp, vp, ni, zone, c0, cr, phi, Hp, E, nu, rho0, n0, T, cp, k)
-    PointData(xp, ni; material=MATERIAL)
+    PointData(xp, ni; material=get_material())
 
 The second, points at rest of one material (`sfrac.jl`'s quadrature points).
 """
@@ -248,11 +262,11 @@ struct PointData
 end
 
 """
-    PointData(xp, ni; material=MATERIAL) -> PointData
+    PointData(xp, ni; material=get_material()) -> PointData
 
 Points at `xp` (D×nmp, `ni` per element and axis), at rest, all of one `material`.
 """
-function PointData(xp::AbstractMatrix, ni::Integer; material=MATERIAL)
+function PointData(xp::AbstractMatrix, ni::Integer; material=get_material())
     n = size(xp, 2)
     f(k) = fill(Float64(getfield(material, k)), n)
     return PointData(Float64.(xp), zeros(size(xp)), Int(ni), zeros(Int, n), f(:c0), f(:cr), f(:phi), f(:Hp), f(:E), f(:nu),

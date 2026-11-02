@@ -95,7 +95,7 @@ function save_case(file::AbstractString, case::Case, solver::Solver; folder::Abs
     s = case.settings
     c = solver_config(solver)
     numerics = config_changes(Base.structdiff(c, NamedTuple{(:run,)}), get_default())
-    options = Dict{String,Any}(k => v for (k, v) ∈ s.options if Symbol(k) ∈ PHYSICS_SECTIONS)
+    options = Dict{String,Any}(k => v for (k, v) ∈ s.options if Symbol(k) ∈ get_physics_sections())
     merge!(options, option_labels(config_dict(numerics)))
     run = merge(Dict{String,Any}(s.run), config_dict(c.run), Dict{String,Any}("folder" => folder))
     settings = EasyDraw.Settings(; zones=s.zones, defaults=s.defaults, sides=s.sides, options, run)

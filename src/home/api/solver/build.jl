@@ -50,10 +50,10 @@ end
 """
     Solver(; dim=2, sections…) -> Solver
 
-A solver for `dim`-dimensional cases, written in code (`Solver(case)` reads one from a case's settings):
-`get_default()` with `sections` merged over it (`solver_instr`), the execution backend resolved and the kernel table
-(`cairn`) built; the run settings are `RUN`'s. The physics (`material`, `grf`, `bcs`) is a case's, so it is refused
-here (`ArgumentError`).
+A solver for `dim`-dimensional cases, written in code (`Solver(case)` reads one from a case's settings): `get_default()`
+with `sections` merged over it (`solver_instr`), the execution backend resolved and the kernel table (`cairn`) built;
+the run settings are `get_run()`'s. The physics (`material`, `grf`, `bcs`) is a case's, so it is refused here
+(`ArgumentError`).
 """
 function Solver(; dim::Integer=2, kwargs...)
     refuse_physics(kwargs)
@@ -101,8 +101,8 @@ end
     build_solver(instr, dim) -> Solver
 
 The solver of a complete configuration `instr` (`get_default()`'s numerical sections, merged; with its run settings as
-`run`, else `RUN`'s, `solver_run`): the execution backend selected (`backend.select`, through UnifiedBackend, unless
-`backend.exec` is given) and the kernels built on it (`cairn`). Both `Solver` constructors end with it, and
+`run`, else `get_run()`'s, `solver_run`): the execution backend selected (`backend.select`, through UnifiedBackend,
+unless `backend.exec` is given) and the kernels built on it (`cairn`). Both `Solver` constructors end with it, and
 `load_simulation` rebuilds a saved solver with it from its stored configuration (`solver_config`), so the device is
 picked on the machine that loads the file.
 """
@@ -122,7 +122,7 @@ function build_solver(instr::NamedTuple, dim::Integer)
     )
     instr = merge(instr, (; cairn = cairn,))
     return Solver{instr[:dtype][:T0]...,dim}(
-        get_solution(instr[:solution]),                     # the solution's marker, what the workflows dispatch on
+        table_value(get_solutions(), instr[:solution], "solution"),   # its marker, what the workflows dispatch on
         instr[:dtype],
         instr[:basis],
         instr[:stab],

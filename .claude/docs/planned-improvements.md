@@ -296,7 +296,7 @@
 - **Lighter `src/home/init/` — done** (branches `refactor-lighter-init` → `fix-grf-point-evaluation`
   → `refactor-init-problem-spec`). Every problem is a `Case` built by `setup_simulation`; the
   six hand-written pipelines and the `get_*` generators are gone (see "Describing a case" in
-  `operations.md`). Material constants live in `MATERIAL` (`setup_material_constants` removed, `n₀`
+  `operations.md`). Material constants live in `get_material()` (`setup_material_constants` removed, `n₀`
   a material constant), `PointData` replaced the implicit generator NamedTuple and
   `build_solid_phase`'s 11 positional arguments, the solver options merge per field, a 3D column works.
   Verified bit-identical setup by setup with `test_setup.jl` (a stored digest reference, which

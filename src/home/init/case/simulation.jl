@@ -13,8 +13,8 @@ solver solves other cases of its dimension (`Problem(other, solver)`).
 (`run=(; te=5.0)`), so one case is solved several ways.
 
 # Throws
-- `ArgumentError`: when an override is physics (a `PHYSICS_SECTIONS` section, or `bcs`: set it in the case), or the
-  run folder (the case's, or `setup_simulation`'s `folder`), or an explicit workflow is asked of an implicit solver
+- `ArgumentError`: when an override is physics (a `get_physics_sections()` section, or `bcs`: set it in the case), or
+  the run folder (the case's, or `setup_simulation`'s `folder`), or an explicit workflow is asked of an implicit solver
   (`solution = "implicit"`); and for an unknown or invalid option or run setting.
 
 # Examples
@@ -35,7 +35,7 @@ function Solver(case::Case; run=(;), overrides...)
     settings = merge(Dict{String,Any}(s.run), config_dict(run))
     delete!(settings, "thermal")                             # the case's
     r = solver_run(settings)
-    config = (; (k => v for (k, v) ∈ pairs(case_options(options)) if k ∉ PHYSICS_SECTIONS)...)
+    config = (; (k => v for (k, v) ∈ pairs(case_options(options)) if k ∉ get_physics_sections())...)
     haskey(config, :solution) || (config = merge(config, (; solution=quasistatic(r.workflow) ? "implicit" : "explicit")))
     quasistatic(r.workflow) || config.solution == "explicit" ||
         throw(ArgumentError("workflow \"$(r.workflow)\" needs an explicit solver (solution = \"explicit\")"))
@@ -44,7 +44,7 @@ function Solver(case::Case; run=(;), overrides...)
 end
 # solver options that are a case's physics are refused: set them in the case
 function refuse_physics(options)
-    physics = [k for k ∈ keys(options) if k ∈ (PHYSICS_SECTIONS..., :bcs)]
+    physics = [k for k ∈ keys(options) if k ∈ (get_physics_sections()..., :bcs)]
     isempty(physics) || throw(ArgumentError("$(join(physics, ", ")): the case's physics; set it in the case (its settings)"))
     return nothing
 end
@@ -104,7 +104,7 @@ end
     case_workflows(sim) -> Vector{Function}
     case_workflows(workflow, lstps) -> Vector{Function}
 
-The workflow functions of a workflow name (one of `WORKFLOWS`), the quasi-static ones in `lstps` load
+The workflow functions of a workflow name (one of `get_workflows()`), the quasi-static ones in `lstps` load
 steps: what `execute!` runs by default, for a simulation its solver's (`solver.run`).
 """
 function case_workflows(sim::Simulation)

@@ -99,12 +99,12 @@ Every type's docstring lists its fields (`# Fields`), in the house layout of `co
   `HypoelasticSolid`, the elastic-law tag `elast.jl` and `get_dt`'s `_Ktan` dispatch on) are both
   picked together from `material.elastic` by `build_solid_phase`.
 - `Solver{T1,T2,D,SL,…}` (`src/boot/needs/types/solver.jl`) — how a case is solved: one struct, its `solution`
-  a marker (`ExplicitSolution()`/`ImplicitSolution()`, `get_solution` from the option, `get_solutions()`), with
+  a marker (`ExplicitSolution()`/`ImplicitSolution()`, read from the option's table `get_solutions()`), with
   `ExplicitSolver{T1,T2,D}`/`ImplicitSolver` the aliases the workflows dispatch on (`elastodynamic!` takes an
   `ExplicitSolver`); `solution_name(solver)` is the option value, for logs, file names, the HDF5 attribute. Fields: the
   numerical option sections, `run` (`solver_run`: te, tg, tep, workflow, lstps; no folder) and the kernels (`cairn`).
   `Solver(case; run=(;), overrides…)` (`src/home/init/case/simulation.jl`) reads a case's settings (the option sections
-  that are not `PHYSICS_SECTIONS`, the run settings), overridable per field, and keeps nothing of the case;
+  that are not `get_physics_sections()`, the run settings), overridable per field, and keeps nothing of the case;
   `Solver(; dim, sections…)` (`src/home/api/solver/build.jl`) is one written in code, `get_default()` with the
   sections merged. Both refuse physics (`material`, `grf`, `bcs`: `refuse_physics`) and end with `build_solver`.
   `solution` follows the workflow unless set; an explicit workflow on an implicit solver is refused.
@@ -127,10 +127,10 @@ Every type's docstring lists its fields (`# Fields`), in the house layout of `co
 - `Case` (`src/boot/needs/types/problem/case.jl`) — what is solved: an EasyDraw `Layout`, the geometry (`case.layout`:
   domain, grid, zones, each a name and a shape `Polygon`/`Block`/`Ball`/`Region`), and its EasyDraw `Settings`, the
   values (`case.settings`: zones' values by name, defaults, sides, options, run), the case's own copies; and the typed
-  reading of its physics: `material` (`MATERIAL` with the defaults), `properties` (each zone's constants by name,
-  checked against `ZONE_PROPS`), `bcs` (the sides, `side_axes`), `laws` (`(; elastic, plastic)`, the options'
+  reading of its physics: `material` (`get_material()` with the defaults), `properties` (each zone's constants by name,
+  checked against `get_zone_properties()`), `bcs` (the sides, `side_axes`), `laws` (`(; elastic, plastic)`, the options'
   `material` section over `get_default()`'s) and `grf` (the random cohesion field, likewise), `thermal`; its folder is
-  `case_folder(case)` (the run settings' `folder`, else the layout's file's folder, else `RUN.folder`). It checks the
+  `case_folder(case)` (the run settings' `folder`, else the layout's file's folder, else `get_run().folder`). It checks the
   numerical options and run settings too, which `Solver(case)` reads. `Case(layout, settings)` is the one constructor
   that reads; `Case(; …)` builds both. 2D or 3D (no extruded form: x–z shapes extend along y). `case_points` turns it
   into `PointData`, the explicit per-point contract `setup_mpts` reads. One file format, the layout's

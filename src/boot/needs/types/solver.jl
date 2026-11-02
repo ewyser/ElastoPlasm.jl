@@ -4,7 +4,7 @@
 
 export Solver, ExplicitSolver, ImplicitSolver
 
-# how the equations are solved, `Solver`'s `solution` (the option `solution`, `get_solution`)
+# how the equations are solved, `Solver`'s `solution` (the option `solution`, `get_solutions()`)
 abstract type AbstractSolution end
 "Explicit time integration: `elastodynamic!`, `elastoplastic!`, `thermodynamic!`."
 struct ExplicitSolution <: AbstractSolution end
@@ -14,7 +14,8 @@ struct ImplicitSolution <: AbstractSolution end
     get_solutions() -> NamedTuple
 
 The values of the option `solution`, each with its marker: `explicit = ExplicitSolution()`,
-`implicit = ImplicitSolution()`. `get_solution` and `solution_name` read it, `get_option` lists its names, in this
+`implicit = ImplicitSolution()`: a solver's marker is `get_solutions().implicit`, or `table_value(get_solutions(),
+name, "solution")` for a name given as text; `solution_name` reads it back, and `get_option` lists its names, in this
 order.
 """
 function get_solutions()
@@ -28,8 +29,7 @@ How a case is solved: the numerical options, the run settings and the kernels bu
 case, so one solver solves several cases of its dimension (`Problem(case, solver)`).
 
 # Fields
-- `solution::SL`: the method, `ExplicitSolution()` or `ImplicitSolution()` (the option `solution`, `get_solution`,
-  `get_solutions()`);
+- `solution::SL`: the method, `ExplicitSolution()` or `ImplicitSolution()` (the option `solution`, `get_solutions()`);
   the workflows dispatch on it (`ExplicitSolver`, `ImplicitSolver`).
 - `dtype::NamedTuple`: the precision, `(; precision, T0, bits)`: `T0 = (T1, T2)`.
 - `basis::NamedTuple`: the basis and transfer scheme, `(; which, trsfr, C_pf, domain)`.
@@ -78,14 +78,6 @@ const ExplicitSolver{T1,T2,D} = Solver{T1,T2,D,ExplicitSolution}
 "A `Solver` of the implicit solution, dynamic relaxation."
 const ImplicitSolver{T1,T2,D} = Solver{T1,T2,D,ImplicitSolution}
 
-"""
-    get_solution(which::String) -> AbstractSolution
-
-Map the option `solution` (`"explicit"`, `"implicit"`) to its marker, `ExplicitSolution()` or `ImplicitSolution()`.
-"""
-function get_solution(which::AbstractString)
-    return table_value(get_solutions(), which, "solution")
-end
 """
     solution_name(solver) -> String
 
