@@ -5,7 +5,7 @@
     out(; kw...) = (; status=true, every=0.5, kw...)
     case(name; output=out(), te=1.0, tep=0.5, workflow="elastodynamic! + elastoplastic!", solver=(;)) =
         Case(; L=[20, 10], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
-               zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7)],
+               zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))], properties=Dict("rock" => (; E=5e7)),
                solver=(; plot=(; status=false), output, solver...), run=(; folder="test/$name", te, tg=te, tep, workflow))
     output_of(j) = replace(j, "_simulation.jld2" => "_output.h5")
 

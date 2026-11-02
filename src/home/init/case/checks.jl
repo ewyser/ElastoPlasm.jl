@@ -25,7 +25,7 @@ function estimate_dt(s::Case; zone=case_zones(s))
     isempty(used) && return (Inf, 0.0)
     elastic = option_of(s, :material, :elastic)
     function speed(k)
-        p(x) = get(s.layout.zones[k].props, x, getfield(s.material, x))
+        p(x) = get(get(s.properties, s.layout.zones[k].name, (;)), x, getfield(s.material, x))
         K, G = get_elastic_moduli(p(:E), p(:nu))
         Kt   = elastic == "improved_hencky" ? K/p(:n0) : K
         return sqrt((Kt + 4G/3)/((1 - p(:n0))*p(:rho0)))

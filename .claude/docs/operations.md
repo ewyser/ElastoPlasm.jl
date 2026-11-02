@@ -80,30 +80,36 @@ execute!(jld2)                         # its workflow (case_workflows)
 save_case("layers.toml", case); case = load_case("layers.toml")
 ```
 
-- **A case is built from an EasyDraw `Layout`** (branch `refactor-case-from-layout`, asked for: the two described the
-  same model twice). The layout is the data: `L`, `nel` (2D x–z, or 3D x, y, z; lower corner at the origin), `ni`
-  points per element and axis, `zones`, `sides`, `defaults`, `options`, `run`. `Case(layout)` checks a copy of it and
-  holds its typed reading, `case.material`, `case.bcs`, `case.solver`, `case.thermal`, `case.run`; the geometry is read
-  from `case.layout` (`case.layout.L`, `.zones`, …). A case keeps its own copy (a deepcopy): to change a model, change a
-  layout and build a new case (`Layout` and `load_layout` are re-exported by `using ElastoPlasm`, so a layout can be
-  written or read and passed to `Case(layout)`). `Case(; L, nel, ni, zones, material, bcs, solver, thermal, run)` builds the layout, so
-  the examples are unchanged:
+- **A case is built from an EasyDraw `Layout` and its `Settings`** (branch `refactor-case-from-layout`, asked for: the
+  case and the layout described the same model twice, then: "separate Layout (pure geometry) from Case, related to
+  physics and solver"). The layout is the geometry: `L`, `nel` (2D x–z, or 3D x, y, z; lower corner at the origin),
+  `ni` points per element and axis, `zones` (a name and a shape each, names unique). The settings are the values, as
+  plain data: `zones` (each zone's values by zone name), `defaults`, `sides`, `options`, `run`. `Case(layout,
+  settings)` checks a copy of both (`EasyDraw.check_settings`: values only for the layout's zones, sides its domain
+  has) and holds their typed reading: `case.material`, `case.properties` (name → NamedTuple), `case.bcs`,
+  `case.solver`, `case.thermal`, `case.run`; the geometry is read from `case.layout`. A case keeps its own copies: to
+  change a model, change a layout or settings and build a new case. One geometry takes several settings:
+  `Case(layout, settings_a)`, `load_case(geometry_file, settings_file)`. `Layout`, `Settings`, `load_layout`,
+  `load_settings`, `save_settings` are re-exported by `using ElastoPlasm`. `Case(; L, nel, ni, zones, properties,
+  material, bcs, solver, thermal, run)` builds both, so the examples kept their shape (`slump` and `collision` moved
+  their zone keywords into `properties`):
+  - `properties`: by zone name, `Dict("base" => (; phi=…, T=…))`, any `MATERIAL` key or `v`; the settings' `zones`;
   - `material`: overrides of `MATERIAL` (E, nu, rho0, c0, cr, phi, Hp, n0, T, cp, k; SI, angles in radians), the
-    layout's `defaults`;
+    settings' `defaults`;
   - `bcs`: D×2 `:free`/`:roller`/`:fixed` (extra rows ignored; `bcs` passed among the solver options moves here), the
-    layout's `sides` through `side_axes(D)`: x `left`/`right`, z `bottom`/`top`, and in 3D y `front`/`back`, roller
+    settings' `sides` through `side_axes(D)`: x `left`/`right`, z `bottom`/`top`, and in 3D y `front`/`back`, roller
     when a side is not set;
-  - `solver`: overrides, the layout's `options` in their file form (`option_labels`; `Case(layout)` reads them back with
+  - `solver`: overrides, the settings' `options` in their file form (`option_labels`; `Case` reads them back with
     `option_values` and validates them against `get_default()`). Every example's options round-trip exactly;
-  - `thermal`, `run`: the layout's `run`, every `RUN` setting (`folder`, `te`, `tg`, `tep`, `workflow` ∈ `WORKFLOWS`,
+  - `thermal`, `run`: the settings' `run`, every `RUN` setting (`folder`, `te`, `tg`, `tep`, `workflow` ∈ `WORKFLOWS`,
     `lstps`) and `thermal` when true. `folder` is where `setup_simulation` writes the simulation and the case TOML,
     named after its last part: a name under `dump/` or a path; without one in `run`, the layout's own folder (a file's).
   - No `width`/`nely`: a 2D model extruded along y is a 3D case of x–z shapes (they extend along y), its y sides roller
     by default as the extruded form forced. EasyDraw has the same single 3D form.
-- **Zones:** `Zone(name, shape; props...)`, props any `MATERIAL` key or `v` (initial velocity; two
-  (x, z) components in 3D). `Zone` and the shapes are EasyDraw's (`lib/EasyDraw/src/{shapes,layout}.jl`, imported and
-  re-exported in `boot.jl`), where a zone takes any property; `Case` checks them against `ZONE_PROPS` (an unknown
-  one errors when the case is built, naming the zone). Shapes: `Polygon` (x–z, even–odd, extruded in 3D; several outlines, `Polygon(rings)`, make one zone of
+- **Zones:** `Zone(name, shape)`, geometry only; a zone's constants are its `properties` (any `MATERIAL` key or `v`,
+  initial velocity; two (x, z) components in 3D). `Zone`, `Layout`, `Settings` and the shapes are EasyDraw's
+  (`lib/EasyDraw/src/{shapes,layout}.jl`, imported and re-exported in `boot.jl`), where a zone's values can be anything;
+  `Case` checks them against `ZONE_PROPS` (an unknown one errors when the case is built, naming the zone). Shapes: `Polygon` (x–z, even–odd, extruded in 3D; several outlines, `Polygon(rings)`, make one zone of
   several parts or with holes: flat `vertices` plus `sizes`, `polygon_rings`), `Block(lo, hi)` (bounds
   included; D coordinates, or two for an extruded block), `Ball(centre, r)` (disk, sphere, or cylinder
   along y), `Region(f)` (a predicate on the point, code only, not writable to TOML). `Block` is not named
@@ -115,11 +121,15 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   `nu`, `rho0`, `n0`, `T`, `cp`, `k`) that `setup_mpts`/`build_solid_phase`/`build_thermal_phase`/
   `setup_cmp` read; `PointData(xp, ni)` is a uniform default material (used by `sfrac.jl`'s
   quadrature points). `mpts_populate(props; ni)` gives the candidate positions both use.
-- **TOML** (`save_case`/`load_case`): a case file is its layout's file (EasyDraw's `save_layout`/`load_layout`), SI
-  throughout (φ in radians): `[domain]` (`L`, `nel`, `ni`), `[sides]`, `[defaults]` (the material overrides),
-  `[options.<section>]` (booleans, numbers and number lists as such, other values as their `get_option()` label,
-  quantities by key; `option_value` maps back and accepts any number for a numeric option), `[run]` (with `thermal`),
-  `[[zone]]` with `shape = "polygon"`/`"block"`/`"ball"`. `load_case` refuses a case file of the older format (`bcs`,
+- **TOML** (`save_case`/`load_case`): a case file is its layout's file with its settings (EasyDraw's
+  `save_layout(file, layout, settings)`, `load_layout` + `load_settings`), SI throughout (φ in radians): the geometry
+  at the top level, `[domain]` (`L`, `nel`, `ni`) and `[[zone]]` (name, `shape = "polygon"`/`"block"`/`"ball"`); the
+  settings under `[settings]`: `[settings.zones.<name>]` (each zone's constants), `[settings.defaults]` (the material
+  overrides), `[settings.sides]`, `[settings.options.<section>]` (booleans, numbers and number lists as such, other
+  values as their `get_option()` label, quantities by key; `option_value` maps back and accepts any number for a numeric
+  option), `[settings.run]` (with `thermal`). Geometry and settings can also be files of their own
+  (`save_layout(file, case.layout)`, `save_settings(file, case.settings)`, `load_case(geometry, settings)`). A file of
+  this branch's earlier format (values inline in `[[zone]]`, top-level `[sides]` …) still loads, through EasyDraw. `load_case` refuses a case file of the older format (`bcs`,
   `[material]`, `[solver]`, φ in degrees; the user chose dropping them over a converter): set it up again from its
   example. Every example rebuilds identically from its file (each array of the problem).
 - **Checks** (`check_case`): errors (no material points, `solution` contradicting the workflow,
@@ -151,11 +161,11 @@ execute!(setup_simulation(case))
   like the catalog's TOML, which EasyDraw reads (`EasyDraw.Catalog(dict)`; `draw` and `write_catalog` take either), so
   ElastoPlasm builds no EasyDraw type for it (the user's request: it first built `EasyDraw.Field`s, tying ElastoPlasm to
   EasyDraw's API rather than to the file format); EasyDraw stays a dependency for the shapes and `draw_case`.
-  The window edits the case's layout (`src/home/script/draw/draw_case.jl`): `draw_case(case)` is
-  `Case(EasyDraw.draw(case.layout; catalog=get_catalog(), case_hooks()...))`, no conversion. `case_hooks()` gives what
-  a file cannot: the checks (`check_case(Case(l))`), what Create… writes (`<name>_case.toml`, the chosen folder set as
-  the run folder first: EasyDraw returns that same layout object, so the case drawn has it too), what "Start from a
-  file…" reads (a case file's layout), the title.
+  The window edits the case's layout and settings (`src/home/script/draw/draw_case.jl`): `draw_case(case)` is
+  `Case(EasyDraw.draw(case.layout, case.settings; catalog=get_catalog(), case_hooks()...)...)`, no conversion.
+  `case_hooks()` gives what a file cannot: the checks (`check_case(Case(l, s))`), what Create… writes
+  (`<name>_case.toml`, the chosen folder set as the run folder first: EasyDraw returns those same settings, so the case
+  drawn has it too), what "Start from a file…" reads (a case file's layout and settings), the title.
   - **The window is not optional** (the user's decision: EasyDraw exists to draw interactively): QML is one of
     EasyDraw's dependencies, so `draw`/`draw_case` work without `using QML`. It was an extension (`EasyDrawQMLExt`, QML a
     weakdep the user installed in the default environment with Qt pins) until then. **QML loads with the first window, not
@@ -176,7 +186,7 @@ execute!(setup_simulation(case))
     rule, `EasyDraw.zone_at(zones, x)`, which `case_points` calls (setups bit-identical, `test_setup`). *Files:* a case
     file is a layout file, so `draw_case`, "Start from a file…" and `setup_simulation(load_case(…))` take a layout drawn
     with `get_catalog()` in EasyDraw alone, and EasyDraw opens a case file as it is. *Functions:* a `Case` works wherever
-    EasyDraw takes a layout, through `case.layout` (`zone_at`, also 3D, `zone_index`, `property` with the case's
+    EasyDraw takes a layout, through `case.layout` and `case.settings` (`zone_at`, also 3D, `zone_index`, `property` with the case's
     material as defaults, `points`, `partition`, `write_geo`, `save_layout`), exported by `using ElastoPlasm`; on a 3D
     case the x–z ones work in its x–z plane, while `check_case` counts the 3D points. *Option values:* a case file (`option_value`) and the
     window (`EasyDraw.field_value`) parse them separately, so `test_draw` checks they agree on every option over a set of
@@ -436,7 +446,7 @@ block, column, thermal, collision) with `test/dataset/setup_reference.jld2`: per
 64-bit FNV-1a digest of its bits, so bit-exact without storing the arrays. Run it after any `init/`
 change; regenerate the reference (delete the file) only for an intended setup change, and say why.
 `test_case.jl` covers `Case`: shapes, validation, zone membership and overrides, TOML round
-trip, `check_case`/`estimate_dt` (= `get_dt`, 2D and 3D), a case read from its layout (a copy, 3D sides), zone constants reaching the particles,
+trip, `check_case`/`estimate_dt` (= `get_dt`, 2D and 3D), a case read from its layout and settings (a copy, 3D sides, one geometry with two settings files), zone constants reaching the particles,
 free option values, workflows, a short `execute!`, and the `Simulation` (build, save, load, in memory equal to the file run, older files).
 `test_easydraw.jl` runs EasyDraw's own tests (`lib/EasyDraw/test/runtests.jl`, also `] test EasyDraw` in an
 environment that has it): shapes, zones, layouts and catalogs as TOML, sampling (`zone_at`,

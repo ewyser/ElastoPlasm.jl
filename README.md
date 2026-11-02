@@ -71,12 +71,16 @@
    run settings), or draw it in a window (see `?draw_case`):
     ```julia
     case = Case(; L=[20.0, 10.0], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
-                  zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7)],
+                  zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))],   # geometry
+                  properties=Dict("rock" => (; E=5e7)),                                                # the rock's own E
                   run=(; folder="layers"))
     check_case(case)          # points, time step, warnings
     execute!(setup_simulation(case))   # results under dump/layers/ (kept until clean_dump())
-    save_case("layers.toml", case)    # its layout's file: EasyDraw opens it too
-    case = load_case("layers.toml")   # and back; Case(layout) reads any layout drawn with get_catalog()
+    save_case("layers.toml", case)    # geometry and settings in one file: EasyDraw opens it too
+    case = load_case("layers.toml")   # and back
+
+    save_layout("slope.toml", case.layout)                       # or apart: one geometry …
+    case = load_case("slope.toml", "stiff.toml")                  # … with one of several settings files
 
     case = draw_case()        # draw the domain, zones, options and run settings
     ```

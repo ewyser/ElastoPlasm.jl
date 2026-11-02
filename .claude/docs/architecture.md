@@ -48,14 +48,16 @@
   refused there rather than as a `MethodError` at `execute!`. A `.jld2` is a saved one
   (`save_simulation`/`load_simulation`); `execute!(sim)` / `execute!(jld2)` run it in place (`execute` on a copy). The chain is
   `Case` → `Problem` → `Simulation`, each built from the one above.
-- `Case` (`src/boot/needs/types/problem/case.jl`) — what a problem is built from: an EasyDraw `Layout` (`case.layout`,
-  the case's own copy: domain, zones, sides, defaults, options, run; `Zone` = shape `Polygon`/`Block`/`Ball`/`Region` +
-  material overrides, EasyDraw's, re-exported, with `ZONE_PROPS` checked by `Case`) and its typed reading:
-  `material` (`MATERIAL` with the defaults), `bcs` (the sides, `side_axes`), `solver` (the options, `option_values`),
-  `thermal`, `run` (`case_run`). `Case(layout)` is the one constructor that reads; `Case(; …)` builds the layout. 2D
-  or 3D (no extruded form: x–z shapes extend along y). `case_points` turns it into `PointData`, the explicit per-point
+- `Case` (`src/boot/needs/types/problem/case.jl`) — what a problem is built from: an EasyDraw `Layout`, the geometry
+  (`case.layout`: domain, grid, zones, each a name and a shape `Polygon`/`Block`/`Ball`/`Region`), and its EasyDraw
+  `Settings`, the values (`case.settings`: zones' values by name, defaults, sides, options, run), the case's own copies;
+  and their typed reading: `material` (`MATERIAL` with the defaults), `properties` (each zone's constants by name,
+  checked against `ZONE_PROPS`), `bcs` (the sides, `side_axes`), `solver` (the options, `option_values`), `thermal`,
+  `run` (`case_run`). `Case(layout, settings)` is the one constructor that reads; `Case(; …)` builds both. 2D or 3D (no
+  extruded form: x–z shapes extend along y). `case_points` turns it into `PointData`, the explicit per-point
   contract `setup_mpts` reads. One build path (`setup_simulation`), one file format, the layout's
-  (`save_case`/`load_case`); the drawing window (EasyDraw's) edits `case.layout`. See "Describing a case" and
+  (`save_case`/`load_case`; geometry and settings may also be separate files); the drawing window (EasyDraw's) edits
+  `case.layout` and `case.settings`. See "Describing a case" and
   "Drawing a case" in `operations.md`.
 - `Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}`
   (`src/boot/needs/types/basis/basis.jl`) — independent struct owning ALL

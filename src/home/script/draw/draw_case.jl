@@ -5,7 +5,7 @@ export draw_case, zone_at, zone_index, property, points, partition, write_geo, s
     draw_case(case::Case)
     draw_case(file)
 
-Set up a case in EasyDraw's window (`EasyDraw.draw`) on the case's layout, in four steps: **Domain** (optionally start
+Set up a case in EasyDraw's window (`EasyDraw.draw`) on the case's layout and settings, in four steps: **Domain** (optionally start
 from a case file; draw on a domain, dragging its corner or typing `Lx`, `Lz`, or on a picture, scaled by a scale bar
 measured on it, which the domain then follows; the element size; a width along y, which makes the case 3D; points per
 element; a boundary condition per side), **Zones** (draw the material as polygons, rectangles, triangles or circles,
@@ -20,8 +20,8 @@ click). **Cancel**, closing the window or Ctrl-C returns `nothing`. Without argu
 step; with a case (or its file), on the zones step. It draws zones in x–z (polygons, blocks, balls as circles).
 """
 function draw_case(case::Case; step::Integer=2, kwargs...)
-    l = EasyDraw.draw(case.layout; catalog=get_catalog(), step, case_hooks()..., kwargs...)
-    return isnothing(l) ? nothing : Case(l)
+    r = EasyDraw.draw(case.layout, case.settings; catalog=get_catalog(), step, case_hooks()..., kwargs...)
+    return isnothing(r) ? nothing : Case(r.layout, r.settings)
 end
 function draw_case(file::AbstractString; kwargs...)
     return draw_case(load_case(file); kwargs...)
@@ -38,15 +38,16 @@ What the drawing window calls back for a case: its checks (`check_case`), what *
 and its title.
 """
 function case_hooks()
-    check = l -> check_case(Case(l))
-    # Create…: the case's runs go to the chosen folder. EasyDraw returns this same layout, so the case drawn has it too.
-    save  = (l, dir) -> (l.run["folder"] = dir; save_case(joinpath(dir, "$(basename(dir))_case.toml"), Case(l)))
-    load  = file -> load_case(file).layout
+    check = (l, s) -> check_case(Case(l, s))
+    # Create…: the case's runs go to the chosen folder. EasyDraw returns these same settings, so the case drawn has it too.
+    save  = (l, s, dir) -> (s.run["folder"] = dir; save_case(joinpath(dir, "$(basename(dir))_case.toml"), Case(l, s)))
+    load  = file -> (c = load_case(file); (c.layout, c.settings))
     return (; title="ElastoPlasm — draw a case", check, save, load)
 end
 
-# ---- a case wherever EasyDraw takes a layout, through its own: its zone at a point, on a grid, its points (those of the
-# simulation, to the bit, in 2D), its partition, its Gmsh script, its file. Exported with `using ElastoPlasm`.
+# ---- a case wherever EasyDraw takes a layout, through its own (and its settings): its zone at a point, on a grid, its
+# points (those of the simulation, to the bit, in 2D), its partition, its Gmsh script, its file. Exported with
+# `using ElastoPlasm`.
 
 function EasyDraw.zone_at(c::Case, x)
     return zone_at(c.layout, x)
@@ -54,9 +55,9 @@ end
 function EasyDraw.zone_index(c::Case, xs, zs)
     return zone_index(c.layout, xs, zs)
 end
-# a property's default is the case's material constant
+# a zone's constant, from the settings; where a zone does not set it, the case's material constant
 function EasyDraw.property(c::Case, key, xs, zs; default=get(c.material, Symbol(key), NaN))
-    return property(c.layout, key, xs, zs; default)
+    return property(c.layout, c.settings, key, xs, zs; default)
 end
 function EasyDraw.points(c::Case)
     return points(c.layout)
@@ -68,5 +69,5 @@ function EasyDraw.write_geo(file::AbstractString, c::Case; kwargs...)
     return write_geo(file, c.layout; kwargs...)
 end
 function EasyDraw.save_layout(file::AbstractString, c::Case)
-    return save_layout(file, c.layout)
+    return save_layout(file, c.layout, c.settings)
 end

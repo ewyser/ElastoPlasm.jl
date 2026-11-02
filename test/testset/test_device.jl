@@ -20,9 +20,9 @@ HAS_JLARRAYS && @eval using JLArrays
             noplot = (; plot=(; status=false))
             L      = [64.1584, 64.1584/4]
             function short(c; te=0.3)                                    # the same case, its stages shortened
-                l = deepcopy(c.layout)
-                merge!(l.run, Dict("te" => te, "tg" => te, "tep" => te/2))
-                return Case(l)
+                s = deepcopy(c.settings)
+                merge!(s.run, Dict("te" => te, "tg" => te, "tep" => te/2))
+                return Case(c.layout, s)
             end
             # every array of a problem's points, mesh and basis, by path (plain values, such as SVectors, left out)
             function arrays(x, path="", out=Pair{String,Any}[])

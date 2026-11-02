@@ -3,7 +3,7 @@
     # catalog, a case's layout in the window and back, and a case drawn through the editor, driven as a user would (its options,
     # run settings, checks and files); then draw_case's window, offscreen
     EP, ED = ElastoPlasm, ElastoPlasm.EasyDraw
-    editor(case; step=2) = ED.Editor(case.layout, get_catalog(); step, EP.case_hooks()...)
+    editor(case; step=2) = ED.Editor(case.layout, case.settings, get_catalog(); step, EP.case_hooks()...)
     click!(e, x, z) = (ED.move!(e, x, z); ED.press!(e, x, z); ED.release!(e))
 
     @testset "the catalog: every solver option, the zone constants, the run" begin
@@ -25,13 +25,14 @@
     end
     @testset "a case's layout in the window and back, unchanged" begin
         case = Case(; L=[20, 4, 10], nel=[20, 4, 10], ni=3, bcs=[:roller :roller; :free :fixed; :fixed :free], thermal=true,
-                      zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7, v=[0.0, -1.0])],
+                      zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))],
+                      properties=Dict("rock" => (; E=5e7, v=[0.0, -1.0])),
                       material=(; c0=1.0e4), solver=(; basis=(; which="gimpm"), plot=(; what=["p", "epII"])), run=(; folder="x/y", te=1.0))
-        back = Case(ED.current_layout(editor(case)))                                        # opened, nothing edited
-        @test (back.layout.L, back.layout.nel, back.layout.ni, back.bcs, back.thermal, back.material, back.run) ==
-              (case.layout.L, case.layout.nel, case.layout.ni, case.bcs, case.thermal, case.material, case.run)   # y sides carried
+        e = editor(case); back = Case(ED.current_layout(e), ED.current_settings(e))         # opened, nothing edited
+        @test (back.layout.L, back.layout.nel, back.layout.ni, back.bcs, back.thermal, back.material, back.run, back.properties) ==
+              (case.layout.L, case.layout.nel, case.layout.ni, case.bcs, case.thermal, case.material, case.run, case.properties)   # y sides carried
         @test EP.config_dict(back.solver) == EP.config_dict(case.solver)                     # (a Dict's order aside)
-        @test [(z.name, z.props) for z ∈ back.layout.zones] == [(z.name, z.props) for z ∈ case.layout.zones]
+        @test [z.name for z ∈ back.layout.zones] == [z.name for z ∈ case.layout.zones]
         @test points(back) == points(case)                                                  # a block comes back as its rectangle
     end
     @testset "the window's points are the simulation's, to the bit" begin
@@ -48,22 +49,23 @@
     end
     @testset "layout files as cases, cases in EasyDraw's functions" begin
         case = Case(; L=[20, 4, 10], nel=[20, 4, 10], ni=3, bcs=[:roller :roller; :roller :roller; :fixed :free], thermal=true,
-                      zones=[Zone("soil", Block([0, 0], [20, 6]); phi=0.5), Zone("rock", Block([0, 0], [20, 2]); E=5e7, v=[0.0, -1.0])],
+                      zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))],
+                      properties=Dict("soil" => (; phi=0.5), "rock" => (; E=5e7, v=[0.0, -1.0])),
                       material=(; c0=1.0e4), solver=(; basis=(; which="gimpm")), run=(; te=1.0))
         d = mktempdir(); f = save_layout(joinpath(d, "x_layout.toml"), case)              # for EasyDraw alone
-        l = ED.load_layout(f); @test l.zones[1].props[:phi] == 0.5 && l.defaults["c0"] == 1.0e4 && l.sides["bottom"] == "fixed"   # SI
+        s = ED.load_settings(f)
+        @test s.zones["soil"]["phi"] == 0.5 && s.defaults["c0"] == 1.0e4 && s.sides["bottom"] == "fixed"   # SI
         back = load_case(f)                                                                # and back, as a case
-        @test (back.layout.L, back.layout.nel, back.layout.ni, back.bcs, back.thermal, back.material, back.run) ==
-              (case.layout.L, case.layout.nel, case.layout.ni, case.bcs, case.thermal, case.material, case.run)
+        @test (back.layout.L, back.layout.nel, back.layout.ni, back.bcs, back.thermal, back.material, back.run, back.properties) ==
+              (case.layout.L, case.layout.nel, case.layout.ni, case.bcs, case.thermal, case.material, case.run, case.properties)
         @test EP.config_dict(back.solver) == EP.config_dict(case.solver)
-        @test [(z.name, z.props) for z ∈ back.layout.zones] == [(z.name, z.props) for z ∈ case.layout.zones]
         @test_logs ED.load_layout(save_case(joinpath(d, "x_case.toml"), case))              # a case file is a layout file
-        e = ED.Editor(ED.Layout(; L=[10, 5], nel=[10, 5]), get_catalog())                  # drawn with EasyDraw alone, ElastoPlasm's catalog
+        e = ED.Editor(ED.Layout(; L=[10, 5], nel=[10, 5]), ED.Settings(), get_catalog())   # drawn with EasyDraw alone, ElastoPlasm's catalog
         ED.new_zone!(e, :rectangle); click!(e, 0.0, 0.0); click!(e, 10.0, 2.0)
         ED.set_prop!(e, "phi", "30"); ED.set_bc!(e, "bottom", "fixed"); ED.set_option!(e, "basis.which", 2)
         @test ED.create!(e, joinpath(d, "drawn"))                                           # EasyDraw's Create…: a layout file
         c = load_case(joinpath(d, "drawn", "drawn_layout.toml"))                            # a case
-        @test c.layout.zones[1].props[:phi] ≈ 30π/180 && c.bcs[2, 1] == :fixed && c.solver.basis.which == "gimpm"
+        @test c.properties["zone 1"].phi ≈ 30π/180 && c.bcs[2, 1] == :fixed && c.solver.basis.which == "gimpm"
         @test c.run.folder == joinpath(d, "drawn")                                          # no run folder: the file's
         @test isempty(check_case(c).errors)
         @test Problem(c).mpts.nmp == 80                                                     # 10 × 2 elements, 2 × 2 points each
@@ -113,20 +115,20 @@
         @test !ED.ready!(e) && occursin("again", e.status) && ED.ready!(e)
         folder = joinpath(mktempdir(), "layers")
         @test ED.create!(e, folder * "/") && e.finished && isfile(joinpath(folder, "layers_case.toml"))   # made, the case in it
-        c = Case(e.result)
+        c = Case(e.result.layout, e.result.settings)
         @test c.run.folder == folder && c.layout.L == [13.0, 4.0, 7.0] && c.run.lstps == 20 && c.solver.basis.which == "gimpm"   # its runs go there
-        @test c.bcs == [:roller :roller; :roller :roller; :fixed :fixed] && c.layout.zones[1].props[:E] == 5e7
+        @test c.bcs == [:roller :roller; :roller :roller; :fixed :fixed] && c.properties["zone 1"].E == 5e7
         @test load_case(joinpath(folder, "layers_case.toml")).run == c.run                  # the file is the case
         e2 = editor(Case(; L=[1, 1], nel=[2, 2]))
         ED.load!(e2, joinpath(folder, "layers_case.toml"))                                  # Start from a (case) file
         @test length(e2.regions) == 1 && e2.width == 4.0 && e2.run["lstps"] == 20 && e2.folder == folder
-        @test EP.config_dict(Case(ED.current_layout(e2)).solver) == EP.config_dict(c.solver)
+        @test EP.config_dict(Case(ED.current_layout(e2), ED.current_settings(e2)).solver) == EP.config_dict(c.solver)
     end
     ENV["QT_QPA_PLATFORM"] = get(ENV, "QT_QPA_PLATFORM", "offscreen"); ENV["QT_QUICK_BACKEND"] = "software"
     @testset "draw_case's window, offscreen" begin
         d = mktempdir()
         case = Case(; L=[20.0, 10.0], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
-                     zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7)])
+                     zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))], properties=Dict("rock" => (; E=5e7)))
         @test isnothing(draw_case(case; shots=(d, [1, 2, 3, 4])))                               # closes itself; no Create…: nothing
         @test all(k -> isfile(joinpath(d, "step$k.png")), 1:4)
     end

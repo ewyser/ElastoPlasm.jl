@@ -34,9 +34,10 @@ regenerate them with `setup_simulation(<example>_case(...))`.
 (`load_case`) and rebuilt without the `.jld2` (provenance; skipped with a warning when a zone is a
 `Region` predicate, which TOML cannot hold). The `.jld2` layout is unchanged.
 
-**Format change (case TOML):** since `refactor-case-from-layout` a case file is its EasyDraw layout's file
-(`[domain]`, `[sides]`, `[defaults]`, `[options]`, `[run]`, `[[zone]]`; SI, φ in radians; see "Describing a case" in
-`operations.md`). Case files written before (`bcs`, `[material]`, `[solver]`, φ in degrees) are refused by `load_case`
+**Format change (case TOML):** since `refactor-case-from-layout` a case file is its EasyDraw layout's file with its
+settings (geometry: `[domain]`, `[[zone]]` with name and shape; settings: `[settings.zones.<name>]`,
+`[settings.defaults]`, `[settings.sides]`, `[settings.options]`, `[settings.run]`; SI, φ in radians; see "Describing a
+case" in `operations.md`). Geometry and settings can also be separate files. Case files written before (`bcs`, `[material]`, `[solver]`, φ in degrees) are refused by `load_case`
 with a message (the user chose no converter): set them up again from their example. The advice below to set an old
 `.jld2` up again "from its case TOML" holds only for case files written since. `.jld2` files are not affected (they
 hold the `Simulation`, not the case).

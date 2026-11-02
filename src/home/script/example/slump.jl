@@ -22,6 +22,7 @@ function slump_case(L, nel; lz=12.80, ni::Integer=2, folder::String="slump", kwa
     xs(z) = (0.625*Lx - z)/1.25                                # the slope line
     slope = Polygon([[0.0, 0.0], [Lx, 0.0], [Lx, wl], [xs(wl), wl], [xs(top), top], [0.0, top]])
     base  = Polygon([[0.0, 0.0], [Lx, 0.0], [Lx, wl], [xs(wl), wl], [xs(2wl), 2wl], [0.0, 2wl]])
-    zones = [Zone("slope", slope), Zone("base", base; phi=7.5*π/180, T=3.0*MATERIAL.T)]
-    return Case(; L, nel, ni, zones, solver=(; kwargs...), run=(; folder, te=10.0, tg=10.0, tep=5.0))
+    zones = [Zone("slope", slope), Zone("base", base)]
+    properties = Dict("base" => (; phi=7.5*π/180, T=3.0*MATERIAL.T))
+    return Case(; L, nel, ni, zones, properties, solver=(; kwargs...), run=(; folder, te=10.0, tg=10.0, tep=5.0))
 end

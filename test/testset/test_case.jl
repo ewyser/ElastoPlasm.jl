@@ -13,31 +13,36 @@
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], run=(; workflow="x"))
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], bcs=[:fixed :glued; :free :free])
         @test_throws ArgumentError Case(; L=[1, 1, 1, 1], nel=[1, 1, 1, 1])                    # 2D or 3D
-        @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], zones=[Zone("z", Block([0, 0], [1, 1]); EE=1.0)])   # ZONE_PROPS only
-        @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], zones=[Zone("z", Block([0, 0], [1, 1]); E="stiff")])
-        @test_throws ArgumentError Case(EP.EasyDraw.Layout(; L=[1, 1], nel=[1, 1], defaults=Dict("eta" => 1.0)))   # not a material constant
-        @test_throws ArgumentError Case(EP.EasyDraw.Layout(; L=[1, 1], nel=[1, 1], sides=Dict("top" => "glued")))
+        z = [Zone("z", Block([0, 0], [1, 1]))]
+        @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], zones=z, properties=Dict("z" => (; EE=1.0)))   # ZONE_PROPS only
+        @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], zones=z, properties=Dict("z" => (; E="stiff")))
+        @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], zones=z, properties=Dict("cliff" => (; E=1.0)))   # no such zone
+        one = Layout(; L=[1, 1], nel=[1, 1])
+        @test_throws ArgumentError Case(one, Settings(; defaults=Dict("eta" => 1.0)))       # not a material constant
+        @test_throws ArgumentError Case(one, Settings(; sides=Dict("top" => "glued")))
     end
-    @testset "a case reads its layout" begin
-        s = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 1]))], material=(; c0=1.0e3), thermal=true,
-                   bcs=[:roller :roller; :fixed :free], solver=(; basis=(; which="gimpm")), run=(; te=1.0))
-        l = s.layout
-        @test l.sides == Dict("left" => "roller", "right" => "roller", "bottom" => "fixed", "top" => "free")
-        @test l.defaults == Dict("c0" => 1.0e3) && l.options == Dict("basis" => Dict("which" => "gimpm")) && l.run["thermal"]
-        r = Case(l)                                                                          # the layout alone: the same case
-        @test (r.material, r.bcs, r.solver, r.thermal, r.run) == (s.material, s.bcs, s.solver, s.thermal, s.run)
-        l.sides["bottom"] = "free"; push!(l.zones, Zone("b", Block([0, 0], [1, 1])))         # change the layout given
-        @test r.bcs[2, 1] == :fixed && r.layout.sides["bottom"] == "fixed" && length(r.layout.zones) == 1   # the case: its own copy
-        t = Case(; L=[1, 2, 3], nel=[1, 2, 3], bcs=[:free :fixed; :roller :fixed; :fixed :free])   # 3D: y is front and back
-        @test t.layout.sides["front"] == "roller" && t.layout.sides["back"] == "fixed" && t.layout.sides["top"] == "free"
-        @test Case(t.layout).bcs == t.bcs
-        @test Case(EP.EasyDraw.Layout(; L=[1, 1], nel=[1, 1], folder="/a/b")).run.folder == "/a/b"          # a file's folder
-        @test Case(EP.EasyDraw.Layout(; L=[1, 1], nel=[1, 1], folder="/a/b", run=Dict("folder" => "c"))).run.folder == "c"   # unless set
+    @testset "a case reads its layout and settings" begin
+        s = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 1]))], properties=Dict("a" => (; E=5e6)),
+                   material=(; c0=1.0e3), thermal=true, bcs=[:roller :roller; :fixed :free], solver=(; basis=(; which="gimpm")),
+                   run=(; te=1.0))
+        l, t = s.layout, s.settings
+        @test fieldnames(typeof(l.zones[1])) == (:name, :shape) && s.properties == Dict("a" => (; E=5e6))   # geometry; values by name
+        @test t.sides == Dict("left" => "roller", "right" => "roller", "bottom" => "fixed", "top" => "free")
+        @test t.defaults == Dict("c0" => 1.0e3) && t.options == Dict("basis" => Dict("which" => "gimpm")) && t.run["thermal"]
+        r = Case(l, t)                                                                       # the two alone: the same case
+        @test (r.material, r.properties, r.bcs, r.solver, r.thermal, r.run) == (s.material, s.properties, s.bcs, s.solver, s.thermal, s.run)
+        t.sides["bottom"] = "free"; push!(l.zones, Zone("b", Block([0, 0], [1, 1])))         # change what was given
+        @test r.bcs[2, 1] == :fixed && r.settings.sides["bottom"] == "fixed" && length(r.layout.zones) == 1   # the case: its own copy
+        q = Case(; L=[1, 2, 3], nel=[1, 2, 3], bcs=[:free :fixed; :roller :fixed; :fixed :free])   # 3D: y is front and back
+        @test q.settings.sides["front"] == "roller" && q.settings.sides["back"] == "fixed" && q.settings.sides["top"] == "free"
+        @test Case(q.layout, q.settings).bcs == q.bcs
+        @test Case(Layout(; L=[1, 1], nel=[1, 1], folder="/a/b"), Settings()).run.folder == "/a/b"   # a file's folder
+        @test Case(Layout(; L=[1, 1], nel=[1, 1], folder="/a/b"), Settings(; run=Dict("folder" => "c"))).run.folder == "c"   # unless set
     end
     @testset "points: last zone wins, overrides, velocity" begin
         s = Case(; L=[4, 2], nel=[4, 2], ni=2,
-                   zones=[Zone("all", Block([0, 0], [4, 2])), Zone("left", Block([0, 0], [1, 2]); E=5e6, phi=0.1, v=[1.0, -2.0]),
-                          Zone("none", Block([10, 10], [11, 11]))])
+                   zones=[Zone("all", Block([0, 0], [4, 2])), Zone("left", Block([0, 0], [1, 2])), Zone("none", Block([10, 10], [11, 11]))],
+                   properties=Dict("left" => (; E=5e6, phi=0.1, v=[1.0, -2.0])))
         solver = get_solver(; dim=2, plot=(; status=false))
         mesh   = EP.setup_mesh(s.layout.L, s.layout.nel, solver)
         p      = case_points(s, mesh, solver)
@@ -45,24 +50,30 @@
         @test size(p.xp, 2) == 32 && count(left) == 8 && all(p.zone[left] .== 2) && all(p.zone[.!left] .== 1)
         @test all(p.E[left] .== 5e6) && all(p.E[.!left] .== MATERIAL.E) && all(p.phi[left] .== 0.1) && all(p.c0 .== MATERIAL.c0)
         @test all(p.vp[:, left] .== [1.0, -2.0]) && all(p.vp[:, .!left] .== 0)
-        x3 = case_points(Case(; L=[4, 1, 2], nel=[4, 1, 2], zones=s.layout.zones),
+        x3 = case_points(Case(; L=[4, 1, 2], nel=[4, 1, 2], zones=s.layout.zones, properties=Dict("left" => (; v=[1.0, -2.0]))),
                          (sv = get_solver(; dim=3, plot=(; status=false)); EP.setup_mesh([4.0, 1.0, 2.0], [4, 1, 2], sv)), sv)
         @test size(x3.xp, 2) == 64 && count(x3.zone .== 2) == 16 && all(x3.vp[:, x3.zone .== 2] .== [1.0, 0.0, -2.0])   # (x, z) velocity
     end
     @testset "TOML round trip" begin
         s = Case(; L=[20, 4, 10], nel=[20, 4, 10], ni=3, bcs=[:roller :roller; :roller :roller; :fixed :free], thermal=true,
-                   zones=[Zone("soil", Polygon([[0, 0], [20, 0], [20, 6], [0, 6]])), Zone("rock", Block([0, 0], [20, 2]); E=5e7, phi=30.0*π/180),
-                          Zone("boulder", Ball([10, 4], 1.0); rho0=3000.0, v=[0.0, 0.0, -1.0]),
-                          Zone("lens", Polygon([[[2, 2], [8, 2], [8, 5], [2, 5]], [[4, 3], [5, 3], [5, 4]]]))],
+                   zones=[Zone("soil", Polygon([[0, 0], [20, 0], [20, 6], [0, 6]])), Zone("rock", Block([0, 0], [20, 2])),
+                          Zone("boulder", Ball([10, 4], 1.0)), Zone("lens", Polygon([[[2, 2], [8, 2], [8, 5], [2, 5]], [[4, 3], [5, 3], [5, 4]]]))],
+                   properties=Dict("rock" => (; E=5e7, phi=30.0*π/180), "boulder" => (; rho0=3000.0, v=[0.0, 0.0, -1.0])),
                    material=(; c0=1.0e4, phi=25.0*π/180), solver=(; basis=(; which="gimpm", C_pf=0.37), stab=(; locking=false),
                    plot=(; what=["p"])), run=(; folder="x/y", te=1.0, workflow="elastodynamic!"))
         back = load_case(save_case(joinpath(mktempdir(), "p.toml"), s))
-        @test (back.layout.L, back.layout.nel, back.layout.ni, back.bcs, back.thermal, back.run) ==
-              (s.layout.L, s.layout.nel, s.layout.ni, s.bcs, s.thermal, s.run)
+        @test (back.layout.L, back.layout.nel, back.layout.ni, back.bcs, back.thermal, back.run, back.properties) ==
+              (s.layout.L, s.layout.nel, s.layout.ni, s.bcs, s.thermal, s.run, s.properties)
         z, z0 = back.layout.zones, s.layout.zones
-        @test [z.name for z ∈ z] == ["soil", "rock", "boulder", "lens"] && z[3].shape.radius == 1.0 && z[3].props[:v] == [0.0, 0.0, -1.0]
+        @test [z.name for z ∈ z] == ["soil", "rock", "boulder", "lens"] && z[3].shape.radius == 1.0 && back.properties["boulder"].v == [0.0, 0.0, -1.0]
         @test z[4].shape.sizes == [4, 3] && z[4].shape.vertices == z0[4].shape.vertices      # several outlines
-        @test z[2].props[:phi] == 30.0*π/180 && back.material.phi == s.material.phi           # radians: exact
+        @test back.properties["rock"].phi == 30.0*π/180 && back.material.phi == s.material.phi   # radians: exact
+        d = mktempdir()                                                                    # one geometry, two settings
+        g = save_layout(joinpath(d, "slope.toml"), s.layout)
+        dp, vm = (save_settings(joinpath(d, "$m.toml"), Case(; L=[20, 4, 10], nel=[20, 4, 10], ni=3, zones=s.layout.zones,
+                                                           solver=(; material=(; plastic=m))).settings) for m ∈ ("DP", "VM"))
+        a, b = load_case(g, dp), load_case(g, vm)
+        @test (a.solver.material.plastic, b.solver.material.plastic) == ("DP", "VM") && points(a) == points(b)
         @test back.material.c0 == 1.0e4 && Dict(pairs(back.solver.basis)) == Dict(:which => "gimpm", :C_pf => 0.37)
         @test back.solver.stab == (; locking=false) && back.solver.plot.what == ["p"]
         @test_throws ArgumentError save_case(joinpath(mktempdir(), "r.toml"), Case(; L=[1, 1], nel=[1, 1], zones=[Zone("f", Region(x -> true))]))
@@ -71,8 +82,8 @@
         @test_throws ArgumentError load_case(old)
     end
     @testset "checks and time step" begin
-        layered(; kw...) = Case(; L=[20, 10], nel=[20, 10], kw...,
-            zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7, nu=0.2, rho0=2900.0)])
+        layered(; kw...) = Case(; L=[20, 10], nel=[20, 10], kw..., zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))],
+                                  properties=Dict("rock" => (; E=5e7, nu=0.2, rho0=2900.0)))
         s = layered(; solver=(; plot=(; status=false)), run=(; folder="test/spec_dt"))
         c = check_case(s)
         @test isempty(c.errors) && isempty(c.warnings) && startswith(c.info[1], "480 material points, 200 elements (2D)")
@@ -98,7 +109,8 @@
     end
     @testset "zone constants, boundaries and options reach the problem" begin
         s = Case(; L=[20, 10], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
-                   zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7, nu=0.2, rho0=2900.0)],
+                   zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))],
+                   properties=Dict("rock" => (; E=5e7, nu=0.2, rho0=2900.0)),
                    solver=(; basis=(; which="gimpm", C_pf=0.37, domain="undeformed"), stab=(; locking=false), material=(; plastic="VM"), plot=(; status=false)),
                    run=(; folder="test/case_zones"))
         pb = load_simulation(setup_simulation(s)).problem; solver = pb.solver

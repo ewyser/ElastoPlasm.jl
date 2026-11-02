@@ -65,40 +65,47 @@ end
 # a NamedTuple (or Dict) of option sections as a Dict with string keys, and back
 config_dict(x) = x isa NamedTuple || x isa AbstractDict ? Dict{String,Any}(string(k) => config_dict(v) for (k, v) ∈ pairs(x)) : x
 
-# ---- the case on disk: its layout's file
+# ---- the case on disk: its layout's and settings' file
 
 """
     save_case(file, case) -> file
 
-Write a case to a TOML file: its layout's file (EasyDraw's `save_layout`), in SI units (φ in radians):
+Write a case to a TOML file: its layout with its settings (EasyDraw's `save_layout`), SI throughout (φ in radians):
 
-- `[domain]`: `L`, `nel`, `ni`;
-- `[sides]`: a boundary condition per side (`left`, `right`, `bottom`, `top`, and in 3D `front`, `back`);
-- `[defaults]`: the material constants set (`MATERIAL`'s keys);
-- `[options.<section>]`: the solver overrides, numbers and booleans as such, other values as their `get_option()`
-  label (`option_labels`), quantities by key;
-- `[run]`: `folder`, `te`, `tg`, `tep`, `workflow`, `lstps`, and `thermal` when true;
-- one `[[zone]]` per zone: its name, its shape (`shape = "polygon"` with `vertices`, or `rings` for several outlines;
-  `"block"` with `lo`/`hi`; `"ball"` with `centre`/`radius`) and its material constants or velocity `v`.
+- the geometry: `[domain]` (`L`, `nel`, `ni`) and one `[[zone]]` per zone (its name and shape: `shape = "polygon"`
+  with `vertices`, or `rings` for several outlines; `"block"` with `lo`/`hi`; `"ball"` with `centre`/`radius`);
+- the settings: `[settings.zones.<name>]` (each zone's material constants or velocity `v`), `[settings.defaults]` (the
+  material constants set), `[settings.sides]` (a boundary condition per side: `left`, `right`, `bottom`, `top`, and in
+  3D `front`, `back`), `[settings.options.<section>]` (the solver overrides: numbers and booleans as such, other
+  values as their `get_option()` label, `option_labels`; quantities by key), `[settings.run]` (`folder`, `te`, `tg`,
+  `tep`, `workflow`, `lstps`, and `thermal` when true).
 
-A zone given as a Julia predicate (`Region`) cannot be written: an `ArgumentError`.
+A zone given as a Julia predicate (`Region`) cannot be written: an `ArgumentError`. To keep geometry and settings
+apart, write them with `save_layout(file, case.layout)` and `save_settings(file, case.settings)`.
 """
 function save_case(file::AbstractString, case::Case)
-    return save_layout(file, case.layout)
+    return save_layout(file, case.layout, case.settings)
 end
 
 """
     load_case(file) -> Case
+    load_case(geometry, settings) -> Case
 
-Read a case from its TOML file (`save_case`): any layout file whose values ElastoPlasm knows, so also one drawn in
-EasyDraw's window with `get_catalog()`. Its run folder is the file's `[run]` folder, else the file's own folder.
+Read a case from its file (`save_case`): any layout file with settings whose values ElastoPlasm knows, so also one
+drawn in EasyDraw's window with `get_catalog()`; or from a geometry file and a settings file, so that one geometry
+serves several settings. The run folder is the settings' `[run]` folder, else the geometry file's own folder.
 
-A case file written before cases were layouts (with `bcs`, `[material]`, `[solver]`, and φ in degrees) is refused,
-with an `ArgumentError`: set the case up again from its example, or as `Case(; …)`, and save it again.
+A case file of ElastoPlasm's older format (with `bcs`, `[material]`, `[solver]`, and φ in degrees) is refused, with an
+`ArgumentError`: set the case up again from its example, or as `Case(; …)`, and save it again.
 """
 function load_case(file::AbstractString)
-    old = intersect(keys(TOML.parsefile(file)), ("bcs", "material", "solver"))
-    isempty(old) || throw(ArgumentError("$(basename(file)) is a case file of the older format ($(join(sort(collect(old)), ", "))): " *
-                                        "set the case up again from its example, or as Case(; …), and save it again"))
-    return Case(EasyDraw.load_layout(file))
+    return load_case(file, file)
+end
+function load_case(geometry::AbstractString, settings::AbstractString)
+    for file ∈ unique([geometry, settings])
+        old = intersect(keys(TOML.parsefile(file)), ("bcs", "material", "solver"))
+        isempty(old) || throw(ArgumentError("$(basename(file)) is a case file of the older format ($(join(sort(collect(old)), ", "))): " *
+                                            "set the case up again from its example, or as Case(; …), and save it again"))
+    end
+    return Case(load_layout(geometry), load_settings(settings))
 end

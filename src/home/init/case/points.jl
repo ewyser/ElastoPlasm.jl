@@ -5,7 +5,7 @@ export case_points
 
 The material points of a case: the candidate points of `mpts_populate` (`ni`×`ni` per
 element, at sub-cell centres) that lie in a zone, each taking the last zone containing it. Every
-constant is the case's material (`case.material`) unless the point's zone sets it; the cohesion
+constant is the case's material (`case.material`) unless the point's zone sets it (`case.properties`, by zone name); the cohesion
 of points whose zone does not set `c0` is the random field of `solver.grf` when enabled
 (`property_field`, bounded below by the material's `cr`), evaluated over all points at once. A
 zone's velocity `v` has `D` components, or two (x, z) in 3D.
@@ -20,7 +20,7 @@ function case_points(case::Case, mesh::Mesh{T1,T2,D}, solver) where {T1,T2,D}
     f = Dict{Symbol,Vector{Float64}}(k => fill(getfield(m, k), nmp) for k ∈ keys(m))
     f[:c0] = property_field(xp, m.c0, solver.grf; floor=m.cr)
     vp = zeros(D, nmp)
-    for (i, z) ∈ enumerate(l.zones), (k, v) ∈ z.props
+    for (i, z) ∈ enumerate(l.zones), (k, v) ∈ pairs(get(case.properties, z.name, (;)))
         id = zone .== i
         if k == :v                                          # (x, z) in 3D: no velocity along y, as 2D shapes extrude
             w = length(v) == D ? v : D == 3 && length(v) == 2 ? [v[1], 0.0, v[2]] :

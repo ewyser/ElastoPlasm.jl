@@ -3,7 +3,8 @@
 # boundaries, solver overrides, run settings), built into a `Problem` (`Problem(case)`, `setup_simulation`)
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-export AbstractShape, Polygon, Block, Ball, Region, Zone, Layout, load_layout, Case, PointData, MATERIAL, inpolygon
+export AbstractShape, Polygon, Block, Ball, Region, Zone, Layout, Settings, load_layout, load_settings, save_settings,
+       Case, PointData, MATERIAL, inpolygon
 
 """
     MATERIAL
@@ -27,56 +28,67 @@ const BOUNDARY_KINDS = (:free, :roller, :fixed)
 """
     Case
 
-A simulation case: a model as an EasyDraw `Layout`, read as ElastoPlasm needs it. The layout is the data (domain,
-zones, a boundary kind per side, the material's defaults, the solver options, the run settings), drawn in the window
-or written in code; the case checks it and holds its typed reading, which `Problem(case)` and `setup_simulation`
-build a problem from. A case keeps its own copy of the layout: to change a model, change a layout and build a new case.
+A simulation case: a model, its geometry (an EasyDraw `Layout`) and its settings (an EasyDraw `Settings`), read as
+ElastoPlasm needs them. The layout is where things are (domain, grid, zones by name); the settings are what they are
+and how to run (each zone's material, the material's defaults, a boundary kind per side, the solver options, the run
+settings). The case checks them and holds their typed reading, which `Problem(case)` and `setup_simulation` build a
+problem from. A case keeps its own copy of both: to change a model, change a layout or settings and build a new case.
+One geometry can take several settings, `Case(layout, settings_a)` and `Case(layout, settings_b)`.
 
 # Fields
-- `layout::EasyDraw.Layout`: the model: `L` [m] and `nel` (2D x–z, or 3D x, y, z; the lower corner at the origin),
-  `ni`×`ni` material points per element, the `zones` (`Zone`, a point belongs to the last zone containing it), and
-  `sides`, `defaults`, `options`, `run`, read below. Its file is the case's file (`save_case`, `load_case`).
-- `material::NamedTuple`: the material constants: `MATERIAL`, with the layout's `defaults`.
+- `layout::EasyDraw.Layout`: the geometry: `L` [m] and `nel` (2D x–z, or 3D x, y, z; the lower corner at the
+  origin), `ni`×`ni` material points per element, the `zones` (a name and a shape each; a point belongs to the last
+  zone containing it).
+- `settings::EasyDraw.Settings`: the values, as plain data: `zones` (by zone name), `defaults`, `sides`, `options`,
+  `run`, read below. With the layout, the case's file (`save_case`, `load_case`).
+- `material::NamedTuple`: the material constants: `MATERIAL`, with the settings' `defaults`.
+- `properties::Dict{String,NamedTuple}`: each zone's own constants, by zone name: `MATERIAL` keys, or an initial
+  velocity `v`; where a zone does not set one, the material's.
 - `bcs::Matrix{Symbol}`: the boundary condition of each side, one `[lower upper]` row per axis (x, then y in 3D,
-  then z): the layout's `sides`, `"left"`/`"right"`, `"front"`/`"back"`, `"bottom"`/`"top"`, each `:free`, `:roller`
-  (a side not set) or `:fixed`.
-- `solver::NamedTuple`: the solver overrides: the layout's `options` as values (`option_values`), merged per field
+  then z): the settings' `sides`, `"left"`/`"right"`, `"front"`/`"back"`, `"bottom"`/`"top"`, each `:free`,
+  `:roller` (a side not set) or `:fixed`.
+- `solver::NamedTuple`: the solver overrides: the settings' `options` as values (`option_values`), merged per field
   over `get_default()` by `get_solver`; `solution` follows the workflow unless set.
-- `thermal::Bool`: whether to build the thermal phase: the layout's run setting `thermal`, false when absent.
-- `run::NamedTuple`: the run settings, `RUN` with the layout's (`case_run`: `folder`, `te`, `tg`, `tep`, `workflow`,
-  `lstps`). The folder is the layout's `run["folder"]`, else the layout's own folder (a file's), else `RUN.folder`.
+- `thermal::Bool`: whether to build the thermal phase: the run setting `thermal`, false when absent.
+- `run::NamedTuple`: the run settings, `RUN` with the settings' (`case_run`: `folder`, `te`, `tg`, `tep`, `workflow`,
+  `lstps`). The folder is the settings' `run["folder"]`, else the layout's own folder (a file's), else `RUN.folder`.
 
 # Constructors
-    Case(layout)
-    Case(; L, nel, ni=2, zones=[], material=(;), bcs=nothing, solver=(;), thermal=false, run=(;))
+    Case(layout, settings)
+    Case(; L, nel, ni=2, zones=[], properties=Dict(), material=(;), bcs=nothing, solver=(;), thermal=false, run=(;))
 
-The keyword form builds the layout, then reads it: `bcs` (or `solver.bcs.dirichlet`, as the solver options give them;
-a row per axis, extra rows ignored) as the sides, `material` (overrides of `MATERIAL`) as the defaults, `solver`
-(overrides of `get_default()`) as the options in their file form (`option_labels`), and every run setting, with
-`thermal`.
+The keyword form builds both, then reads them: `zones` (a name and a shape each) as the layout; `properties` (by zone
+name, e.g. `Dict("rock" => (; E=5e7))`) as the zones' values; `material` (overrides of `MATERIAL`) as the defaults;
+`bcs` (or `solver.bcs.dirichlet`, as the solver options give them; a row per axis, extra rows ignored) as the sides;
+`solver` (overrides of `get_default()`) as the options in their file form (`option_labels`); and every run setting,
+with `thermal`.
 
 # Throws
 - `ArgumentError`: when a zone sets something other than a material constant or a velocity `v`, a default is not a
   material constant, a side's kind is not one of `BOUNDARY_KINDS`, an option or a run setting is unknown or invalid,
-  or the layout itself is invalid.
+  or the layout and settings are invalid or do not agree (`EasyDraw.check_settings`).
 """
 struct Case
-    layout   :: EasyDraw.Layout
-    material :: NamedTuple
-    bcs      :: Matrix{Symbol}
-    solver   :: NamedTuple
-    thermal  :: Bool
-    run      :: NamedTuple
+    layout     :: EasyDraw.Layout
+    settings   :: EasyDraw.Settings
+    material   :: NamedTuple
+    properties :: Dict{String,NamedTuple}
+    bcs        :: Matrix{Symbol}
+    solver     :: NamedTuple
+    thermal    :: Bool
+    run        :: NamedTuple
 end
-function Case(layout::EasyDraw.Layout)
-    l = deepcopy(layout)                                     # the case's own: nothing outside can change it
-    check_zone_props(l.zones)
-    run = Dict{String,Any}(l.run)
+function Case(layout::EasyDraw.Layout, settings::EasyDraw.Settings)
+    l, s = deepcopy(layout), deepcopy(settings)              # the case's own: nothing outside can change them
+    EasyDraw.check_settings(l, s)
+    run = Dict{String,Any}(s.run)
     thermal = Bool(pop!(run, "thermal", false))
     haskey(run, "folder") || isempty(l.folder) || (run["folder"] = l.folder)
-    return Case(l, case_material(l.defaults), case_bcs(l.sides, length(l.L)), case_solver(l.options), thermal, case_run(run))
+    return Case(l, s, case_material(s.defaults), case_properties(s.zones), case_bcs(s.sides, length(l.L)),
+                case_solver(s.options), thermal, case_run(run))
 end
-function Case(; L, nel, ni::Integer=2, zones=Zone[], material=(;), bcs=nothing, solver=(;), thermal::Bool=false, run=(;))
+function Case(; L, nel, ni::Integer=2, zones=Zone[], properties=Dict(), material=(;), bcs=nothing, solver=(;),
+                thermal::Bool=false, run=(;))
     D = length(L)
     s = named_tuple(solver)
     if haskey(s, :bcs)                                       # boundary conditions passed with the solver options
@@ -90,8 +102,8 @@ function Case(; L, nel, ni::Integer=2, zones=Zone[], material=(;), bcs=nothing, 
     defaults = Dict{String,Any}(string(k) => v for (k, v) ∈ pairs(named_tuple(material)))
     settings = config_dict(case_run(run))
     thermal && (settings["thermal"] = true)
-    layout = EasyDraw.Layout(; L, nel, ni, zones, sides, defaults, options=option_labels(config_dict(s)), run=settings)
-    return Case(layout)
+    layout = EasyDraw.Layout(; L, nel, ni, zones)
+    return Case(layout, EasyDraw.Settings(; zones=properties, defaults, sides, options=option_labels(config_dict(s)), run=settings))
 end
 
 # the sides of a D-dimensional domain, each as its axis and end (1: lower, 2: upper) in `bcs`
@@ -105,15 +117,18 @@ end
 function named_tuple(x)
     return x isa AbstractDict ? (; (Symbol(k) => named_tuple(v) for (k, v) ∈ x)...) : x
 end
-# what a zone may set: material constants (numbers) and a velocity (numbers)
-function check_zone_props(zones)
-    for z ∈ zones
-        bad = setdiff(keys(z.props), ZONE_PROPS)
-        isempty(bad) || throw(ArgumentError("zone \"$(z.name)\": unknown properties $(collect(bad)); known: $(ZONE_PROPS)"))
-        all(((k, v),) -> k == :v ? v isa Vector{Float64} : v isa Float64, z.props) ||
-            throw(ArgumentError("zone \"$(z.name)\": its material constants are numbers, its velocity v a list of numbers"))
+# each zone's constants, by zone name: material constants (numbers) and a velocity (numbers)
+function case_properties(zones)
+    out = Dict{String,NamedTuple}()
+    for (name, values) ∈ zones
+        p   = Dict{Symbol,Any}(Symbol(k) => v for (k, v) ∈ values)
+        bad = setdiff(keys(p), ZONE_PROPS)
+        isempty(bad) || throw(ArgumentError("zone \"$name\": unknown properties $(collect(bad)); known: $(ZONE_PROPS)"))
+        all(((k, v),) -> k == :v ? v isa Vector{Float64} : v isa Float64, p) ||
+            throw(ArgumentError("zone \"$name\": its material constants are numbers, its velocity v a list of numbers"))
+        out[name] = (; p...)
     end
-    return nothing
+    return out
 end
 # the material: MATERIAL with the layout's defaults
 function case_material(defaults)
