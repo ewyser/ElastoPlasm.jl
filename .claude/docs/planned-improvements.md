@@ -320,7 +320,10 @@
   one is drawn (`cut_earlier!`): a vertex dragged into another zone overlaps it again (shown dashed, later wins),
   and a later zone deleted or moved leaves a gap; a "cut again"/"merge back" action would cover both. Trackpad pinch
   and the middle button were checked only through the Julia logic (`wheel!`, `press!(…; pan)`), not on hardware.
-- **EasyDraw (`lib/EasyDraw`), possible follow-ups:** its own repository is done (EasyDraw.jl, a submodule here);
+- **EasyDraw (`lib/EasyDraw`), possible follow-ups:** its own repository is done (EasyDraw.jl, a submodule here),
+  with a documentation site (`docs/`, published from `main` once GitHub Pages serves its `gh-pages` branch);
+  a `Field`'s `show_if` hides zone properties and run settings but not option rows (the README said every field; the
+  docs now say what the code does): decide whether options should follow it;
   registration once the interface settles (then ElastoPlasm could add it by version instead of the submodule; with
   Julia ≥ 1.11 a `[sources]` entry could replace the Manifest's path); make public what ElastoPlasm uses of it
   (`subcell_centres`, `shape_dict`, `parse_shape`, `outside`, unexported; `test_draw` drives the editor's internals),

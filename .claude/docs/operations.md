@@ -129,7 +129,8 @@ execute!(setup_simulation(case))
 ```
 
 - **The window is EasyDraw's** (`lib/EasyDraw/`, EasyDraw.jl, a package and repository of its own included as a git
-  submodule, usable without ElastoPlasm, e.g. for finite differences or finite elements; its `README.md`): it edits an `EasyDraw.Layout` (domain, zones, a boundary kind per
+  submodule, usable without ElastoPlasm, e.g. for finite differences or finite elements; its `README.md` and its documentation site, `docs/`, with a guide to
+  the window and screenshots retaken by `docs/shots.jl`): it edits an `EasyDraw.Layout` (domain, zones, a boundary kind per
   side, the zone properties' defaults, options, run settings) with what a host's `EasyDraw.Catalog` offers (zone
   properties, boundary kinds, options, run settings as `Field`s: menu, numeric, integer, list; a display `scale`,
   `min`, `show_if`), TOML both. ElastoPlasm is one host: `get_catalog()` (`src/home/api/solver/catalog.jl`, beside `get_default`/`get_option`) builds its catalog
