@@ -246,7 +246,8 @@ execute!(setup_simulation(case))
   checkbox, name, drop-down; numeric fields take any typed value plus presets; picking or typing a
   value ticks the box, unticking restores the default; multi-selections such as `plot.what` are
   checkbox grids; for ElastoPlasm every `get_option()` field but `dtype.T0`/`bits` (the one `precision` choice sets
-  them) and `solution` (it follows the workflow)) and **Run** (the catalog's run settings, a drop-down or a field
+  them) and `solution` (it follows the workflow)) and **Create** (named Run until the user pointed out that a generic
+  layout has no run: the catalog's run settings under a Run heading when it has some, a drop-down or a field
   each, shown by `show_if`: for ElastoPlasm the workflow, then `te`/`tg`/`tep` or the load steps; the host's checks
   live, `check_case` for ElastoPlasm; then **Create…** and **Cancel**).
 - A picture to draw on (a scanned section or a map, any image Qt reads), drawn under the grid at an
@@ -282,7 +283,7 @@ execute!(setup_simulation(case))
   `catalog` may itself be the file (`Catalog(file)`). Checked by loading ElastoPlasm's catalog file
   (`write_catalog(file, get_catalog())`) into a window opened with a two-field catalog: the Options tab appears, a zone's
   `rho` stays carried. **Create…** (end of the
-  Run step) runs `check_case` first (`ready!`: errors block it, warnings need a second click), then opens
+  Create step) runs `check_case` first (`ready!`: errors block it, warnings need a second click), then opens
   Qt's folder dialog (choose, or make with its New Folder button): `create!` sets the run's folder
   (`run.folder`), writes `<name>_case.toml` there and closes with the case;
   `setup_simulation` then writes the simulation (`.jld2`, plots, outputs) into that folder instead of

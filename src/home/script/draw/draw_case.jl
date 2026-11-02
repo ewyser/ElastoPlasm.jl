@@ -11,8 +11,9 @@ measured on it, which the domain then follows; the element size; a width along y
 element; a boundary condition per side), **Zones** (draw the material as polygons, rectangles, triangles or circles,
 each with optional cohesion, residual cohesion, friction angle, temperature, Young's modulus, Poisson's ratio and
 density), **Options** (solver options from drop-down lists, any value for numeric ones, ticked to override the
-defaults; the plotted variables) and **Run** (workflow, times or load steps; `check_case` and the estimated time step).
-What it offers is `get_catalog()`. **Create…**, at the end of the Run step, asks for the case's folder (chosen or made
+defaults; the plotted variables) and **Create** (the run settings: workflow, times or load steps; `check_case` and the
+estimated time step).
+What it offers is `get_catalog()`. **Create…**, at the end of the Create step, asks for the case's folder (chosen or made
 in the system's folder dialog): the case is written there as `<name>_case.toml`, its runs go there (`run.folder`:
 `execute!(setup_simulation(case))`), and the window returns the `Case` (errors block it, warnings ask for a second
 click). **Cancel**, closing the window or Ctrl-C returns `nothing`. Without arguments the window opens on the domain
