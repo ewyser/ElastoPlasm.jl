@@ -5,7 +5,7 @@
 same object, no copy, on the host (`CPU()`), otherwise `adapt(backend, x)`. The explicit workflows step on what it
 returns; the host problem stays the one a `Simulation` holds, saves and plots (`to_host!`).
 """
-function to_device(x, solver::AbstractSolver)
+function to_device(x, solver::Solver)
     backend = exec_backend(solver)
     return backend isa CPU ? x : Adapt.adapt(backend, x)
 end
@@ -38,7 +38,7 @@ end
 Refuse to run `name` (a workflow not yet ported to devices: dynamic relaxation, thermal) with a solver on a device,
 with an `ArgumentError` naming the device, rather than failing deep inside a kernel.
 """
-function host_only(solver::AbstractSolver, name::AbstractString)
+function host_only(solver::Solver, name::AbstractString)
     exec_backend(solver) isa CPU && return nothing
     throw(ArgumentError("$name runs on the host only for now, and this solver runs on " *
                         "$(solver.backend.exec.name): set backend = (; select = \"host\")"))

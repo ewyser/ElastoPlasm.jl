@@ -22,7 +22,7 @@ is not kept: the built objects hold all it describes, and `setup_simulation` wri
 # Throws
 - `ArgumentError`: when the solver's dimension is not the case's.
 """
-struct Problem{T1,T2,D,P<:Point{T1,T2,D},B<:Basis{T1,T2,D},S<:AbstractSolver{T1,T2,D},M<:Mesh{T1,T2,D}}
+struct Problem{T1,T2,D,P<:Point{T1,T2,D},B<:Basis{T1,T2,D},S<:Solver{T1,T2,D},M<:Mesh{T1,T2,D}}
     mpts   :: P
     mesh   :: M
     basis  :: B
@@ -30,7 +30,7 @@ struct Problem{T1,T2,D,P<:Point{T1,T2,D},B<:Basis{T1,T2,D},S<:AbstractSolver{T1,
     solver :: S
 end
 
-function Problem(case::Case, solver::AbstractSolver{T1,T2,D}) where {T1,T2,D}
+function Problem(case::Case, solver::Solver{T1,T2,D}) where {T1,T2,D}
     L, nel = case.layout.L, case.layout.nel
     length(L) == D || throw(ArgumentError("a $(D)D solver cannot solve a $(length(L))D case: build one for it, Solver(case)"))
     mesh   = setup_mesh(L, nel, case.bcs, solver; thermal=case.thermal)

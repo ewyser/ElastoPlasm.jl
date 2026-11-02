@@ -5,7 +5,7 @@ The time stages of a run, in the solver's float type: an elastic stage until `te
 ramped up over `tg` (cut at `te`), then a plastic stage of `tep`; `time.t = [0, te + tep]` holds the
 current and the final time.
 """
-function setup_time(solver::S; te=0.0,tg=0.0,tep=0.0) where {T1<:Integer,T2<:Real,D,S<:AbstractSolver{T1,T2,D}}
+function setup_time(solver::S; te=0.0,tg=0.0,tep=0.0) where {T1<:Integer,T2<:Real,D,S<:Solver{T1,T2,D}}
     return Time{T1,T2}(
         T2.([0.0,te+tep]),
         T2(te),

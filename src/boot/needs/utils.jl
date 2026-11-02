@@ -102,3 +102,11 @@ end
 @inline function adapt_field(to, f)
     return isbits(f) ? f : Adapt.adapt(to, f)
 end
+
+# the value of `name` in a table of `name => value` pairs (`ELASTIC_LAWS`, `PLASTIC_LAWS`, `SOLUTIONS`): a table
+# naming what an option's values stand for; `option` names it in the error
+function table_value(table, name::AbstractString, option::AbstractString)
+    i = findfirst(l -> first(l) == name, table)
+    isnothing(i) && throw(ArgumentError("$option = \"$name\" is not one of $(join(first.(table), ", "))"))
+    return last(table[i])
+end

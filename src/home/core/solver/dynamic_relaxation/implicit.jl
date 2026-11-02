@@ -50,7 +50,7 @@ converged plastic strain (the same `ϵpII[2] ← ϵpII[1]` seeding as the explic
 elastic strain itself is reset by `dr_kinematics` — so no plastic state carries from one
 iteration to the next.
 """
-function relax!(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::AbstractVector{T2},instr::S; tol::T2=T2(1e-9), itmax::Int=1_000_000, plastic::Bool=false, sf=nothing) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function relax!(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::AbstractVector{T2},instr::S; tol::T2=T2(1e-9), itmax::Int=1_000_000, plastic::Bool=false, sf=nothing) where {T1,T2,D,S<:Solver{T1,T2,D}}
     bk = exec_backend(instr)
     # reset grid, lumped mass and external force fᵉˣᵗ = Σ S m g (Eq 22)
     fill!(mesh.s.m, T2(0.0))

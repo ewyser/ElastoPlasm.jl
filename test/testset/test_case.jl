@@ -5,9 +5,9 @@
                    solver=(; basis=(; which="gimpm"), bcs=(; dirichlet=[:fixed :fixed; :fixed :free])))
         @test s.material.c0 == 1.0e3 && s.material.E == MATERIAL.E && s.bcs == [:fixed :fixed; :fixed :free] && !haskey(s.settings.options, "bcs")
         @test (s.laws, s.grf) == (get_default().material, get_default().grf)                # the physics: defaults
-        @test Solver(s).run == EP.solver_run((;)) && Solver(s).solution == "explicit"
+        @test Solver(s).run == EP.solver_run((;)) && Solver(s) isa ExplicitSolver
         q = Case(; L=[4, 1, 2], nel=[4, 2, 2], run=(; workflow="elastoquasistatic!"))
-        @test (q.layout.L, q.layout.nel) == ([4.0, 1.0, 2.0], [4, 2, 2]) && Solver(q).solution == "implicit"   # follows the workflow
+        @test (q.layout.L, q.layout.nel) == ([4.0, 1.0, 2.0], [4, 2, 2]) && Solver(q) isa ImplicitSolver      # follows the workflow
         @test q.bcs == fill(:roller, 3, 2)
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], material=(; Ee=1.0))
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], solver=(; basis=(; whch="x")))
@@ -46,7 +46,7 @@
         @test s.laws == (; plastic="VM", elastic=get_default().material.elastic)
         @test fieldnames(Case) == (:layout, :settings, :material, :properties, :bcs, :laws, :grf, :thermal)
         a = Solver(s)                                                                        # its numerics: from the settings
-        @test a isa Solver && a isa ExplicitSolver && isempty(intersect(fieldnames(typeof(a)), (:case, :material, :grf, :bcs)))
+        @test a isa Solver && a isa ExplicitSolver{Int64,Float64,2} && isempty(intersect(fieldnames(typeof(a)), (:case, :material, :grf, :bcs)))
         @test a.stab.damping == 0.2 && a.run.te == 1.0
         b = Solver(s; basis=(; which="gimpm"), stab=(; locking=false), run=(; te=2.0))      # overridden, field by field
         @test (b.basis.which, b.stab.locking, b.stab.damping, b.run.te) == ("gimpm", false, 0.2, 2.0)
@@ -63,16 +63,16 @@
         pd = Problem(dp, a)                                                                  # one solver, two cases
         @test pd.solver === a && EP.laws(pd.mpts).plastic == "DP" && EP.laws(pa.mpts).plastic == "VM"   # each case's laws
         @test eltype(pd.mpts.s.cmp) <: EP.DruckerPrager && eltype(pa.mpts.s.cmp) <: EP.VonMises
-        @test Problem(s, get_solver(; dim=2, plot=(; status=false))).mpts.x == pa.mpts.x     # a solver built in code
-        @test_throws ArgumentError Problem(s, get_solver(; dim=3))                          # of another dimension
-        @test_throws ArgumentError get_solver(; material=(; plastic="DP"))                  # physics: a case's
+        @test Problem(s, Solver(; dim=2, plot=(; status=false))).mpts.x == pa.mpts.x     # a solver built in code
+        @test_throws ArgumentError Problem(s, Solver(; dim=3))                              # of another dimension
+        @test_throws ArgumentError Solver(; material=(; plastic="DP"))                      # physics: a case's
         @test length(check_case(s).info) == 1 && length(check_case(s, a).info) == 2          # the solver's adds the time step
     end
     @testset "points: last zone wins, overrides, velocity" begin
         s = Case(; L=[4, 2], nel=[4, 2], ni=2,
                    zones=[Zone("all", Block([0, 0], [4, 2])), Zone("left", Block([0, 0], [1, 2])), Zone("none", Block([10, 10], [11, 11]))],
                    properties=Dict("left" => (; E=5e6, phi=0.1, v=[1.0, -2.0])))
-        solver = get_solver(; dim=2, plot=(; status=false))
+        solver = Solver(; dim=2, plot=(; status=false))
         mesh   = EP.setup_mesh(s.layout.L, s.layout.nel, s.bcs, solver)
         p      = case_points(s, mesh)
         left   = p.xp[1, :] .< 1
@@ -80,7 +80,7 @@
         @test all(p.E[left] .== 5e6) && all(p.E[.!left] .== MATERIAL.E) && all(p.phi[left] .== 0.1) && all(p.c0 .== MATERIAL.c0)
         @test all(p.vp[:, left] .== [1.0, -2.0]) && all(p.vp[:, .!left] .== 0)
         x3 = case_points(Case(; L=[4, 1, 2], nel=[4, 1, 2], zones=s.layout.zones, properties=Dict("left" => (; v=[1.0, -2.0]))),
-                         EP.setup_mesh([4.0, 1.0, 2.0], [4, 1, 2], fill(:roller, 3, 2), get_solver(; dim=3, plot=(; status=false))))
+                         EP.setup_mesh([4.0, 1.0, 2.0], [4, 1, 2], fill(:roller, 3, 2), Solver(; dim=3, plot=(; status=false))))
         @test size(x3.xp, 2) == 64 && count(x3.zone .== 2) == 16 && all(x3.vp[:, x3.zone .== 2] .== [1.0, 0.0, -2.0])   # (x, z) velocity
     end
     @testset "TOML round trip" begin

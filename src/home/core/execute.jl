@@ -5,7 +5,7 @@ function save_workflow_plot(p::Problem, workflow!, folder)
     p.solver.plot.status || return nothing
     solver   = p.solver
     quantity = join([plot_entry(k).name for k ∈ solver.plot.what], "_")
-    name     = "$(solver.solution)_$(length(p.mesh.prprt.L))d_$(solver.basis.which)_$(solver.basis.trsfr)_" *
+    name     = "$(solution_name(solver))_$(length(p.mesh.prprt.L))d_$(solver.basis.which)_$(solver.basis.trsfr)_" *
                "$(laws(p.mpts).elastic)_$(workflow!)_$(quantity).png"
     save_plot((; file=joinpath(mkpath(folder), replace(name, " " => "_"))))
 end

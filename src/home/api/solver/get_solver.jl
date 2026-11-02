@@ -1,10 +1,9 @@
-export get_solver
 
 """
     exec_backend(x) -> KernelAbstractions backend
 
 The backend a solver runs on, for the solver or its configuration (`instr`): its platform's (`backend.exec`, the
-UnifiedBackend `Platform` `get_solver` selected), `CPU()` for the host. The kernels are built on it (`init_ignite`,
+UnifiedBackend `Platform` `build_solver` selected), `CPU()` for the host. The kernels are built on it (`init_ignite`,
 `init_mapsto`, `init_update`, `init_implicit`), the workflows synchronize on it and `to_device` moves a problem to it:
 the solver is where the backend is read, never the arrays.
 """
@@ -19,14 +18,13 @@ A solver's configuration, the sections `build_solver` takes, with its run settin
 solver, without the selected platform (`backend.exec`) or the kernels (`cairn`), which `load_simulation` rebuilds where
 the file is loaded. `stored_solver(solver)` is the solver holding only it (`cairn = nothing`).
 """
-function solver_config(s::AbstractSolver)
-    return (; solution=s.solution, dtype=s.dtype, basis=s.basis, stab=s.stab, nonloc=s.nonloc, plot=s.plot,
+function solver_config(s::Solver)
+    return (; solution=solution_name(s), dtype=s.dtype, basis=s.basis, stab=s.stab, nonloc=s.nonloc, plot=s.plot,
               output=s.output, backend=(; select=s.backend.select), run=s.run)
 end
-function stored_solver(s::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function stored_solver(s::Solver{T1,T2,D}) where {T1,T2,D}
     c = solver_config(s)
-    return Base.typename(S).wrapper{T1,T2,D}(c.solution, c.dtype, c.basis, c.stab, c.nonloc, c.plot, c.output, c.backend,
-                                             c.run, nothing)
+    return Solver{T1,T2,D}(s.solution, c.dtype, c.basis, c.stab, c.nonloc, c.plot, c.output, c.backend, c.run, nothing)
 end
 
 """
@@ -35,7 +33,7 @@ end
 `user`'s settings over `ref`'s, section by section: nested sections are merged field by field
 (`(; basis=(; which="gimpm"))` changes only `basis.which`), anything else (values, vectors such as
 `plot.what`) replaces the default. A field `ref` does not have is an error naming the valid ones
-(`backend.exec`, set by `get_solver`, is accepted).
+(`backend.exec`, set by `build_solver`, is accepted).
 """
 function merge_config(ref::NamedTuple, user::NamedTuple; path::String="")
     for k ∈ keys(user)
@@ -50,14 +48,14 @@ function merge_config(ref::NamedTuple, user::NamedTuple; path::String="")
 end
 
 """
-    get_solver(; dim=2, kwargs...) -> ExplicitSolver or ImplicitSolver
+    Solver(; dim=2, sections…) -> Solver
 
-A solver for `dim`-dimensional cases (`Solver(case)` builds one from a case's settings): `get_default()` with the
-`kwargs` merged over it (`solver_instr`), the execution backend resolved and the kernel table (`cairn`) built; the
-run settings are `RUN`'s. The physics (`material`, `grf`, `bcs`) is a case's, so it is refused here
-(`ArgumentError`).
+A solver for `dim`-dimensional cases, written in code (`Solver(case)` reads one from a case's settings):
+`get_default()` with `sections` merged over it (`solver_instr`), the execution backend resolved and the kernel table
+(`cairn`) built; the run settings are `RUN`'s. The physics (`material`, `grf`, `bcs`) is a case's, so it is refused
+here (`ArgumentError`).
 """
-function get_solver(; dim::Number=2, kwargs...)
+function Solver(; dim::Integer=2, kwargs...)
     refuse_physics(kwargs)
     return build_solver(solver_instr(; dim, kwargs...), dim)
 end
@@ -100,11 +98,11 @@ function solver_instr(; dim::Number=2, kwargs...)
 end
 
 """
-    build_solver(instr, dim) -> ExplicitSolver or ImplicitSolver
+    build_solver(instr, dim) -> Solver
 
 The solver of a complete configuration `instr` (`get_default()`'s numerical sections, merged; with its run settings as
 `run`, else `RUN`'s, `solver_run`): the execution backend selected (`backend.select`, through UnifiedBackend, unless
-`backend.exec` is given) and the kernels built on it (`cairn`). `get_solver` and `Solver(case)` end with it, and
+`backend.exec` is given) and the kernels built on it (`cairn`). Both `Solver` constructors end with it, and
 `load_simulation` rebuilds a saved solver with it from its stored configuration (`solver_config`), so the device is
 picked on the machine that loads the file.
 """
@@ -123,17 +121,8 @@ function build_solver(instr::NamedTuple, dim::Integer)
         implicit = init_implicit(instr),
     )
     instr = merge(instr, (; cairn = cairn,))
-    # Infer the concrete solver type from instr[:solution] at construction time
-    solver = if instr[:solution] == "explicit"
-        ExplicitSolver
-    elseif instr[:solution] == "implicit"
-        ImplicitSolver
-    else
-        error("Unsupported solution: $(instr[:solution]) (expected \"explicit\" or \"implicit\")")
-    end
-    # Create Instruction type
-    return solver{instr[:dtype][:T0]...,dim}(
-        instr[:solution],
+    return Solver{instr[:dtype][:T0]...,dim}(
+        get_solution(instr[:solution]),                     # the solution's marker, what the workflows dispatch on
         instr[:dtype],
         instr[:basis],
         instr[:stab],

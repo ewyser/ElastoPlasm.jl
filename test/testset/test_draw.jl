@@ -40,7 +40,7 @@
         for c ∈ (slump_case([64.1584, 16.0396], [40, 10]), EP.collapse_case([64, 36]), EP.collision_case([1.0, 1.0], [20, 20]),
                  Case(; L=[10.3, 7.1], nel=[13, 9], ni=3, zones=[Zone("ball", Ball([5.15, 3.55], 2.0))]),
                  Case(; L=[8, 4], nel=[8, 4], zones=[Zone("45°", Polygon([[0, 0], [4, 0], [0, 4]]))]))   # an edge through centres
-            solver = get_solver(; dim=2, plot=(; status=false))
+            solver = Solver(; dim=2, plot=(; status=false))
             p = case_points(c, EP.setup_mesh(c.layout.L, c.layout.nel, c.bcs, solver))
             sim = sort(collect(zip(p.xp[1, :], p.xp[2, :], p.zone)))
             q = points(c); x, z, r = ED.preview_points(editor(c))                          # EasyDraw's; the window's preview

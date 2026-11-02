@@ -10,7 +10,7 @@
     output_of(j) = replace(j, "_simulation.jld2" => "_output.h5")
 
     @testset "configuration" begin
-        s = get_solver(; output=(; status=true, what=(; point=(; solid=["p"]))))
+        s = Solver(; output=(; status=true, what=(; point=(; solid=["p"]))))
         @test s.output.what.point.solid == ["p"] && s.output.what.point.base == get_default().output.what.point.base   # per-field merge
         @test_throws ArgumentError EP.option_value(["output", "what", "point", "solid"], ["pp"])
         c = case("out_cfg"; output=out(what=(; point=(; solid=["p", "q"]))))

@@ -37,7 +37,7 @@ Initialize and compute shape functions and topological relations for material po
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function ignite(mpts::Point,mesh::Mesh,basis::Basis,solver::AbstractSolver)
+function ignite(mpts::Point,mesh::Mesh,basis::Basis,solver::Solver)
     bk = exec_backend(solver)
     # get topological relations, i.e., mps-to-elements and elements-to-nodes
     solver.cairn.ignite.tplgy!(mpts, mesh, basis; ndrange=mpts.nmp)

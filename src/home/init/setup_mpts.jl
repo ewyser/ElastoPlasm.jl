@@ -22,7 +22,7 @@ function build_solid_phase(T1,T2,D,laws,pts::PointData,v0)
     ρ  = T2.((1.0 .- pts.n0) .* ρ0)
     TM = SMatrix{D,D,T2,L}
     TV = SVector{D,T2}
-    S,EL = law_types(ELASTIC_LAWS, laws.elastic, "material.elastic")
+    S,EL = table_value(ELASTIC_LAWS, laws.elastic, "material.elastic")
     ST   = S{T2}
     cmp = setup_cmp(nmp, T2.(pts.c0), T2.(pts.cr), T2.(pts.phi); E=T2.(pts.E), ν=T2.(pts.nu), Hp=T2.(pts.Hp), D=Int(D),
                     constitutive=laws.plastic)

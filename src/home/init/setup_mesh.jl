@@ -59,7 +59,7 @@ boundary conditions (`bcs`, a case's: one `[lower upper]` row per axis, `get_bc`
 zero nodal fields of the solid phase and, with `thermal = true`, the thermal phase. Connectivity is
 built by `setup_basis`, once the material points exist.
 """
-function setup_mesh(L::AbstractVector, nel::AbstractVector, bcs::AbstractMatrix{Symbol}, solver::S; thermal::Bool=false) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function setup_mesh(L::AbstractVector, nel::AbstractVector, bcs::AbstractMatrix{Symbol}, solver::S; thermal::Bool=false) where {T1,T2,D,S<:Solver{T1,T2,D}}
     h          = T2.(L ./ nel)
     xn,nel,nno = mesh_coords(T2.(L), h, nel)
     status,xB  = get_bc(xn,bcs)

@@ -8,7 +8,7 @@ The 8 m × 8 m self-weight block of Sutcliffe et al. (2026, IJNME 127:e70384) §
 `E = 1 MPa`, `ν = 0.3`, perfectly plastic von Mises with `c0 = ρ_y = 20 kPa` (the Lode-radius reading,
 see `architecture.md`; `c0 = √2·20e3` for `√J₂ = ρ_y` as Eq 49 prints it), on a 16 m × 9 m grid, 2×2
 particles per cell, smooth base, GIMP. Every value is a keyword override (`L`, `w0`, `h0`, `ρ0`, `E`,
-`ν`, `c0`, `workflow`, or any `get_solver` section). Its workflow is dynamic relaxation
+`ν`, `c0`, `workflow`, or any `get_default()` section). Its workflow is dynamic relaxation
 (`execute!(jld2)` runs it elastic, in 10 load steps, with `g = 9.81`); with the paper's gravity, elastic
 or plastic:
 

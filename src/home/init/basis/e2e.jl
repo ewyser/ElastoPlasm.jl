@@ -6,7 +6,7 @@ The elements near each element: column `el` holds, as row indices, every element
 regularisation (`nonlocal.jl` reads only the pattern, `nzrange`/`rowvals`). Built in one `sparse(I, J, V)` call,
 since inserting entries one by one costs `O(nnz)` each, and kept as its pattern, an `Adjacency` (which a device holds).
 """
-function e2e(nel::Vector{T1},h::Vector{T2},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function e2e(nel::Vector{T1},h::Vector{T2},solver::S) where {T1,T2,D,S<:Solver{T1,T2,D}}
     n    = ntuple(d -> Int(nel[d]), D)
     r    = CartesianIndex(ntuple(d -> ceil(Int, solver.nonloc.ls / h[d]), D))
     C, L = CartesianIndices(n), LinearIndices(n)

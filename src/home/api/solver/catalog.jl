@@ -10,7 +10,7 @@ What the drawing window offers for a case (`draw_case`), as plain data shaped li
 it: `EasyDraw.Catalog`, `write_catalog`), built from the tables that define it: the zone constants (c₀, cᵣ, φ, T, E,
 ν, ρ₀; their defaults `MATERIAL`, φ only under Drucker–Prager), the boundary kinds (`BOUNDARY_KINDS`, roller by
 default), every solver option of `get_option()` with its `get_default()` value (but `dtype.T0`/`dtype.bits`, set from
-`dtype.precision` by `get_solver`, and `solution`, set by the workflow), quantities by their readable names
+`dtype.precision` by `solver_instr`, and `solution`, set by the workflow), quantities by their readable names
 (`shown_name`), and the run settings (`WORKFLOWS`; `te`, `tg`, `tep` for the explicit workflows, `lstps` for the
 quasi-static ones; `RUN`'s defaults). One `Dict` per field: `key`, `kind` (`"menu"`, `"numeric"`, `"integer"`,
 `"list"`), `label`, `values`, `default`, `scale` (shown = SI × scale), `min`, `show_if`, `names`.

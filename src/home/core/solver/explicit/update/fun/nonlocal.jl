@@ -90,7 +90,7 @@ the same on every device and thread count, that of the sequential counting sort 
 over it stay deterministic. With `basis.e2e` it bounds the neighbour search of `nonlocal_pq`/`nonlocal_qp` (above)
 to `O(nmp × k)` instead of `O(nmp²)` (see their docstring).
 """
-function element_particles(mpts::Point{T1},mesh::Mesh{T1},basis::Basis{T1},solver::AbstractSolver) where {T1}
+function element_particles(mpts::Point{T1},mesh::Mesh{T1},basis::Basis{T1},solver::Solver) where {T1}
     bk     = exec_backend(solver)
     nel    = Int(mesh.prprt.nel[end])
     counts = fill!(similar(basis.p2e, nel), zero(T1))

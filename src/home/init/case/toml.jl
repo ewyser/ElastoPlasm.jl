@@ -91,7 +91,7 @@ apart, write them with `save_layout(file, case.layout)` and `save_settings(file,
 function save_case(file::AbstractString, case::Case)
     return save_layout(file, case.layout, case.settings)
 end
-function save_case(file::AbstractString, case::Case, solver::AbstractSolver; folder::AbstractString=case_folder(case))
+function save_case(file::AbstractString, case::Case, solver::Solver; folder::AbstractString=case_folder(case))
     s = case.settings
     c = solver_config(solver)
     numerics = config_changes(Base.structdiff(c, NamedTuple{(:run,)}), get_default())

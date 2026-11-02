@@ -23,7 +23,7 @@ println(opts.material.elastic)  # ["hencky", "improved_hencky", "hypoelastic"]
 function get_option()
     return (
 
-            solution = ("Select solver formulation",["explicit","implicit"]),
+            solution = ("Select solver formulation",collect(first.(SOLUTIONS))),
             dtype = (
                 T0 = ("Select arithmetic types",[(Int64,Float64),(Int32,Float32)]),
                 bits = ("Select arithmetic precision",[Int64(64),Int32(32)]),
@@ -153,7 +153,7 @@ The function automatically:
 - Skips sub-options when `status = false` is selected
 
 # Returns
-- `Dict`: Configuration dictionary ready to be splatted as kwargs into `slump_case`/`get_solver`.
+- `Dict`: Configuration dictionary ready to be splatted as kwargs into `slump_case`/`Solver`.
 
 # Example
 ```julia

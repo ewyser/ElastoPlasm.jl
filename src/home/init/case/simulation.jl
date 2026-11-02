@@ -81,7 +81,7 @@ as it was solved beside it (`save_case(file, case, solver)`, `<name>_case.toml`)
 `.jld2` path, for `execute!`. The folder is the case's (its run settings' `folder`, else its file's folder), a name
 under `dump/` or a path. `setup_simulation(case)` is `setup_simulation(case, Solver(case))`.
 """
-function setup_simulation(case::Case, solver::AbstractSolver; folder::AbstractString=case_folder(case))
+function setup_simulation(case::Case, solver::Solver; folder::AbstractString=case_folder(case))
     @info "Setting up mesh & material point system for a $(length(case.layout.L))d problem ($(length(case.layout.zones)) zones)"
     sim = Simulation(Problem(case, solver); folder)
     p   = sim.problem

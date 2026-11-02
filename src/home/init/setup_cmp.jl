@@ -23,7 +23,7 @@ function setup_cmp(nmp::Integer,coh0::AbstractVector{T2},cohr::AbstractVector{T2
     ) where {T2}
     each(x) = x isa AbstractVector ? x : fill(x, nmp)
     KG, H = get_elastic_moduli.(each(E), each(ν)), each(Hp)
-    CM = law_types(PLASTIC_LAWS, constitutive, "material.plastic")
+    CM = table_value(PLASTIC_LAWS, constitutive, "material.plastic")
     if CM === DruckerPrager
         return [DruckerPrager{T2,D}(KG[p][2],KG[p][1],H[p],T2(coh0[p]),T2(cohr[p]),T2(phi[p])) for p ∈ 1:nmp]
     end

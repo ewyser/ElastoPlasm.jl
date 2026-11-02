@@ -38,7 +38,7 @@ noplot = (; plot=(; status=false))
 L2 = [64.1584, 64.1584/4]
 with_run(c; te, tep=te/2) = Case(c.layout, Settings(; zones=c.settings.zones, defaults=c.settings.defaults, sides=c.settings.sides,
                                                        options=c.settings.options, run=merge(c.settings.run, Dict("te" => te, "tg" => te, "tep" => tep))))
-println("device: ", report["device"]["name"], ", backend ", EP.exec_backend(get_solver(; DEVICE...)))
+println("device: ", report["device"]["name"], ", backend ", EP.exec_backend(Solver(; DEVICE...)))
 
 # ---- 2. every configuration compiles and runs a few steps
 configs = [

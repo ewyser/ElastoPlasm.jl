@@ -7,7 +7,7 @@ The slump: a slope `z = 0.625 Lx − 1.25 x` cut into a layer of height `lz` on 
 `z < 0.15 lz` that spans the domain; below `z = 0.3 lz` the material is weaker (friction angle 7.5°)
 and three times warmer. `L`, `nel` are 2D (x, z) or 3D (x, y, z, extruded along y); the material
 fills the sub-cells wholly below `lz` (the slope polygon's top is on the sub-cell lattice). `kwargs`
-are solver options (`get_solver`), e.g. `cli()...`; the random field `grf` perturbs the cohesion.
+are solver options (`get_default()`'s sections), e.g. `cli()...`; the random field `grf` perturbs the cohesion.
 `setup_simulation(slump_case(…))` builds it and returns the `.jld2` path.
 
 ```julia

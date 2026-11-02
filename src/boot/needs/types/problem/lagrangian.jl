@@ -167,13 +167,6 @@ const ELASTIC_LAWS = ("hencky"          => (LogarithmicStrain, HenckySolid),
 const PLASTIC_LAWS = ("DP" => DruckerPrager,
                       "VM" => VonMises)
 
-# the types of the law `name` in `table` (`ELASTIC_LAWS`, `PLASTIC_LAWS`); `option` names it in the error
-function law_types(table, name::AbstractString, option::AbstractString)
-    i = findfirst(l -> first(l) == name, table)
-    isnothing(i) && throw(ArgumentError("$option = \"$name\" is not one of $(join(first.(table), ", "))"))
-    return last(table[i])
-end
-
 """
     laws(mpts::Point) -> (; elastic, plastic)
 

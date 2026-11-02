@@ -100,7 +100,7 @@ function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2}
     return nothing
 end  
 """
-    thermodynamic!(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,CM,S<:AbstractSolver{T1,T2,D}}
+    thermodynamic!(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,CM,S<:Solver{T1,T2,D}}
 
 Run the explicit thermodynamic workflow for the given mesh, material points, constitutive model, and simulation configuration.
 
@@ -119,7 +119,7 @@ Run the explicit thermodynamic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function thermodynamic!(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,CM,S<:AbstractSolver{T1,T2,D}}
+function thermodynamic!(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,CM,S<:Solver{T1,T2,D}}
     host_only(instr, "thermodynamic!")
     it,stops = T1(0), checkpoints(time,instr,time.t[2])     # (t, plot, record): get.jl
     # action

@@ -43,7 +43,7 @@ end
 The summary `setup_simulation` logs: precision, elements, material points and the time stages
 (`time.t`, gravity ramp `tg`, elastic stage `te`, plastic stage `tep`).
 """
-function ic_log(mesh::Mesh,mpts::Point,time::Time,solver::S) where {T1<:Integer,T2<:Real,D, S<:AbstractSolver{T1,T2,D}}
+function ic_log(mesh::Mesh,mpts::Point,time::Time,solver::S) where {T1<:Integer,T2<:Real,D, S<:Solver{T1,T2,D}}
     # build the list of constant log lines
     logs = [
         "Summary: ",
@@ -77,7 +77,7 @@ function workflow_log(p::Problem; msg::String="elastodynamic")
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "└ $(nthreads()) active thread(s)",
-        "- solver: $(solver.solution)",
+        "- solver: $(solution_name(solver))",
         "- $(laws(p.mpts).elastic) material",
         "- $(solver.basis.trsfr) mapping scheme",
         "- $(solver.basis.which) calculation cycle",
