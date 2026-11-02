@@ -4,6 +4,22 @@
 
 export LinearBasis
 
+"""
+    LinearBasis{T1,D,NN} <: AbstractBasisKind
+
+Linear shape functions, the standard MPM's: a basis kind, what `Basis`'s `kind` holds.
+
+# Fields
+- `stencils::NTuple{D,UnitRange{T1}}`: per axis, the offsets of the nodes a point reaches from its element's first node
+  (`0:1`, 2 nodes per axis).
+
+`T1` is the index type, `D` the dimension, `NN` the number of nodes a point reaches (`prod(length.(stencils))`).
+
+# Constructors
+    LinearBasis{T1,D}()
+
+`get_basis` builds it from the option `basis.which` (`"smpm"`).
+"""
 struct LinearBasis{T1,D,NN} <: AbstractBasisKind
     stencils::NTuple{D,UnitRange{T1}}
     #

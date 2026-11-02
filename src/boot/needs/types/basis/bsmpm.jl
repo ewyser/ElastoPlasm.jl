@@ -4,6 +4,23 @@
 
 export BSplineBasis
 
+"""
+    BSplineBasis{T1,D,NN} <: AbstractBasisKind
+
+Cubic B-spline shape functions, modified near the grid's boundary by the nodes' boundary layer (`basis.type`): a
+basis kind, what `Basis`'s `kind` holds.
+
+# Fields
+- `stencils::NTuple{D,UnitRange{T1}}`: per axis, the offsets of the nodes a point reaches from its element's first node
+  (`-1:2`, 4 nodes per axis).
+
+`T1` is the index type, `D` the dimension, `NN` the number of nodes a point reaches (`prod(length.(stencils))`).
+
+# Constructors
+    BSplineBasis{T1,D}()
+
+`get_basis` builds it from the option `basis.which` (`"bsmpm"`).
+"""
 struct BSplineBasis{T1,D,NN} <: AbstractBasisKind
     stencils::NTuple{D,UnitRange{T1}}
     #

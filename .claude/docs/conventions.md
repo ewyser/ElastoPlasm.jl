@@ -6,6 +6,22 @@
   `σᵢⱼ = get_tensor(...)`). This replaced an earlier rule tied to physical tensor rank. Don't
   give a temporary, differently-shaped object a stored field's name (e.g. a 3×3 embedding of
   `ΔFᵢⱼ`); convert visibly inside the function, under a comment saying what it models.
+- **Writing a type** (one way, asked for by the user; the pass is in `planned-improvements.md`, "Type writing"):
+  - `T1` is always the index type and `T2` the float type, in type parameters and in methods' `where` clauses (no
+    plain `T` for either); `D` the dimension.
+  - Bound only the parameters code dispatches on as kinds (`CM<:AbstractConstitutiveModel`, `ST`, `EL`, `K`, `TR`,
+    GIMP's domain, the solver's `SL<:AbstractSolution`); leave number and array types unbounded (bounds referring to
+    other parameters made compilation three times slower, `architecture.md`). Array-type parameters come after the
+    dispatched ones, in field order, with a partial constructor (`Mesh{T1,T2,D}(…)`) taking them from the arguments.
+  - Parameter lists without spaces (`{T1,T2,D}`); fields as `name ::T`, aligned.
+  - An abstract type only when code dispatches on it, named after the role of the field it types
+    (`AbstractBasisKind` for `Basis`'s `kind`, `AbstractTransfer`, `AbstractDomain`, `AbstractSolution`); its concrete
+    markers named `<Name><Role>` (`StdTransfer`, `StretchDomain`, `ExplicitSolution`), each made from an option by a
+    `get_<role>` function. Where an option's values name types, one table holds both (`ELASTIC_LAWS`, `PLASTIC_LAWS`,
+    `SOLUTIONS`, read by `table_value`), and `get_option`'s lists derive from it.
+  - Every type's docstring in the house layout: the signature with its parameters, a summary, `# Fields` (each field's
+    type, values and units; then what the type parameters are), `# Constructors`, `# Throws`, `# Examples`,
+    `See also`, only the sections that apply. A field nothing reads says so.
 - `NN` (nodes a point's shape functions reach) belongs to `Basis`, never to `Point` or `Mesh` — it's
   topology, not point/mesh state. Read it as `stencil_size(basis)` (the `NN` type parameter, so
   `for nn ∈ 1:stencil_size(basis)` has a compile-time bound). `MeshProperties.nn` and `Point.nn`,

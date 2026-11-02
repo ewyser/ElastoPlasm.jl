@@ -1,7 +1,7 @@
 ## Planned improvements (not bugs, just known follow-up work)
 
 - **`Problem` — done: one object holding a run.** `Problem` (`types/problem/problem.jl`) bundles
-  `mpts`, `mesh`, `basis`, `time`, `solver`, built by `Problem(case)` from a `Case`; it replaced
+  `mpts`, `mesh`, `basis`, `time`, `solver`, built by `Problem(case, solver)`; it replaced
   `MechanicalProblem` (`mesh`/`mpts`/`time` only, whose docstring kept `Basis`/`Solver` out because
   `basis.which`/`basis.trsfr` vary independently, which does not argue against bundling them for a
   run). The `Case` is deliberately not a field: the built objects already hold all it describes, it
@@ -11,14 +11,30 @@
   `.jld2` holds (see `architecture.md`). The stored solver is its configuration only: the kernel table `cairn` and
   the selected devices are rebuilt on load (`build_solver`, `persistence.md`), so the stored `Problem` is pure data. `types/problem/` files load in `boot.jl`'s explicit order, `problem.jl` last (it needs
   `Point`, `Mesh`, `Basis`, `Time`, `Case`).
-- **A `Solver` level — done, Case → Solver → Problem → Simulation** (`refactor-solver-split`). A `Case` is the
-  geometry with its physics assigned (materials, boundary conditions, constitutive laws, `grf`, thermal); `Solver(case;
-  overrides…)` reads the numerics (the other option sections) and the run settings, keeps its case and builds the
-  kernels; `Problem(solver)` builds the arrays; `Simulation(problem; folder)` runs. Unlike the first sketch, the
-  problem keeps its `time` and `solver` (no workflow or kernel changed), the solver copies the case's physics in for
-  the kernels, and `Simulation`'s workflow/lstps moved to `solver.run`. Everything bit-identical (setups, short runs).
-  Possible next steps: drop the physics copies from the solver structs (kernels reading the laws from the point
-  types), and give `check_case(solver)` a cheaper path than building the kernels (the window calls it per edit).
+- **A `Solver` level — done: Case + Solver → Problem → Simulation** (`refactor-solver-split`). A `Case` is the
+  geometry with its physics assigned (materials, boundary conditions, constitutive laws, `grf`, thermal); a `Solver`
+  holds the numerics (the other option sections), the run settings and the kernels, and nothing of a case;
+  `Problem(case, solver)` unifies them ("Problem unifies What and How", the user's wording); `Simulation(problem;
+  folder)` runs. The first version (`ecfa4602`) kept the case inside the solver (`solver.case`, `Problem(solver)`) with
+  copies of its physics; the next commits made the solver independent: the physics reaches the problem only through
+  `Problem(case, solver)` and is read afterwards from the points' types (`laws(mpts)`, `ELASTIC_LAWS`/`PLASTIC_LAWS`),
+  the run folder became the case's (`case_folder`, so one solver can run several cases), and `ExplicitSolver`/
+  `ImplicitSolver` became one `Solver` struct with a solution marker. Everything bit-identical (setups 188/188, short
+  runs at `-t 1` against `ecfa4602`). Possible next steps: give `check_case(case, solver)` a cheaper path than building
+  the kernels (the window calls it per edit); a solver without `D`, so that one solver serves 2D and 3D cases (`D` is
+  a type parameter of `Solver` read by 27 signatures).
+- **Type writing — done, one way** (`refactor-solver-split`, asked for after the type diagram showed inconsistencies;
+  see `conventions.md`): `T1`/`T2` always the index/float type, bounds only on kind parameters, `name ::T` fields,
+  `Problem`'s parameters in field order, `AbstractBasisKind`, unused abstract types and `PerfectlyElastic` removed,
+  every type documented field by field. Follow-ups it found:
+  - Fields never read: `PointSolidPhase.σn` and `.∇uᵢⱼ`, `Point.ndim`, `Self`'s `ui.ui`/`bckd`/`logs`, `mpi`,
+    `sys.ncell`. `PointSolidPhase.ϵpV` is never updated, though recordable (`epV` in `quantities()`, always 0).
+    Removing them changes the stored arrays (`.jld2` format) and `runcmp`-style digests; one step, checked.
+  - `KirchhoffStress` has no 3×3 constructor, so the carry constructor `S(M, t)` fails for it (unused today).
+  - `get_basis`, `get_transfer` and `get_domain` branch on strings, and `get_option` lists the same names by hand:
+    tables like `ELASTIC_LAWS`/`SOLUTIONS` (`table_value`) would make them one source.
+  - ElastoPlasm's Documenter site (`docs/make.jl`) has pages for `home/api`, `home/core` and `home/script` only, none
+    for the types under `src/boot/needs/types/`, so their docstrings show only in the REPL (`?Point`).
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task, rather than one monolithic kernel body.
   `update.jl`'s `elastoplast`/`elasto` dispatch functions (branch on
@@ -31,9 +47,9 @@
   `cmp`, as flat mutable vectors on `PointSolidPhase`, since it's written every
   timestep and bundling it into an immutable per-particle struct would force a
   full-struct reconstruction on every write.
-  - `PerfectlyElastic` is defined but has **no construction path** — dead scaffolding.
-    `DruckerPrager`/`VonMises` both **do** have construction paths, branched on
-    `material.plastic` — see "DP/J2 retmap kernel unification" below.
+  - `PerfectlyElastic`, defined with **no construction path**, was removed (type-writing pass).
+    `DruckerPrager`/`VonMises` both have construction paths, picked by
+    `material.plastic` (`PLASTIC_LAWS`) — see "DP/J2 retmap kernel unification" below.
   - `PointSolidPhase.rheo::R`/`AbstractRheology` — a parallel, never-read earlier
     attempt at the same per-particle constitutive-data problem — was retired entirely,
     since `cmp` already supersedes it.
@@ -182,10 +198,8 @@
   `max|Σᵢ∂Nᵢ|` off by exactly `1.0` at one sweep point for `LinearBasis`, unlike
   `gimpm`'s broadly-degraded boundary PoU. Never root-caused — an error of exactly
   `1.0` smells like a real (if narrow) bug rather than float noise.
-- **`DynamicRelaxationSolver`'s fate**: now that `solution` picks between
-  `ExplicitSolver`/`ImplicitSolver` only, this third struct is orphaned scaffolding.
-  Decide: wire it in as a third `solution` value, or state plainly that it's
-  intentionally dormant.
+- ~~`DynamicRelaxationSolver`'s fate~~ — **removed** with the one `Solver` struct: the implicit path is
+  `ImplicitSolver` (`ImplicitSolution()`).
 - **Staged path to a poro-hydro-mechanical solution: mechanical solver (exists) →
   standalone fluid-only (hydro) solver → fuse the two.** Validate the hydro solver
   independently before coupling. `PointFluidPhase` (`lagrangian.jl`) needs real fields
@@ -243,8 +257,8 @@
   apex return (`.claude/bug/fixed/dp-apex-return-wrong-pressure.md`). Needs a corner-return
   source (de Souza Neto, Perić & Owen 2008 §8.3) added to `refs/` first.
 - **Dead or drifting code worth removing, one small verified step at a time:** no `#= … =#` blocks
-  are left under `src/`, and `MeshSolidPhase.oobp`/`.p` (the removed u–P path) are removed. Still
-  open: `PerfectlyElastic` and `DynamicRelaxationSolver` above.
+  are left under `src/`, and `MeshSolidPhase.oobp`/`.p` (the removed u–P path), `PerfectlyElastic` and
+  `DynamicRelaxationSolver` are removed. Still open: the unread fields under "Type writing" above.
 - **`_fast` kernels and the `perf` config section — removed.** `deform_fast`/`elast_fast`
   (hand-unrolled 2D/3D scalar versions, a legacy port of the original C code) were only
   selected by `perf.status`, which also forced `material.elastic="hypoelastic"` and
@@ -274,10 +288,9 @@
      host loops (`fictitious_mass`, the damping, the midpoint update), `nodal_volume` scatters on the host.
 - ~~`@adapt_struct PointSolidPhase` likely can't rebuild the struct on GPU~~ — **fixed**: every container has an
   explicit adapt rule through `adapt_fields`, pinning the parameters no field carries (`architecture.md`).
-- **`ExplicitSolver`/`ImplicitSolver` are two identical 17-parameter structs kept in lockstep
-  by hand**, one parameter per config section (and `run`, `case` since the Solver split). A single solver struct holding the config
-  `NamedTuple` as one field plus an explicit/implicit tag would remove most of that, at the
-  cost of touching every `solver.xxx` access.
+- ~~`ExplicitSolver`/`ImplicitSolver` are two identical structs kept in lockstep by hand~~ — **done**: one
+  `Solver{T1,T2,D,SL,…}` whose `solution` is a marker (`ExplicitSolution`/`ImplicitSolution`), the two names its
+  aliases; the fields stayed one per section, so no `solver.xxx` access changed.
 - **`test_workflow.jl` doesn't cover `material.elastic="improved_hencky"`** — add it once
   `.claude/bug/known/improved-hencky-explicit-admissibility-crossing.md` is fixed.
 - **Lighter `src/home/init/` — done** (branches `refactor-lighter-init` → `fix-grf-point-evaluation`
@@ -285,7 +298,7 @@
   six hand-written pipelines and the `get_*` generators are gone (see "Describing a case" in
   `operations.md`). Material constants live in `MATERIAL` (`setup_material_constants` removed, `n₀`
   a material constant), `PointData` replaced the implicit generator NamedTuple and
-  `build_solid_phase`'s 11 positional arguments, `get_solver` merges per field, a 3D column works.
+  `build_solid_phase`'s 11 positional arguments, the solver options merge per field, a 3D column works.
   Verified bit-identical setup by setup with `test_setup.jl` (a stored digest reference, which
   replaced the scratch harness used for the earlier steps). The `Geometry` type is gone too:
   `setup_mesh(L, nel, solver)` builds the node grid once, for any dimension (`mesh_coords`, which

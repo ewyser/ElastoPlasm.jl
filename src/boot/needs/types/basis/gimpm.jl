@@ -21,6 +21,26 @@ function get_domain(which::String)
     throw(ArgumentError("basis.domain = \"$which\" is not one of \"stretch\", \"undeformed\""))
 end
 
+"""
+    GimpBasis{T1,D,NN,P} <: AbstractBasisKind
+
+Generalized interpolation (GIMP, Bardenhagen & Kober 2004): linear shape functions integrated over each point's
+domain, whose update is `domain`'s: a basis kind, what `Basis`'s `kind` holds.
+
+# Fields
+- `stencils::NTuple{D,UnitRange{T1}}`: per axis, the offsets of the nodes a point reaches from its element's first node
+  (`-1:2`, 4 nodes per axis).
+- `domain::P`: how a point's domain is updated, `StretchDomain()` or `UndeformedDomain()` (`basis.domain`,
+  `get_domain`; `particle_domain` dispatches on it).
+
+`T1` is the index type, `D` the dimension, `NN` the number of nodes a point reaches (`prod(length.(stencils))`), `P`
+the domain update's type.
+
+# Constructors
+    GimpBasis{T1,D}(domain)
+
+`get_basis` builds it from the option `basis.which` (`"gimpm"`).
+"""
 struct GimpBasis{T1,D,NN,P<:AbstractDomain} <: AbstractBasisKind
     stencils::NTuple{D,UnitRange{T1}}
     domain  ::P                                              # how a particle's domain is updated

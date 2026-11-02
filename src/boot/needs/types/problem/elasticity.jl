@@ -87,6 +87,15 @@ Volumetric and deviatoric projections on a 6-component Voigt strain `(xx, yy, zz
 with engineering shear (`γ = 2ϵ`): `vol·ϵ` is `tr(ϵ)` on each normal component, and `dev·ϵ` is the
 deviatoric strain, with `½` on the shear diagonal so that `2G·dev` maps `γ` to the shear stress
 `G·γ`. Any isotropic stiffness is `K·vol + 2G·dev`; see `get_Del`.
+
+# Fields
+- `vol::SMatrix{6,6,T2,36}`: the volumetric projection.
+- `dev::SMatrix{6,6,T2,36}`: the deviatoric projection.
+
+`T2` is the float type.
+
+# Constructors
+    StressStrainStiffness{T2}()
 """
 struct StressStrainStiffness{T2}
     vol::SMatrix{6,6,T2,36}

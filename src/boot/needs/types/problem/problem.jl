@@ -19,6 +19,16 @@ precision, the time stages from the solver's run settings and the basis from the
 is not kept: the built objects hold all it describes, and `setup_simulation` writes it as TOML beside the `.jld2`.
 `Problem(case)` is `Problem(case, Solver(case))`.
 
+# Fields
+- `mpts::P`: the material points, a `Point`.
+- `mesh::M`: the background grid, a `Mesh`.
+- `basis::B`: the connectivity, shape functions and transfer scheme, a `Basis`.
+- `time::Time{T1,T2}`: the time stages.
+- `solver::S`: how it is solved, a `Solver`.
+
+`T1`, `T2` and `D` are the index type, float type and dimension, shared by all its parts; `P`, `M`, `B` and `S` are
+the parts' types.
+
 # Throws
 - `ArgumentError`: when the solver's dimension is not the case's.
 """

@@ -207,11 +207,27 @@ quasistatic(workflow) = startswith(workflow, "elastoquasistatic!")
 """
     PointData
 
-The material points a problem starts from, one column or entry per point: positions `xp` (D×nmp)
-and initial velocities `vp`, points per element `ni`, the `zone` each belongs to (0 for uniform points),
-and their constants (`c0`, `cr` [Pa], `phi` [rad], `Hp` [Pa], `E` [Pa],
-`nu`, `rho0` [kg/m³], `n0`, `T` [K], `cp`, `k`). Built by `case_points` (or uniform,
-`PointData(xp, ni)`), read by `setup_mpts`.
+The material points a problem starts from, one column or entry per point: the explicit contract between a case
+(`case_points`) and the points built from it (`setup_mpts`, `build_solid_phase`, `build_thermal_phase`, `setup_cmp`).
+
+# Fields
+- `xp::Matrix{Float64}`: the positions, `D × nmp` [m].
+- `vp::Matrix{Float64}`: the initial velocities, `D × nmp` [m/s].
+- `ni::Int`: the points per element and axis.
+- `zone::Vector{Int}`: the zone each point belongs to, its index in the layout (0 for uniform points).
+- `c0`, `cr::Vector{Float64}`: the initial and residual cohesion [Pa].
+- `phi::Vector{Float64}`: the friction angle [rad].
+- `Hp::Vector{Float64}`: the softening modulus [Pa].
+- `E::Vector{Float64}`: Young's modulus [Pa]; `nu`: Poisson's ratio.
+- `rho0::Vector{Float64}`: the grain density [kg/m³]; `n0`: the initial porosity.
+- `T::Vector{Float64}`: the temperature [K]; `cp`: the specific heat capacity [J/(kg·K)]; `k`: the thermal
+  conductivity [W/(m·K)].
+
+# Constructors
+    PointData(xp, vp, ni, zone, c0, cr, phi, Hp, E, nu, rho0, n0, T, cp, k)
+    PointData(xp, ni; material=MATERIAL)
+
+The second, points at rest of one material (`sfrac.jl`'s quadrature points).
 """
 struct PointData
     xp   ::Matrix{Float64}

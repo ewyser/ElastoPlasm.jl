@@ -1,7 +1,7 @@
 ## Persistence (JLD2)
 
 A simulation's `.jld2` is a saved `Simulation`, one `"simulation"` key: the `Problem` (`mpts`,
-`mesh`, `basis`, `time`, `solver`), the workflow name and load steps, and the folder. It is written
+`mesh`, `basis`, `time`, `solver`, whose run settings hold the workflow and load steps) and the folder. It is written
 to `<folder>/<name>_simulation.jld2` by `save_simulation(sim)` (or to a given file,
 `save_simulation(sim, file)`, the one writer of the key) and read by `load_simulation(file)`
 (`src/home/api/io/simulation.jl`), whose folder is then the file's (a run folder can be moved or
@@ -17,9 +17,15 @@ scripts, was never the key.) `test_column.jl` once lagged a layout change for a 
 **The solver is stored as its configuration** (`feat-gpu-explicit`): `save_simulation` writes `stored_solver(solver)`,
 the same solver type with `backend = (; select)` (no `exec`, the platform UnifiedBackend selected) and
 `cairn = nothing` (no kernel objects), and `load_simulation` rebuilds it with `build_solver(solver_config(…), D)`, the
-code `get_solver` ends with: the kernels are built again and the device picked on the machine that loads the file
+code both `Solver` constructors end with: the kernels are built again and the device picked on the machine that loads the file
 (a file written on a GPU machine opens on a laptop, which runs it on its host unless it has a GPU). Files written
 before still load (their kernels and `exec` are ignored).
+
+**Format change:** one `Solver` struct (`refactor-solver-split`) replaced `ExplicitSolver`/`ImplicitSolver` (now its
+aliases), holding no case and no physics (`material`, `grf`, `bcs` are the case's; the run settings lost the folder),
+and `Problem`'s type parameters follow its fields (`{T1,T2,D,P,M,B,S}`), so `.jld2` files written before don't load;
+set them up again from their case TOML. The case TOML is unchanged, and the one `setup_simulation(case, solver)`
+writes records the solver's numerical options and run settings, so `Solver(load_case(file))` rebuilds it.
 
 **Format change:** `solver.plot.what` holds quantity keys (`["p", "epII"]`) instead of NamedTuples of
 plot settings (`quantities()`), so a `.jld2` written before plots nothing it can resolve; set it up

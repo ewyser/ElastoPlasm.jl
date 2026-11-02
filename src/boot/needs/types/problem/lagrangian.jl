@@ -43,29 +43,50 @@ paired with `ST=LogarithmicStrain`.
 struct ImprovedHenckySolid <: AbstractElasticLaw end
 
 """
-    PointSolidPhase{T1,T2,D,CM,ST,EL,L}
+    PointSolidPhase{T1,T2,D,CM,ST,EL,L,…}
 
-Per-particle solid-phase state. Beyond the index/float types `T1`/`T2` and dimension `D`:
+The solid phase of the material points: their mechanical state, one entry per point.
 
-- `CM<:AbstractConstitutiveModel` — plastic model (`DruckerPrager`/`VonMises`), from
-  `material.plastic`.
-- `ST<:AbstractStrain` — `ϵᵢ`/`ϵn` storage, from `material.elastic`:
-  `InfinitesimalStrain` for `"hypoelastic"`, `LogarithmicStrain` for the Hencky laws.
-- `EL<:AbstractElasticLaw` — elastic law, from `material.elastic`; see
-  `AbstractElasticLaw`.
-- `L == D*D` — static length of the `D×D` kinematic fields (`SMatrix{D,D,T2,L}`). Julia can't
-  compute `D*D` in a field type, so it is carried as a parameter. Kernels never dispatch on it;
-  recover a field's type with `eltype` instead.
+# Fields
+- `u::VV`: the displacement, an `SVector{D,T2}` per point: the step's, `dt·v`, on the explicit path; the total over
+  the workflow under dynamic relaxation.
+- `v::VV`: the velocity [m/s].
+- `ρ₀::V`: the grain density [kg/m³]; `ρ::V`: the density, `(1 − n)ρ₀`.
+- `m::V`: the solid mass, `(1 − n₀)ρ₀Ω₀` [kg], constant: `deform!` keeps `ρ·Ω` equal to it, so kernels read `m`.
+- `Δλ::V`: the plastic multiplier of the step's return map.
+- `ϵpII::V2`: the equivalent plastic strain, an `SVector{2,T2}` per point: `[1]` the point's own, `[2]` what its yield
+  stress reads, the non-local average with `nonloc.status`, else a copy of `[1]`.
+- `ϵpV::V`: the volumetric plastic strain; no return map updates it yet, so it stays 0.
+- `σᵢ::VC`: the Cauchy stress, a `CauchyStress` (read with `get_tensor`, or `.p` and `.dev`); `σn::VC`: not read.
+- `τᵢ::VK`: the Kirchhoff stress, a `KirchhoffStress`: what the finite-strain laws compute.
+- `∇vᵢⱼ::VM`: the velocity gradient, an `SMatrix{D,D,T2,L}`; `∇uᵢⱼ::VM`: not read.
+- `ΔFᵢⱼ::VM`, `Fᵢⱼ::VM`: the step's and the total deformation gradient; `Fn::VM`: `Fᵢⱼ` at the start of a load step
+  (dynamic relaxation).
+- `ϵᵢ::VS`: the elastic strain, an `ST`; `ϵn::VS`: at the start of a load step (dynamic relaxation).
+- `ωᵢⱼ::VM`: the spin, the hypoelastic law's Jaumann rotation.
+- `cmp::VCM`: the constitutive constants, a `CM` per point.
 
-Stress and strain (`σᵢ`, `σn`, `τᵢ`, `ϵᵢ`, `ϵn`) are full 3D Voigt vectors in every dimension (plane
-strain in 2D), see `AbstractStrain`/`AbstractStress`.
+`T1` and `T2` are the index and float types, `D` the dimension. The parameters code dispatches on:
+- `CM<:AbstractConstitutiveModel`: the constitutive model, `DruckerPrager` or `VonMises` (`material.plastic`);
+- `ST<:AbstractStrain`: the strain storage, `LogarithmicStrain` for the Hencky laws, `InfinitesimalStrain` for the
+  hypoelastic one (`material.elastic`);
+- `EL<:AbstractElasticLaw`: the elastic law (`material.elastic`); `ELASTIC_LAWS` and `PLASTIC_LAWS` map the option
+  values to these types;
+- `L = D*D`: the length of the `D×D` fields: Julia cannot compute `D*D` in a field type, so it is a parameter, which
+  kernels never dispatch on (they read a field's type with `eltype`).
+The rest are the arrays' types, host or device arrays alike: `VV` of `SVector{D,T2}`, `V` of `T2`, `V2` of
+`SVector{2,T2}`, `VC`/`VK` of Cauchy/Kirchhoff stresses, `VM` of `SMatrix{D,D,T2,L}`, `VS` of `ST`, `VCM` of `CM`.
 
-`m` is the solid mass `(1−n₀)ρ₀Ω₀`, set once at setup: `deform!` keeps `ρ·Ω` equal to it
-(solid mass conservation), so kernels read `m` rather than recomputing `ρ·Ω`.
+Stress and strain are full 3D tensors in every dimension (plane strain in 2D), stored as a pressure or volumetric
+strain and a trace-free Voigt deviator: see `AbstractStrain`, `AbstractStress`.
+
+# Constructors
+    PointSolidPhase{T1,T2,D,CM,ST,EL,L}(u, v, ρ₀, ρ, m, Δλ, ϵpII, ϵpV, σᵢ, σn, τᵢ, ∇vᵢⱼ, ∇uᵢⱼ, ΔFᵢⱼ, Fᵢⱼ, Fn, ϵᵢ, ϵn, ωᵢⱼ, cmp)
+
+The arrays' types come from the arguments. `build_solid_phase` builds one from a case's points.
+
+See also: `Point`, `laws`.
 """
-# The arrays' types are parameters appended after the dispatched ones (`VV`: of SVector{D,T2}, `V`: of T2, `V2`: of
-# SVector{2,T2}, `VC`/`VK`: of Cauchy/Kirchhoff stress, `VM`: of SMatrix{D,D,T2,L}, `VS`: of ST, `VCM`: of CM), so the
-# struct holds host or device arrays alike (see eulerian.jl).
 struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L,
                        VV,V,V2,VC,VK,VM,VS,VCM}
     u    ::VV   # displacement per MP
@@ -103,11 +124,36 @@ function Adapt.adapt_structure(to, s::PointSolidPhase{T1,T2,D,CM,ST,EL,L}) where
     return adapt_fields(to, s, PointSolidPhase{T1,T2,D,CM,ST,EL,L})   # pins T1 and EL, which no field carries
 end
 
+"""
+    PointFluidPhase{T1,T2,D}
+
+The placeholder of a fluid phase, with no fields yet: a point's `f` is `nothing` (see "Staged path to a
+poro-hydro-mechanical solution" in `planned-improvements.md`).
+"""
 struct PointFluidPhase{T1,T2,D}
     # Add concrete fields as needed, e.g.:
     # v    ::Matrix{T2}
 end
 
+"""
+    PointThermalPhase{T1,T2,D,V,M}
+
+The thermal phase of the material points, one entry per point (a point's `t`, when the case is thermal).
+
+# Fields
+- `c::V`: the specific heat capacity [J/(kg·K)].
+- `k::V`: the thermal conductivity [W/(m·K)].
+- `q::M`: the heat flux, `D × nmp`.
+- `T::V`: the temperature [K].
+
+`T1`, `T2` and `D` are the index type, float type and dimension; `V` and `M` the arrays' types (a vector and a
+matrix of `T2`, host or device).
+
+# Constructors
+    PointThermalPhase{T1,T2,D}(c, k, q, T)
+
+`build_thermal_phase` builds one from a case's points.
+"""
 struct PointThermalPhase{T1,T2,D,V,M}
     c   ::V # specific heat capacity vector
     k   ::V # thermal conductivity vector
@@ -121,6 +167,38 @@ function Adapt.adapt_structure(to, t::PointThermalPhase{T1,T2,D}) where {T1,T2,D
     return adapt_fields(to, t, PointThermalPhase{T1,T2,D})
 end
 
+"""
+    Point{T1,T2,D,CM,ST,EL,L,…}
+
+The material points (Lagrangian): where they are, their domains, volumes and porosity, and their phases, one entry
+per point, `p ∈ 1:nmp`. Positions are a vector of `SVector`s: index `x[p]`, never `x[i, :]`.
+
+# Fields
+- `ndim::T1`: the dimension `D` (not read).
+- `nmp::T1`: the number of points.
+- `vmax::V`: the largest point speed per axis, `D` entries, for the next time step (`get_dt`).
+- `x::VV`: the positions, an `SVector{D,T2}` per point [m].
+- `ℓ₀::VV`, `ℓ::VV`: the initial and current half-lengths of each point's domain per axis (GIMP's, `particle_domain`).
+- `n₀::V`, `n::V`: the initial and current porosity.
+- `Ω₀::V`, `Ω::V`: the initial and current volume (in 2D, per unit width).
+- `ΔJ::V`, `J::V`: the volume ratio of the step, `det ΔF`, and since the start, `det F`.
+- `s::S`: the solid phase, a `PointSolidPhase`.
+- `f::F`: the fluid phase: `nothing`, none yet (`PointFluidPhase`).
+- `t::TH`: the thermal phase, a `PointThermalPhase` for a thermal case, else `nothing`.
+
+`T1`, `T2` and `D` are the index type, float type and dimension. `CM`, `ST`, `EL` and `L` are the solid phase's
+(constitutive model, strain storage, elastic law, `D*D`), which kernels dispatch on; `laws(mpts)` names the laws.
+`V` and `VV` are the arrays' types (of `T2`, of `SVector{D,T2}`), host or device arrays alike (`adapt`), and `S`, `F`,
+`TH` the phases'.
+
+# Constructors
+    Point(ndim, nmp, vmax, x, ℓ₀, ℓ, n₀, n, Ω₀, Ω, ΔJ, J, s, f, t)
+
+The type parameters come from the arguments, `CM`, `ST`, `EL` and `L` from the solid phase. `setup_mpts` builds the
+points of a case (`case_points`).
+
+See also: `PointSolidPhase`, `Problem`, `laws`.
+"""
 struct Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L,V,VV,S,F,TH}
     # general information
     ndim ::T1

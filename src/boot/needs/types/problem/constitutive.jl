@@ -5,27 +5,27 @@ export DruckerPrager,VonMises
 """
     DruckerPrager{T2,D} <: AbstractConstitutiveModel{T2,D}
 
-Per-particle static (never mutated after init) constitutive constants for the
-Drucker-Prager plastic model: shear modulus `Gc`, bulk modulus `Kc`, softening modulus `Hp`, and initial/residual cohesion + friction angle
-`c₀`,`cᵣ`,`ϕ₀`. One instance per material point (`mpts.s.cmp::Vector{DruckerPrager}`),
-built by `setup_cmp`. Evolving plastic state (`Δλ`,`ϵpII`,`ϵpV`) stays on
-`PointSolidPhase` as flat mutable vectors, not in this bundle.
+A point's constants for the Drucker–Prager model (`material.plastic = "DP"`): its elastic moduli and yield surface,
+fixed once built. The evolving plastic state (`Δλ`, `ϵpII`, `ϵpV`) is the solid phase's (`PointSolidPhase`).
 
-Built by `setup_cmp` when `material.plastic == "DP"`. `VonMises` (below) is the
-sibling built for `material.plastic == "VM"` — the same field set minus `ϕ₀`, since
-J2/von Mises yield has no pressure dependence. Both `retmap/DP.jl` and `retmap/J2.jl`
-contribute methods to the shared `retmap` kernel, dispatched on `Point`'s `CM`
-(`DruckerPrager`/`VonMises`) type parameter together with `ST`
-(`LogarithmicStrain`/`InfinitesimalStrain`).
+# Fields
+- `Gc::T2`, `Kc::T2`: the shear and bulk moduli [Pa]; the elastic laws apply them to the stress's pressure and
+  deviator directly (`get_Del` builds the 6×6 Voigt stiffness when a matrix is needed).
+- `Hp::T2`: the softening modulus [Pa]: the cohesion is `max(cᵣ, c₀ + Hp·ϵpII)`.
+- `c₀::T2`, `cᵣ::T2`: the initial and residual cohesion [Pa].
+- `ϕ₀::T2`: the friction angle [rad].
 
-Which elastic trial-stress law (`Hencky`/`ImprovedHencky`) applies is **not** encoded
-here — it lives on `Point`'s own `EL<:AbstractElasticLaw` type parameter instead (see
-`lagrangian.jl`), since it's a solid-phase/kinematics concern, not a plastic-model
-constant.
+`T2` is the float type, `D` the dimension: in 2D the cone matches Mohr–Coulomb in plane strain, in 3D the inner cone.
 
-The elastic stiffness is not stored: the elastic laws apply `Kc`/`Gc` to the pressure/deviator split
-directly, and `get_Del(cmp)` (`elasticity.jl`) builds the 6×6 Voigt `Del` from them if needed. `D` is the problem dimension, which Drucker–Prager uses to pick its 2D
-(plane-strain) parameter fit.
+The return map is `retmap`'s method for `Point`'s `CM <: DruckerPrager` and its strain type `ST`; the elastic law is
+`Point`'s `EL`, not part of these constants.
+
+# Constructors
+    DruckerPrager{T2,D}(Gc, Kc, Hp, c₀, cᵣ, ϕ₀)
+
+`setup_cmp` builds one per point.
+
+See also: `VonMises`, `PLASTIC_LAWS`.
 """
 struct DruckerPrager{T2,D} <: AbstractConstitutiveModel{T2,D}
     Gc ::T2
@@ -39,12 +39,22 @@ end
 """
     VonMises{T2,D} <: AbstractConstitutiveModel{T2,D}
 
-Per-particle static constitutive constants for the J2/von Mises plastic model: shear
-modulus `Gc`, bulk modulus `Kc`, softening modulus `Hp`,
-and initial/residual cohesion `c₀`,`cᵣ`. Mirrors `DruckerPrager` exactly, minus the
-friction angle `ϕ₀` — J2/von Mises yield has no pressure dependence, so there is no
-friction angle to store. One instance per material point
-(`mpts.s.cmp::Vector{VonMises}`), built by `setup_cmp` when `material.plastic=="VM"`.
+A point's constants for the von Mises (J2) model (`material.plastic = "VM"`): `DruckerPrager`'s without the friction
+angle, since the yield surface does not depend on the pressure.
+
+# Fields
+- `Gc::T2`, `Kc::T2`: the shear and bulk moduli [Pa].
+- `Hp::T2`: the softening modulus [Pa]: the yield radius is `κ = max(cᵣ, c₀ + Hp·ϵpII)`.
+- `c₀::T2`, `cᵣ::T2`: the initial and residual yield radius [Pa], read as a Lode radius, `√(2J₂) = κ`.
+
+`T2` is the float type, `D` the dimension.
+
+# Constructors
+    VonMises{T2,D}(Gc, Kc, Hp, c₀, cᵣ)
+
+`setup_cmp` builds one per point.
+
+See also: `DruckerPrager`, `PLASTIC_LAWS`.
 """
 struct VonMises{T2,D} <: AbstractConstitutiveModel{T2,D}
     Gc ::T2

@@ -44,7 +44,19 @@ Eigen-decomposition of the (symmetric) 3×3 strain tensor.
     InfinitesimalStrain{T2} <: AbstractStrain{T2}
 
 Small-strain tensor `ϵ = ½(ΔF + ΔFᵀ) - I`, used under `material.elastic == "hypoelastic"`.
-Built from `(vol, dev)` or from the 3×3 tensor.
+
+# Fields
+- `vol::T2`: the volumetric strain, the trace.
+- `dev::SVector{6,T2}`: the trace-free deviator, `(xx, yy, zz, γyz, γxz, γxy)`, shears engineering (`γ = 2ϵ`).
+
+`T2` is the float type.
+
+# Constructors
+    InfinitesimalStrain(vol, dev)
+    InfinitesimalStrain(M::SMatrix{3,3})
+
+The second splits a symmetric 3×3 tensor (`vol = tr M`, `dev = M − vol/3·I`, shears doubled); `S(M, t)` replaces
+the in-plane `D×D` block of `t` with `M`. `dev` given directly must be trace-free.
 """
 struct InfinitesimalStrain{T2} <: AbstractStrain{T2}
     vol::T2
@@ -58,6 +70,19 @@ end
 Logarithmic (Hencky) elastic strain tensor, used under `material.elastic ∈
 {"hencky","improved_hencky"}`. Built by `_trial_elastic_strain` (from the 3×3 tensor), or from
 `(vol, dev)` by the return maps (`_elastic_strain`); both in `elasticity.jl`.
+
+# Fields
+- `vol::T2`: the volumetric strain, the trace.
+- `dev::SVector{6,T2}`: the trace-free deviator, `(xx, yy, zz, γyz, γxz, γxy)`, shears engineering (`γ = 2ϵ`).
+
+`T2` is the float type.
+
+# Constructors
+    LogarithmicStrain(vol, dev)
+    LogarithmicStrain(M::SMatrix{3,3})
+
+The second splits a symmetric 3×3 tensor (`vol = tr M`, `dev = M − vol/3·I`, shears doubled); `S(M, t)` replaces
+the in-plane `D×D` block of `t` with `M`. `dev` given directly must be trace-free.
 """
 struct LogarithmicStrain{T2} <: AbstractStrain{T2}
     vol::T2
@@ -119,7 +144,20 @@ Second invariant `τII = √J₂` of the deviatoric stress.
 """
     CauchyStress{T2} <: AbstractStress{T2}
 
-Cauchy (true) stress. Stored by `mpts.s.σᵢ`/`mpts.s.σn`.
+Cauchy (true) stress, `mpts.s.σᵢ`.
+
+# Fields
+- `p::T2`: the pressure, `−tr/3`, positive in compression [Pa].
+- `dev::SVector{6,T2}`: the trace-free deviator, `(xx, yy, zz, yz, xz, xy)` [Pa].
+
+`T2` is the float type.
+
+# Constructors
+    CauchyStress(p, dev)
+    CauchyStress(M::SMatrix{3,3})
+
+The second splits a symmetric 3×3 tensor (`p = −tr M/3`, `dev = M + p·I`); `S(M, t)` replaces the in-plane `D×D`
+block of `t` with `M`. `dev` given directly must be trace-free.
 """
 struct CauchyStress{T2} <: AbstractStress{T2}
     p  ::T2
@@ -130,8 +168,19 @@ end
 """
     KirchhoffStress{T2} <: AbstractStress{T2}
 
-Kirchhoff stress `τ = J·σ`. Stored by `mpts.s.τᵢ`; `transform` divides by `J` to get
-`mpts.s.σᵢ`.
+Kirchhoff stress `τ = J·σ`, `mpts.s.τᵢ`; `transform` divides it by `J` into `mpts.s.σᵢ`. `CauchyStress(τ, J⁻¹)` does
+the same for one point.
+
+# Fields
+- `p::T2`: the pressure, `−tr/3`, positive in compression [Pa].
+- `dev::SVector{6,T2}`: the trace-free deviator, `(xx, yy, zz, yz, xz, xy)` [Pa].
+
+`T2` is the float type.
+
+# Constructors
+    KirchhoffStress(p, dev)
+
+`dev` must be trace-free; the elastic laws build it so.
 """
 struct KirchhoffStress{T2} <: AbstractStress{T2}
     p  ::T2
