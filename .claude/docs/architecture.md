@@ -113,7 +113,9 @@ Every type's docstring lists its fields (`# Fields`), in the house layout of `co
   `mesh`, `basis`, `time`, `solver`, built by `Problem(case, solver)`: the mesh from the case's domain and `bcs`
   (`setup_mesh(L, nel, bcs, solver)`), the points from its zones, constants, `laws` and `grf` (`case_points(case,
   mesh)`, `setup_mpts(mesh, pts, laws)`), in the solver's precision, the time stages from `solver.run`, the basis from
-  `solver.basis`. A solver of another dimension is refused. `Problem(case)` is `Problem(case, Solver(case))`; what
+  `solver.basis`. A solver of another dimension is refused. The parts' types are unbounded parameters, which
+  `Problem(mpts, mesh, basis, time, solver)` takes from its arguments, requiring one `T1`, `T2`, `D` (no bounds naming
+  other parameters, as in every container). `Problem(case)` is `Problem(case, Solver(case))`; what
   workflows run on (`elastodynamic!(problem)`).
 - `Simulation{P}` (`src/boot/needs/types/problem/simulation.jl`) — a problem ready to run in a folder: `problem`,
   `folder` (absolute; a name given is under `dump/`), built by `Simulation(problem; folder)`; its workflow and load

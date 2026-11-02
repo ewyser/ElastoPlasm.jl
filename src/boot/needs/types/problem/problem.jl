@@ -27,17 +27,22 @@ is not kept: the built objects hold all it describes, and `setup_simulation` wri
 - `solver::S`: how it is solved, a `Solver`.
 
 `T1`, `T2` and `D` are the index type, float type and dimension, shared by all its parts; `P`, `M`, `B` and `S` are
-the parts' types.
+the parts' types, which `Problem(mpts, mesh, basis, time, solver)` takes from its arguments, requiring them to agree
+on `T1`, `T2` and `D` (a `MethodError` otherwise).
 
 # Throws
 - `ArgumentError`: when the solver's dimension is not the case's.
 """
-struct Problem{T1,T2,D,P<:Point{T1,T2,D},M<:Mesh{T1,T2,D},B<:Basis{T1,T2,D},S<:Solver{T1,T2,D}}
+struct Problem{T1,T2,D,P,M,B,S}
     mpts   ::P
     mesh   ::M
     basis  ::B
     time   ::Time{T1,T2}
     solver ::S
+end
+function Problem(mpts::Point{T1,T2,D}, mesh::Mesh{T1,T2,D}, basis::Basis{T1,T2,D}, time::Time{T1,T2},
+                 solver::Solver{T1,T2,D}) where {T1,T2,D}
+    return Problem{T1,T2,D,typeof(mpts),typeof(mesh),typeof(basis),typeof(solver)}(mpts, mesh, basis, time, solver)
 end
 
 function Problem(case::Case, solver::Solver{T1,T2,D}) where {T1,T2,D}

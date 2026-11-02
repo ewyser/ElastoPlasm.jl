@@ -13,7 +13,7 @@ A problem ready to run, and the folder its files go to: its workflow and load st
 
 `P` is the problem's type.
 """
-struct Simulation{P<:Problem}
+struct Simulation{P}
     problem ::P
     folder  ::String
 end

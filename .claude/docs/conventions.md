@@ -10,9 +10,11 @@
   - `T1` is always the index type and `T2` the float type, in type parameters and in methods' `where` clauses (no
     plain `T` for either); `D` the dimension.
   - Bound only the parameters code dispatches on as kinds (`CM<:AbstractConstitutiveModel`, `ST`, `EL`, `K`, `TR`,
-    GIMP's domain, the solver's `SL<:AbstractSolution`); leave number and array types unbounded (bounds referring to
-    other parameters made compilation three times slower, `architecture.md`). Array-type parameters come after the
-    dispatched ones, in field order, with a partial constructor (`Mesh{T1,T2,D}(…)`) taking them from the arguments.
+    GIMP's domain, the solver's `SL<:AbstractSolution`); leave number, array and part types unbounded (bounds referring
+    to other parameters made compilation three times slower, `architecture.md`). Array and part parameters come after
+    the dispatched ones, in field order, with a constructor taking them from the arguments and checking what must agree
+    (`Mesh{T1,T2,D}(…)`; `Problem(mpts, mesh, basis, time, solver)` requires one `T1`, `T2`, `D`; `Point(…)` takes its
+    dispatched parameters from its solid phase).
   - Parameter lists without spaces (`{T1,T2,D}`); fields as `name ::T`, aligned.
   - An abstract type only when code dispatches on it, named after the role of the field it types
     (`AbstractBasisKind` for `Basis`'s `kind`, `AbstractTransfer`, `AbstractDomain`, `AbstractSolution`); its concrete
