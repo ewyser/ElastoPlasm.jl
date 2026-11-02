@@ -25,65 +25,118 @@ const BOUNDARY_KINDS = (:free, :roller, :fixed)
 # imported in boot.jl; a case's zones may set only `ZONE_PROPS`, checked by `Case`
 
 """
-    Case(; L, nel, ni=2, zones, material=(;), bcs, solver=(;), thermal=false, run=(;), width=nothing, nely=nothing)
+    Case
 
-A simulation case, the description a problem is built from: the domain `L` [m] with `nel` elements (2D or 3D; the lower corner at the origin)
-and `ni`×`ni` material points per element; the `zones` holding material (`Zone`); the default
-`material` (overrides of `MATERIAL`); the boundary condition of each side, `bcs` (one `[lower upper]`
-row per axis, `:free`, `:roller` or `:fixed`; default roller; extra rows are ignored, as the solver
-does in 2D); `solver` overrides of `get_default()`
-(merged per field, `merge_config`; `solution` follows the workflow unless set); `thermal` (build the
-thermal phase); `run` settings (`RUN`: `folder`, `te`, `tg`, `tep`, `workflow`, `lstps`). A 2D (x–z)
-case with `width` and `nely` is extruded along y into 3D, its sides along y roller.
-`setup_simulation` builds it, `save_case`/`load_case` store it as TOML.
+A simulation case: a model as an EasyDraw `Layout`, read as ElastoPlasm needs it. The layout is the data (domain,
+zones, a boundary kind per side, the material's defaults, the solver options, the run settings), drawn in the window
+or written in code; the case checks it and holds its typed reading, which `Problem(case)` and `setup_simulation`
+build a problem from. A case keeps its own copy of the layout: to change a model, change a layout and build a new case.
+
+# Fields
+- `layout::EasyDraw.Layout`: the model: `L` [m] and `nel` (2D x–z, or 3D x, y, z; the lower corner at the origin),
+  `ni`×`ni` material points per element, the `zones` (`Zone`, a point belongs to the last zone containing it), and
+  `sides`, `defaults`, `options`, `run`, read below. Its file is the case's file (`save_case`, `load_case`).
+- `material::NamedTuple`: the material constants: `MATERIAL`, with the layout's `defaults`.
+- `bcs::Matrix{Symbol}`: the boundary condition of each side, one `[lower upper]` row per axis (x, then y in 3D,
+  then z): the layout's `sides`, `"left"`/`"right"`, `"front"`/`"back"`, `"bottom"`/`"top"`, each `:free`, `:roller`
+  (a side not set) or `:fixed`.
+- `solver::NamedTuple`: the solver overrides: the layout's `options` as values (`option_values`), merged per field
+  over `get_default()` by `get_solver`; `solution` follows the workflow unless set.
+- `thermal::Bool`: whether to build the thermal phase: the layout's run setting `thermal`, false when absent.
+- `run::NamedTuple`: the run settings, `RUN` with the layout's (`case_run`: `folder`, `te`, `tg`, `tep`, `workflow`,
+  `lstps`). The folder is the layout's `run["folder"]`, else the layout's own folder (a file's), else `RUN.folder`.
+
+# Constructors
+    Case(layout)
+    Case(; L, nel, ni=2, zones=[], material=(;), bcs=nothing, solver=(;), thermal=false, run=(;))
+
+The keyword form builds the layout, then reads it: `bcs` (or `solver.bcs.dirichlet`, as the solver options give them;
+a row per axis, extra rows ignored) as the sides, `material` (overrides of `MATERIAL`) as the defaults, `solver`
+(overrides of `get_default()`) as the options in their file form (`option_labels`), and every run setting, with
+`thermal`.
+
+# Throws
+- `ArgumentError`: when a zone sets something other than a material constant or a velocity `v`, a default is not a
+  material constant, a side's kind is not one of `BOUNDARY_KINDS`, an option or a run setting is unknown or invalid,
+  or the layout itself is invalid.
 """
 struct Case
-    L        :: Vector{Float64}
-    nel      :: Vector{Int}
-    ni       :: Int
-    width    :: Union{Nothing,Float64}
-    nely     :: Union{Nothing,Int}
-    zones    :: Vector{Zone}
+    layout   :: EasyDraw.Layout
     material :: NamedTuple
     bcs      :: Matrix{Symbol}
     solver   :: NamedTuple
     thermal  :: Bool
     run      :: NamedTuple
 end
-function Case(; L, nel, ni::Integer=2, zones=Zone[], material=(;), bcs=nothing, solver=(;), thermal::Bool=false,
-                run=(;), width=nothing, nely=nothing)
-    L, nel = Float64.(collect(L)), Int.(collect(nel))
+function Case(layout::EasyDraw.Layout)
+    l = deepcopy(layout)                                     # the case's own: nothing outside can change it
+    check_zone_props(l.zones)
+    run = Dict{String,Any}(l.run)
+    thermal = Bool(pop!(run, "thermal", false))
+    haskey(run, "folder") || isempty(l.folder) || (run["folder"] = l.folder)
+    return Case(l, case_material(l.defaults), case_bcs(l.sides, length(l.L)), case_solver(l.options), thermal, case_run(run))
+end
+function Case(; L, nel, ni::Integer=2, zones=Zone[], material=(;), bcs=nothing, solver=(;), thermal::Bool=false, run=(;))
     D = length(L)
-    length(nel) == D && D ∈ (2, 3) || throw(ArgumentError("L and nel need 2 or 3 entries each"))
-    all(L .> 0) && all(nel .≥ 1) && ni ≥ 1 || throw(ArgumentError("L > 0, nel ≥ 1 and ni ≥ 1 are needed"))
-    isnothing(width) == isnothing(nely) || throw(ArgumentError("extrude to 3D with both width and nely"))
-    isnothing(width) || D == 2 || throw(ArgumentError("only a 2D (x–z) case can be extruded along y"))
-    isnothing(width) || (width > 0 && nely ≥ 1) || throw(ArgumentError("width > 0 and nely ≥ 1 are needed"))
-    nt(x) = x isa AbstractDict ? (; (Symbol(k) => nt(v) for (k, v) ∈ x)...) : x
-    m   = nt(material)
-    bad = setdiff(keys(m), keys(MATERIAL))
-    isempty(bad) || throw(ArgumentError("unknown material constants $(collect(bad)); known: $(keys(MATERIAL))"))
-    mat = (; (k => Float64(get(m, k, getfield(MATERIAL, k))) for k ∈ keys(MATERIAL))...)
-    s   = nt(solver)
-    s isa NamedTuple || throw(ArgumentError("solver overrides are a NamedTuple or Dict of sections"))
+    s = named_tuple(solver)
     if haskey(s, :bcs)                                       # boundary conditions passed with the solver options
         isnothing(bcs) && (bcs = s.bcs.dirichlet)
         s = Base.structdiff(s, NamedTuple{(:bcs,)})
     end
-    b   = isnothing(bcs) ? fill(:roller, D, 2) : Symbol.(bcs)
-    # more rows than axes (the solver default has three): the first D, or x and z of an x–y–z matrix when extruded
-    size(b, 1) > D && size(b, 2) == 2 && (b = !isnothing(width) && size(b, 1) == 3 ? b[[1, 3], :] : b[1:D, :])
-    size(b) == (D, 2) && all(∈(BOUNDARY_KINDS), b) ||
-        throw(ArgumentError("bcs is one [lower upper] row per axis ($(D)×2), each one of $(BOUNDARY_KINDS)"))
-    merge_config(get_default(), (; (k => v for (k, v) ∈ pairs(s) if haskey(get_default(), k))...))   # unknown fields: error now
-    for z ∈ zones                                            # material constants (numbers) and a velocity (numbers)
+    b = isnothing(bcs) ? fill(:roller, D, 2) : Symbol.(bcs)
+    size(b, 1) > D && size(b, 2) == 2 && (b = b[1:D, :])    # more rows than axes (the solver default has three)
+    size(b) == (D, 2) || throw(ArgumentError("bcs is one [lower upper] row per axis ($(D)×2)"))
+    sides    = Dict(side => string(b[axis, k]) for (side, (axis, k)) ∈ side_axes(D))
+    defaults = Dict{String,Any}(string(k) => v for (k, v) ∈ pairs(named_tuple(material)))
+    settings = config_dict(case_run(run))
+    thermal && (settings["thermal"] = true)
+    layout = EasyDraw.Layout(; L, nel, ni, zones, sides, defaults, options=option_labels(config_dict(s)), run=settings)
+    return Case(layout)
+end
+
+# the sides of a D-dimensional domain, each as its axis and end (1: lower, 2: upper) in `bcs`
+function side_axes(D::Integer)
+    if D == 2
+        return ("left" => (1, 1), "right" => (1, 2), "bottom" => (2, 1), "top" => (2, 2))
+    end
+    return ("left" => (1, 1), "right" => (1, 2), "front" => (2, 1), "back" => (2, 2), "bottom" => (3, 1), "top" => (3, 2))
+end
+# a Dict of sections (from a file or the window) as a NamedTuple, and a NamedTuple as it is
+function named_tuple(x)
+    return x isa AbstractDict ? (; (Symbol(k) => named_tuple(v) for (k, v) ∈ x)...) : x
+end
+# what a zone may set: material constants (numbers) and a velocity (numbers)
+function check_zone_props(zones)
+    for z ∈ zones
         bad = setdiff(keys(z.props), ZONE_PROPS)
         isempty(bad) || throw(ArgumentError("zone \"$(z.name)\": unknown properties $(collect(bad)); known: $(ZONE_PROPS)"))
         all(((k, v),) -> k == :v ? v isa Vector{Float64} : v isa Float64, z.props) ||
             throw(ArgumentError("zone \"$(z.name)\": its material constants are numbers, its velocity v a list of numbers"))
     end
-    return Case(L, nel, Int(ni), isnothing(width) ? nothing : Float64(width), isnothing(nely) ? nothing : Int(nely),
-                       collect(Zone, zones), mat, b, s, thermal, case_run(run))
+    return nothing
+end
+# the material: MATERIAL with the layout's defaults
+function case_material(defaults)
+    m   = Dict{Symbol,Any}(Symbol(k) => v for (k, v) ∈ defaults)
+    bad = setdiff(keys(m), keys(MATERIAL))
+    isempty(bad) || throw(ArgumentError("unknown material constants $(collect(bad)); known: $(keys(MATERIAL))"))
+    return (; (k => Float64(get(m, k, getfield(MATERIAL, k))) for k ∈ keys(MATERIAL))...)
+end
+# the boundary conditions: the layout's sides, roller where a side is not set
+function case_bcs(sides, D)
+    bcs = fill(:roller, D, 2)
+    for (side, (axis, k)) ∈ side_axes(D)
+        kind = Symbol(get(sides, side, "roller"))
+        kind ∈ BOUNDARY_KINDS || throw(ArgumentError("side $side: $kind is not one of $(BOUNDARY_KINDS)"))
+        bcs[axis, k] = kind
+    end
+    return bcs
+end
+# the solver overrides: the layout's options as values, checked against get_default() (an unknown field errors)
+function case_solver(options)
+    s = named_tuple(option_values(options))
+    merge_config(get_default(), s)
+    return s
 end
 
 """
@@ -109,8 +162,6 @@ const WORKFLOWS = ("elastodynamic! + elastoplastic!", "elastodynamic!", "elastop
                    "elastoquasistatic!", "elastoquasistatic! (plastic)")
 quasistatic(workflow) = startswith(workflow, "elastoquasistatic!")
 
-# the domain the case is built on (extruded along y when it has a width)
-domain(s::Case) = isnothing(s.width) ? (s.L, s.nel) : ([s.L[1], s.width, s.L[2]], [s.nel[1], s.nely, s.nel[2]])
 
 """
     PointData

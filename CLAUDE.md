@@ -40,9 +40,9 @@ code, finite elements): the shapes and `Zone`, layouts, the drawing window (QML,
 sampling and the partition for Gmsh. A change to EasyDraw is committed and pushed in `lib/EasyDraw` (its repository),
 then ElastoPlasm commits the new submodule commit (`git add lib/EasyDraw`); see "Working with the submodules"
 in `.claude/docs/gotchas.md`. ElastoPlasm depends on it by path (`Pkg.develop`, recorded in
-the Manifest; Julia 1.10 has no `[sources]`) and is one host of its window (`get_catalog`,
-`layout_of`/`case_of`, `case_hooks`); a `Case` works wherever EasyDraw takes a layout and `load_case`
-reads layout files, with the same points to the bit; its tests run from `test/testset/test_easydraw.jl`. Changing
+the Manifest; Julia 1.10 has no `[sources]`) and is one host of its window (`get_catalog`, `case_hooks`); a
+`Case` is built from an EasyDraw `Layout` (`Case(layout)`, `case.layout`), so a case file is a layout file and a `Case`
+works wherever EasyDraw takes a layout, with the same points to the bit; its tests run from `test/testset/test_easydraw.jl`. Changing
 EasyDraw's dependencies needs `Pkg.resolve()` in ElastoPlasm's environment. See "Drawing a case" in
 `.claude/docs/operations.md`.
 
@@ -57,10 +57,11 @@ host) as `solver.backend.exec`, activated (`activate!`); `exec_backend(solver)` 
 
 ## Core method, at a glance
 
-- A problem starts from a `Case`, plain data (domain, zones, material, boundaries, solver overrides, run
-  settings), built by `setup_simulation` and stored as TOML (`save_case`/`load_case`); every example
-  is a case constructor (`slump_case`, …) and the drawing window (EasyDraw's) only edits one. See
-  "Describing a case" in `.claude/docs/operations.md`.
+- A problem starts from a `Case`: an EasyDraw `Layout` (domain, zones, sides, material defaults, solver options, run
+  settings; plain data, drawn or written) that `Case(layout)` checks and reads as typed values; built by
+  `setup_simulation` and stored as its layout's TOML (`save_case`/`load_case`); every example is a case constructor
+  (`slump_case`, …), and the drawing window (EasyDraw's) edits the case's layout. See "Describing a case" in
+  `.claude/docs/operations.md`.
 - Construction order is always **mesh → material points → basis** (basis depends on
   both). Function argument order is always **`(mpts, mesh, basis, ...)`**.
 - Three core types: `Mesh` (Eulerian grid), `Point` (Lagrangian material points),

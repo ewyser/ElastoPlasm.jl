@@ -27,7 +27,7 @@ struct Problem{T1,T2,D,P<:Point{T1,T2,D},B<:Basis{T1,T2,D},S<:AbstractSolver{T1,
 end
 
 function Problem(case::Case)
-    L, nel = domain(case)
+    L, nel = case.layout.L, case.layout.nel
     solver = get_solver(; dim=length(L), case_solver_options(case)...)
     mesh   = setup_mesh(L, nel, solver; thermal=case.thermal)
     mpts   = setup_mpts(mesh, solver, case_points(case, mesh, solver); thermal=case.thermal)

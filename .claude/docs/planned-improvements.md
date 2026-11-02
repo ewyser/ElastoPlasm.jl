@@ -18,7 +18,7 @@
   `lstps`). `Problem` keeps `mpts`, `mesh`, `basis` (no `solver`, no `time`); `Solver` holds the run
   options; `Simulation` becomes problem + solver + folder (its `workflow`/`lstps` move into the
   solver); workflows take `(problem, solver)`. Gain: one `Problem` solved several ways without
-  rebuilding. Cost: `get_default`/`get_solver`/`cli`, the case's solver overrides and their TOML
+  rebuilding. Cost: `get_default`/`get_solver`/`cli`, the case's solver overrides (the layout's `[options]`) and their TOML
   sections, every `problem.solver` reader (18); everything bit-identical. Own branch.
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task, rather than one monolithic kernel body.
@@ -331,7 +331,8 @@
   for finite differences, the fraction of each zone per cell (sub-cell accuracy at interfaces, e.g. averaged
   viscosities), since `zone_index`/`property` sample one point per grid node; for finite elements, `Physical Curve`s
   for the interfaces between zones (`write_geo` writes the domain's sides only), and circles as Gmsh arcs where nothing
-  cuts them (an inscribed `ngon`-gon today, for the regions to fit); 3D beyond extrusion; the window's checks for a
+  cuts them (an inscribed `ngon`-gon today, for the regions to fit); 3D beyond x–z shapes (a layout may be 3D since
+  `refactor-case-from-layout`, but the window and the x–z functions work in its x–z plane); the window's checks for a
   layout without a host are minimal (`default_check`); a session's first window takes ~20 s, ~12 s of it compiling the
   window's code, which a PrecompileTools workload over the Qt-free editor (`Editor`, edits, `panel_json`,
   `background_json`) could move to precompilation. EasyDraw's compat holds QML at 0.12 (0.12.1, on Qt 6.8.2 like

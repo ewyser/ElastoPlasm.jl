@@ -65,80 +65,40 @@ end
 # a NamedTuple (or Dict) of option sections as a Dict with string keys, and back
 config_dict(x) = x isa NamedTuple || x isa AbstractDict ? Dict{String,Any}(string(k) => config_dict(v) for (k, v) ∈ pairs(x)) : x
 
-# ---- the case on disk
-
-deg(k, v) = k == :phi ? round(rad2deg(v); sigdigits=12) : v   # angles: degrees in files (12 digits: 30, not 29.999999999999996)
-rad(k, v) = k == :phi ? deg2rad(v) : v
-
-"""
-    case_dict(case) -> Dict
-
-The TOML form of a case (`save_case`): `[domain]`, the material constants differing from
-`MATERIAL`, `bcs`, `thermal`, `[solver.…]` overrides (`option_save`), `[run]` and one `[[zone]]` per
-zone; angles in degrees.
-"""
-function case_dict(s::Case)
-    dom = Dict{String,Any}("L" => s.L, "nel" => s.nel, "ni" => s.ni)
-    isnothing(s.width) || (dom["width"] = s.width; dom["nely"] = s.nely)
-    zones = map(s.zones) do z
-        d = shape_dict(z.shape)
-        d["name"] = z.name
-        for (k, v) ∈ z.props
-            d[string(k)] = deg(k, v)
-        end
-        d
-    end
-    return Dict{String,Any}("domain" => dom,
-        "material" => Dict{String,Any}(string(k) => deg(k, v) for (k, v) ∈ pairs(s.material) if v != getfield(MATERIAL, k)),
-        "bcs" => [string.(s.bcs[d, :]) for d ∈ axes(s.bcs, 1)], "thermal" => s.thermal,
-        "solver" => option_labels(config_dict(s.solver)), "run" => config_dict(s.run), "zone" => zones)
-end
-
-"""
-    parse_case(d) -> Case
-
-A problem from its TOML form (`case_dict`, `load_case`).
-"""
-function parse_case(d::AbstractDict)
-    haskey(d, "domain") || throw(ArgumentError("a case file needs a [domain] table (L, nel, ni)"))
-    dom   = d["domain"]
-    zones = map(enumerate(get(d, "zone", []))) do (i, z)
-        name = String(get(z, "name", "zone $i"))
-        known = ("name", "shape", "vertices", "rings", "lo", "hi", "centre", "radius")
-        Zone(name, parse_shape(z, name), Dict{Symbol,Any}(Symbol(k) => rad(Symbol(k), v) for (k, v) ∈ z if k ∉ known))
-    end
-    mat = Dict{Symbol,Any}(Symbol(k) => rad(Symbol(k), v) for (k, v) ∈ get(d, "material", Dict()))
-    bcs = haskey(d, "bcs") ? permutedims(reduce(hcat, [Symbol.(side) for side ∈ d["bcs"]])) : nothing
-    return Case(; L=dom["L"], nel=dom["nel"], ni=get(dom, "ni", 2), width=get(dom, "width", nothing),
-                  nely=get(dom, "nely", nothing), zones, material=mat, bcs, thermal=get(d, "thermal", false),
-                  solver=option_values(get(d, "solver", Dict())), run=get(d, "run", Dict()))
-end
+# ---- the case on disk: its layout's file
 
 """
     save_case(file, case) -> file
+
+Write a case to a TOML file: its layout's file (EasyDraw's `save_layout`), in SI units (φ in radians):
+
+- `[domain]`: `L`, `nel`, `ni`;
+- `[sides]`: a boundary condition per side (`left`, `right`, `bottom`, `top`, and in 3D `front`, `back`);
+- `[defaults]`: the material constants set (`MATERIAL`'s keys);
+- `[options.<section>]`: the solver overrides, numbers and booleans as such, other values as their `get_option()`
+  label (`option_labels`), quantities by key;
+- `[run]`: `folder`, `te`, `tg`, `tep`, `workflow`, `lstps`, and `thermal` when true;
+- one `[[zone]]` per zone: its name, its shape (`shape = "polygon"` with `vertices`, or `rings` for several outlines;
+  `"block"` with `lo`/`hi`; `"ball"` with `centre`/`radius`) and its material constants or velocity `v`.
+
+A zone given as a Julia predicate (`Region`) cannot be written: an `ArgumentError`.
+"""
+function save_case(file::AbstractString, case::Case)
+    return save_layout(file, case.layout)
+end
+
+"""
     load_case(file) -> Case
 
-Write a case to a TOML file, and read it back: `[domain]` (`L`, `nel`, `ni`, optionally `width` and
-`nely`), `[material]` (overrides of `MATERIAL`, `phi` in degrees), `bcs` (`[[lower, upper], …]` per
-axis), `thermal`, `[solver.<section>]` overrides (values as `get_option()` lists them, any number for
-a numeric option, variable names for `plot.what`), `[run]` (`folder`, `te`, `tg`, `tep`, `workflow`,
-`lstps`) and `[[zone]]` tables (`name`, `shape = "polygon"` with `vertices = [[x, z], …]`, or `rings = [[[x, z], …], …]`
-for several outlines, `"block"` with
-`lo`/`hi`, or `"ball"` with `centre`/`radius`, and any material constant or `v`). A zone given as a
-Julia predicate (`Region`) cannot be written.
+Read a case from its TOML file (`save_case`): any layout file whose values ElastoPlasm knows, so also one drawn in
+EasyDraw's window with `get_catalog()`. Its run folder is the file's `[run]` folder, else the file's own folder.
 
-`load_case` also reads a layout file (EasyDraw's `save_layout`: drawn with `get_catalog()`, or written from a case by
-`save_layout(file, case)`), as `case_of` turns it into a case: its sides as `bcs`, its zone defaults as the material,
-its options as the solver overrides, values in SI (φ in radians, unlike a case file), its folder the file's.
+A case file written before cases were layouts (with `bcs`, `[material]`, `[solver]`, and φ in degrees) is refused,
+with an `ArgumentError`: set the case up again from its example, or as `Case(; …)`, and save it again.
 """
-function save_case(file::AbstractString, s::Case)
-    d = case_dict(s)
-    mkpath(dirname(abspath(file)))
-    open(io -> TOML.print(io, d; sorted=true), file, "w")
-    return file
-end
 function load_case(file::AbstractString)
-    d = TOML.parsefile(file)
-    layout = any(k -> haskey(d, k), ("sides", "defaults", "options")) && !any(k -> haskey(d, k), ("bcs", "material", "solver"))
-    return layout ? case_of(EasyDraw.load_layout(file)) : parse_case(d)
+    old = intersect(keys(TOML.parsefile(file)), ("bcs", "material", "solver"))
+    isempty(old) || throw(ArgumentError("$(basename(file)) is a case file of the older format ($(join(sort(collect(old)), ", "))): " *
+                                        "set the case up again from its example, or as Case(; …), and save it again"))
+    return Case(EasyDraw.load_layout(file))
 end

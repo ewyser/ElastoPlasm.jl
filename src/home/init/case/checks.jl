@@ -1,12 +1,12 @@
 export check_case, estimate_dt
 
 # the zone of each candidate point (sub-cell centres, those of `mpts_populate` and of the drawing window,
-# `EasyDraw.subcell_centres`; vertical axis fastest; 0 = none), without building a solver or mesh; an extruded
-# problem is counted in its x–z plane
+# `EasyDraw.subcell_centres`; vertical axis fastest; 0 = none), without building a solver or mesh
 function case_zones(s::Case)
-    axs = EasyDraw.subcell_centres(s.L, s.nel, s.ni)
+    l   = s.layout
+    axs = EasyDraw.subcell_centres(l.L, l.nel, l.ni)
     pts = Iterators.product(axs[end], axs[1:end-1]...)
-    return [zone_at(s.zones, (t[2:end]..., t[1])) for t ∈ pts][:]
+    return [zone_at(l.zones, (t[2:end]..., t[1])) for t ∈ pts][:]
 end
 # a solver option of the case, or its default
 option_of(s::Case, sec, key) = (o = get(s.solver, sec, (;)); o isa NamedTuple && haskey(o, key) ? getfield(o, key) : getfield(getfield(get_default(), sec), key))
@@ -25,13 +25,13 @@ function estimate_dt(s::Case; zone=case_zones(s))
     isempty(used) && return (Inf, 0.0)
     elastic = option_of(s, :material, :elastic)
     function speed(k)
-        p(x) = get(s.zones[k].props, x, getfield(s.material, x))
+        p(x) = get(s.layout.zones[k].props, x, getfield(s.material, x))
         K, G = get_elastic_moduli(p(:E), p(:nu))
         Kt   = elastic == "improved_hencky" ? K/p(:n0) : K
         return sqrt((Kt + 4G/3)/((1 - p(:n0))*p(:rho0)))
     end
     c = maximum(speed, used)
-    L, nel = domain(s)
+    L, nel = s.layout.L, s.layout.nel
     return 0.5*minimum(L ./ nel)/c, c
 end
 
@@ -52,13 +52,13 @@ function check_case(s::Case)
     run  = s.run
     qs   = quasistatic(run.workflow)
     sol  = get(s.solver, :solution, nothing)
-    L, nel = domain(s)
+    L, nel = s.layout.L, s.layout.nel
     count(>(0), zone) == 0 && push!(errors, "No material points: no zone covers a sub-cell centre of the domain.")
     !isnothing(sol) && (sol == "implicit") != qs && push!(errors, "The option solution = $sol contradicts the workflow $(run.workflow).")
     qs && option_of(s, :material, :elastic) == "hypoelastic" &&
         push!(errors, "elastoquasistatic! is finite strain only: material.elastic = hypoelastic is not supported.")
-    for (k, z) ∈ enumerate(s.zones)
-        outside(z.shape, s.L) && push!(warnings, "Zone \"$(z.name)\" reaches outside the domain: only the part inside gets material points.")
+    for (k, z) ∈ enumerate(s.layout.zones)
+        outside(z.shape, L) && push!(warnings, "Zone \"$(z.name)\" reaches outside the domain: only the part inside gets material points.")
         any(==(k), zone) || push!(warnings, "Zone \"$(z.name)\" has no material points (covered by later zones, or thinner than a sub-cell).")
     end
     h = L ./ nel
@@ -66,8 +66,8 @@ function check_case(s::Case)
     !qs && run.tg > run.te && push!(warnings, "tg > te: the gravity ramp is cut at te.")
     startswith(option_of(s, :dtype, :precision), "32") && option_of(s, :basis, :which) == "gimpm" &&
         push!(warnings, "32-bit precision with GIMP fails at the first step (known bug).")
-    nmp = count(>(0), zone)*(isnothing(s.width) ? 1 : s.nely*s.ni)
-    push!(info, "$nmp material points, $(prod(nel)) elements ($(length(L))D" * (isnothing(s.width) ? ")" : ", extruded along y)"))
+    nmp = count(>(0), zone)
+    push!(info, "$nmp material points, $(prod(nel)) elements ($(length(L))D)")
     if qs
         push!(info, "$(run.lstps) load steps, each relaxed to equilibrium.")
     elseif nmp > 0
