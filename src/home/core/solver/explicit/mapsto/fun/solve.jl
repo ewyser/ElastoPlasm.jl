@@ -3,27 +3,27 @@
 
 The 2-norm of column `j` of `A`, by the very steps of LinearAlgebra's `generic_norm2` (the method `norm` takes for a
 vector under 32 entries): the largest magnitude first, then the sum of squares, or the scaled sum when squaring would
-overflow or underflow, either summed in `promote_type(Float64, T)`. Written out because `norm` of the column view compiles a BLAS
+overflow or underflow, either summed in `promote_type(Float64, T2)`. Written out because `norm` of the column view compiles a BLAS
 call (its path for 32 entries or more), which a GPU kernel cannot hold; the result is the same to the bit.
 """
-@inline function column_norm(A::AbstractMatrix{T}, j, ::Val{N}) where {T,N}
+@inline function column_norm(A::AbstractMatrix{T2}, j, ::Val{N}) where {T2,N}
     maxabs = abs(A[1,j])
     for i ∈ 2:N
         maxabs = max(maxabs, abs(A[i,j]))
     end
     (iszero(maxabs) || isinf(maxabs)) && return maxabs
     if isfinite(N*maxabs*maxabs) && !iszero(maxabs*maxabs)
-        s = convert(promote_type(Float64, T), abs2(A[1,j]))
+        s = convert(promote_type(Float64, T2), abs2(A[1,j]))
         for i ∈ 2:N
             s += abs2(A[i,j])
         end
-        return convert(T, sqrt(s))
+        return convert(T2, sqrt(s))
     else
-        s = convert(promote_type(Float64, T), abs2(abs(A[1,j])/maxabs))   # also widened: generic_norm2 types its sum
+        s = convert(promote_type(Float64, T2), abs2(abs(A[1,j])/maxabs))   # also widened: generic_norm2 types its sum
         for i ∈ 2:N
             s += (abs(A[i,j])/maxabs)^2
         end
-        return convert(T, maxabs*sqrt(s))
+        return convert(T2, maxabs*sqrt(s))
     end
 end
 

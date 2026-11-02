@@ -16,21 +16,21 @@ strain (2D) and uniaxial strain (1D) `ΔF` has no out-of-plane stretch or shear 
 `ϵzz` is kept as is); `LogarithmicStrain(ϵᵢⱼ, ϵᵢ)` builds the new strain from the pushed-forward
 block, carrying the out-of-plane components (the carry constructor, `tensor.jl`).
 """
-@inline function _trial_elastic_strain(ΔFᵢⱼ::SMatrix{D,D,T}, ϵᵢ::LogarithmicStrain{T}) where {D,T}
+@inline function _trial_elastic_strain(ΔFᵢⱼ::SMatrix{D,D,T2}, ϵᵢ::LogarithmicStrain{T2}) where {D,T2}
     # get the in-plane block of the previously-converged logarithmic strain
     ϵᵢⱼ  = get_tensor(ϵᵢ, Val(D))
     λ, n = eigen(Symmetric(ϵᵢⱼ))
     # calculate left Cauchy-Green strain
-    bᵢⱼ  = ΔFᵢⱼ * (n * diagm(exp.(T(2.0) * λ)) * n') * ΔFᵢⱼ'
+    bᵢⱼ  = ΔFᵢⱼ * (n * diagm(exp.(T2(2.0) * λ)) * n') * ΔFᵢⱼ'
     # update logarithmic strain tensor from the eigen-decomposition of bᵢⱼ
     λ, n = eigen(Symmetric(bᵢⱼ))
-    ϵᵢⱼ  = T(0.5) * (n * diagm(log.(λ)) * n')
+    ϵᵢⱼ  = T2(0.5) * (n * diagm(log.(λ)) * n')
     return LogarithmicStrain(ϵᵢⱼ, ϵᵢ)
 end
 
 # maps an engineering-shear strain deviator to its tensor components (1 on the normals, ½ on the
 # shears), so that `σ_dev = 2G·ϵ_dev` reads as the standard isotropic law
-@inline _shear_weights(::Type{T}) where {T} = SVector{6,T}(1, 1, 1, 0.5, 0.5, 0.5)
+@inline _shear_weights(::Type{T2}) where {T2} = SVector{6,T2}(1, 1, 1, 0.5, 0.5, 0.5)
 
 """
     _trial_elastic_stress(strain::LogarithmicStrain, cmp::AbstractConstitutiveModel) -> KirchhoffStress
@@ -40,8 +40,8 @@ Isotropic linear-elastic trial Kirchhoff stress `τ = Kc·tr(ϵ)·I + 2·Gc·dev
 `EL<:HenckySolid` kernel method — which law runs is picked by `Point`'s own `EL` type parameter
 (see `AbstractElasticLaw` in `lagrangian.jl`), not by branching here.
 """
-@inline function _trial_elastic_stress(strain::LogarithmicStrain{T}, cmp::AbstractConstitutiveModel{T}) where {T}
-    return KirchhoffStress(-cmp.Kc * strain.vol, T(2.0) * cmp.Gc * strain.dev .* _shear_weights(T))
+@inline function _trial_elastic_stress(strain::LogarithmicStrain{T2}, cmp::AbstractConstitutiveModel{T2}) where {T2}
+    return KirchhoffStress(-cmp.Kc * strain.vol, T2(2.0) * cmp.Gc * strain.dev .* _shear_weights(T2))
 end
 
 """
@@ -52,8 +52,8 @@ normals and by `Gc` on the (engineering) shears. Used by the return maps to rebu
 strain from the returned stress, under improved Hencky too (where it is the linear-Hencky
 approximation).
 """
-@inline function _elastic_strain(τ::KirchhoffStress{T}, cmp::AbstractConstitutiveModel{T}) where {T}
-    return LogarithmicStrain(-τ.p / cmp.Kc, τ.dev ./ (T(2.0) * cmp.Gc * _shear_weights(T)))
+@inline function _elastic_strain(τ::KirchhoffStress{T2}, cmp::AbstractConstitutiveModel{T2}) where {T2}
+    return LogarithmicStrain(-τ.p / cmp.Kc, τ.dev ./ (T2(2.0) * cmp.Gc * _shear_weights(T2)))
 end
 
 """
@@ -71,30 +71,30 @@ Zytynski et al. 1978: a variable-K/constant-G material is non-hyperelastic other
 Their `p'` is positive in tension; this repo's `p` is positive in compression, hence
 the sign flip.
 """
-@inline function _trial_elastic_stress_improved(strain::LogarithmicStrain{T}, cmp::AbstractConstitutiveModel{T}, n₀::T) where {T}
+@inline function _trial_elastic_stress_improved(strain::LogarithmicStrain{T2}, cmp::AbstractConstitutiveModel{T2}, n₀::T2) where {T2}
     ϵᵥᵉ  = strain.vol
-    n    = T(1.0) - (T(1.0) - n₀) / exp(ϵᵥᵉ)
-    P    = -(cmp.Kc * ϵᵥᵉ / n) * (T(1.0) + (ϵᵥᵉ / (T(2.0) * n)) * (n - T(1.0)))
-    return KirchhoffStress(P, T(2.0) * cmp.Gc * strain.dev .* _shear_weights(T))
+    n    = T2(1.0) - (T2(1.0) - n₀) / exp(ϵᵥᵉ)
+    P    = -(cmp.Kc * ϵᵥᵉ / n) * (T2(1.0) + (ϵᵥᵉ / (T2(2.0) * n)) * (n - T2(1.0)))
+    return KirchhoffStress(P, T2(2.0) * cmp.Gc * strain.dev .* _shear_weights(T2))
 end
 
 # ------------------------------------------------ stiffness
 
 """
-    StressStrainStiffness{T}()
+    StressStrainStiffness{T2}()
 
 Volumetric and deviatoric projections on a 6-component Voigt strain `(xx, yy, zz, γyz, γxz, γxy)`
 with engineering shear (`γ = 2ϵ`): `vol·ϵ` is `tr(ϵ)` on each normal component, and `dev·ϵ` is the
 deviatoric strain, with `½` on the shear diagonal so that `2G·dev` maps `γ` to the shear stress
 `G·γ`. Any isotropic stiffness is `K·vol + 2G·dev`; see `get_Del`.
 """
-struct StressStrainStiffness{T}
-    vol::SMatrix{6,6,T,36}
-    dev::SMatrix{6,6,T,36}
+struct StressStrainStiffness{T2}
+    vol::SMatrix{6,6,T2,36}
+    dev::SMatrix{6,6,T2,36}
 end
-@inline function StressStrainStiffness{T}() where {T}
-    a, b, h = T(2.0/3.0), T(-1.0/3.0), T(0.5)
-    vol = SMatrix{6,6,T,36}(
+@inline function StressStrainStiffness{T2}() where {T2}
+    a, b, h = T2(2.0/3.0), T2(-1.0/3.0), T2(0.5)
+    vol = SMatrix{6,6,T2,36}(
         1, 1, 1, 0, 0, 0,
         1, 1, 1, 0, 0, 0,
         1, 1, 1, 0, 0, 0,
@@ -102,7 +102,7 @@ end
         0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0,
     )
-    dev = SMatrix{6,6,T,36}(
+    dev = SMatrix{6,6,T2,36}(
         a, b, b, 0, 0, 0,
         b, a, b, 0, 0, 0,
         b, b, a, 0, 0, 0,
@@ -110,7 +110,7 @@ end
         0, 0, 0, 0, h, 0,
         0, 0, 0, 0, 0, h,
     )
-    return StressStrainStiffness{T}(vol, dev)
+    return StressStrainStiffness{T2}(vol, dev)
 end
 
 """
@@ -121,7 +121,7 @@ its moduli (acts on engineering-shear Voigt strain, gives Voigt stress). Not sto
 The laws above do not use it: they apply `Kc`/`Gc` to the pressure/deviator split directly. It is
 kept for code that needs the matrix itself, e.g. a consistent tangent.
 """
-@inline function get_Del(cmp::AbstractConstitutiveModel{T}) where {T}
-    P = StressStrainStiffness{T}()
-    return cmp.Kc * P.vol + T(2.0) * cmp.Gc * P.dev
+@inline function get_Del(cmp::AbstractConstitutiveModel{T2}) where {T2}
+    P = StressStrainStiffness{T2}()
+    return cmp.Kc * P.vol + T2(2.0) * cmp.Gc * P.dev
 end

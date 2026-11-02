@@ -21,14 +21,14 @@ function get_domain(which::String)
     throw(ArgumentError("basis.domain = \"$which\" is not one of \"stretch\", \"undeformed\""))
 end
 
-struct GimpBasis{T,D,NN,P<:AbstractDomain} <: AbstractBasis
-    stencils::NTuple{D,UnitRange{T}}
+struct GimpBasis{T1,D,NN,P<:AbstractDomain} <: AbstractBasisKind
+    stencils::NTuple{D,UnitRange{T1}}
     domain  ::P                                              # how a particle's domain is updated
     #
-    function GimpBasis{T,D}(domain::P) where {T,D,P<:AbstractDomain}
-        stencils = ntuple(_ -> UnitRange{T}(-1:2), D)
+    function GimpBasis{T1,D}(domain::P) where {T1,D,P<:AbstractDomain}
+        stencils = ntuple(_ -> UnitRange{T1}(-1:2), D)
         NN       = prod(length.(stencils))
-        return new{T,D,NN,P}(stencils, domain)
+        return new{T1,D,NN,P}(stencils, domain)
     end
 end
 

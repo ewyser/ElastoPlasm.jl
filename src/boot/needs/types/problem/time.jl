@@ -1,8 +1,6 @@
-abstract type AbstractTime end
-
 export Time
 
-struct Time{T1<:Integer,T2<:Real}
+struct Time{T1,T2}
     t  ::Vector{T2}
     te ::T2
     tg ::T2

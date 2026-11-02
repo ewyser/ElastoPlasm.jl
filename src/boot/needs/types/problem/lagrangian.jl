@@ -2,10 +2,6 @@
 # Material Point Types and subtypes
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-abstract type AbstractLagrangian end
-abstract type AbstractMaterialPoint{T1, T2} <: AbstractLagrangian end
-abstract type AbstractMaterialPointPhase{T1, T2} <: AbstractMaterialPoint{T1,T2} end
-
 export Point,PointSolidPhase,PointFluidPhase,PointThermalPhase
 export AbstractElasticLaw,HypoelasticSolid,HenckySolid,ImprovedHenckySolid
 
@@ -71,7 +67,7 @@ strain in 2D), see `AbstractStrain`/`AbstractStress`.
 # SVector{2,T2}, `VC`/`VK`: of Cauchy/Kirchhoff stress, `VM`: of SMatrix{D,D,T2,L}, `VS`: of ST, `VCM`: of CM), so the
 # struct holds host or device arrays alike (see eulerian.jl).
 struct PointSolidPhase{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L,
-                       VV,V,V2,VC,VK,VM,VS,VCM} <: AbstractMaterialPointPhase{T1,T2}
+                       VV,V,V2,VC,VK,VM,VS,VCM}
     u    ::VV   # displacement per MP
     v    ::VV   # velocity per MP
     # mechanical properties
@@ -107,12 +103,12 @@ function Adapt.adapt_structure(to, s::PointSolidPhase{T1,T2,D,CM,ST,EL,L}) where
     return adapt_fields(to, s, PointSolidPhase{T1,T2,D,CM,ST,EL,L})   # pins T1 and EL, which no field carries
 end
 
-struct PointFluidPhase{T1,T2,D} <: AbstractMaterialPointPhase{T1,T2}
+struct PointFluidPhase{T1,T2,D}
     # Add concrete fields as needed, e.g.:
     # v    ::Matrix{T2}
 end
 
-struct PointThermalPhase{T1,T2,D,V,M} <: AbstractMaterialPointPhase{T1,T2}
+struct PointThermalPhase{T1,T2,D,V,M}
     c   ::V # specific heat capacity vector
     k   ::V # thermal conductivity vector
     q   ::M # heat flux array
@@ -125,7 +121,7 @@ function Adapt.adapt_structure(to, t::PointThermalPhase{T1,T2,D}) where {T1,T2,D
     return adapt_fields(to, t, PointThermalPhase{T1,T2,D})
 end
 
-struct Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L,V,VV,S,F,TH} <: AbstractMaterialPoint{T1,T2}
+struct Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L,V,VV,S,F,TH}
     # general information
     ndim ::T1
     nmp  ::T1

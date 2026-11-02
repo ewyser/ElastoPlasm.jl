@@ -22,12 +22,12 @@ is not kept: the built objects hold all it describes, and `setup_simulation` wri
 # Throws
 - `ArgumentError`: when the solver's dimension is not the case's.
 """
-struct Problem{T1,T2,D,P<:Point{T1,T2,D},B<:Basis{T1,T2,D},S<:Solver{T1,T2,D},M<:Mesh{T1,T2,D}}
-    mpts   :: P
-    mesh   :: M
-    basis  :: B
-    time   :: Time{T1,T2}
-    solver :: S
+struct Problem{T1,T2,D,P<:Point{T1,T2,D},M<:Mesh{T1,T2,D},B<:Basis{T1,T2,D},S<:Solver{T1,T2,D}}
+    mpts   ::P
+    mesh   ::M
+    basis  ::B
+    time   ::Time{T1,T2}
+    solver ::S
 end
 
 function Problem(case::Case, solver::Solver{T1,T2,D}) where {T1,T2,D}

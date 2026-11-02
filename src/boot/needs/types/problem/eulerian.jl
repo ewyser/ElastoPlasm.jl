@@ -2,10 +2,6 @@
 # Mesh Types and subtypes
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-abstract type AbstractEulerian end
-abstract type AbstractCartesianMesh{T1, T2}  <: AbstractEulerian end
-abstract type AbstractMeshPhase{T1, T2}      <: AbstractCartesianMesh{T1,T2} end
-
 export Mesh
 
 # The mesh, point and basis containers hold their arrays through type parameters (`V`, `VV`, `M`, …, appended after
@@ -36,7 +32,7 @@ struct MeshBoundary{B<:AbstractMatrix{Bool}}
 end
 @adapt_struct MeshBoundary
 
-struct MeshSolidPhase{T1,T2,D,P,B,V,M,VV} <: AbstractMeshPhase{T1,T2}
+struct MeshSolidPhase{T1,T2,D,P,B,V,M,VV}
     prprt ::P
     bcs   ::B
     m     ::V  # consistent lumped mass matrix
@@ -52,7 +48,7 @@ function Adapt.adapt_structure(to, s::MeshSolidPhase{T1,T2,D}) where {T1,T2,D}
     return adapt_fields(to, s, MeshSolidPhase{T1,T2,D})
 end
 
-struct MeshThermalPhase{T1,T2,D,P,B,V} <: AbstractMeshPhase{T1,T2}
+struct MeshThermalPhase{T1,T2,D,P,B,V}
     prprt ::P
     bcs   ::B
     cᵢ    ::V # consistent lumped heat capacity matrix
@@ -68,7 +64,7 @@ function Adapt.adapt_structure(to, t::MeshThermalPhase{T1,T2,D}) where {T1,T2,D}
     return adapt_fields(to, t, MeshThermalPhase{T1,T2,D})
 end
 
-struct Mesh{T1,T2,D,P,VV,V,S,TH} <: AbstractCartesianMesh{T1, T2}
+struct Mesh{T1,T2,D,P,VV,V,S,TH}
     prprt ::P
     # nodal quantities
     x₀    ::SVector{D,T2}

@@ -4,13 +4,13 @@
 
 export LinearBasis
 
-struct LinearBasis{T,D,NN} <: AbstractBasis
-    stencils::NTuple{D,UnitRange{T}}
+struct LinearBasis{T1,D,NN} <: AbstractBasisKind
+    stencils::NTuple{D,UnitRange{T1}}
     #
-    function LinearBasis{T,D}() where {T,D}
-        stencils = ntuple(_ -> UnitRange{T}(0:1), D)
+    function LinearBasis{T1,D}() where {T1,D}
+        stencils = ntuple(_ -> UnitRange{T1}(0:1), D)
         NN       = prod(length.(stencils))
-        return new{T,D,NN}(stencils)
+        return new{T1,D,NN}(stencils)
     end
 end
 

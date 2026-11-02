@@ -4,13 +4,13 @@
 
 export BSplineBasis
 
-struct BSplineBasis{T,D,NN} <: AbstractBasis
-    stencils::NTuple{D,UnitRange{T}}
+struct BSplineBasis{T1,D,NN} <: AbstractBasisKind
+    stencils::NTuple{D,UnitRange{T1}}
     #
-    function BSplineBasis{T,D}() where {T,D}
-        stencils = ntuple(_ -> UnitRange{T}(-1:2), D)
+    function BSplineBasis{T1,D}() where {T1,D}
+        stencils = ntuple(_ -> UnitRange{T1}(-1:2), D)
         NN       = prod(length.(stencils))
-        return new{T,D,NN}(stencils)
+        return new{T1,D,NN}(stencils)
     end
 end
 

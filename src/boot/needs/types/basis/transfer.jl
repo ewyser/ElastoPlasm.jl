@@ -21,7 +21,7 @@ velocity-gradient correction it uses (`mpts.s.∇vᵢⱼ`) already lives on `Poi
 struct TpicTransfer <: AbstractTransfer end
 
 """
-    ApicTransfer{T,D,L}
+    ApicTransfer{T2,D,L}
 
 Affine PIC (APIC) transfer scheme. Unlike `StdTransfer`/`TpicTransfer`, APIC needs two
 per-particle `D×D` accumulators (`Bᵢⱼ`, the affine velocity matrix, and `Dᵢⱼ`, the
@@ -30,23 +30,23 @@ APIC-exclusive (see `shpfun.jl`'s `Dij_nd` and `mapsto/fun/Bij.jl`'s `Bij`, both
 registered/called under `basis.trsfr=="apic"`). Needs `nmp` at construction time to
 size its vectors, unlike `StdTransfer`/`TpicTransfer`'s zero-arg constructors. `L=D*D`
 is a separate type parameter since
-`SMatrix{D,D,T,D*D}` — computing the length inline from `D` — isn't valid inside a
+`SMatrix{D,D,T2,D*D}` — computing the length inline from `D` — isn't valid inside a
 struct's own field-type declaration (`D*D` on a bare `TypeVar`); `L` is only computed
-once `D` is a concrete value, in `ApicTransfer{T,D}(nmp)`. `VM` is the arrays' type (host or device).
+once `D` is a concrete value, in `ApicTransfer{T2,D}(nmp)`. `VM` is the arrays' type (host or device).
 """
-struct ApicTransfer{T,D,L,VM} <: AbstractTransfer
+struct ApicTransfer{T2,D,L,VM} <: AbstractTransfer
     Bᵢⱼ::VM
     Dᵢⱼ::VM
 end
-function ApicTransfer{T,D}(nmp::Integer) where {T,D}
+function ApicTransfer{T2,D}(nmp::Integer) where {T2,D}
     L = D*D
-    return ApicTransfer{T,D,L}([zero(SMatrix{D,D,T,L}) for _ in 1:nmp], [zero(SMatrix{D,D,T,L}) for _ in 1:nmp])
+    return ApicTransfer{T2,D,L}([zero(SMatrix{D,D,T2,L}) for _ in 1:nmp], [zero(SMatrix{D,D,T2,L}) for _ in 1:nmp])
 end
-function ApicTransfer{T,D,L}(Bᵢⱼ::VM, Dᵢⱼ::VM) where {T,D,L,VM}
-    return ApicTransfer{T,D,L,VM}(Bᵢⱼ, Dᵢⱼ)
+function ApicTransfer{T2,D,L}(Bᵢⱼ::VM, Dᵢⱼ::VM) where {T2,D,L,VM}
+    return ApicTransfer{T2,D,L,VM}(Bᵢⱼ, Dᵢⱼ)
 end
-function Adapt.adapt_structure(to, tr::ApicTransfer{T,D,L}) where {T,D,L}
-    return adapt_fields(to, tr, ApicTransfer{T,D,L})
+function Adapt.adapt_structure(to, tr::ApicTransfer{T2,D,L}) where {T2,D,L}
+    return adapt_fields(to, tr, ApicTransfer{T2,D,L})
 end
 
 """

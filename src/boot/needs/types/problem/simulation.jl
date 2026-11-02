@@ -8,8 +8,8 @@ the case's): its workflow and load steps are its solver's run settings (`problem
 (`save_simulation`/`load_simulation`); `execute!` runs it.
 """
 struct Simulation{P<:Problem}
-    problem :: P
-    folder  :: String
+    problem ::P
+    folder  ::String
 end
 function Simulation(problem::Problem; folder::AbstractString=RUN.folder)
     dir = rstrip(isabspath(folder) ? normpath(folder) : joinpath(self.sys.dump, folder), ['/', '\\'])

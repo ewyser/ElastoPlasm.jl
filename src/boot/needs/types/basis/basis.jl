@@ -2,7 +2,7 @@
 # Concrete Basis types
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-abstract type AbstractBasis end
+abstract type AbstractBasisKind end
 abstract type AbstractTransfer end
 
 export get_basis, Basis, ∂Nrow
@@ -18,9 +18,9 @@ per-read construction stays a zero-allocation stack value.
 @inline ∂Nrow(∂N::AbstractArray{T2,3}, nn, p, ::Val{D}) where {T2,D} = SVector{D,T2}(ntuple(d -> ∂N[nn,d,p], Val(D)))
 
 """
-    get_basis(which::String, ::Type{T1}, dim::Integer; domain="stretch") -> AbstractBasis
+    get_basis(which::String, ::Type{T1}, dim::Integer; domain="stretch") -> AbstractBasisKind
 
-Map a solver's `basis.which` string to its concrete `AbstractBasis` instance, parametrized
+Map a solver's `basis.which` string to its concrete `AbstractBasisKind` instance, parametrized
 by index type `T1` and problem dimension `dim`; GIMP's carries its domain update (`basis.domain`,
 `get_domain`).
 """
@@ -39,7 +39,7 @@ function get_basis(which::String, ::Type{T1}, D::Integer; domain::String="stretc
 end
 
 """
-    Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}
+    Basis{T1,T2,D,NN,K<:AbstractBasisKind,TR<:AbstractTransfer}
 
 Owns the topology that links a `Mesh` and a `Point` container: which nodes neighbor each element
 (`e2n`) and each material point (`p2n`), and which elements neighbor each other (`e2e`, also used
@@ -66,7 +66,7 @@ accumulators, 100% APIC-exclusive — see its own docstring), the same kind-spec
 lives-on-the-kind-struct pattern `GimpBasis`'s `stencils` already uses.
 Threaded through the solver as a third argument alongside `mpts`/`mesh`, e.g. `p2e2n(mpts,mesh,basis)`.
 """
-struct Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer,VN,A,VI,MI,M,A3}
+struct Basis{T1,T2,D,NN,K<:AbstractBasisKind,TR<:AbstractTransfer,VN,A,VI,MI,M,A3}
     kind    ::K                              # BSplineBasis()/GimpBasis()/LinearBasis()/MLSBasis()
     transfer::TR                             # StdTransfer()/TpicTransfer()/ApicTransfer()
     e2n  ::VN

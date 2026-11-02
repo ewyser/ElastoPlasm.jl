@@ -1,20 +1,6 @@
-abstract type AbstractConstitutiveModel{T2, D} end
+abstract type AbstractConstitutiveModel{T2,D} end
 
-export PerfectlyElastic,DruckerPrager,VonMises
-
-"""
-    PerfectlyElastic{T2,D} <: AbstractConstitutiveModel{T2,D}
-
-Purely elastic per-particle constitutive constants: shear modulus `Gc` and bulk
-modulus `Kc`. Not currently constructed anywhere in `setup_cmp` (no code path in this
-repo selects a non-plastic constitutive model, mirroring the already-unwired
-`material.plastic ∈ {"MC","camC"}` branches in `update.jl`'s `init_update`) — defined
-here as forward-looking scaffolding for whenever a genuine elastic-only workflow exists.
-"""
-struct PerfectlyElastic{T2,D} <: AbstractConstitutiveModel{T2,D}
-    Gc::T2
-    Kc::T2
-end
+export DruckerPrager,VonMises
 
 """
     DruckerPrager{T2,D} <: AbstractConstitutiveModel{T2,D}

@@ -1,10 +1,10 @@
-@inline function _Ktan(::Type{<:AbstractElasticLaw}, strain::AbstractStrain, cmp::AbstractConstitutiveModel{T}, n₀::T) where {T}
+@inline function _Ktan(::Type{<:AbstractElasticLaw}, strain::AbstractStrain, cmp::AbstractConstitutiveModel{T2}, n₀::T2) where {T2}
     return cmp.Kc
 end
-@inline function _Ktan(::Type{<:ImprovedHenckySolid}, strain::LogarithmicStrain{T}, cmp::AbstractConstitutiveModel{T}, n₀::T) where {T}
+@inline function _Ktan(::Type{<:ImprovedHenckySolid}, strain::LogarithmicStrain{T2}, cmp::AbstractConstitutiveModel{T2}, n₀::T2) where {T2}
     ϵ = strain.vol
-    n = T(1.0) - (T(1.0) - n₀) / exp(ϵ)
-    return cmp.Kc / (T(2.0)*n^3) * (n^2*(ϵ^2 + T(4.0)*ϵ + T(2.0)) - ϵ*n*(T(3.0)*ϵ + T(4.0)) + T(2.0)*ϵ^2)
+    n = T2(1.0) - (T2(1.0) - n₀) / exp(ϵ)
+    return cmp.Kc / (T2(2.0)*n^3) * (n^2*(ϵ^2 + T2(4.0)*ϵ + T2(2.0)) - ϵ*n*(T2(3.0)*ϵ + T2(4.0)) + T2(2.0)*ϵ^2)
 end
 
 """
@@ -99,7 +99,7 @@ function get_spacetime(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},time::Time{T1
 end
 
 """
-    checkpoints(time, solver, stop) -> Vector{Tuple{T, Bool, Bool}}
+    checkpoints(time, solver, stop) -> Vector{Tuple{T2, Bool, Bool}}
 
 The stops of an explicit workflow from the current time to `stop`, as `(t, plot, record)`: the
 `plot.freq` grid (a live plot) and, with `output.status`, the `output.every` grid (an output frame),

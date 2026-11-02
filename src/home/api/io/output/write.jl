@@ -7,8 +7,8 @@ An open HDF5 output: the file and the recorded fields (`(field, object, dataset)
 Made by `open_output`, written by `record!`, closed by `close`.
 """
 struct Recorder
-    file   :: HDF5.File
-    fields :: Vector{Tuple{Function,String,HDF5.Dataset}}
+    file   ::HDF5.File
+    fields ::Vector{Tuple{Function,String,HDF5.Dataset}}
 end
 Base.close(r::Recorder) = isopen(r.file) && close(r.file)
 nframes(r::Recorder) = length(r.file["frames/t"])

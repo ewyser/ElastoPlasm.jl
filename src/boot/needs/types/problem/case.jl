@@ -73,14 +73,14 @@ with `thermal`.
   (`EasyDraw.check_settings`).
 """
 struct Case
-    layout     :: EasyDraw.Layout
-    settings   :: EasyDraw.Settings
-    material   :: NamedTuple
-    properties :: Dict{String,NamedTuple}
-    bcs        :: Matrix{Symbol}
-    laws       :: NamedTuple
-    grf        :: NamedTuple
-    thermal    :: Bool
+    layout     ::EasyDraw.Layout
+    settings   ::EasyDraw.Settings
+    material   ::NamedTuple
+    properties ::Dict{String,NamedTuple}
+    bcs        ::Matrix{Symbol}
+    laws       ::NamedTuple
+    grf        ::NamedTuple
+    thermal    ::Bool
 end
 function Case(layout::EasyDraw.Layout, settings::EasyDraw.Settings)
     l, s = deepcopy(layout), deepcopy(settings)              # the case's own: nothing outside can change them
@@ -214,21 +214,21 @@ and their constants (`c0`, `cr` [Pa], `phi` [rad], `Hp` [Pa], `E` [Pa],
 `PointData(xp, ni)`), read by `setup_mpts`.
 """
 struct PointData
-    xp   :: Matrix{Float64}
-    vp   :: Matrix{Float64}
-    ni   :: Int
-    zone :: Vector{Int}
-    c0   :: Vector{Float64}
-    cr   :: Vector{Float64}
-    phi  :: Vector{Float64}
-    Hp   :: Vector{Float64}
-    E    :: Vector{Float64}
-    nu   :: Vector{Float64}
-    rho0 :: Vector{Float64}
-    n0   :: Vector{Float64}
-    T    :: Vector{Float64}
-    cp   :: Vector{Float64}
-    k    :: Vector{Float64}
+    xp   ::Matrix{Float64}
+    vp   ::Matrix{Float64}
+    ni   ::Int
+    zone ::Vector{Int}
+    c0   ::Vector{Float64}
+    cr   ::Vector{Float64}
+    phi  ::Vector{Float64}
+    Hp   ::Vector{Float64}
+    E    ::Vector{Float64}
+    nu   ::Vector{Float64}
+    rho0 ::Vector{Float64}
+    n0   ::Vector{Float64}
+    T    ::Vector{Float64}
+    cp   ::Vector{Float64}
+    k    ::Vector{Float64}
 end
 
 """
