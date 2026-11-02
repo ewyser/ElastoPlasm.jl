@@ -15,7 +15,7 @@ The constitutive constants of each material point: `DruckerPrager` (`constitutiv
 `VonMises` (`"VM"`, which has no friction angle, so `phi` is ignored) from its cohesion `coh0`,
 residual cohesion `cohr`, friction angle `phi`, softening modulus `Hp` and the bulk and shear moduli
 of `E`, `ν` (`get_elastic_moduli`); `E`, `ν`, `Hp` are one value or one per point. Any other
-`constitutive` is an `ArgumentError` here, at setup (`PLASTIC_LAWS`). The elastic law (`material.elastic`) is not part of `cmp`:
+`constitutive` is an `ArgumentError` here, at setup (`get_constitutive_laws().plastic`). The elastic law (`material.elastic`) is not part of `cmp`:
 it is `Point`'s `EL` type parameter, set by `build_solid_phase`.
 """
 function setup_cmp(nmp::Integer,coh0::AbstractVector{T2},cohr::AbstractVector{T2},phi::AbstractVector{T2};
@@ -23,7 +23,7 @@ function setup_cmp(nmp::Integer,coh0::AbstractVector{T2},cohr::AbstractVector{T2
     ) where {T2}
     each(x) = x isa AbstractVector ? x : fill(x, nmp)
     KG, H = get_elastic_moduli.(each(E), each(ν)), each(Hp)
-    CM = table_value(PLASTIC_LAWS, constitutive, "material.plastic")
+    CM = table_value(get_constitutive_laws().plastic, constitutive, "material.plastic")
     if CM === DruckerPrager
         return [DruckerPrager{T2,D}(KG[p][2],KG[p][1],H[p],T2(coh0[p]),T2(cohr[p]),T2(phi[p])) for p ∈ 1:nmp]
     end

@@ -23,7 +23,7 @@ println(opts.material.elastic)  # ["hencky", "improved_hencky", "hypoelastic"]
 function get_option()
     return (
 
-            solution = ("Select solver formulation",collect(first.(SOLUTIONS))),
+            solution = ("Select solver formulation",collect(string.(keys(get_solutions())))),
             dtype = (
                 T0 = ("Select arithmetic types",[(Int64,Float64),(Int32,Float32)]),
                 bits = ("Select arithmetic precision",[Int64(64),Int32(32)]),
@@ -52,8 +52,8 @@ function get_option()
                 ),
             ),
             material = (
-                plastic = ("Select plastic constitutive model",collect(first.(PLASTIC_LAWS))),
-                elastic = ("Select strain formulation / elastic law",collect(first.(ELASTIC_LAWS))),
+                plastic = ("Select plastic constitutive model",collect(string.(keys(get_constitutive_laws().plastic)))),
+                elastic = ("Select strain formulation / elastic law",collect(string.(keys(get_constitutive_laws().elastic)))),
             ),
             nonloc = (
                 status = ("Enable nonlocal effects",[true, false]),

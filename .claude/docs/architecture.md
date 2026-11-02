@@ -99,7 +99,7 @@ Every type's docstring lists its fields (`# Fields`), in the house layout of `co
   `HypoelasticSolid`, the elastic-law tag `elast.jl` and `get_dt`'s `_Ktan` dispatch on) are both
   picked together from `material.elastic` by `build_solid_phase`.
 - `Solver{T1,T2,D,SL,…}` (`src/boot/needs/types/solver.jl`) — how a case is solved: one struct, its `solution`
-  a marker (`ExplicitSolution()`/`ImplicitSolution()`, `get_solution` from the option, `SOLUTIONS`), with
+  a marker (`ExplicitSolution()`/`ImplicitSolution()`, `get_solution` from the option, `get_solutions()`), with
   `ExplicitSolver{T1,T2,D}`/`ImplicitSolver` the aliases the workflows dispatch on (`elastodynamic!` takes an
   `ExplicitSolver`); `solution_name(solver)` is the option value, for logs, file names, the HDF5 attribute. Fields: the
   numerical option sections, `run` (`solver_run`: te, tg, tep, workflow, lstps; no folder) and the kernels (`cairn`).
@@ -136,7 +136,7 @@ Every type's docstring lists its fields (`# Fields`), in the house layout of `co
   into `PointData`, the explicit per-point contract `setup_mpts` reads. One file format, the layout's
   (`save_case`/`load_case`; geometry and settings may also be separate files); the drawing window (EasyDraw's) edits
   `case.layout` and `case.settings`. See "Describing a case" and "Drawing a case" in `operations.md`.
-- **The constitutive laws, by name and by type.** `ELASTIC_LAWS` and `PLASTIC_LAWS` (`lagrangian.jl`) map the option
+- **The constitutive laws, by name and by type.** `get_constitutive_laws()` (`lagrangian.jl`, shaped like the `material` section) maps the option
   values (`"hencky"`, `"improved_hencky"`, `"hypoelastic"`; `"DP"`, `"VM"`) to the points' types (`ST`/`EL`; `CM`):
   `build_solid_phase`/`setup_cmp` read them one way (`table_value`), `laws(mpts)` the other, and `get_option`'s lists
   derive from them. After setup nothing reads the laws from the solver or the case: the run-time readers (the `σᵢ!`

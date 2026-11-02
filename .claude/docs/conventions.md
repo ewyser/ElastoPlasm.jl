@@ -19,8 +19,10 @@
   - An abstract type only when code dispatches on it, named after the role of the field it types
     (`AbstractBasisKind` for `Basis`'s `kind`, `AbstractTransfer`, `AbstractDomain`, `AbstractSolution`); its concrete
     markers named `<Name><Role>` (`StdTransfer`, `StretchDomain`, `ExplicitSolution`), each made from an option by a
-    `get_<role>` function. Where an option's values name types, one table holds both (`ELASTIC_LAWS`, `PLASTIC_LAWS`,
-    `SOLUTIONS`, read by `table_value`), and `get_option`'s lists derive from it.
+    `get_<role>` function. Where an option's values name types, one function returns the table of both, a NamedTuple
+    keyed by the option's values in their listed order (`get_constitutive_laws()`, `get_solutions()`, read by
+    `table_value`): a function, not a `const`, like `get_default()`; a NamedTuple, not a `Dict`, for the order and like
+    the other in-memory tables (`Dict`s are the file form). `get_option`'s lists derive from it.
   - Every type's docstring in the house layout: the signature with its parameters, a summary, `# Fields` (each field's
     type, values and units; then what the type parameters are), `# Constructors`, `# Throws`, `# Examples`,
     `See also`, only the sections that apply. A field nothing reads says so.

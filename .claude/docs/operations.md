@@ -508,7 +508,7 @@ knob and its out-of-the-box value. Its physics sections (`material`, `grf`, `bcs
 `case.grf`, `case.bcs`): `Solver` refuses them, and the solver holds the others.
 
 - `solution` — `"explicit"`/`"implicit"`, the solver's `solution` marker (`ExplicitSolution()`/`ImplicitSolution()`,
-  `get_solution`, `SOLUTIONS`): one `Solver` struct, `ExplicitSolver`/`ImplicitSolver` its aliases. Printed (as
+  `get_solution`, `get_solutions()`): one `Solver` struct, `ExplicitSolver`/`ImplicitSolver` its aliases. Printed (as
   `solution_name(solver)`) in `execute.jl`'s generated filenames and `logs.jl`'s startup banner. Picking `solution=
   "explicit"` then calling an implicit-only workflow fails with `MethodError` at the
   workflow call, not silently — `elastodynamic!`/`elastoplastic!` take an
@@ -536,7 +536,7 @@ knob and its out-of-the-box value. Its physics sections (`material`, `grf`, `bcs
   the strain kinematics and the elastic law, see `AbstractElasticLaw` in `lagrangian.jl`;
   `"hypoelastic"` is the small-strain Jaumann-rate path, the two Hencky laws are finite
   strain) and `plastic` (`"DP"`/`"VM"` — the only two `setup_cmp` builds; any other value
-  is an `ArgumentError`; `ELASTIC_LAWS`/`PLASTIC_LAWS` map the names to the points' types; the `retmap` kernel
+  is an `ArgumentError`; `get_constitutive_laws()` maps the names to the points' types; the `retmap` kernel
   dispatch lives on `Point`'s `CM` type parameter, not a runtime string — see "DP/J2
   retmap kernel unification" in `planned-improvements.md`)
 - `nonloc` — non-local plastic strain regularization (`status`, `ls` length scale)

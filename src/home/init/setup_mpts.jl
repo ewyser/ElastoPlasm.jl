@@ -9,11 +9,11 @@ constant solid mass).
 
 `ST` (the typed strain storage of `ϵᵢ`/`ϵn`, see `tensor.jl`) and `EL`
 (`Point`'s elastic law, see `AbstractElasticLaw` in `lagrangian.jl`) are
-both picked here, together, from `laws.elastic` (`ELASTIC_LAWS`) — there is no
+both picked here, together, from `laws.elastic` (`get_constitutive_laws().elastic`) — there is no
 separate strain-formulation config key. `"hypoelastic"` → `InfinitesimalStrain`+
 `HypoelasticSolid`; `"hencky"`/`"improved_hencky"` → `LogarithmicStrain`+
 (`HenckySolid`/`ImprovedHenckySolid`). `CM` (the constitutive-model type
-of `cmp`) is picked by `laws.plastic` (`PLASTIC_LAWS`): `DruckerPrager` for `"DP"`,
+of `cmp`) is picked by `laws.plastic` (`get_constitutive_laws().plastic`): `DruckerPrager` for `"DP"`,
 `VonMises` for `"VM"` — see `setup_cmp`.
 """
 function build_solid_phase(T1,T2,D,laws,pts::PointData,v0)
@@ -22,8 +22,9 @@ function build_solid_phase(T1,T2,D,laws,pts::PointData,v0)
     ρ  = T2.((1.0 .- pts.n0) .* ρ0)
     TM = SMatrix{D,D,T2,L}
     TV = SVector{D,T2}
-    S,EL = table_value(ELASTIC_LAWS, laws.elastic, "material.elastic")
-    ST   = S{T2}
+    elastic = table_value(get_constitutive_laws().elastic, laws.elastic, "material.elastic")
+    ST   = elastic.strain{T2}
+    EL   = elastic.law
     cmp = setup_cmp(nmp, T2.(pts.c0), T2.(pts.cr), T2.(pts.phi); E=T2.(pts.E), ν=T2.(pts.nu), Hp=T2.(pts.Hp), D=Int(D),
                     constitutive=laws.plastic)
     CM  = eltype(cmp)

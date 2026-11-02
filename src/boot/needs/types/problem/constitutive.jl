@@ -25,7 +25,7 @@ The return map is `retmap`'s method for `Point`'s `CM <: DruckerPrager` and its 
 
 `setup_cmp` builds one per point.
 
-See also: `VonMises`, `PLASTIC_LAWS`.
+See also: `VonMises`, `get_constitutive_laws`.
 """
 struct DruckerPrager{T2,D} <: AbstractConstitutiveModel{T2,D}
     Gc ::T2
@@ -54,7 +54,7 @@ angle, since the yield surface does not depend on the pressure.
 
 `setup_cmp` builds one per point.
 
-See also: `DruckerPrager`, `PLASTIC_LAWS`.
+See also: `DruckerPrager`, `get_constitutive_laws`.
 """
 struct VonMises{T2,D} <: AbstractConstitutiveModel{T2,D}
     Gc ::T2

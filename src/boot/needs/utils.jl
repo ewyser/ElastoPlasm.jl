@@ -103,10 +103,9 @@ end
     return isbits(f) ? f : Adapt.adapt(to, f)
 end
 
-# the value of `name` in a table of `name => value` pairs (`ELASTIC_LAWS`, `PLASTIC_LAWS`, `SOLUTIONS`): a table
-# naming what an option's values stand for; `option` names it in the error
-function table_value(table, name::AbstractString, option::AbstractString)
-    i = findfirst(l -> first(l) == name, table)
-    isnothing(i) && throw(ArgumentError("$option = \"$name\" is not one of $(join(first.(table), ", "))"))
-    return last(table[i])
+# what an option's value stands for, in a table keyed by the option's values (`get_constitutive_laws()`'s,
+# `get_solutions()`); `option` names it in the error
+function table_value(table::NamedTuple, name::AbstractString, option::AbstractString)
+    haskey(table, Symbol(name)) || throw(ArgumentError("$option = \"$name\" is not one of $(join(keys(table), ", "))"))
+    return getfield(table, Symbol(name))
 end

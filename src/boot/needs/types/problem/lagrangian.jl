@@ -70,8 +70,8 @@ The solid phase of the material points: their mechanical state, one entry per po
 - `CM<:AbstractConstitutiveModel`: the constitutive model, `DruckerPrager` or `VonMises` (`material.plastic`);
 - `ST<:AbstractStrain`: the strain storage, `LogarithmicStrain` for the Hencky laws, `InfinitesimalStrain` for the
   hypoelastic one (`material.elastic`);
-- `EL<:AbstractElasticLaw`: the elastic law (`material.elastic`); `ELASTIC_LAWS` and `PLASTIC_LAWS` map the option
-  values to these types;
+- `EL<:AbstractElasticLaw`: the elastic law (`material.elastic`); `get_constitutive_laws()` maps the option values
+  to these types;
 - `L = D*D`: the length of the `D×D` fields: Julia cannot compute `D*D` in a field type, so it is a parameter, which
   kernels never dispatch on (they read a field's type with `eltype`).
 The rest are the arrays' types, host or device arrays alike: `VV` of `SVector{D,T2}`, `V` of `T2`, `V2` of
@@ -231,24 +231,35 @@ function Adapt.adapt_structure(to, mpts::Point)
     return adapt_fields(to, mpts, Point)
 end
 
-# The constitutive laws a case names (its options `material.elastic` and `material.plastic`) and the types the points
-# carry for them: the strain storage `ST` with the elastic law `EL`, and the constitutive model `CM`. Read one way to
-# build the points (`build_solid_phase`, `setup_cmp`) and to list the options (`get_option`), the other to name a
-# problem's laws (`laws`).
-const ELASTIC_LAWS = ("hencky"          => (LogarithmicStrain, HenckySolid),
-                      "improved_hencky" => (LogarithmicStrain, ImprovedHenckySolid),
-                      "hypoelastic"     => (InfinitesimalStrain, HypoelasticSolid))
-const PLASTIC_LAWS = ("DP" => DruckerPrager,
-                      "VM" => VonMises)
+"""
+    get_constitutive_laws() -> NamedTuple
+
+The constitutive laws a case can name, shaped like the option section `material`, each law by its option value with
+the types the points carry for it:
+- `elastic`: `hencky`, `improved_hencky`, `hypoelastic`, each `(; strain, law)`: its strain storage `ST` and elastic
+  law `EL`;
+- `plastic`: `DP`, `VM`, each its constitutive model `CM`.
+
+The one description of the laws: `build_solid_phase` and `setup_cmp` read it by name (`table_value`), `laws(mpts)` by
+type, and `get_option` lists its names, in this order.
+"""
+function get_constitutive_laws()
+    return (; elastic = (; hencky          = (; strain=LogarithmicStrain, law=HenckySolid),
+                           improved_hencky = (; strain=LogarithmicStrain, law=ImprovedHenckySolid),
+                           hypoelastic     = (; strain=InfinitesimalStrain, law=HypoelasticSolid)),
+              plastic = (; DP = DruckerPrager,
+                           VM = VonMises))
+end
 
 """
     laws(mpts::Point) -> (; elastic, plastic)
 
 The names of the points' constitutive laws, as a case's options give them (`material.elastic`, `material.plastic`),
-read from their types (`EL`, `CM`).
+read from their types (`EL`, `CM`) in `get_constitutive_laws()`.
 """
 function laws(::Point{T1,T2,D,CM,ST,EL}) where {T1,T2,D,CM,ST,EL}
-    elastic = first(ELASTIC_LAWS[findfirst(l -> last(l)[2] == EL, ELASTIC_LAWS)])
-    plastic = first(PLASTIC_LAWS[findfirst(l -> CM <: last(l), PLASTIC_LAWS)])
+    t = get_constitutive_laws()
+    elastic = string(findfirst(l -> l.law == EL, t.elastic))
+    plastic = string(findfirst(M -> CM <: M, t.plastic))
     return (; elastic, plastic)
 end

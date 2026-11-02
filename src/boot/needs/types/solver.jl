@@ -10,8 +10,16 @@ abstract type AbstractSolution end
 struct ExplicitSolution <: AbstractSolution end
 "Quasi-static, by dynamic relaxation: `elastoquasistatic!`."
 struct ImplicitSolution <: AbstractSolution end
-# the option values of the solutions
-const SOLUTIONS = ("explicit" => ExplicitSolution(), "implicit" => ImplicitSolution())
+"""
+    get_solutions() -> NamedTuple
+
+The values of the option `solution`, each with its marker: `explicit = ExplicitSolution()`,
+`implicit = ImplicitSolution()`. `get_solution` and `solution_name` read it, `get_option` lists its names, in this
+order.
+"""
+function get_solutions()
+    return (; explicit = ExplicitSolution(), implicit = ImplicitSolution())
+end
 
 """
     Solver{T1,T2,D,SL,…}
@@ -20,7 +28,8 @@ How a case is solved: the numerical options, the run settings and the kernels bu
 case, so one solver solves several cases of its dimension (`Problem(case, solver)`).
 
 # Fields
-- `solution::SL`: the method, `ExplicitSolution()` or `ImplicitSolution()` (the option `solution`, `get_solution`);
+- `solution::SL`: the method, `ExplicitSolution()` or `ImplicitSolution()` (the option `solution`, `get_solution`,
+  `get_solutions()`);
   the workflows dispatch on it (`ExplicitSolver`, `ImplicitSolver`).
 - `dtype::NamedTuple`: the precision, `(; precision, T0, bits)`: `T0 = (T1, T2)`.
 - `basis::NamedTuple`: the basis and transfer scheme, `(; which, trsfr, C_pf, domain)`.
@@ -75,7 +84,7 @@ const ImplicitSolver{T1,T2,D} = Solver{T1,T2,D,ImplicitSolution}
 Map the option `solution` (`"explicit"`, `"implicit"`) to its marker, `ExplicitSolution()` or `ImplicitSolution()`.
 """
 function get_solution(which::AbstractString)
-    return table_value(SOLUTIONS, which, "solution")
+    return table_value(get_solutions(), which, "solution")
 end
 """
     solution_name(solver) -> String
@@ -83,5 +92,5 @@ end
 A solver's solution as its option value, `"explicit"` or `"implicit"`.
 """
 function solution_name(s::Solver)
-    return first(SOLUTIONS[findfirst(l -> last(l) == s.solution, SOLUTIONS)])
+    return string(findfirst(==(s.solution), get_solutions()))
 end

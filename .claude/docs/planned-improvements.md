@@ -17,7 +17,7 @@
   `Problem(case, solver)` unifies them ("Problem unifies What and How", the user's wording); `Simulation(problem;
   folder)` runs. The first version (`ecfa4602`) kept the case inside the solver (`solver.case`, `Problem(solver)`) with
   copies of its physics; the next commits made the solver independent: the physics reaches the problem only through
-  `Problem(case, solver)` and is read afterwards from the points' types (`laws(mpts)`, `ELASTIC_LAWS`/`PLASTIC_LAWS`),
+  `Problem(case, solver)` and is read afterwards from the points' types (`laws(mpts)`, `get_constitutive_laws()`),
   the run folder became the case's (`case_folder`, so one solver can run several cases), and `ExplicitSolver`/
   `ImplicitSolver` became one `Solver` struct with a solution marker. Everything bit-identical (setups 188/188, short
   runs at `-t 1` against `ecfa4602`). Possible next steps: give `check_case(case, solver)` a cheaper path than building
@@ -32,7 +32,7 @@
     Removing them changes the stored arrays (`.jld2` format) and `runcmp`-style digests; one step, checked.
   - `KirchhoffStress` has no 3×3 constructor, so the carry constructor `S(M, t)` fails for it (unused today).
   - `get_basis`, `get_transfer` and `get_domain` branch on strings, and `get_option` lists the same names by hand:
-    tables like `ELASTIC_LAWS`/`SOLUTIONS` (`table_value`) would make them one source.
+    a table function like `get_constitutive_laws()`/`get_solutions()` (`table_value`) would make them one source.
   - ElastoPlasm's Documenter site (`docs/make.jl`) has pages for `home/api`, `home/core` and `home/script` only, none
     for the types under `src/boot/needs/types/`, so their docstrings show only in the REPL (`?Point`).
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
@@ -49,7 +49,7 @@
   full-struct reconstruction on every write.
   - `PerfectlyElastic`, defined with **no construction path**, was removed (type-writing pass).
     `DruckerPrager`/`VonMises` both have construction paths, picked by
-    `material.plastic` (`PLASTIC_LAWS`) — see "DP/J2 retmap kernel unification" below.
+    `material.plastic` (`get_constitutive_laws()`) — see "DP/J2 retmap kernel unification" below.
   - `PointSolidPhase.rheo::R`/`AbstractRheology` — a parallel, never-read earlier
     attempt at the same per-particle constitutive-data problem — was retired entirely,
     since `cmp` already supersedes it.
