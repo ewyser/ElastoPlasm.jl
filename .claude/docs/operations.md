@@ -53,7 +53,7 @@ its own folder (`case_folder`). A `.jld2` is a saved `Simulation`. See the diagr
   config; `cli(; ui=true)` prompts interactively, `cli()` with no args picks defaults
   non-interactively — pass its result as `kwargs...` into `slump_case` (not into `Solver(; …)`, which refuses its
   physics sections).
-- `Solver(; dim=2, kwargs...)` (`src/home/api/solver/build_solver.jl`) merges
+- `Solver(; dim=2, kwargs...)` (`src/home/api/solver/build.jl`) merges
   user kwargs over `get_default()` (`solver_instr`), resolves the execution backend, and builds the
   `Cairn` dispatch table (`cairn.ignite`/`.mapsto`/`.update`/`.implicit`), all in `build_solver`, which
   `Solver(case)` ends with too.
@@ -575,7 +575,7 @@ wherever `init_ignite`/`init_mapsto`/`init_update`/`init_implicit` branch on
 existing pattern before adding a new one. If the new field belongs on the solver
 struct itself (like `run` did), it also needs threading through
 `Solver`'s field list (`src/boot/needs/types/solver.jl`), its partial constructor, `solver_config`/`stored_solver`
-and the corresponding positional arg in `build_solver.jl`'s final constructor call. A new physics option (one a case
+and the corresponding positional arg in `api/solver/build.jl`'s final constructor call. A new physics option (one a case
 holds, like the laws) goes into `PHYSICS_SECTIONS` and a `Case` field instead.
 
 ### Using `cli()`

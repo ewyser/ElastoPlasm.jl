@@ -106,7 +106,7 @@ Every type's docstring lists its fields (`# Fields`), in the house layout of `co
   numerical option sections, `run` (`solver_run`: te, tg, tep, workflow, lstps; no folder) and the kernels (`cairn`).
   `Solver(case; run=(;), overrides…)` (`src/home/init/case/simulation.jl`) reads a case's settings (the option sections
   that are not `PHYSICS_SECTIONS`, the run settings), overridable per field, and keeps nothing of the case;
-  `Solver(; dim, sections…)` (`src/home/api/solver/build_solver.jl`) is one written in code, `get_default()` with the
+  `Solver(; dim, sections…)` (`src/home/api/solver/build.jl`) is one written in code, `get_default()` with the
   sections merged. Both refuse physics (`material`, `grf`, `bcs`: `refuse_physics`) and end with `build_solver`.
   `solution` follows the workflow unless set; an explicit workflow on an implicit solver is refused.
 - `Problem{T1,T2,D,P,M,B,S}` (`src/boot/needs/types/problem/problem.jl`) — what is solved and how, built: `mpts`,
@@ -236,7 +236,7 @@ commit to be the *only* behavior change from this refactor; not a regression.
   (`elastodynamic!`, `elastoplastic!`). Kernel dispatch table lives on
   `solver.cairn` (a `NamedTuple`, dot-accessed: `solver.cairn.ignite.tplgy!`,
   `solver.cairn.mapsto.map.p2n!`, `solver.cairn.update.deform!`, ...), built by
-  `init_ignite`/`init_mapsto`/`init_update`/`init_implicit` in `build_solver.jl`, on the solver's backend
+  `init_ignite`/`init_mapsto`/`init_update`/`init_implicit` in `api/solver/build.jl`, on the solver's backend
   (`exec_backend(instr)`, the device `backend.exec` selected; `CPU()` for the host); each launch is followed by
   `sync(bk)`, `bk = exec_backend(solver)`: the solver owns the backend, and the kernels, the syncs and `to_device`
   all take it from there (not from the arrays, `get_backend(mpts.x)`, as at first). Every
