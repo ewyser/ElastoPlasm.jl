@@ -26,5 +26,7 @@ execution backends from UnifiedBackend (`lib/UnifiedBackend`, a submodule), whos
 architecture's hosts whatever the brand, with brand `"unknown"` when the model names none (`host_brand`), the
 architecture as name when the model is empty, and `CPU()`/`Array` for an architecture it does not list; there is always
 a `:dev1`. Tested by `host_brand` on an Apple, a Grace (`Neoverse-V2`) and an empty model, and by registering an
-unlisted architecture (`:riscv64`). ElastoPlasm's `get_version()` (`src/boot/needs/utils.jl`) reads
+unlisted architecture (`:riscv64`). Since then the label is a `Platform`'s `vendor` (`host_vendor`, one list of
+makers for every architecture, `"Intel"`/`"AMD"`/`"Apple"`), so x86_64 Julia under Rosetta reports `"Apple"`, not
+`"unknown"`. ElastoPlasm's `get_version()` (`src/boot/needs/utils.jl`) reads
 `pkgversion(@__MODULE__)`, its own version under any active environment.

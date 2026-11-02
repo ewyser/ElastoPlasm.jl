@@ -14,8 +14,7 @@ HAS_JLARRAYS && @eval using JLArrays
     else
         # JLArrays has no `synchronize` method: its kernels run when launched
         hasmethod(KernelAbstractions.synchronize, Tuple{JLBackend}) || @eval KernelAbstractions.synchronize(::JLBackend) = nothing
-        UB.register!(UB.Platform(; platform=:JLArrays, brand="GPUArrays", name="JLArrays (a CPU stand-in)",
-                                   backend=JLBackend(), arraytype=JLArray))
+        UB.register!(UB.Platform(; name="JLArrays (a CPU stand-in)", backend=JLBackend(), arraytype=JLArray))
         JLArrays.allowscalar(false)
         try
             noplot = (; plot=(; status=false))
@@ -92,7 +91,7 @@ HAS_JLARRAYS && @eval using JLArrays
             end
         finally
             JLArrays.allowscalar(true)
-            filter!(p -> p.platform != :JLArrays, UB.device_platforms())
+            filter!(p -> !(p.backend isa JLBackend), UB.device_platforms())
         end
     end
 end
