@@ -8,7 +8,7 @@ export Mesh
 # the parameters code dispatches on), so the same struct holds host `Array`s or a device's arrays (`adapt`, see
 # `adapt_fields` in utils.jl); `Mesh{T1,T2,D}` etc. still name every version. They are left unbounded: bounds such
 # as `V<:AbstractVector{T2}` refer to the other parameters, which made every subtype check on these types, hence
-# compilation, about three times slower (a first `Problem(case)` 10 → 34 s); the partial constructors (`Mesh{T1,T2,D}(…)`)
+# compilation, about three times slower (a first problem built 10 → 34 s); the partial constructors (`Mesh{T1,T2,D}(…)`)
 # and the setup functions give them their types.
 
 """

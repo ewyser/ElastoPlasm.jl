@@ -69,7 +69,7 @@
         @test c.properties["zone 1"].phi ≈ 30π/180 && c.bcs[2, 1] == :fixed && Solver(c).basis.which == "gimpm"
         @test EP.case_folder(c) == joinpath(d, "drawn")                                     # no run folder: the file's
         @test isempty(check_case(c).errors)
-        @test Problem(c).mpts.nmp == 80                                                     # 10 × 2 elements, 2 × 2 points each
+        @test Problem(c, Solver(c)).mpts.nmp == 80                                                     # 10 × 2 elements, 2 × 2 points each
         @test zone_at(case, (10.0, 1.0)) == 2 && zone_at(case, (10.0, 3.0, 1.0)) == 2 && zone_at(case, (10.0, 8.0)) == 0   # (x, y, z) too
         xs, zs = 0.5:1.0:19.5, 0.5:1.0:9.5
         @test zone_index(case, xs, zs)[:, 1] == fill(2, 20) && zone_index(case, xs, zs)[:, 10] == fill(0, 20)

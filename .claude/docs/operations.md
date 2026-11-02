@@ -10,7 +10,8 @@ execute!(jld2)                                       # runs its workflows, writt
                                                      # (execute(jld2) runs a copy, returns it, leaves the file)
 p     = load_simulation(jld2).problem              # the post-run Problem: p.mpts, p.mesh, ...
 # or entirely in memory, no .jld2:
-sim   = execute!(Simulation(Problem(slump_case(L, nel; cli()...))); workflows=[elastodynamic!, elastoplastic!])
+case  = slump_case(L, nel; cli()...)
+sim   = execute!(Simulation(Problem(case, Solver(case))); workflows=[elastodynamic!, elastoplastic!])
 # one case, another solver: its numerics overridden, the physics as it is
 case  = slump_case(L, nel)
 jld2  = setup_simulation(case, Solver(case; basis=(; which="gimpm"), run=(; te=5.0)); folder="slump_gimp")

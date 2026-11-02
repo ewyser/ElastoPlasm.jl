@@ -52,7 +52,8 @@
             @test !haskey(h, "point/thermal") && keys(h["point/solid"]) == ["p"]
             @test size(h["mesh/solid/v"]) == (2, load_simulation(j).problem.mesh.prprt.nno[end], length(h["frames/t"]))
         end
-        p = execute!(Simulation(Problem(case("out_mem"))); workflows=[elastodynamic!], output=(f = joinpath(mktempdir(), "o.h5"))).problem   # in memory
+        m = case("out_mem")
+        p = execute!(Simulation(Problem(m, Solver(m))); workflows=[elastodynamic!], output=(f = joinpath(mktempdir(), "o.h5"))).problem   # in memory
         @test isfile(f) && output_series(f, "point/solid/p"; point=1).t[end] == p.time.t[1]
     end
     @testset "load steps" begin

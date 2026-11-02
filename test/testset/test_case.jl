@@ -58,7 +58,7 @@
         @test_throws ArgumentError Solver(s; solution="implicit")                          # an explicit workflow: refused
         pa, pb = Problem(s, a), Problem(s, b)                                                # one case, two solvers
         @test pa.mpts.x == pb.mpts.x && pa.basis.kind isa EP.BSplineBasis && pb.basis.kind isa EP.GimpBasis
-        @test pa.time.te == 1.0 && pb.time.te == 2.0 && Problem(s).mpts.x == pa.mpts.x       # Problem(case): its own solver
+        @test pa.time.te == 1.0 && pb.time.te == 2.0
         dp = Case(s.layout, (t = deepcopy(s.settings); t.options["material"] = Dict("plastic" => "DP"); t))
         pd = Problem(dp, a)                                                                  # one solver, two cases
         @test pd.solver === a && EP.laws(pd.mpts).plastic == "DP" && EP.laws(pa.mpts).plastic == "VM"   # each case's laws
@@ -172,7 +172,7 @@
         dir = joinpath(mktempdir(), "mycase")
         c = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 1]))], solver=(; plot=(; status=false)),
                    run=(; folder=dir * "/", te=0.2, tg=0.1, tep=0.0, workflow="elastodynamic!"))
-        sim = Simulation(Problem(c); folder=EP.case_folder(c))
+        sim = Simulation(Problem(c, Solver(c)); folder=EP.case_folder(c))
         @test sim.folder == dir && !isdir(dir) && fieldnames(Simulation) == (:problem, :folder)   # built, nothing written
         @test Simulation(sim.problem; folder="a/b").folder == joinpath(EP.self.sys.dump, "a", "b")   # a name: under dump/
         @test_throws ArgumentError Solver(c; run=(; workflow="nope"))
@@ -198,7 +198,7 @@
         old = joinpath(mktempdir(), "old.jld2"); jldsave(old; problem=sim.problem)
         @test_throws ArgumentError load_simulation(old)                                     # an older file
         bc = EP.block_case([8, 4]; plot=(; status=false, freq=1.0, dpi=100, what=[]))     # quasi-static: implicit
-        @test Problem(bc).solver isa ImplicitSolver && Problem(bc).solver.run.workflow == "elastoquasistatic!"
+        @test Solver(bc) isa ImplicitSolver && Solver(bc).run.workflow == "elastoquasistatic!"
         @test_throws ArgumentError Solver(bc; solution="implicit", run=(; workflow="elastodynamic!"))   # an explicit one: refused
         qs = Simulation(Problem(bc, Solver(bc; run=(; lstps=3))))
         @test length(only(case_workflows(qs))(qs.problem)) == 3                                   # 3 load steps
@@ -210,7 +210,8 @@
         @test EP.solver_config(Solver(load_case(joinpath(dir, "mycase_case.toml")))) == EP.solver_config(gimp)   # as solved
     end
     @testset "containers adapt: host arrays and back, unchanged" begin
-        p = Problem(EP.slump_case([64.1584, 16.0396], [16, 4]; plot=(; status=false), basis=(; which="gimpm", trsfr="apic")))
+        c = EP.slump_case([64.1584, 16.0396], [16, 4]; plot=(; status=false), basis=(; which="gimpm", trsfr="apic"))
+        p = Problem(c, Solver(c))
         for x ∈ (p.mpts, p.mesh, p.basis)                                                  # the array types are parameters
             y = EP.Adapt.adapt(Array, x)
             @test typeof(y) == typeof(x)

@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Simulation case: the declarative description a problem is built from (domain, zones, materials,
-# boundaries, solver overrides, run settings), built into a `Problem` (`Problem(case)`, `setup_simulation`)
+# boundaries, solver overrides, run settings), built with a `Solver` into a `Problem` (`Problem(case, solver)`)
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 export AbstractShape, Polygon, Block, Ball, Region, Zone, Layout, Settings, load_layout, load_settings, save_settings,

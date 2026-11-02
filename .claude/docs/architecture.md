@@ -38,8 +38,7 @@ ElastoPlasm
                              └──────────────────────────────┬───────────────────────────────┘
                                                             ▼ Problem(case, solver)
                  ┌─ Problem: what and how, built ─────────────────────────────────────────────────────┐
-                 │ Problem(case, solver)                                                              │
-                 │ Problem(case) = Problem(case, Solver(case))                                        │
+                 │ Problem(case, solver)                    always both: Problem(case, Solver(case))  │
                  │                                                                                    │
                  │ mpts   ::Point   from the case (zones, constants, laws, grf) and solver.dtype      │
                  │ mesh   ::Mesh    from the case (L, nel, bcs)                                       │
@@ -69,7 +68,7 @@ Every type's docstring lists its fields (`# Fields`), in the house layout of `co
   `VM`, …), appended after the parameters code dispatches on, so `Point{T1,T2,D,CM,ST,EL}`, `Mesh{T1,T2,D}`,
   `Basis{T1,T2,D,NN,K,TR}` still match every version and field syntax is unchanged. These parameters are unbounded:
   bounds such as `V<:AbstractVector{T2}` refer to the other parameters and made subtype checks, hence compilation,
-  about three times slower (a first `Problem(case)` 10 → 34 s, `test_case` 43 s → 9 min); partial constructors
+  about three times slower (a first problem built 10 → 34 s, `test_case` 43 s → 9 min); partial constructors
   (`Mesh{T1,T2,D}(…)`, `Basis{T1,T2,D,NN}(…)`, …) take the arrays' types from the arguments. Each container's
   `Adapt.adapt_structure` rebuilds it through `adapt_fields` (`boot/needs/utils.jl`), keeping plain-bits fields, so
   `adapt(backend, mpts)` holds that backend's arrays and `adapt(Array, ·)` brings them back with the same type.
@@ -113,10 +112,11 @@ Every type's docstring lists its fields (`# Fields`), in the house layout of `co
   `mesh`, `basis`, `time`, `solver`, built by `Problem(case, solver)`: the mesh from the case's domain and `bcs`
   (`setup_mesh(L, nel, bcs, solver)`), the points from its zones, constants, `laws` and `grf` (`case_points(case,
   mesh)`, `setup_mpts(mesh, pts, laws)`), in the solver's precision, the time stages from `solver.run`, the basis from
-  `solver.basis`. A solver of another dimension is refused. The parts' types are unbounded parameters, which
-  `Problem(mpts, mesh, basis, time, solver)` takes from its arguments, requiring one `T1`, `T2`, `D` (no bounds naming
-  other parameters, as in every container). `Problem(case)` is `Problem(case, Solver(case))`; what
-  workflows run on (`elastodynamic!(problem)`).
+  `solver.basis`. A solver of another dimension is refused. It is the one constructor (the user's decision: "A Problem
+  constructor always need a Case and a Solver"); a case solved as its settings say is `Problem(case, Solver(case))`.
+  The parts' types are unbounded parameters, set by `Problem(case, solver)` from what it builds, all of the solver's
+  `T1`, `T2`, `D` (no bounds naming other parameters, as in every container); `save_simulation`/`load_simulation` swap
+  the solver of a built problem through `with_solver`. What workflows run on (`elastodynamic!(problem)`).
 - `Simulation{P}` (`src/boot/needs/types/problem/simulation.jl`) — a problem ready to run in a folder: `problem`,
   `folder` (absolute; a name given is under `dump/`), built by `Simulation(problem; folder)`; its workflow and load
   steps are its solver's (`problem.solver.run`). `setup_simulation(case, solver; folder=case_folder(case))` builds,
