@@ -3,7 +3,7 @@
 # boundaries, solver overrides, run settings), built into a `Problem` (`Problem(case)`, `setup_simulation`)
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-export AbstractShape, Polygon, Block, Ball, Region, Zone, Case, PointData, MATERIAL, inpolygon
+export AbstractShape, Polygon, Block, Ball, Region, Zone, Layout, load_layout, Case, PointData, MATERIAL, inpolygon
 
 """
     MATERIAL

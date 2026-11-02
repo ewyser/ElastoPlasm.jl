@@ -85,7 +85,8 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   points per element and axis, `zones`, `sides`, `defaults`, `options`, `run`. `Case(layout)` checks a copy of it and
   holds its typed reading, `case.material`, `case.bcs`, `case.solver`, `case.thermal`, `case.run`; the geometry is read
   from `case.layout` (`case.layout.L`, `.zones`, …). A case keeps its own copy (a deepcopy): to change a model, change a
-  layout and build a new case. `Case(; L, nel, ni, zones, material, bcs, solver, thermal, run)` builds the layout, so
+  layout and build a new case (`Layout` and `load_layout` are re-exported by `using ElastoPlasm`, so a layout can be
+  written or read and passed to `Case(layout)`). `Case(; L, nel, ni, zones, material, bcs, solver, thermal, run)` builds the layout, so
   the examples are unchanged:
   - `material`: overrides of `MATERIAL` (E, nu, rho0, c0, cr, phi, Hp, n0, T, cp, k; SI, angles in radians), the
     layout's `defaults`;
