@@ -8,11 +8,6 @@ function case_zones(s::Case)
     pts = Iterators.product(axs[end], axs[1:end-1]...)
     return [zone_at(l.zones, (t[2:end]..., t[1])) for t ∈ pts][:]
 end
-# a physics option of the case (`case.options`), or its default
-function option_of(s::Case, sec, key)
-    o = get(s.options, sec, (;))
-    return o isa NamedTuple && haskey(o, key) ? getfield(o, key) : getfield(getfield(get_default(), sec), key)
-end
 
 """
     estimate_dt(case) -> (dt, c)
@@ -26,7 +21,7 @@ cell size over the axes.
 function estimate_dt(s::Case; zone=case_zones(s))
     used = filter(>(0), unique(zone))
     isempty(used) && return (Inf, 0.0)
-    elastic = option_of(s, :material, :elastic)
+    elastic = s.laws.elastic
     function speed(k)
         p(x) = get(get(s.properties, s.layout.zones[k].name, (;)), x, getfield(s.material, x))
         K, G = get_elastic_moduli(p(:E), p(:nu))
@@ -40,11 +35,11 @@ end
 
 """
     check_case(case) -> (; errors, warnings, info)
-    check_case(solver) -> (; errors, warnings, info)
+    check_case(case, solver) -> (; errors, warnings, info)
 
 What to know before running. For a case, its geometry and physics: an error when no zone covers a sub-cell centre (no
 material points); warnings for a zone reaching outside the domain or without points (covered by later zones, or
-thinner than a sub-cell); the points and elements. For a solver, also how it solves its case (`solver.case`): errors
+thinner than a sub-cell); the points and elements. With a solver, also how it solves the case: errors
 for an option contradicting the workflow (`solution`, or the quasi-static workflows with
 `material.elastic = "hypoelastic"`); warnings for non-square cells under dynamic relaxation (slow convergence),
 `tg > te` (the gravity ramp is cut at `te`), 32-bit precision with GIMP (fails at the first step, see
@@ -63,16 +58,14 @@ function check_case(s::Case)
     push!(info, "$(count(>(0), zone)) material points, $(prod(nel)) elements ($(length(L))D)")
     return (; errors, warnings, info)
 end
-function check_case(solver::AbstractSolver)
-    s = solver.case
-    isnothing(s) && throw(ArgumentError("this solver solves no case (get_solver): build one with Solver(case)"))
+function check_case(s::Case, solver::AbstractSolver)
     c = check_case(s)
     errors, warnings, info = copy(c.errors), copy(c.warnings), copy(c.info)
     run = solver.run
     qs  = quasistatic(run.workflow)
     L, nel = s.layout.L, s.layout.nel
     (solver.solution == "implicit") != qs && push!(errors, "The option solution = $(solver.solution) contradicts the workflow $(run.workflow).")
-    qs && solver.material.elastic == "hypoelastic" &&
+    qs && s.laws.elastic == "hypoelastic" &&
         push!(errors, "elastoquasistatic! is finite strain only: material.elastic = hypoelastic is not supported.")
     h = L ./ nel
     qs && maximum(h) > 1.01*minimum(h) && push!(warnings, "Cells are not square: dynamic relaxation converges slowly on elongated cells.")

@@ -51,7 +51,7 @@ function create_output(file, p::Problem; case_text=nothing)
     a["ElastoPlasm"] = string(get_version())
     a["D"], a["nmp"], a["nno"] = length(g.prprt.L), Int(m.nmp), Int(g.prprt.nno[end])
     a["solution"], a["basis"], a["transfer"] = p.solver.solution, p.solver.basis.which, p.solver.basis.trsfr
-    a["elastic"], a["plastic"] = p.solver.material.elastic, p.solver.material.plastic
+    a["elastic"], a["plastic"] = laws(m).elastic, laws(m).plastic
     isnothing(case_text) || (a["case"] = case_text)
     attributes(frames_dataset(f, "frames/t", Float64, ()))["unit"] = "s"
     frames_dataset(f, "frames/step", Int, ())

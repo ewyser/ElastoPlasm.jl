@@ -6,7 +6,7 @@ function save_workflow_plot(p::Problem, workflow!, folder)
     solver   = p.solver
     quantity = join([plot_entry(k).name for k ∈ solver.plot.what], "_")
     name     = "$(solver.solution)_$(length(p.mesh.prprt.L))d_$(solver.basis.which)_$(solver.basis.trsfr)_" *
-               "$(solver.material.elastic)_$(workflow!)_$(quantity).png"
+               "$(laws(p.mpts).elastic)_$(workflow!)_$(quantity).png"
     save_plot((; file=joinpath(mkpath(folder), replace(name, " " => "_"))))
 end
 
@@ -40,7 +40,7 @@ function execute!(sim::Simulation; workflows=case_workflows(sim), output=output_
     try
         task_local_storage(:output_recorder, rec) do
             for workflow! ∈ workflows
-                @info workflow_log(p.solver; msg="$workflow!")
+                @info workflow_log(p; msg="$workflow!")
                 task_local_storage(:output_workflow, string(workflow!))
                 workflow!(p)
                 record!(p.mpts, p.mesh, p.time, p.solver)             # the state the workflow ends on

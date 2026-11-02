@@ -52,17 +52,17 @@ function mesh_coords(L::AbstractVector{T2}, h::AbstractVector{T2}, nel) where {T
 end
 
 """
-    setup_mesh(L, nel, solver; thermal=false) -> Mesh
+    setup_mesh(L, nel, bcs, solver; thermal=false) -> Mesh
 
-The background grid `[0, L]` with `nel` elements per axis: node coordinates, element size,
-boundary conditions (`solver.bcs.dirichlet`, `get_bc`) and
+The background grid `[0, L]` with `nel` elements per axis, in the solver's precision: node coordinates, element size,
+boundary conditions (`bcs`, a case's: one `[lower upper]` row per axis, `get_bc`) and
 zero nodal fields of the solid phase and, with `thermal = true`, the thermal phase. Connectivity is
 built by `setup_basis`, once the material points exist.
 """
-function setup_mesh(L::AbstractVector, nel::AbstractVector, solver::S; thermal::Bool=false) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function setup_mesh(L::AbstractVector, nel::AbstractVector, bcs::AbstractMatrix{Symbol}, solver::S; thermal::Bool=false) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     h          = T2.(L ./ nel)
     xn,nel,nno = mesh_coords(T2.(L), h, nel)
-    status,xB  = get_bc(xn,solver)
+    status,xB  = get_bc(xn,bcs)
     SVD = SVector{D,T2}                         # node coordinates, velocity, acceleration
     nn_total = nno[end]
 

@@ -1,16 +1,16 @@
 export case_points
 
 """
-    case_points(case, mesh, solver) -> PointData
+    case_points(case, mesh) -> PointData
 
 The material points of a case: the candidate points of `mpts_populate` (`ni`×`ni` per
 element, at sub-cell centres) that lie in a zone, each taking the last zone containing it. Every
 constant is the case's material (`case.material`) unless the point's zone sets it (`case.properties`, by zone name); the cohesion
-of points whose zone does not set `c0` is the random field of `solver.grf` when enabled
+of points whose zone does not set `c0` is the case's random field (`case.grf`) when enabled
 (`property_field`, bounded below by the material's `cr`), evaluated over all points at once. A
 zone's velocity `v` has `D` components, or two (x, z) in 3D.
 """
-function case_points(case::Case, mesh::Mesh{T1,T2,D}, solver) where {T1,T2,D}
+function case_points(case::Case, mesh::Mesh{T1,T2,D}) where {T1,T2,D}
     l    = case.layout
     cand = mpts_populate(mesh.prprt; ni=l.ni)
     zone = [zone_at(l.zones, view(cand, :, p)) for p ∈ axes(cand, 2)]         # EasyDraw's rule, as the window's
@@ -18,7 +18,7 @@ function case_points(case::Case, mesh::Mesh{T1,T2,D}, solver) where {T1,T2,D}
     xp, zone = cand[:, keep], zone[keep]
     nmp, m = size(xp, 2), case.material
     f = Dict{Symbol,Vector{Float64}}(k => fill(getfield(m, k), nmp) for k ∈ keys(m))
-    f[:c0] = property_field(xp, m.c0, solver.grf; floor=m.cr)
+    f[:c0] = property_field(xp, m.c0, case.grf; floor=m.cr)
     vp = zeros(D, nmp)
     for (i, z) ∈ enumerate(l.zones), (k, v) ∈ pairs(get(case.properties, z.name, (;)))
         id = zone .== i

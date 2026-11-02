@@ -30,28 +30,30 @@ const BOUNDARY_KINDS = (:free, :roller, :fixed)
 
 A simulation case: a geometry (an EasyDraw `Layout`) with its physical properties assigned, from its settings (an
 EasyDraw `Settings`): what is solved. The layout is where things are (domain, grid, zones by name); the settings hold
-what they are (each zone's material, the material's defaults, a boundary kind per side, the constitutive laws) and,
-for the `Solver` built on the case, how it is solved (the numerical options, the run settings). The case checks all of
-them and holds the typed reading of its physics; `Solver(case)` reads the numerics. A case keeps its own copy of both:
-to change a model, change a layout or settings and build a new case. One geometry can take several settings,
-`Case(layout, settings_a)` and `Case(layout, settings_b)`.
+what they are (each zone's material, the material's defaults, a boundary kind per side, the constitutive laws) and how
+a solver built on the case solves it (the numerical options, the run settings). The case checks all of them and holds
+the typed reading of its physics; `Solver(case)` reads the numerics, `Problem(case, solver)` builds what both
+describe. A case keeps its own copy of both: to change a model, change a layout or settings and build a new case. One
+geometry can take several settings, `Case(layout, settings_a)` and `Case(layout, settings_b)`.
 
 # Fields
 - `layout::EasyDraw.Layout`: the geometry: `L` [m] and `nel` (2D x–z, or 3D x, y, z; the lower corner at the
   origin), `ni`×`ni` material points per element, the `zones` (a name and a shape each; a point belongs to the last
   zone containing it).
 - `settings::EasyDraw.Settings`: the values, as plain data: `zones` (by zone name), `defaults`, `sides`, `options`,
-  `run`. The case reads the physics below; `Solver(case)` the numerical options and the run settings. With the
-  layout, the case's file (`save_case`, `load_case`).
+  `run`. The case reads the physics below and its folder (`case_folder`); `Solver(case)` the numerical options and
+  the run settings. With the layout, the case's file (`save_case`, `load_case`).
 - `material::NamedTuple`: the material constants: `MATERIAL`, with the settings' `defaults`.
 - `properties::Dict{String,NamedTuple}`: each zone's own constants, by zone name: `MATERIAL` keys, or an initial
   velocity `v`; where a zone does not set one, the material's.
 - `bcs::Matrix{Symbol}`: the boundary condition of each side, one `[lower upper]` row per axis (x, then y in 3D,
   then z): the settings' `sides`, `"left"`/`"right"`, `"front"`/`"back"`, `"bottom"`/`"top"`, each `:free`,
   `:roller` (a side not set) or `:fixed`.
-- `options::NamedTuple`: the physics among the settings' options (`PHYSICS_SECTIONS`: the constitutive laws,
-  `material.elastic`/`plastic`, and the random cohesion field, `grf`), as values (`option_values`); those not set take
-  `get_default()`'s.
+- `laws::NamedTuple`: the constitutive laws, `(; elastic, plastic)`: the settings' options `material.elastic`
+  (`"hencky"`, `"improved_hencky"` or `"hypoelastic"`) and `material.plastic` (`"DP"` or `"VM"`), `get_default()`'s
+  where not set.
+- `grf::NamedTuple`: the random field of the cohesion, `(; status, covariance, param)`: the settings' options `grf`,
+  `get_default()`'s where not set.
 - `thermal::Bool`: whether to build the thermal phase: the run setting `thermal`, false when absent.
 
 # Constructors
@@ -76,7 +78,8 @@ struct Case
     material   :: NamedTuple
     properties :: Dict{String,NamedTuple}
     bcs        :: Matrix{Symbol}
-    options    :: NamedTuple
+    laws       :: NamedTuple
+    grf        :: NamedTuple
     thermal    :: Bool
 end
 function Case(layout::EasyDraw.Layout, settings::EasyDraw.Settings)
@@ -84,8 +87,10 @@ function Case(layout::EasyDraw.Layout, settings::EasyDraw.Settings)
     EasyDraw.check_settings(l, s)
     options = case_options(s.options)                        # every option, checked; the case keeps its physics
     case_run(l, s)                                           # every run setting, checked; the solver reads them
-    physics = (; (k => getfield(options, k) for k ∈ keys(options) if k ∈ PHYSICS_SECTIONS)...)
-    return Case(l, s, case_material(s.defaults), case_properties(s.zones), case_bcs(s.sides, length(l.L)), physics,
+    d = get_default()
+    laws = haskey(options, :material) ? merge_config(d.material, options.material; path="material.") : d.material
+    grf  = haskey(options, :grf) ? merge_config(d.grf, options.grf; path="grf.") : d.grf
+    return Case(l, s, case_material(s.defaults), case_properties(s.zones), case_bcs(s.sides, length(l.L)), laws, grf,
                 Bool(get(s.run, "thermal", false)))
 end
 function Case(; L, nel, ni::Integer=2, zones=Zone[], properties=Dict(), material=(;), bcs=nothing, solver=(;),
@@ -164,6 +169,15 @@ function case_run(l::EasyDraw.Layout, s::EasyDraw.Settings)
     delete!(run, "thermal")
     haskey(run, "folder") || isempty(l.folder) || (run["folder"] = l.folder)
     return case_run(run)
+end
+# where a case's simulation is written: its run folder, else its layout's file's folder, else `RUN.folder`
+function case_folder(case::Case)
+    return case_run(case.layout, case.settings).folder
+end
+# the run settings a solver holds: `case_run`'s without the folder, which is the case's (`case_folder`)
+function solver_run(run)
+    r = case_run(run)
+    return (; te=r.te, tg=r.tg, tep=r.tep, workflow=r.workflow, lstps=r.lstps)
 end
 
 """

@@ -52,8 +52,8 @@ function get_option()
                 ),
             ),
             material = (
-                plastic = ("Select plastic constitutive model",["DP", "VM"]),
-                elastic = ("Select strain formulation / elastic law",["hencky", "improved_hencky", "hypoelastic"]),
+                plastic = ("Select plastic constitutive model",collect(first.(PLASTIC_LAWS))),
+                elastic = ("Select strain formulation / elastic law",collect(first.(ELASTIC_LAWS))),
             ),
             nonloc = (
                 status = ("Enable nonlocal effects",[true, false]),

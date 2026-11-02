@@ -16,7 +16,7 @@ from the particles' initial domain) and the problem's own basis functions.
 function nodal_volume(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     ni    = round(Int, mesh.prprt.h[1] / (T2(2.0) * mpts.ℓ₀[1][1]))
     x     = mpts_populate(mesh.prprt; ni=ni)
-    gps   = setup_mpts(mesh, solver, PointData(x, ni))
+    gps   = setup_mpts(mesh, PointData(x, ni), laws(mpts))
     basis = setup_basis(mesh, gps, solver)
     ignite(gps, mesh, basis, solver)
     V = zeros(T2, mesh.prprt.nno[end])

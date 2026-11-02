@@ -38,7 +38,7 @@ What the drawing window calls back for a case: its checks (`check_case`), what *
 and its title.
 """
 function case_hooks()
-    check = (l, s) -> check_case(Solver(Case(l, s)))
+    check = (l, s) -> (c = Case(l, s); check_case(c, Solver(c)))
     # Create…: the case's runs go to the chosen folder. EasyDraw returns these same settings, so the case drawn has it too.
     save  = (l, s, dir) -> (s.run["folder"] = dir; save_case(joinpath(dir, "$(basename(dir))_case.toml"), Case(l, s)))
     load  = file -> (c = load_case(file); (c.layout, c.settings))

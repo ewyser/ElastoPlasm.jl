@@ -41,7 +41,7 @@
                  Case(; L=[10.3, 7.1], nel=[13, 9], ni=3, zones=[Zone("ball", Ball([5.15, 3.55], 2.0))]),
                  Case(; L=[8, 4], nel=[8, 4], zones=[Zone("45°", Polygon([[0, 0], [4, 0], [0, 4]]))]))   # an edge through centres
             solver = get_solver(; dim=2, plot=(; status=false))
-            p = case_points(c, EP.setup_mesh(c.layout.L, c.layout.nel, solver), solver)
+            p = case_points(c, EP.setup_mesh(c.layout.L, c.layout.nel, c.bcs, solver))
             sim = sort(collect(zip(p.xp[1, :], p.xp[2, :], p.zone)))
             q = points(c); x, z, r = ED.preview_points(editor(c))                          # EasyDraw's; the window's preview
             @test sim == sort(collect(zip(q.x, q.z, q.zone))) && sim == sort(collect(zip(x, z, r)))
@@ -67,7 +67,7 @@
         @test ED.create!(e, joinpath(d, "drawn"))                                           # EasyDraw's Create…: a layout file
         c = load_case(joinpath(d, "drawn", "drawn_layout.toml"))                            # a case
         @test c.properties["zone 1"].phi ≈ 30π/180 && c.bcs[2, 1] == :fixed && Solver(c).basis.which == "gimpm"
-        @test Solver(c).run.folder == joinpath(d, "drawn")                                  # no run folder: the file's
+        @test EP.case_folder(c) == joinpath(d, "drawn")                                     # no run folder: the file's
         @test isempty(check_case(c).errors)
         @test Problem(c).mpts.nmp == 80                                                     # 10 × 2 elements, 2 × 2 points each
         @test zone_at(case, (10.0, 1.0)) == 2 && zone_at(case, (10.0, 3.0, 1.0)) == 2 && zone_at(case, (10.0, 8.0)) == 0   # (x, y, z) too
@@ -118,7 +118,7 @@
         @test ED.create!(e, folder * "/") && e.finished && isfile(joinpath(folder, "layers_case.toml"))   # made, the case in it
         c = Case(e.result.layout, e.result.settings)
         sc = Solver(c)
-        @test sc.run.folder == folder && c.layout.L == [13.0, 4.0, 7.0] && sc.run.lstps == 20 && sc.basis.which == "gimpm"   # its runs go there
+        @test EP.case_folder(c) == folder && c.layout.L == [13.0, 4.0, 7.0] && sc.run.lstps == 20 && sc.basis.which == "gimpm"   # its runs go there
         @test c.bcs == [:roller :roller; :roller :roller; :fixed :fixed] && c.properties["zone 1"].E == 5e7
         @test Solver(load_case(joinpath(folder, "layers_case.toml"))).run == sc.run          # the file is the case
         e2 = editor(Case(; L=[1, 1], nel=[2, 2]))

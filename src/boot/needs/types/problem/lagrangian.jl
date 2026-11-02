@@ -156,3 +156,32 @@ end
 function Adapt.adapt_structure(to, mpts::Point)
     return adapt_fields(to, mpts, Point)
 end
+
+# The constitutive laws a case names (its options `material.elastic` and `material.plastic`) and the types the points
+# carry for them: the strain storage `ST` with the elastic law `EL`, and the constitutive model `CM`. Read one way to
+# build the points (`build_solid_phase`, `setup_cmp`) and to list the options (`get_option`), the other to name a
+# problem's laws (`laws`).
+const ELASTIC_LAWS = ("hencky"          => (LogarithmicStrain, HenckySolid),
+                      "improved_hencky" => (LogarithmicStrain, ImprovedHenckySolid),
+                      "hypoelastic"     => (InfinitesimalStrain, HypoelasticSolid))
+const PLASTIC_LAWS = ("DP" => DruckerPrager,
+                      "VM" => VonMises)
+
+# the types of the law `name` in `table` (`ELASTIC_LAWS`, `PLASTIC_LAWS`); `option` names it in the error
+function law_types(table, name::AbstractString, option::AbstractString)
+    i = findfirst(l -> first(l) == name, table)
+    isnothing(i) && throw(ArgumentError("$option = \"$name\" is not one of $(join(first.(table), ", "))"))
+    return last(table[i])
+end
+
+"""
+    laws(mpts::Point) -> (; elastic, plastic)
+
+The names of the points' constitutive laws, as a case's options give them (`material.elastic`, `material.plastic`),
+read from their types (`EL`, `CM`).
+"""
+function laws(::Point{T1,T2,D,CM,ST,EL}) where {T1,T2,D,CM,ST,EL}
+    elastic = first(ELASTIC_LAWS[findfirst(l -> last(l)[2] == EL, ELASTIC_LAWS)])
+    plastic = first(PLASTIC_LAWS[findfirst(l -> CM <: last(l), PLASTIC_LAWS)])
+    return (; elastic, plastic)
+end

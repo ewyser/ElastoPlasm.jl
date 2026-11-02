@@ -11,6 +11,7 @@
     function flat(jld2)
         pb = load_simulation(jld2).problem; basis, solver = pb.basis, pb.solver
         m, c = pb.mpts, pb.mpts.s.cmp
+        case = load_case(replace(jld2, "_simulation.jld2" => "_case.toml"))   # its boundaries and laws, once the solver's
         return Dict{String,Any}(
             "x" => reduce(hcat, m.x), "Omega" => m.Ω₀, "n0" => m.n₀, "rho0" => m.s.ρ₀, "rho" => m.s.ρ, "m" => m.s.m,
             "Gc" => getfield.(c, :Gc), "Kc" => getfield.(c, :Kc), "Hp" => getfield.(c, :Hp), "c0" => getfield.(c, :c₀),
@@ -19,7 +20,7 @@
             "c" => isnothing(m.t) ? Float64[] : m.t.c, "k" => isnothing(m.t) ? Float64[] : m.t.k,
             "bcs" => Float64.(pb.mesh.s.bcs.status), "N" => basis.N,
             "time" => [pb.time.t; pb.time.te; pb.time.tg; pb.time.tep],
-            "solver" => string((solver.solution, solver.basis, solver.stab, solver.bcs, solver.material, solver.dtype)))
+            "solver" => string((solver.solution, solver.basis, solver.stab, (; dirichlet=case.bcs), case.laws, solver.dtype)))
     end
     # (problem, is the point order meaningful): the collision's disks may come in any order
     cases = [

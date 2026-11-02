@@ -74,9 +74,11 @@
                   zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))],   # geometry
                   properties=Dict("rock" => (; E=5e7)),                                                # the rock's own E
                   run=(; folder="layers"))
-    check_case(Solver(case))  # points, time step, warnings
-    execute!(setup_simulation(case))   # results under dump/layers/ (kept until clean_dump())
-    execute!(setup_simulation(Solver(case; basis=(; which="gimpm"), run=(; folder="layers_gimp"))))   # another solver
+    solver = Solver(case)     # how: the numerical options and run settings of the case's settings
+    check_case(case, solver)  # points, time step, warnings
+    execute!(setup_simulation(case, solver))   # results under dump/layers/ (kept until clean_dump())
+    gimp = Solver(case; basis=(; which="gimpm"))                                       # another solver, same case
+    execute!(setup_simulation(case, gimp; folder="layers_gimp"))
     save_case("layers.toml", case)    # geometry and settings in one file: EasyDraw opens it too
     case = load_case("layers.toml")   # and back
 

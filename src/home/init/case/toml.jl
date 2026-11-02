@@ -69,6 +69,7 @@ config_dict(x) = x isa NamedTuple || x isa AbstractDict ? Dict{String,Any}(strin
 
 """
     save_case(file, case) -> file
+    save_case(file, case, solver; folder=case_folder(case)) -> file
 
 Write a case to a TOML file: its layout with its settings (EasyDraw's `save_layout`), SI throughout (φ in radians):
 
@@ -80,11 +81,25 @@ Write a case to a TOML file: its layout with its settings (EasyDraw's `save_layo
   values as their `get_option()` label, `option_labels`; quantities by key), `[settings.run]` (`folder`, `te`, `tg`,
   `tep`, `workflow`, `lstps`, and `thermal` when true).
 
+With a solver, the case as that solver solves it (what `setup_simulation` writes beside a simulation): the numerical
+options are the solver's (those that differ from `get_default()`), the run settings its own and `folder`, so that
+`Solver(load_case(file))` is the same solver.
+
 A zone given as a Julia predicate (`Region`) cannot be written: an `ArgumentError`. To keep geometry and settings
 apart, write them with `save_layout(file, case.layout)` and `save_settings(file, case.settings)`.
 """
 function save_case(file::AbstractString, case::Case)
     return save_layout(file, case.layout, case.settings)
+end
+function save_case(file::AbstractString, case::Case, solver::AbstractSolver; folder::AbstractString=case_folder(case))
+    s = case.settings
+    c = solver_config(solver)
+    numerics = config_changes(Base.structdiff(c, NamedTuple{(:run,)}), get_default())
+    options = Dict{String,Any}(k => v for (k, v) ∈ s.options if Symbol(k) ∈ PHYSICS_SECTIONS)
+    merge!(options, option_labels(config_dict(numerics)))
+    run = merge(Dict{String,Any}(s.run), config_dict(c.run), Dict{String,Any}("folder" => folder))
+    settings = EasyDraw.Settings(; zones=s.zones, defaults=s.defaults, sides=s.sides, options, run)
+    return save_layout(file, case.layout, settings)
 end
 
 """

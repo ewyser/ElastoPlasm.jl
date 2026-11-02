@@ -12,9 +12,7 @@ Initialize mapping, solving and transfering kernels for MPM cycle based on dimen
 """
 function init_mapsto(instr::NamedTuple; mapsto::Dict = Dict(:map => Dict{Symbol,Cairn}(),:augm => Dict{Symbol,Cairn}()))
     backend = exec_backend(instr)   # the solver's device (backend.exec), CPU() for the host
-    if instr.material.elastic != "hypoelastic"
-        mapsto[:map][:σᵢ!] = transform(backend)
-    end
+    mapsto[:map][:σᵢ!] = transform(backend)              # Kirchhoff to Cauchy, for the finite-strain laws
     # dispatch resolves at kernel launch from Basis's TR (StdTransfer/TpicTransfer/
     # ApicTransfer) type parameter — see Basis's docstring. Unrecognized
     # basis.trsfr strings fail fast in get_transfer (setup_basis.jl), not here.
@@ -48,7 +46,7 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::AbstractVector{T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
     bk = exec_backend(solver)
     # get cauchy stress
-    if solver.material.elastic != "hypoelastic"
+    if laws(mpts).elastic != "hypoelastic"
         solver.cairn.mapsto.map.σᵢ!(mpts; ndrange=mpts.nmp)
         sync(bk)
     end

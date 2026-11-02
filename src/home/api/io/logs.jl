@@ -66,18 +66,19 @@ function ic_log(mesh::Mesh,mpts::Point,time::Time,solver::S) where {T1<:Integer,
 end
 
 """
-    workflow_log(solver; msg="elastodynamic") -> String
+    workflow_log(problem; msg="elastodynamic") -> String
 
 What `execute!` logs before each workflow (`msg`, its name): version, threads, solution, elastic law,
 transfer scheme, basis, and F-bar or non-local regularization when on (the latter for plastic workflows).
 """
-function workflow_log(solver::S; msg::String="elastodynamic") where {T1<:Integer,T2<:Real, D, S<:AbstractSolver{T1,T2,D}}
+function workflow_log(p::Problem; msg::String="elastodynamic")
+    solver = p.solver
     # build the list of log lines
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "└ $(nthreads()) active thread(s)",
         "- solver: $(solver.solution)",
-        "- $(solver.material.elastic) material",
+        "- $(laws(p.mpts).elastic) material",
         "- $(solver.basis.trsfr) mapping scheme",
         "- $(solver.basis.which) calculation cycle",
     ]

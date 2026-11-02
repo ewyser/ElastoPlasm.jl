@@ -16,18 +16,17 @@ end
     solver_config(solver) -> NamedTuple
 
 A solver's configuration, the sections `build_solver` takes, with its run settings: what `save_simulation` keeps of a
-solver, without the selected platform (`backend.exec`), the kernels (`cairn`) or the case, which `load_simulation`
-does not need (the problem is built; the case's TOML beside the file is its record) or rebuilds where the file is
-loaded. `stored_solver(solver)` is the solver holding only it (`case = nothing`, `cairn = nothing`).
+solver, without the selected platform (`backend.exec`) or the kernels (`cairn`), which `load_simulation` rebuilds where
+the file is loaded. `stored_solver(solver)` is the solver holding only it (`cairn = nothing`).
 """
 function solver_config(s::AbstractSolver)
-    return (; solution=s.solution, dtype=s.dtype, basis=s.basis, stab=s.stab, bcs=s.bcs, grf=s.grf, material=s.material,
-              nonloc=s.nonloc, plot=s.plot, output=s.output, backend=(; select=s.backend.select), run=s.run)
+    return (; solution=s.solution, dtype=s.dtype, basis=s.basis, stab=s.stab, nonloc=s.nonloc, plot=s.plot,
+              output=s.output, backend=(; select=s.backend.select), run=s.run)
 end
 function stored_solver(s::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     c = solver_config(s)
-    return Base.typename(S).wrapper{T1,T2,D}(c.solution, c.dtype, c.basis, c.stab, c.bcs, c.grf, c.material, c.nonloc,
-                                             c.plot, c.output, c.backend, c.run, nothing, nothing)
+    return Base.typename(S).wrapper{T1,T2,D}(c.solution, c.dtype, c.basis, c.stab, c.nonloc, c.plot, c.output, c.backend,
+                                             c.run, nothing)
 end
 
 """
@@ -53,11 +52,13 @@ end
 """
     get_solver(; dim=2, kwargs...) -> ExplicitSolver or ImplicitSolver
 
-A solver for a `dim`-dimensional problem, without a case (`Solver(case)` builds one for a case): `get_default()` with
-the `kwargs` merged over it (`solver_instr`), the execution backend resolved and the kernel table (`cairn`) built; the
-run settings are `RUN`'s.
+A solver for `dim`-dimensional cases (`Solver(case)` builds one from a case's settings): `get_default()` with the
+`kwargs` merged over it (`solver_instr`), the execution backend resolved and the kernel table (`cairn`) built; the
+run settings are `RUN`'s. The physics (`material`, `grf`, `bcs`) is a case's, so it is refused here
+(`ArgumentError`).
 """
 function get_solver(; dim::Number=2, kwargs...)
+    refuse_physics(kwargs)
     return build_solver(solver_instr(; dim, kwargs...), dim)
 end
 
@@ -99,15 +100,15 @@ function solver_instr(; dim::Number=2, kwargs...)
 end
 
 """
-    build_solver(instr, dim; case=nothing) -> ExplicitSolver or ImplicitSolver
+    build_solver(instr, dim) -> ExplicitSolver or ImplicitSolver
 
-The solver of a complete configuration `instr` (`get_default()`'s sections, merged; with its run settings as `run`,
-else `RUN`'s), solving `case`: the execution backend selected (`backend.select`, through UnifiedBackend, unless
+The solver of a complete configuration `instr` (`get_default()`'s numerical sections, merged; with its run settings as
+`run`, else `RUN`'s, `solver_run`): the execution backend selected (`backend.select`, through UnifiedBackend, unless
 `backend.exec` is given) and the kernels built on it (`cairn`). `get_solver` and `Solver(case)` end with it, and
 `load_simulation` rebuilds a saved solver with it from its stored configuration (`solver_config`), so the device is
 picked on the machine that loads the file.
 """
-function build_solver(instr::NamedTuple, dim::Integer; case=nothing)
+function build_solver(instr::NamedTuple, dim::Integer)
     # Set execution backend
     if !haskey(instr[:backend],:exec)
         exec = UnifiedBackend.select_platform(instr[:backend][:select])
@@ -136,15 +137,11 @@ function build_solver(instr::NamedTuple, dim::Integer; case=nothing)
         instr[:dtype],
         instr[:basis],
         instr[:stab],
-        instr[:bcs],
-        instr[:grf],
-        instr[:material],
         instr[:nonloc],
         instr[:plot],
         instr[:output],
         instr[:backend],
-        haskey(instr, :run) ? instr[:run] : case_run((;)),
-        case,
+        haskey(instr, :run) ? instr[:run] : solver_run((;)),
         instr[:cairn],
     )
 end
