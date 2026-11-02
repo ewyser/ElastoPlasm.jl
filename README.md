@@ -75,7 +75,8 @@
                   run=(; folder="layers"))
     check_case(case)          # points, time step, warnings
     execute!(setup_simulation(case))   # results under dump/layers/ (kept until clean_dump())
-    save_case("layers.toml", case)
+    save_case("layers.toml", case)    # its layout's file: EasyDraw opens it too
+    case = load_case("layers.toml")   # and back; Case(layout) reads any layout drawn with get_catalog()
 
     case = draw_case()        # draw the domain, zones, options and run settings
     ```

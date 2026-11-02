@@ -444,7 +444,7 @@ cutting, circles, the picture, domain, sides, zone properties, options, run, Cre
 folder) and loading a file, the caches and the readout, the JSON the view reads); then the window offscreen, a PNG
 of each step, twice in one session, then once on a picture (a BMP written by
 the test: Qt measures it, the domain follows). `test_draw.jl` covers ElastoPlasm's side: `get_catalog` (every
-solver option, the zone constants and `show_if`, the run fields, as TOML), a case as a layout and back, a collision's
+solver option, the zone constants and `show_if`, the run fields, as TOML), a case's layout through the window and back unchanged, a collision's
 preview points equal to the problem's, a case drawn through the editor (options, run, `check_case`, Create… writing a
 loadable `<name>_case.toml`, loading a case file), and `draw_case`'s window offscreen.
 
