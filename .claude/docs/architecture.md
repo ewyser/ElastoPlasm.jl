@@ -37,23 +37,31 @@
   `InfinitesimalStrain`) and `EL<:AbstractElasticLaw` (`HenckySolid`/`ImprovedHenckySolid`/
   `HypoelasticSolid`, the elastic-law tag `elast.jl` and `get_dt`'s `_Ktan` dispatch on) are both
   picked together from `material.elastic` by `build_solid_phase`.
-- `Problem{T1,T2,D,P,B,S}` (`src/boot/needs/types/problem/problem.jl`) — what is solved: `mpts`,
-  `mesh`, `basis`, `time`, `solver`, built by `Problem(case)`; what workflows run on
-  (`elastodynamic!(problem)`). The `Case` it was built from is not a field (see "`Problem`" in
-  `planned-improvements.md`).
-- `Simulation{P}` (`src/boot/needs/types/problem/simulation.jl`) — a problem ready to run:
-  `problem`, `workflow` (a name, one of `WORKFLOWS`), `lstps`, `folder` (absolute; a name given is
-  under `dump/`), built by `Simulation(problem; workflow, lstps, folder)`; the default workflow follows the
-  solver (`"elastoquasistatic!"` for an `ImplicitSolver`), and an explicit workflow on an implicit solver is
-  refused there rather than as a `MethodError` at `execute!`. A `.jld2` is a saved one
-  (`save_simulation`/`load_simulation`); `execute!(sim)` / `execute!(jld2)` run it in place (`execute` on a copy). The chain is
-  `Case` → `Problem` → `Simulation`, each built from the one above.
+- `Solver` (`const Solver = AbstractSolver`, `src/boot/needs/types/solver.jl`) — how a case is solved:
+  `Solver(case; run=(;), overrides…)` (`src/home/init/case/simulation.jl`) returns an `ExplicitSolver` or
+  `ImplicitSolver` built from the case's numerical options (the settings' option sections that are not
+  `PHYSICS_SECTIONS`) and run settings, overridable per field, with the case's physics copied in for the kernels
+  (`solver.material`, `.grf`, `.bcs`); `solution` follows the workflow unless set, and an explicit workflow on an
+  implicit solver is refused there. The two structs gained `run` (`case_run`: te, tg, tep, workflow, lstps, folder)
+  and `case` (the case solved, its settings with the overrides; `nothing` for `get_solver`'s and stored solvers).
+  `get_solver` is `build_solver(solver_instr(; …), dim)`, a solver without a case.
+- `Problem{T1,T2,D,P,B,S}` (`src/boot/needs/types/problem/problem.jl`) — what is run: `mpts`, `mesh`, `basis`,
+  `time`, `solver`, built by `Problem(solver)` from the solver's case and settings (`Problem(case)` is
+  `Problem(Solver(case))`); what workflows run on (`elastodynamic!(problem)`).
+- `Simulation{P}` (`src/boot/needs/types/problem/simulation.jl`) — a problem ready to run in a folder: `problem`,
+  `folder` (absolute; a name given is under `dump/`; by default the solver's run folder), built by
+  `Simulation(problem; folder)`; its workflow and load steps are its solver's (`problem.solver.run`). A `.jld2` is a
+  saved one (`save_simulation`/`load_simulation`); `execute!(sim)` / `execute!(jld2)` run it in place (`execute` on a
+  copy). The chain is `Case` → `Solver` → `Problem` → `Simulation`, each built from the one above
+  (`setup_simulation(solver)`, or `setup_simulation(case)` with the case's own solver).
 - `Case` (`src/boot/needs/types/problem/case.jl`) — what a problem is built from: an EasyDraw `Layout`, the geometry
   (`case.layout`: domain, grid, zones, each a name and a shape `Polygon`/`Block`/`Ball`/`Region`), and its EasyDraw
   `Settings`, the values (`case.settings`: zones' values by name, defaults, sides, options, run), the case's own copies;
-  and their typed reading: `material` (`MATERIAL` with the defaults), `properties` (each zone's constants by name,
-  checked against `ZONE_PROPS`), `bcs` (the sides, `side_axes`), `solver` (the options, `option_values`), `thermal`,
-  `run` (`case_run`). `Case(layout, settings)` is the one constructor that reads; `Case(; …)` builds both. 2D or 3D (no
+  and the typed reading of its physics: `material` (`MATERIAL` with the defaults), `properties` (each zone's
+  constants by name, checked against `ZONE_PROPS`), `bcs` (the sides, `side_axes`), `options` (the physics option
+  sections, `PHYSICS_SECTIONS`: the constitutive laws `material.*` and `grf`), `thermal`. It checks the numerical
+  options and run settings too, which `Solver(case)` reads. `Case(layout, settings)` is the one constructor that
+  reads; `Case(; …)` builds both. 2D or 3D (no
   extruded form: x–z shapes extend along y). `case_points` turns it into `PointData`, the explicit per-point
   contract `setup_mpts` reads. One build path (`setup_simulation`), one file format, the layout's
   (`save_case`/`load_case`; geometry and settings may also be separate files); the drawing window (EasyDraw's) edits

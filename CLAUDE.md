@@ -66,10 +66,10 @@ host) as `solver.backend.exec`, activated (`activate!`); `exec_backend(solver)` 
 - Construction order is always **mesh → material points → basis** (basis depends on
   both). Function argument order is always **`(mpts, mesh, basis, ...)`**.
 - Three core types: `Mesh` (Eulerian grid), `Point` (Lagrangian material points),
-  `Basis` (owns all connectivity + shape-function kind + transfer-scheme dispatch); a `Problem`
-  bundles them with `Time` and the solver, built from a `Case` by `Problem(case)`, and a
-  `Simulation` is a problem ready to run (workflow, folder): `Case` → `Problem` → `Simulation`,
-  run by `execute!`.
+  `Basis` (owns all connectivity + shape-function kind + transfer-scheme dispatch). A `Case` (geometry with its
+  physics) is solved by a `Solver` (`Solver(case; overrides…)`: numerics, run settings, kernels; it keeps its case),
+  which builds a `Problem` (them, with `Time` and the solver: `Problem(solver)`), and a `Simulation` is a problem
+  ready to run in a folder: `Case` → `Solver` → `Problem` → `Simulation`, run by `execute!`.
   Full field-by-field detail, transfer-scheme dispatch, and the explicit vs.
   dynamic_relaxation solver split: `.claude/docs/architecture.md`.
 - Config/behavior knobs (`basis.which`, `material.elastic`, `material.plastic`, `stab.locking`,

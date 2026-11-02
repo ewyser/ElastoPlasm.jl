@@ -14,7 +14,7 @@
         @test s.output.what.point.solid == ["p"] && s.output.what.point.base == get_default().output.what.point.base   # per-field merge
         @test_throws ArgumentError EP.option_value(["output", "what", "point", "solid"], ["pp"])
         c = case("out_cfg"; output=out(what=(; point=(; solid=["p", "q"]))))
-        @test load_case(save_case(joinpath(mktempdir(), "c.toml"), c)).solver.output.what.point.solid == ["p", "q"]
+        @test Solver(load_case(save_case(joinpath(mktempdir(), "c.toml"), c))).output.what.point.solid == ["p", "q"]
     end
     @testset "a run recorded" begin
         j = setup_simulation(case("out_run"))

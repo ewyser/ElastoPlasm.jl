@@ -11,19 +11,14 @@
   `.jld2` holds (see `architecture.md`). The stored solver is its configuration only: the kernel table `cairn` and
   the selected devices are rebuilt on load (`build_solver`, `persistence.md`), so the stored `Problem` is pure data. `types/problem/` files load in `boot.jl`'s explicit order, `problem.jl` last (it needs
   `Point`, `Mesh`, `Basis`, `Time`, `Case`).
-- **Next: a `Solver` level, Case → Problem → Solver → Simulation** (separating what is solved from
-  how). Split the solver options into *build* options, which decide the `Problem`'s types and contents
-  (`dtype`, `basis` which/trsfr, `material` laws, `bcs`, `grf`), and *run* options (`solution` and the
-  kernel table `cairn`, `stab`, `nonloc`, `plot`/`output`, `backend`, the time stages, the workflow,
-  `lstps`). `Problem` keeps `mpts`, `mesh`, `basis` (no `solver`, no `time`); `Solver` holds the run
-  options; `Simulation` becomes problem + solver + folder (its `workflow`/`lstps` move into the
-  solver); workflows take `(problem, solver)`. Gain: one `Problem` solved several ways without
-  rebuilding. Cost: `get_default`/`get_solver`/`cli`, the case's solver overrides (the layout's `[options]`) and their TOML
-  sections, every `problem.solver` reader (18); everything bit-identical. Own branch.
-  Since `refactor-case-from-layout` a case is an EasyDraw `Layout` (geometry) plus its `Settings` (values), read as
-  typed fields (`material`, `properties`, `bcs`, `solver`, `thermal`, `run`): the Solver split now means moving the
-  reading of `settings.options`/`settings.run` (the run options) out of `Case` into a `Solver`, leaving `Case` the
-  physics (materials, boundary conditions, constitutive laws). Planned with the user as the next step, its own plan.
+- **A `Solver` level — done, Case → Solver → Problem → Simulation** (`refactor-solver-split`). A `Case` is the
+  geometry with its physics assigned (materials, boundary conditions, constitutive laws, `grf`, thermal); `Solver(case;
+  overrides…)` reads the numerics (the other option sections) and the run settings, keeps its case and builds the
+  kernels; `Problem(solver)` builds the arrays; `Simulation(problem; folder)` runs. Unlike the first sketch, the
+  problem keeps its `time` and `solver` (no workflow or kernel changed), the solver copies the case's physics in for
+  the kernels, and `Simulation`'s workflow/lstps moved to `solver.run`. Everything bit-identical (setups, short runs).
+  Possible next steps: drop the physics copies from the solver structs (kernels reading the laws from the point
+  types), and give `check_case(solver)` a cheaper path than building the kernels (the window calls it per edit).
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task, rather than one monolithic kernel body.
   `update.jl`'s `elastoplast`/`elasto` dispatch functions (branch on
@@ -279,8 +274,8 @@
      host loops (`fictitious_mass`, the damping, the midpoint update), `nodal_volume` scatters on the host.
 - ~~`@adapt_struct PointSolidPhase` likely can't rebuild the struct on GPU~~ — **fixed**: every container has an
   explicit adapt rule through `adapt_fields`, pinning the parameters no field carries (`architecture.md`).
-- **`ExplicitSolver`/`ImplicitSolver` are two identical 15-parameter structs kept in lockstep
-  by hand**, one parameter per config section. A single solver struct holding the config
+- **`ExplicitSolver`/`ImplicitSolver` are two identical 17-parameter structs kept in lockstep
+  by hand**, one parameter per config section (and `run`, `case` since the Solver split). A single solver struct holding the config
   `NamedTuple` as one field plus an explicit/implicit tag would remove most of that, at the
   cost of touching every `solver.xxx` access.
 - **`test_workflow.jl` doesn't cover `material.elastic="improved_hencky"`** — add it once

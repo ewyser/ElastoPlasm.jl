@@ -28,30 +28,31 @@ const BOUNDARY_KINDS = (:free, :roller, :fixed)
 """
     Case
 
-A simulation case: a model, its geometry (an EasyDraw `Layout`) and its settings (an EasyDraw `Settings`), read as
-ElastoPlasm needs them. The layout is where things are (domain, grid, zones by name); the settings are what they are
-and how to run (each zone's material, the material's defaults, a boundary kind per side, the solver options, the run
-settings). The case checks them and holds their typed reading, which `Problem(case)` and `setup_simulation` build a
-problem from. A case keeps its own copy of both: to change a model, change a layout or settings and build a new case.
-One geometry can take several settings, `Case(layout, settings_a)` and `Case(layout, settings_b)`.
+A simulation case: a geometry (an EasyDraw `Layout`) with its physical properties assigned, from its settings (an
+EasyDraw `Settings`): what is solved. The layout is where things are (domain, grid, zones by name); the settings hold
+what they are (each zone's material, the material's defaults, a boundary kind per side, the constitutive laws) and,
+for the `Solver` built on the case, how it is solved (the numerical options, the run settings). The case checks all of
+them and holds the typed reading of its physics; `Solver(case)` reads the numerics. A case keeps its own copy of both:
+to change a model, change a layout or settings and build a new case. One geometry can take several settings,
+`Case(layout, settings_a)` and `Case(layout, settings_b)`.
 
 # Fields
 - `layout::EasyDraw.Layout`: the geometry: `L` [m] and `nel` (2D x–z, or 3D x, y, z; the lower corner at the
   origin), `ni`×`ni` material points per element, the `zones` (a name and a shape each; a point belongs to the last
   zone containing it).
 - `settings::EasyDraw.Settings`: the values, as plain data: `zones` (by zone name), `defaults`, `sides`, `options`,
-  `run`, read below. With the layout, the case's file (`save_case`, `load_case`).
+  `run`. The case reads the physics below; `Solver(case)` the numerical options and the run settings. With the
+  layout, the case's file (`save_case`, `load_case`).
 - `material::NamedTuple`: the material constants: `MATERIAL`, with the settings' `defaults`.
 - `properties::Dict{String,NamedTuple}`: each zone's own constants, by zone name: `MATERIAL` keys, or an initial
   velocity `v`; where a zone does not set one, the material's.
 - `bcs::Matrix{Symbol}`: the boundary condition of each side, one `[lower upper]` row per axis (x, then y in 3D,
   then z): the settings' `sides`, `"left"`/`"right"`, `"front"`/`"back"`, `"bottom"`/`"top"`, each `:free`,
   `:roller` (a side not set) or `:fixed`.
-- `solver::NamedTuple`: the solver overrides: the settings' `options` as values (`option_values`), merged per field
-  over `get_default()` by `get_solver`; `solution` follows the workflow unless set.
+- `options::NamedTuple`: the physics among the settings' options (`PHYSICS_SECTIONS`: the constitutive laws,
+  `material.elastic`/`plastic`, and the random cohesion field, `grf`), as values (`option_values`); those not set take
+  `get_default()`'s.
 - `thermal::Bool`: whether to build the thermal phase: the run setting `thermal`, false when absent.
-- `run::NamedTuple`: the run settings, `RUN` with the settings' (`case_run`: `folder`, `te`, `tg`, `tep`, `workflow`,
-  `lstps`). The folder is the settings' `run["folder"]`, else the layout's own folder (a file's), else `RUN.folder`.
 
 # Constructors
     Case(layout, settings)
@@ -65,8 +66,9 @@ with `thermal`.
 
 # Throws
 - `ArgumentError`: when a zone sets something other than a material constant or a velocity `v`, a default is not a
-  material constant, a side's kind is not one of `BOUNDARY_KINDS`, an option or a run setting is unknown or invalid,
-  or the layout and settings are invalid or do not agree (`EasyDraw.check_settings`).
+  material constant, a side's kind is not one of `BOUNDARY_KINDS`, an option or a run setting is unknown or invalid
+  (all are checked here, also the numerical ones), or the layout and settings are invalid or do not agree
+  (`EasyDraw.check_settings`).
 """
 struct Case
     layout     :: EasyDraw.Layout
@@ -74,18 +76,17 @@ struct Case
     material   :: NamedTuple
     properties :: Dict{String,NamedTuple}
     bcs        :: Matrix{Symbol}
-    solver     :: NamedTuple
+    options    :: NamedTuple
     thermal    :: Bool
-    run        :: NamedTuple
 end
 function Case(layout::EasyDraw.Layout, settings::EasyDraw.Settings)
     l, s = deepcopy(layout), deepcopy(settings)              # the case's own: nothing outside can change them
     EasyDraw.check_settings(l, s)
-    run = Dict{String,Any}(s.run)
-    thermal = Bool(pop!(run, "thermal", false))
-    haskey(run, "folder") || isempty(l.folder) || (run["folder"] = l.folder)
-    return Case(l, s, case_material(s.defaults), case_properties(s.zones), case_bcs(s.sides, length(l.L)),
-                case_solver(s.options), thermal, case_run(run))
+    options = case_options(s.options)                        # every option, checked; the case keeps its physics
+    case_run(l, s)                                           # every run setting, checked; the solver reads them
+    physics = (; (k => getfield(options, k) for k ∈ keys(options) if k ∈ PHYSICS_SECTIONS)...)
+    return Case(l, s, case_material(s.defaults), case_properties(s.zones), case_bcs(s.sides, length(l.L)), physics,
+                Bool(get(s.run, "thermal", false)))
 end
 function Case(; L, nel, ni::Integer=2, zones=Zone[], properties=Dict(), material=(;), bcs=nothing, solver=(;),
                 thermal::Bool=false, run=(;))
@@ -147,11 +148,22 @@ function case_bcs(sides, D)
     end
     return bcs
 end
-# the solver overrides: the layout's options as values, checked against get_default() (an unknown field errors)
-function case_solver(options)
+# the option sections that are physics, read by the case; the others are numerics, read by `Solver(case)`
+const PHYSICS_SECTIONS = (:material, :grf)
+# a case's options as values, checked against get_default() (an unknown field errors)
+function case_options(options)
     s = named_tuple(option_values(options))
     merge_config(get_default(), s)
     return s
+end
+
+# the run settings of a layout's settings: `RUN` with them (`thermal` aside); the folder, when they set none, the
+# layout's own (a file's)
+function case_run(l::EasyDraw.Layout, s::EasyDraw.Settings)
+    run = Dict{String,Any}(s.run)
+    delete!(run, "thermal")
+    haskey(run, "folder") || isempty(l.folder) || (run["folder"] = l.folder)
+    return case_run(run)
 end
 
 """

@@ -3,11 +3,11 @@
     @testset "specification and validation" begin
         s = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 2]))], material=Dict("c0" => 1.0e3),
                    solver=(; basis=(; which="gimpm"), bcs=(; dirichlet=[:fixed :fixed; :fixed :free])))
-        @test s.material.c0 == 1.0e3 && s.material.E == MATERIAL.E && s.bcs == [:fixed :fixed; :fixed :free] && !haskey(s.solver, :bcs)
-        @test s.run == EP.RUN && EP.case_solver_options(s).solution == "explicit"
+        @test s.material.c0 == 1.0e3 && s.material.E == MATERIAL.E && s.bcs == [:fixed :fixed; :fixed :free] && !haskey(s.settings.options, "bcs")
+        @test isempty(s.options) && Solver(s).run == EP.RUN && Solver(s).solution == "explicit"   # the physics: defaults
         q = Case(; L=[4, 1, 2], nel=[4, 2, 2], run=(; workflow="elastoquasistatic!"))
-        @test (q.layout.L, q.layout.nel) == ([4.0, 1.0, 2.0], [4, 2, 2]) && EP.case_solver_options(q).solution == "implicit"
-        @test EP.case_solver_options(q).bcs.dirichlet == fill(:roller, 3, 2)
+        @test (q.layout.L, q.layout.nel) == ([4.0, 1.0, 2.0], [4, 2, 2]) && Solver(q).solution == "implicit"   # follows the workflow
+        @test Solver(q).bcs.dirichlet == fill(:roller, 3, 2)
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], material=(; Ee=1.0))
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], solver=(; basis=(; whch="x")))
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], run=(; workflow="x"))
@@ -30,14 +30,35 @@
         @test t.sides == Dict("left" => "roller", "right" => "roller", "bottom" => "fixed", "top" => "free")
         @test t.defaults == Dict("c0" => 1.0e3) && t.options == Dict("basis" => Dict("which" => "gimpm")) && t.run["thermal"]
         r = Case(l, t)                                                                       # the two alone: the same case
-        @test (r.material, r.properties, r.bcs, r.solver, r.thermal, r.run) == (s.material, s.properties, s.bcs, s.solver, s.thermal, s.run)
+        @test (r.material, r.properties, r.bcs, r.options, r.thermal) == (s.material, s.properties, s.bcs, s.options, s.thermal)
         t.sides["bottom"] = "free"; push!(l.zones, Zone("b", Block([0, 0], [1, 1])))         # change what was given
         @test r.bcs[2, 1] == :fixed && r.settings.sides["bottom"] == "fixed" && length(r.layout.zones) == 1   # the case: its own copy
         q = Case(; L=[1, 2, 3], nel=[1, 2, 3], bcs=[:free :fixed; :roller :fixed; :fixed :free])   # 3D: y is front and back
         @test q.settings.sides["front"] == "roller" && q.settings.sides["back"] == "fixed" && q.settings.sides["top"] == "free"
         @test Case(q.layout, q.settings).bcs == q.bcs
-        @test Case(Layout(; L=[1, 1], nel=[1, 1], folder="/a/b"), Settings()).run.folder == "/a/b"   # a file's folder
-        @test Case(Layout(; L=[1, 1], nel=[1, 1], folder="/a/b"), Settings(; run=Dict("folder" => "c"))).run.folder == "c"   # unless set
+        @test Solver(Case(Layout(; L=[1, 1], nel=[1, 1], folder="/a/b"), Settings())).run.folder == "/a/b"   # a file's folder
+        @test Solver(Case(Layout(; L=[1, 1], nel=[1, 1], folder="/a/b"), Settings(; run=Dict("folder" => "c")))).run.folder == "c"   # unless set
+    end
+    @testset "a solver solves a case" begin
+        s = Case(; L=[8, 4], nel=[8, 4], zones=[Zone("a", Block([0, 0], [8, 2]))], properties=Dict("a" => (; E=5e6)),
+                   solver=(; material=(; plastic="VM"), stab=(; damping=0.2), plot=(; status=false)), run=(; te=1.0))
+        @test s.options == (; material=(; plastic="VM")) && fieldnames(Case) == (:layout, :settings, :material, :properties, :bcs, :options, :thermal)
+        a = Solver(s)                                                                        # its numerics: from the settings
+        @test a isa Solver && a isa ExplicitSolver && a.case.layout.L == s.layout.L && a.material.plastic == "VM"
+        @test a.stab.damping == 0.2 && a.run.te == 1.0 && a.bcs.dirichlet == s.bcs
+        b = Solver(s; basis=(; which="gimpm"), stab=(; locking=false), run=(; te=2.0))      # overridden, field by field
+        @test (b.basis.which, b.stab.locking, b.stab.damping, b.run.te) == ("gimpm", false, 0.2, 2.0)
+        @test b.case.settings.options["basis"] == Dict("which" => "gimpm") && !haskey(s.settings.options, "basis")   # its own copy
+        @test_throws ArgumentError Solver(s; material=(; plastic="DP"))                    # physics: the case's
+        @test_throws ArgumentError Solver(s; grf=(; status=true))
+        @test_throws ArgumentError Solver(s; bcs=(; dirichlet=fill(:fixed, 2, 2)))
+        @test_throws ArgumentError Solver(s; basis=(; whch="x"))                           # an unknown option
+        @test_throws ArgumentError Solver(s; solution="implicit")                          # an explicit workflow: refused
+        pa, pb = Problem(a), Problem(b)                                                      # one case, two solvers
+        @test pa.mpts.x == pb.mpts.x && pa.basis.kind isa EP.BSplineBasis && pb.basis.kind isa EP.GimpBasis
+        @test pa.time.te == 1.0 && pb.time.te == 2.0 && Problem(s).mpts.x == pa.mpts.x       # Problem(case): its own solver
+        @test_throws ArgumentError Problem(get_solver(; dim=2))                             # a solver without a case
+        @test length(check_case(s).info) == 1 && length(check_case(a).info) == 2             # the solver's adds the time step
     end
     @testset "points: last zone wins, overrides, velocity" begin
         s = Case(; L=[4, 2], nel=[4, 2], ni=2,
@@ -62,8 +83,8 @@
                    material=(; c0=1.0e4, phi=25.0*π/180), solver=(; basis=(; which="gimpm", C_pf=0.37), stab=(; locking=false),
                    plot=(; what=["p"])), run=(; folder="x/y", te=1.0, workflow="elastodynamic!"))
         back = load_case(save_case(joinpath(mktempdir(), "p.toml"), s))
-        @test (back.layout.L, back.layout.nel, back.layout.ni, back.bcs, back.thermal, back.run, back.properties) ==
-              (s.layout.L, s.layout.nel, s.layout.ni, s.bcs, s.thermal, s.run, s.properties)
+        @test (back.layout.L, back.layout.nel, back.layout.ni, back.bcs, back.thermal, Solver(back).run, back.properties) ==
+              (s.layout.L, s.layout.nel, s.layout.ni, s.bcs, s.thermal, Solver(s).run, s.properties)
         z, z0 = back.layout.zones, s.layout.zones
         @test [z.name for z ∈ z] == ["soil", "rock", "boulder", "lens"] && z[3].shape.radius == 1.0 && back.properties["boulder"].v == [0.0, 0.0, -1.0]
         @test z[4].shape.sizes == [4, 3] && z[4].shape.vertices == z0[4].shape.vertices      # several outlines
@@ -73,9 +94,9 @@
         dp, vm = (save_settings(joinpath(d, "$m.toml"), Case(; L=[20, 4, 10], nel=[20, 4, 10], ni=3, zones=s.layout.zones,
                                                            solver=(; material=(; plastic=m))).settings) for m ∈ ("DP", "VM"))
         a, b = load_case(g, dp), load_case(g, vm)
-        @test (a.solver.material.plastic, b.solver.material.plastic) == ("DP", "VM") && points(a) == points(b)
-        @test back.material.c0 == 1.0e4 && Dict(pairs(back.solver.basis)) == Dict(:which => "gimpm", :C_pf => 0.37)
-        @test back.solver.stab == (; locking=false) && back.solver.plot.what == ["p"]
+        @test (a.options.material.plastic, b.options.material.plastic) == ("DP", "VM") && points(a) == points(b)
+        sb = Solver(back)
+        @test back.material.c0 == 1.0e4 && (sb.basis.which, sb.basis.C_pf, sb.stab.locking, sb.plot.what) == ("gimpm", 0.37, false, ["p"])
         @test_throws ArgumentError save_case(joinpath(mktempdir(), "r.toml"), Case(; L=[1, 1], nel=[1, 1], zones=[Zone("f", Region(x -> true))]))
         old = joinpath(mktempdir(), "old_case.toml")                                       # the older case format: refused
         write(old, "bcs = [[\"roller\", \"roller\"], [\"fixed\", \"free\"]]\n[domain]\nL = [1.0, 1.0]\nnel = [1, 1]\n[material]\nphi = 30.0\n")
@@ -101,11 +122,14 @@
         @test length(check_case(none).errors) == 1 && length(check_case(none).warnings) == 2   # no points; outside; empty zone
         hidden = Case(; L=[20, 10], nel=[20, 10], zones=reverse(s.layout.zones))
         @test length(check_case(hidden).warnings) == 1                                          # rock covered by soil
-        @test length(check_case(layered(; solver=(; material=(; elastic="hypoelastic")), run=(; workflow="elastoquasistatic!"))).errors) == 1
-        @test length(check_case(layered(; solver=(; solution="implicit"))).errors) == 1
-        @test length(check_case(layered(; solver=(; dtype=(; precision="32-bit precision (or single precision)"), basis=(; which="gimpm")))).warnings) == 1
-        @test length(check_case(layered(; run=(; tg=20.0))).warnings) == 1
-        @test length(check_case(Case(; L=[20, 10], nel=[10, 10], zones=s.layout.zones, run=(; workflow="elastoquasistatic!"))).warnings) == 1
+        checks(c) = check_case(Solver(c))                                                   # the numerics: the solver's checks
+        @test length(checks(layered(; solver=(; material=(; elastic="hypoelastic")), run=(; workflow="elastoquasistatic!"))).errors) == 1
+        @test length(checks(layered(; solver=(; solution="explicit"), run=(; workflow="elastoquasistatic!"))).errors) == 1
+        @test_throws ArgumentError Solver(layered(; solver=(; solution="implicit")))       # an explicit workflow: refused
+        @test length(checks(layered(; solver=(; dtype=(; precision="32-bit precision (or single precision)"), basis=(; which="gimpm")))).warnings) == 1
+        @test length(checks(layered(; run=(; tg=20.0))).warnings) == 1
+        @test length(checks(Case(; L=[20, 10], nel=[10, 10], zones=s.layout.zones, run=(; workflow="elastoquasistatic!"))).warnings) == 1
+        @test isempty(check_case(layered(; run=(; tg=20.0))).warnings)                      # a case alone: its physics
     end
     @testset "zone constants, boundaries and options reach the problem" begin
         s = Case(; L=[20, 10], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
@@ -140,16 +164,16 @@
         dir = joinpath(mktempdir(), "mycase")
         c = Case(; L=[4, 2], nel=[4, 2], zones=[Zone("a", Block([0, 0], [4, 1]))], solver=(; plot=(; status=false)),
                    run=(; folder=dir * "/", te=0.2, tg=0.1, tep=0.0, workflow="elastodynamic!"))
-        sim = Simulation(Problem(c); c.run.workflow, c.run.lstps, c.run.folder)
-        @test sim.folder == dir && !isdir(dir)                                              # built, nothing written
+        sim = Simulation(Problem(c))
+        @test sim.folder == dir && !isdir(dir) && fieldnames(Simulation) == (:problem, :folder)   # built, nothing written
         @test Simulation(sim.problem; folder="a/b").folder == joinpath(EP.self.sys.dump, "a", "b")   # a name: under dump/
-        @test_throws ArgumentError Simulation(sim.problem; workflow="nope")
-        @test_throws ArgumentError Simulation(sim.problem; lstps=0)
+        @test_throws ArgumentError Solver(c; run=(; workflow="nope"))
+        @test_throws ArgumentError Solver(c; run=(; lstps=0))
         jld2 = setup_simulation(c)
         @test jld2 == joinpath(dir, "mycase_simulation.jld2") && isfile(joinpath(dir, "mycase_case.toml"))
-        l = load_simulation(jld2); @test (l.workflow, l.lstps, l.folder) == (sim.workflow, sim.lstps, sim.folder)
+        l = load_simulation(jld2); @test (l.problem.solver.run, l.folder) == (sim.problem.solver.run, sim.folder)
         saved = jldopen(f -> f["simulation"].problem.solver, jld2)
-        @test saved.cairn === nothing && keys(saved.backend) == (:select,)                       # no kernels, no devices
+        @test saved.cairn === nothing && keys(saved.backend) == (:select,) && saved.case === nothing   # no kernels, devices or case
         @test l.problem.solver.cairn isa NamedTuple && l.problem.solver.backend.exec.backend isa EP.CPU   # rebuilt
         state(p) = (p.mpts.x, getfield.(p.mpts.s.σᵢ, :p), p.mpts.s.v)
         s0 = state(sim.problem); r = execute(jld2)
@@ -165,10 +189,10 @@
         @test EP.case_run((; fid="x")).folder == "x" && EP.case_run(Dict("fid" => "x", "dir" => "/a")).folder == "/a"   # older cases
         old = joinpath(mktempdir(), "old.jld2"); jldsave(old; problem=sim.problem)
         @test_throws ArgumentError load_simulation(old)                                     # an older file
-        q  = Problem(EP.block_case([8, 4]; plot=(; status=false, freq=1.0, dpi=100, what=[])))   # quasi-static: implicit
-        @test Simulation(q).workflow == "elastoquasistatic!"                                      # its default workflow
-        @test_throws ArgumentError Simulation(q; workflow="elastodynamic!")                       # an explicit one: refused
-        qs = Simulation(q; lstps=3)
+        bc = EP.block_case([8, 4]; plot=(; status=false, freq=1.0, dpi=100, what=[]))     # quasi-static: implicit
+        @test Problem(bc).solver isa ImplicitSolver && Problem(bc).solver.run.workflow == "elastoquasistatic!"
+        @test_throws ArgumentError Solver(bc; solution="implicit", run=(; workflow="elastodynamic!"))   # an explicit one: refused
+        qs = Simulation(Problem(Solver(bc; run=(; lstps=3))))
         @test length(only(case_workflows(qs))(qs.problem)) == 3                                   # 3 load steps
     end
     @testset "containers adapt: host arrays and back, unchanged" begin
@@ -184,7 +208,7 @@
     @testset "workflows and a short run" begin
         s = Case(; L=[20, 4, 10], nel=[20, 4, 10], zones=[Zone("soil", Block([0, 0], [20, 6]))],
                    solver=(; plot=(; status=false)), run=(; folder="test/case_run", te=0.2, tg=0.1, tep=0.0, workflow="elastodynamic!"))
-        @test case_workflows(s.run.workflow, s.run.lstps) == Function[elastodynamic!]
+        @test case_workflows(Solver(s).run.workflow, Solver(s).run.lstps) == Function[elastodynamic!]
         @test case_workflows(EP.RUN.workflow, 1) == Function[elastodynamic!, elastoplastic!]
         @test length(case_workflows("elastoquasistatic! (plastic)", 10)) == 1
         @test isfile(execute!(setup_simulation(s)))                                               # 3D, its own times

@@ -15,18 +15,19 @@ end
 """
     solver_config(solver) -> NamedTuple
 
-A solver's configuration, the sections `build_solver` takes: what `save_simulation` keeps of a solver, without the
-selected platform (`backend.exec`) or the kernels (`cairn`), which `load_simulation` rebuilds where the file is loaded.
-`stored_solver(solver)` is the solver holding only it (no kernels: `cairn = nothing`).
+A solver's configuration, the sections `build_solver` takes, with its run settings: what `save_simulation` keeps of a
+solver, without the selected platform (`backend.exec`), the kernels (`cairn`) or the case, which `load_simulation`
+does not need (the problem is built; the case's TOML beside the file is its record) or rebuilds where the file is
+loaded. `stored_solver(solver)` is the solver holding only it (`case = nothing`, `cairn = nothing`).
 """
 function solver_config(s::AbstractSolver)
     return (; solution=s.solution, dtype=s.dtype, basis=s.basis, stab=s.stab, bcs=s.bcs, grf=s.grf, material=s.material,
-              nonloc=s.nonloc, plot=s.plot, output=s.output, backend=(; select=s.backend.select))
+              nonloc=s.nonloc, plot=s.plot, output=s.output, backend=(; select=s.backend.select), run=s.run)
 end
 function stored_solver(s::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
     c = solver_config(s)
     return Base.typename(S).wrapper{T1,T2,D}(c.solution, c.dtype, c.basis, c.stab, c.bcs, c.grf, c.material, c.nonloc,
-                                             c.plot, c.output, c.backend, nothing)
+                                             c.plot, c.output, c.backend, c.run, nothing, nothing)
 end
 
 """
@@ -52,12 +53,23 @@ end
 """
     get_solver(; dim=2, kwargs...) -> ExplicitSolver or ImplicitSolver
 
-The solver for a `dim`-dimensional problem: `get_default()` with the `kwargs` merged over it
-(`merge_config`: per field, so a partial section keeps the other defaults; unknown top-level keys are
-warned about, unknown nested fields are an error), `dtype.T0`/`bits` set from `dtype.precision` when
-only the precision is given, the execution backend resolved and the kernel table (`cairn`) built.
+A solver for a `dim`-dimensional problem, without a case (`Solver(case)` builds one for a case): `get_default()` with
+the `kwargs` merged over it (`solver_instr`), the execution backend resolved and the kernel table (`cairn`) built; the
+run settings are `RUN`'s.
 """
 function get_solver(; dim::Number=2, kwargs...)
+    return build_solver(solver_instr(; dim, kwargs...), dim)
+end
+
+"""
+    solver_instr(; dim=2, kwargs...) -> NamedTuple
+
+A complete solver configuration: `get_default()` with the `kwargs` merged over it (`merge_config`: per field, so a
+partial section keeps the other defaults; unknown top-level keys are warned about, unknown nested fields are an
+error), `dtype.T0`/`bits` set from `dtype.precision` when only the precision is given, and plotting off when the
+session has no plots.
+"""
+function solver_instr(; dim::Number=2, kwargs...)
     ref = get_default()
     # Only keep keys in kwargs that are also in ref
     valids = intersect(keys(kwargs), keys(ref))
@@ -83,18 +95,19 @@ function get_solver(; dim::Number=2, kwargs...)
     if !ElastoPlasm.self.ui.plot
         instr = merge(instr, (; plot = merge(instr.plot, (; status = false,)),))
     end
-    return build_solver(instr, dim)
+    return instr
 end
 
 """
-    build_solver(instr, dim) -> ExplicitSolver or ImplicitSolver
+    build_solver(instr, dim; case=nothing) -> ExplicitSolver or ImplicitSolver
 
-The solver of a complete configuration `instr` (`get_default()`'s sections, merged): the execution backend selected
-(`backend.select`, through UnifiedBackend, unless `backend.exec` is given) and the kernels built on it (`cairn`).
-`get_solver` ends with it, and `load_simulation` rebuilds a saved solver with it from its stored configuration
-(`solver_config`), so the device is picked on the machine that loads the file.
+The solver of a complete configuration `instr` (`get_default()`'s sections, merged; with its run settings as `run`,
+else `RUN`'s), solving `case`: the execution backend selected (`backend.select`, through UnifiedBackend, unless
+`backend.exec` is given) and the kernels built on it (`cairn`). `get_solver` and `Solver(case)` end with it, and
+`load_simulation` rebuilds a saved solver with it from its stored configuration (`solver_config`), so the device is
+picked on the machine that loads the file.
 """
-function build_solver(instr::NamedTuple, dim::Integer)
+function build_solver(instr::NamedTuple, dim::Integer; case=nothing)
     # Set execution backend
     if !haskey(instr[:backend],:exec)
         exec = UnifiedBackend.select_platform(instr[:backend][:select])
@@ -130,6 +143,8 @@ function build_solver(instr::NamedTuple, dim::Integer)
         instr[:plot],
         instr[:output],
         instr[:backend],
+        haskey(instr, :run) ? instr[:run] : case_run((;)),
+        case,
         instr[:cairn],
     )
 end

@@ -36,8 +36,8 @@ isempty(UB.device_platforms()) && error("no GPU registered by UnifiedBackend: is
 const DEVICE = (; backend=(; select="device"))
 noplot = (; plot=(; status=false))
 L2 = [64.1584, 64.1584/4]
-with_run(c; te, tep=te/2) = Case(; L=c.L, nel=c.nel, ni=c.ni, zones=c.zones, material=c.material, bcs=c.bcs,
-                                   solver=c.solver, run=merge(c.run, (; te, tg=te, tep)))
+with_run(c; te, tep=te/2) = Case(c.layout, Settings(; zones=c.settings.zones, defaults=c.settings.defaults, sides=c.settings.sides,
+                                                       options=c.settings.options, run=merge(c.settings.run, Dict("te" => te, "tg" => te, "tep" => tep))))
 println("device: ", report["device"]["name"], ", backend ", EP.exec_backend(get_solver(; DEVICE...)))
 
 # ---- 2. every configuration compiles and runs a few steps

@@ -5,17 +5,19 @@ Typical end-to-end run (this is also the standard smoke test after any refactor)
 ```julia
 using ElastoPlasm
 L,nel = [64.1584, 64.1584/4.0], [40,10]          # domain size, element counts (2D here; 3 entries = 3D)
-jld2  = setup_simulation(slump_case(L, nel; cli()...))   # Case → Problem → Simulation, saved; returns the .jld2 path
+jld2  = setup_simulation(slump_case(L, nel; cli()...))   # Case → Solver → Problem → Simulation, saved; the .jld2 path
 execute!(jld2)                                       # runs its workflows, written back after each
                                                      # (execute(jld2) runs a copy, returns it, leaves the file)
 p     = load_simulation(jld2).problem              # the post-run Problem: p.mpts, p.mesh, ...
 # or entirely in memory, no .jld2:
 sim   = execute!(Simulation(Problem(slump_case(L, nel; cli()...))); workflows=[elastodynamic!, elastoplastic!])
+# one case, another solver: its numerics overridden, the physics as it is
+jld2  = setup_simulation(Solver(slump_case(L, nel); basis=(; which="gimpm"), run=(; te=5.0, folder="slump_gimp")))
 ```
 
-**Three types, each built from the one above:** a `Case` (the description) → `Problem(case)` (what is
-solved: mpts, mesh, basis, time, solver) → `Simulation(problem; workflow, lstps, folder)` (how it is
-run, by workflow name, and where its files go). A `.jld2` is a saved `Simulation`.
+**Four types, each built from the one above:** a `Case` (the geometry with its physics) → `Solver(case)` (how it is
+solved: numerical options, run settings, kernels; overridable per field) → `Problem(solver)` (what is run: mpts,
+mesh, basis, time, solver) → `Simulation(problem; folder)` (where its files go). A `.jld2` is a saved `Simulation`.
 
 - Every example is a **case constructor**: `slump_case(L, nel; kwargs...)` returns a `Case` (see
   "Describing a case" below), and `setup_simulation(slump_case(...))` builds and saves it
@@ -86,8 +88,10 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   `ni` points per element and axis, `zones` (a name and a shape each, names unique). The settings are the values, as
   plain data: `zones` (each zone's values by zone name), `defaults`, `sides`, `options`, `run`. `Case(layout,
   settings)` checks a copy of both (`EasyDraw.check_settings`: values only for the layout's zones, sides its domain
-  has) and holds their typed reading: `case.material`, `case.properties` (name → NamedTuple), `case.bcs`,
-  `case.solver`, `case.thermal`, `case.run`; the geometry is read from `case.layout`. A case keeps its own copies: to
+  has) and holds the typed reading of its physics: `case.material`, `case.properties` (name → NamedTuple),
+  `case.bcs`, `case.options` (the constitutive laws and `grf`), `case.thermal`; the geometry is read from
+  `case.layout`. The numerics (the other option sections, the run settings) are read by `Solver(case)` (branch
+  `refactor-solver-split`: "Case is the combination between a geometry with physical properties assigned to it"). A case keeps its own copies: to
   change a model, change a layout or settings and build a new case. One geometry takes several settings:
   `Case(layout, settings_a)`, `load_case(geometry_file, settings_file)`. `Layout`, `Settings`, `load_layout`,
   `load_settings`, `save_settings` are re-exported by `using ElastoPlasm`. `Case(; L, nel, ni, zones, properties,
@@ -99,11 +103,15 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   - `bcs`: D×2 `:free`/`:roller`/`:fixed` (extra rows ignored; `bcs` passed among the solver options moves here), the
     settings' `sides` through `side_axes(D)`: x `left`/`right`, z `bottom`/`top`, and in 3D y `front`/`back`, roller
     when a side is not set;
-  - `solver`: overrides, the settings' `options` in their file form (`option_labels`; `Case` reads them back with
-    `option_values` and validates them against `get_default()`). Every example's options round-trip exactly;
+  - `solver`: option overrides, physics and numerics alike, the settings' `options` in their file form
+    (`option_labels`; `Case` validates them all against `get_default()`, keeps the physics as `case.options`;
+    `Solver(case)` reads the numerics). Every example's options round-trip exactly;
   - `thermal`, `run`: the settings' `run`, every `RUN` setting (`folder`, `te`, `tg`, `tep`, `workflow` ∈ `WORKFLOWS`,
-    `lstps`) and `thermal` when true. `folder` is where `setup_simulation` writes the simulation and the case TOML,
-    named after its last part: a name under `dump/` or a path; without one in `run`, the layout's own folder (a file's).
+    `lstps`) and `thermal` when true; read by `Solver(case)` as `solver.run` (`case_run`). `folder` is where
+    `setup_simulation` writes the simulation and the case TOML, named after its last part: a name under `dump/` or a
+    path; without one in `run`, the layout's own folder (a file's).
+  - `Solver(case; run=(;), overrides…)`: numerical overrides field by field (a physics section or `bcs` is refused),
+    run settings with `run`; the solver's case holds its settings with them, so `setup_simulation` writes what ran.
   - No `width`/`nely`: a 2D model extruded along y is a 3D case of x–z shapes (they extend along y), its y sides roller
     by default as the extruded form forced. EasyDraw has the same single 3D form.
 - **Zones:** `Zone(name, shape)`, geometry only; a zone's constants are its `properties` (any `MATERIAL` key or `v`,
@@ -132,10 +140,11 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   this branch's earlier format (values inline in `[[zone]]`, top-level `[sides]` …) still loads, through EasyDraw. `load_case` refuses a case file of the older format (`bcs`,
   `[material]`, `[solver]`, φ in degrees; the user chose dropping them over a converter): set it up again from its
   example. Every example rebuilds identically from its file (each array of the problem).
-- **Checks** (`check_case`): errors (no material points, `solution` contradicting the workflow,
-  quasi-static with hypoelastic), warnings (zone outside the domain, zone without points, elongated
-  cells under dynamic relaxation, `tg > te`, 32-bit with GIMP), info (points, elements,
-  `estimate_dt`: `get_dt` at rest, tested equal to it, and the number of steps).
+- **Checks:** `check_case(case)`, the geometry and physics: an error (no material points), warnings (zone outside
+  the domain, zone without points), info (points, elements). `check_case(solver)` adds how it is solved: errors
+  (`solution` contradicting the workflow, quasi-static with hypoelastic), warnings (elongated cells under dynamic
+  relaxation, `tg > te`, 32-bit with GIMP), info (the load steps, or `estimate_dt`: `get_dt` at rest, tested equal to
+  it, and the number of steps). An explicit workflow asked of an implicit solver is refused by `Solver(case)` itself.
 - Verified: every example's setup bit-identical to the old generators (`test_setup.jl`, a stored
   digest reference; the collision as a point set, its disks now interleave); the standard slump run
   bit-identical; the §4.3 block under dynamic relaxation bit-identical single-threaded (with 8 threads it
@@ -163,7 +172,7 @@ execute!(setup_simulation(case))
   EasyDraw's API rather than to the file format); EasyDraw stays a dependency for the shapes and `draw_case`.
   The window edits the case's layout and settings (`src/home/script/draw/draw_case.jl`): `draw_case(case)` is
   `Case(EasyDraw.draw(case.layout, case.settings; catalog=get_catalog(), case_hooks()...)...)`, no conversion.
-  `case_hooks()` gives what a file cannot: the checks (`check_case(Case(l, s))`), what Create… writes
+  `case_hooks()` gives what a file cannot: the checks (`check_case(Solver(Case(l, s)))`), what Create… writes
   (`<name>_case.toml`, the chosen folder set as the run folder first: EasyDraw returns those same settings, so the case
   drawn has it too), what "Start from a file…" reads (a case file's layout and settings), the title.
   - **The window is not optional** (the user's decision: EasyDraw exists to draw interactively): QML is one of

@@ -11,8 +11,7 @@ on loading (`build_solver`): the file opens on any machine, which picks its own 
 """
 function save_simulation(sim::Simulation, file::AbstractString=joinpath(mkpath(sim.folder), "$(basename(sim.folder))_simulation.jld2"))
     p = sim.problem
-    jldsave(file; simulation=Simulation(Problem(p.mpts, p.mesh, p.basis, p.time, stored_solver(p.solver)), sim.workflow,
-                                        sim.lstps, sim.folder))
+    jldsave(file; simulation=Simulation(Problem(p.mpts, p.mesh, p.basis, p.time, stored_solver(p.solver)), sim.folder))
     return file
 end
 function load_simulation(file::AbstractString)
@@ -25,5 +24,5 @@ function load_simulation(file::AbstractString)
                                             "again, setup_simulation(load_case(<name>_case.toml))"))
     p      = s.problem
     solver = build_solver(solver_config(p.solver), length(p.mesh.x₀))   # its kernels and device, on this machine
-    return Simulation(Problem(p.mpts, p.mesh, p.basis, p.time, solver), s.workflow, s.lstps, dirname(abspath(file)))
+    return Simulation(Problem(p.mpts, p.mesh, p.basis, p.time, solver), dirname(abspath(file)))
 end

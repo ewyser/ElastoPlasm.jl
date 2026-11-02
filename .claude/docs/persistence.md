@@ -56,6 +56,10 @@ so that a device's arrays fit them), `MeshProperties` holds static vectors, and 
 vectors) instead of a `SparseMatrixCSC`: `.jld2` files written before don't load, and `load_simulation` says so (a
 file whose stored types no longer match is not a `Simulation` once read); set them up again from their case TOML.
 
+**Format change:** the solver structs gained `run` (the run settings) and `case` (stored as `nothing`), and `Simulation`
+lost `workflow`/`lstps` (now `problem.solver.run`) (`refactor-solver-split`), so `.jld2` files written before don't
+load; `load_simulation` says so. Set them up again from their case TOML.
+
 **HDF5 output beside it:** with `output.status`, a run also writes `<name>_output.h5` in the simulation's
 folder (plain HDF5, one array per recorded field with frames last); see "Recording a run" in
 `operations.md`. The `.jld2` stays the setup/restart file, the `.h5` the time series for analysis.

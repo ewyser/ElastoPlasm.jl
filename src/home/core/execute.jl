@@ -19,8 +19,8 @@ case_text(sim::Simulation) = (f = joinpath(sim.folder, "$(basename(sim.folder))_
     execute!(file; workflows=case_workflows(sim)) -> file
     execute(sim_or_file; workflows, output, append) -> Simulation
 
-Run a simulation's workflows in order, each on its problem (`workflow!(problem)`): its own
-(`sim.workflow`, in `sim.lstps` load steps) unless `workflows` are given. Built-in workflows:
+Run a simulation's workflows in order, each on its problem (`workflow!(problem)`): its solver's
+(`solver.run.workflow`, in `solver.run.lstps` load steps) unless `workflows` are given. Built-in workflows:
 `elastodynamic!`, `elastoplastic!`, `elastoquasistatic!`, `thermodynamic!`. When
 `solver.plot.status` is on, a plot is saved into the simulation's folder after each workflow.
 

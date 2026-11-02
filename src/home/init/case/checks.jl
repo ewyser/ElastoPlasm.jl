@@ -8,8 +8,11 @@ function case_zones(s::Case)
     pts = Iterators.product(axs[end], axs[1:end-1]...)
     return [zone_at(l.zones, (t[2:end]..., t[1])) for t ∈ pts][:]
 end
-# a solver option of the case, or its default
-option_of(s::Case, sec, key) = (o = get(s.solver, sec, (;)); o isa NamedTuple && haskey(o, key) ? getfield(o, key) : getfield(getfield(get_default(), sec), key))
+# a physics option of the case (`case.options`), or its default
+function option_of(s::Case, sec, key)
+    o = get(s.options, sec, (;))
+    return o isa NamedTuple && haskey(o, key) ? getfield(o, key) : getfield(getfield(get_default(), sec), key)
+end
 
 """
     estimate_dt(case) -> (dt, c)
@@ -37,37 +40,47 @@ end
 
 """
     check_case(case) -> (; errors, warnings, info)
+    check_case(solver) -> (; errors, warnings, info)
 
-What to know about a case before running it. Errors: no material points, an option contradicting
-the workflow (`solution`, or the quasi-static workflows with `material.elastic = "hypoelastic"`).
-Warnings: a zone reaching outside the domain, a zone without points (covered by later zones, or
-thinner than a sub-cell), non-square cells under dynamic relaxation (slow convergence), `tg > te`
-(the gravity ramp is cut at `te`), 32-bit precision with GIMP (fails at the first step, see
-`.claude/bug/known/gimpm-32bit-nan-first-step.md`). Info: points, elements, and the estimated first
-time step and step count (`estimate_dt`).
+What to know before running. For a case, its geometry and physics: an error when no zone covers a sub-cell centre (no
+material points); warnings for a zone reaching outside the domain or without points (covered by later zones, or
+thinner than a sub-cell); the points and elements. For a solver, also how it solves its case (`solver.case`): errors
+for an option contradicting the workflow (`solution`, or the quasi-static workflows with
+`material.elastic = "hypoelastic"`); warnings for non-square cells under dynamic relaxation (slow convergence),
+`tg > te` (the gravity ramp is cut at `te`), 32-bit precision with GIMP (fails at the first step, see
+`.claude/bug/known/gimpm-32bit-nan-first-step.md`); the load steps, or the estimated first time step and step count
+(`estimate_dt`). The drawing window shows a solver's (`draw_case`).
 """
 function check_case(s::Case)
     errors, warnings, info = String[], String[], String[]
     zone = case_zones(s)
-    run  = s.run
-    qs   = quasistatic(run.workflow)
-    sol  = get(s.solver, :solution, nothing)
     L, nel = s.layout.L, s.layout.nel
     count(>(0), zone) == 0 && push!(errors, "No material points: no zone covers a sub-cell centre of the domain.")
-    !isnothing(sol) && (sol == "implicit") != qs && push!(errors, "The option solution = $sol contradicts the workflow $(run.workflow).")
-    qs && option_of(s, :material, :elastic) == "hypoelastic" &&
-        push!(errors, "elastoquasistatic! is finite strain only: material.elastic = hypoelastic is not supported.")
     for (k, z) ∈ enumerate(s.layout.zones)
         outside(z.shape, L) && push!(warnings, "Zone \"$(z.name)\" reaches outside the domain: only the part inside gets material points.")
         any(==(k), zone) || push!(warnings, "Zone \"$(z.name)\" has no material points (covered by later zones, or thinner than a sub-cell).")
     end
+    push!(info, "$(count(>(0), zone)) material points, $(prod(nel)) elements ($(length(L))D)")
+    return (; errors, warnings, info)
+end
+function check_case(solver::AbstractSolver)
+    s = solver.case
+    isnothing(s) && throw(ArgumentError("this solver solves no case (get_solver): build one with Solver(case)"))
+    c = check_case(s)
+    errors, warnings, info = copy(c.errors), copy(c.warnings), copy(c.info)
+    run = solver.run
+    qs  = quasistatic(run.workflow)
+    L, nel = s.layout.L, s.layout.nel
+    (solver.solution == "implicit") != qs && push!(errors, "The option solution = $(solver.solution) contradicts the workflow $(run.workflow).")
+    qs && solver.material.elastic == "hypoelastic" &&
+        push!(errors, "elastoquasistatic! is finite strain only: material.elastic = hypoelastic is not supported.")
     h = L ./ nel
     qs && maximum(h) > 1.01*minimum(h) && push!(warnings, "Cells are not square: dynamic relaxation converges slowly on elongated cells.")
     !qs && run.tg > run.te && push!(warnings, "tg > te: the gravity ramp is cut at te.")
-    startswith(option_of(s, :dtype, :precision), "32") && option_of(s, :basis, :which) == "gimpm" &&
+    startswith(solver.dtype.precision, "32") && solver.basis.which == "gimpm" &&
         push!(warnings, "32-bit precision with GIMP fails at the first step (known bug).")
-    nmp = count(>(0), zone)
-    push!(info, "$nmp material points, $(prod(nel)) elements ($(length(L))D)")
+    zone = case_zones(s)
+    nmp  = count(>(0), zone)
     if qs
         push!(info, "$(run.lstps) load steps, each relaxed to equilibrium.")
     elseif nmp > 0
