@@ -6,7 +6,7 @@ export draw_case, zone_at, zone_index, property, points, partition, write_geo, s
     draw_case(file)
 
 Set up a case in EasyDraw's window (`EasyDraw.draw`) on the case's layout and settings, in three steps: **Layout**
-(optionally start from a case file; the domain, folded once there are zones: draw on a domain, dragging the handle off
+(optionally start from a case file; the domain: draw on a domain, dragging the handle off
 its corner or typing `Lx`, `Lz`, or on a picture, scaled by a scale bar measured on it, which the domain then follows;
 the element size; a width along y, which makes the case 3D; points per element; a boundary condition per side; and the
 zones: draw the material as polygons, rectangles, triangles or circles, each with optional cohesion, residual
@@ -17,8 +17,8 @@ estimated time step).
 What it offers is `get_catalog()`. **Create…**, at the end of the Create step, asks for the case's folder (chosen or made
 in the system's folder dialog): the case is written there as `<name>_case.toml`, its runs go there (`run.folder`:
 `execute!(setup_simulation(case))`), and the window returns the `Case` (errors block it, warnings ask for a second
-click). **Cancel**, closing the window or Ctrl-C returns `nothing`. It opens on the Layout step, its Domain section
-unfolded for a case without zones. It draws zones in x–z (polygons, blocks, balls as circles).
+click). **Cancel**, closing the window or Ctrl-C returns `nothing`. It opens on the Layout step. It draws zones in x–z
+(polygons, blocks, balls as circles).
 """
 function draw_case(case::Case; kwargs...)
     r = EasyDraw.draw(case.layout, case.settings; catalog=get_catalog(), case_hooks()..., kwargs...)

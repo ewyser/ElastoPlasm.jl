@@ -167,7 +167,7 @@ save_case("layers.toml", case); case = load_case("layers.toml")
 ```julia
 using ElastoPlasm
 case = draw_case()                       # opens on the Layout step, blocks until Create…; returns a Case
-case = draw_case(slump_case([64.16, 16.04], [40, 10]))   # edit a case (its Domain section folded)
+case = draw_case(slump_case([64.16, 16.04], [40, 10]))   # edit a case
 case = draw_case("layers.toml")          # or a case file
 execute!(setup_simulation(case))
 ```
@@ -264,9 +264,8 @@ execute!(setup_simulation(case))
   show (`v`, `Hp`, `n0`, `cp`, `k`), the problem's material and its thermal flag are carried through.
 - Three tabs (asked for: "would it not be better to have both domain and zone on the same
   page?"; it had four, Domain and Zones apart, the canvas doing only one of them on each): **Layout**, the domain and
-  the zones on one page and one canvas mode. It holds "Start from a file…", then a foldable **Domain** section
-  (`domain_open`: open for a layout without zones, folded otherwise, its cells shown beside the toggle; the `toggle`
-  call): first a choice, *Domain* or *Picture to draw on*, the latter with its own panel, below; drag the handle, which
+  the zones on one page and one canvas mode. It holds "Start from a file…", then the **Domain** section (always
+  shown; a fold was tried and dropped, the user: "no need to make Domain collapsing"): first a choice, *Domain* or *Picture to draw on*, the latter with its own panel, below; drag the handle, which
   sits off the domain's upper-right corner (`handle_point`, 1.2 `tol` along each axis, picked within 0.5 `tol`, so a
   zone's vertex at the corner, picked within `tol`, stays the zone's; hidden while a zone is drawn; `fit!` leaves a 4%
   margin so that it is in view), snapped to a tenth of the order of
