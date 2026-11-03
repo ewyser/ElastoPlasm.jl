@@ -166,8 +166,8 @@ save_case("layers.toml", case); case = load_case("layers.toml")
 
 ```julia
 using ElastoPlasm
-case = draw_case()                       # opens on the domain step, blocks until Create…; returns a Case
-case = draw_case(slump_case([64.16, 16.04], [40, 10]))   # edit a case (opens on the zones step)
+case = draw_case()                       # opens on the Layout step, blocks until Create…; returns a Case
+case = draw_case(slump_case([64.16, 16.04], [40, 10]))   # edit a case (its Domain section folded)
 case = draw_case("layers.toml")          # or a case file
 execute!(setup_simulation(case))
 ```
@@ -223,8 +223,8 @@ execute!(setup_simulation(case))
     name, mostly `act(f)` (the open editor, QML strings as Julia strings, returns nothing), so a call cannot
     be defined and left unregistered; any parsing or logic lives in `editor.jl`, tested without Qt. QML counts from 0, Julia from 1: every index crosses through `qml_index`/`julia_index`
     (`view.jl`), and the QML file does no index arithmetic: it gets the tabs and the current one (`panel.tabs`,
-    `panel.tab`; `tab_steps`: no Options tab when the catalog has no options) and the page (`panel.page`), and
-    `set_step` takes a tab, which Julia maps to its step.
+    `panel.tab`, three fixed tabs) and the page (`panel.page`), and `set_step` takes a tab, which Julia maps to its
+    step.
   - **Cost per mouse move.** The canvas has two layers (`background_json`/`overlay_json`): the
     background (grid, domain, sides, the zones' fills and the points over them) repaints after an edit,
     a zoom or a resize; the overlay (outlines, vertices, the polygon being drawn, the cursor, the
@@ -262,18 +262,27 @@ execute!(setup_simulation(case))
   problem is refused. The preview uses each zone's own `inside` rule (`shape_of`), so it equals
   `case_points` (checked on the collision case). Zone properties it does not
   show (`v`, `Hp`, `n0`, `cp`, `k`), the problem's material and its thermal flag are carried through.
-- Four tabs (three without options): **Domain** (first a choice, *Domain* or *Picture to draw on*, the latter with its own panel,
-  below; drag the upper-right corner handle, snapped to a tenth of the order of
+- Three tabs (asked for: "would it not be better to have both domain and zone on the same
+  page?"; it had four, Domain and Zones apart, the canvas doing only one of them on each): **Layout**, the domain and
+  the zones on one page and one canvas mode. It holds "Start from a file…", then a foldable **Domain** section
+  (`domain_open`: open for a layout without zones, folded otherwise, its cells shown beside the toggle; the `toggle`
+  call): first a choice, *Domain* or *Picture to draw on*, the latter with its own panel, below; drag the handle, which
+  sits off the domain's upper-right corner (`handle_point`, 1.2 `tol` along each axis, picked within 0.5 `tol`, so a
+  zone's vertex at the corner, picked within `tol`, stays the zone's; hidden while a zone is drawn; `fit!` leaves a 4%
+  margin so that it is in view), snapped to a tenth of the order of
   magnitude, `nice_step`, or type `Lx`, `Lz` and the cell size `h`, square cells, `nel_for`; a
   width along y for 3D, `nely` from `h`; points per cell; one drop-down per side, its kinds and colours the
-  catalog's), **Zones** (the
+  catalog's. Undo covers the domain too (a `Snapshot` holds the zones and the domain; domain edits are undo steps). Then
+  the zones (the
   editor below; the catalog's zone properties, for ElastoPlasm c₀, cᵣ [kPa], φ [°], T, E [MPa], ν, ρ₀; φ hidden when the options pick
   `material.plastic = "VM"` (its `show_if`); "+ New zone ▾" opens a menu of shapes, `new_zone!(e, shape)`: Draw (a polygon,
   vertex by vertex), Rectangle (two opposite corners; every corner lying on another zone's edge splits
   it), Triangle (three corners, closes by itself), Circle (centre, then a point on it); the vertex last
   clicked or dragged (`picked`, outlined on the canvas) has one row, x and z typed exactly and "×"
   deleting it, `set_picked!`/`remove_picked!`, which move or delete it in every zone sharing it, through
-  undo; the vertices are not listed), **Options** (one row per catalog option, pages by the first part of its key:
+  undo; the vertices are not listed), **Options**, always shown (**Load catalog…** first, moved there from the domain:
+  the user's decision; "This catalog has no options." when it has none; then one row per catalog option, pages by the
+  first part of its key:
   checkbox, name, drop-down; numeric fields take any typed value plus presets; picking or typing a
   value ticks the box, unticking restores the default; multi-selections such as `plot.what` are
   checkbox grids; for ElastoPlasm every `get_option()` field but `dtype.T0`/`bits` (the one `precision` choice sets
@@ -283,7 +292,7 @@ execute!(setup_simulation(case))
   live, `check_case` for ElastoPlasm; then **Create…** and **Cancel**).
 - A picture to draw on (a scanned section or a map, any image Qt reads), drawn under the grid at an
   adjustable opacity (`Backdrop`: file, pixel size reported by a hidden QML `Image`, lower-left corner and
-  width in metres, the height from the aspect). The Domain step starts with a choice, *Domain* (sized by
+  width in metres, the height from the aspect). The Domain section starts with a choice, *Domain* (sized by
   hand) or *Picture to draw on* (`use_picture!`, `editor.picture`): the latter opens the file dialog and
   shows the picture's own framed panel, in the order picture → scale → placement; *Domain* again hides the
   picture and keeps it. (It used to be a sub-section in the middle of the domain fields, with a separate
@@ -305,9 +314,9 @@ execute!(setup_simulation(case))
     past the first paints instead). And the canvas's `loadImage` of a picture Qt already holds (the hidden
     `Image` loaded it) completes at once *without* `imageLoaded`, so the canvas draws it in the same pass
     when `isImageLoaded` turns true; before, the picture stayed blank until the next repaint (another tab, a zoom).
-- Only the tabs and the status line are always visible. "Start from a file…" (top of the Domain
+- Only the tabs and the status line are always visible. "Start from a file…" (top of the Layout
   step) loads a file through the host's `load` (`load!`; a case TOML for ElastoPlasm, a layout TOML by default;
-  replaces the whole state and clears undo). "Load catalog…" beside it replaces the catalog with a TOML file's (asked
+  replaces the whole state and clears undo). "Load catalog…" (top of the Options step) replaces the catalog with a TOML file's (asked
   for: a friend loads their own solver's catalog; `load_catalog!`): each zone keeps all its properties, shown or carried
   by the new catalog's list (in the undo steps too), still-valid option overrides and run settings kept, the old
   catalog's others dropped, a host's own run settings kept, an unknown side kind set to the default; not undoable. `draw`'s
@@ -357,7 +366,7 @@ execute!(setup_simulation(case))
   with a pinch (`PinchHandler`) or Cmd/Ctrl + scroll (`wheel!`); dragging the empty canvas (a press that starts no
   edit, any tab) or the middle button (anywhere, also while drawing) pans, the grabbed point kept under the cursor
   (`grab`, `pan!`); "Fit view" (canvas corner) recentres on the domain (`fit!`, as switching tabs does; the same fit on every
-  step: the Domain step used to show 1.4 times the domain, room to drag its corner, which left the canvas half
+  step: the old Domain step used to show 1.4 times the domain, room to drag its corner, which left the canvas half
   blank; a drag continues outside the canvas and the view refits on release). x and z
   keep equal scales and the axes fill the canvas: `transform` widens the visible area about its centre along one
   axis, so there are no blank margins outside the axes, only coordinate space beside a domain whose proportions

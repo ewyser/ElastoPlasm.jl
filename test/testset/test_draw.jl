@@ -3,7 +3,7 @@
     # catalog, a case's layout in the window and back, and a case drawn through the editor, driven as a user would (its options,
     # run settings, checks and files); then draw_case's window, offscreen
     EP, ED = ElastoPlasm, ElastoPlasm.EasyDraw
-    editor(case; step=2) = ED.Editor(case.layout, case.settings, get_catalog(); step, EP.case_hooks()...)
+    editor(case) = ED.Editor(case.layout, case.settings, get_catalog(); EP.case_hooks()...)
     click!(e, x, z) = (ED.move!(e, x, z); ED.press!(e, x, z); ED.release!(e))
     opts(c) = EP.config_dict(EP.case_options(c.settings.options))                          # a case's options, as values
 
@@ -94,10 +94,10 @@
         end
     end
     @testset "a case drawn: zone constants, options, run, checks, files" begin
-        e = editor(Case(; L=[13.0, 7.0], nel=[13, 7], bcs=[:roller :roller; :fixed :free]); step=1)
+        e = editor(Case(; L=[13.0, 7.0], nel=[13, 7], bcs=[:roller :roller; :fixed :free]))
         @test e.sides == Dict("left" => "roller", "right" => "roller", "bottom" => "fixed", "top" => "free")
         ED.set_bc!(e, "top", "fixed"); ED.set_domain_field!(e, "width", "4")
-        ED.set_step!(e, 2); ED.new_zone!(e); foreach(p -> click!(e, p...), [(0, 0), (13, 0), (13, 3), (0, 3)]); ED.key!(e, "enter")
+        ED.new_zone!(e); foreach(p -> click!(e, p...), [(0, 0), (13, 0), (13, 3), (0, 3)]); ED.key!(e, "enter")
         ED.set_prop!(e, "E", "50"); ED.set_prop!(e, "nu", "0.2"); ED.set_prop!(e, "phi", "30")
         @test e.regions[1].props == Dict("E" => 5e7, "nu" => 0.2, "phi" => 30π/180)
         @test occursin("default 20.0", ED.panel_json(e))                                    # c₀'s default, get_material()'s, in kPa
@@ -131,7 +131,7 @@
         d = mktempdir()
         case = Case(; L=[20.0, 10.0], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
                      zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))], properties=Dict("rock" => (; E=5e7)))
-        @test isnothing(draw_case(case; shots=(d, [1, 2, 3, 4])))                               # closes itself; no Create…: nothing
-        @test all(k -> isfile(joinpath(d, "step$k.png")), 1:4)
+        @test isnothing(draw_case(case; shots=(d, [1, 2, 3])))                               # closes itself; no Create…: nothing
+        @test all(k -> isfile(joinpath(d, "step$k.png")), 1:3)
     end
 end
