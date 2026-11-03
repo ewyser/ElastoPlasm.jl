@@ -20,15 +20,15 @@ function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_ve
     printstyled("│", color=:green, bold=true); println(" New comer ? Try $(showcase) out")
     if showcase == "slumping"
         printstyled("│", color=:green, bold=true); println("   L,nel = [64.1584,64.1584/4.0],[40,10];")
-        printstyled("│", color=:green, bold=true); println("   jld2  = setup_simulation(slump_case(L,nel;cli()...));")
+        printstyled("│", color=:green, bold=true); println("   jld2  = setup(slump(L,nel;cli()...));")
         printstyled("└", color=:green, bold=true); println("   execute!(jld2);")
     elseif showcase == "heating"
         printstyled("│", color=:green, bold=true); println("   L,nel = [16.0,16.0],[80,80];")
-        printstyled("│", color=:green, bold=true); println("   jld2  = setup_simulation(thermal_case(L,nel));")
+        printstyled("│", color=:green, bold=true); println("   jld2  = setup(thermal(L,nel));")
         printstyled("└", color=:green, bold=true); println("   execute!(jld2; workflows = [thermodynamic!]);")
     elseif showcase == "collapsing"
         printstyled("│", color=:green, bold=true); println("   nel  = [92,22];")
-        printstyled("│", color=:green, bold=true); println("   jld2 = setup_simulation(collapse_case(nel));")
+        printstyled("│", color=:green, bold=true); println("   jld2 = setup(collapse(nel));")
         printstyled("└", color=:green, bold=true); println("   execute!(jld2);")
     else
         printstyled("└", color=:green, bold=true); println("   ...$(showcase) ?!? \e[5m¯\\_(ツ)_/¯\e[0m")
@@ -40,10 +40,10 @@ end
 """
     ic_log(mesh, mpts, time, solver) -> String
 
-The summary `setup_simulation` logs: precision, elements, material points and the time stages
+The summary `setup` logs: precision, elements, material points and the time stages
 (`time.t`, gravity ramp `tg`, elastic stage `te`, plastic stage `tep`).
 """
-function ic_log(mesh::Mesh,mpts::Point,time::Time,solver::S) where {T1<:Integer,T2<:Real,D, S<:AbstractSolver{T1,T2,D}}
+function ic_log(mesh::Mesh,mpts::Point,time::Time,solver::S) where {T1,T2,D,S<:Solver{T1,T2,D}}
     # build the list of constant log lines
     logs = [
         "Summary: ",
@@ -66,18 +66,19 @@ function ic_log(mesh::Mesh,mpts::Point,time::Time,solver::S) where {T1<:Integer,
 end
 
 """
-    workflow_log(solver; msg="elastodynamic") -> String
+    workflow_log(problem; msg="elastodynamic") -> String
 
 What `execute!` logs before each workflow (`msg`, its name): version, threads, solution, elastic law,
 transfer scheme, basis, and F-bar or non-local regularization when on (the latter for plastic workflows).
 """
-function workflow_log(solver::S; msg::String="elastodynamic") where {T1<:Integer,T2<:Real, D, S<:AbstractSolver{T1,T2,D}}
+function workflow_log(p::Problem; msg::String="elastodynamic")
+    solver = p.solver
     # build the list of log lines
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "└ $(nthreads()) active thread(s)",
         "- solver: $(solver.solution)",
-        "- $(solver.material.elastic) material",
+        "- $(laws(p.mpts).elastic) material",
         "- $(solver.basis.trsfr) mapping scheme",
         "- $(solver.basis.which) calculation cycle",
     ]

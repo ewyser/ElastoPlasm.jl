@@ -30,9 +30,6 @@ Update material point velocities and positions from solid-type mesh nodes using 
         v_new = C_pf * (mpts.s.v[p] + dt * aFLIP) + (T2(1.0) - C_pf) * vPIC
         mpts.s.v[p] = v_new
         mpts.s.u[p] = dt * vPIC
-        for d ∈ 1:length(TV)
-            @atom mpts.vmax[d] = max(mpts.vmax[d], abs(v_new[d]))
-        end
     end
 end
 

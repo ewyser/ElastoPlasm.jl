@@ -6,6 +6,7 @@ version = "0.5.0"
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+EasyDraw = "09c6abe4-4b64-4d71-aef0-732a87e6de5c"
 HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
@@ -23,13 +24,10 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+UnifiedBackend = "53203a36-6468-4ce1-9d2a-5f04ad17d58e"
 
-[weakdeps]
-AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-QML = "2db162a6-7e43-52c3-8d84-290c1c42d82a"
+[extras]
+JLArrays = "27aeb0d3-9eb9-45fb-866b-73c2ecf80fcb"
 
-[extensions]
-CUDAExt = "CUDA"
-DrawQMLExt = "QML"
-ROCmExt = "AMDGPU"
+[targets]
+test = ["JLArrays"]

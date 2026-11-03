@@ -1,62 +1,67 @@
-export draw_case
+export draw_case, assign_case, zone_at, zone_index, property, points, partition, write_geo, save_layout   # EasyDraw's, on a case too
 
 """
     draw_case(; L=[10, 5], nel=[20, 10], ni=2) -> Case or nothing
     draw_case(case::Case)
     draw_case(file)
 
-Set up a case in a window, in four steps: **Domain** (optionally start from a case file; draw on a domain, dragging
-its corner or typing `Lx`, `Lz`, or on a picture, scaled by a scale bar measured on it, which the domain then
-follows; the element size; a width to extrude along y into 3D; points per element; a boundary condition per side),
-**Zones** (draw the material as polygons, each with optional cohesion, residual cohesion, friction
-angle, temperature, Young's modulus, Poisson's ratio and density), **Options** (solver options from
-drop-down lists, any value for numeric ones, ticked to override the defaults; the plotted variables)
-and **Run** (workflow, times or load steps; `check_case` and the estimated time step). **Create…**, at the end of
-the Run step, asks for the case's folder (chosen or made in the system's folder dialog): the case is written there
-as TOML, its runs go there (`run.folder`: `execute!(setup_simulation(case))`), and
-the window returns the `Case` (errors block it, warnings ask for a second click). **Cancel**, closing the window or
-Ctrl-C returns `nothing`. Without arguments the
-window opens on the domain step; with a case (or its file), on the zones step. It edits 2D (x–z)
-cases with polygon, block or ball (circle) zones.
-
-The window comes from the QML extension (`DrawQMLExt`, Qt Quick): `using QML`. Install QML in your
-default environment with Qt pinned to the version Plots/GR already load (a QML built for another Qt fails
-to load): without the window, `draw_case()`'s error gives the command with that version.
+Set up a case in EasyDraw's window (`EasyDraw.draw`), on its four pages, the geometry first, then the physics:
+**Layout** (the domain: drawn on a domain, dragging the handle off its corner or typing `Lx`, `Lz`, or on a picture,
+scaled by a scale bar measured on it, which the domain then follows; the element size; a width along y, which makes
+the case 3D; points per element; and the zones, drawn as polygons, rectangles, triangles or circles), **Physics**
+(each zone's optional cohesion, residual cohesion, friction angle, temperature, Young's modulus, Poisson's ratio and
+density; the defaults, the case's material; a boundary condition per side), **Options** (another catalog file can be
+loaded there; solver options from drop-down lists, any value for numeric ones, ticked to override the defaults; the
+plotted variables) and **Create** (the run settings: workflow, times or load steps; `check_case` and the estimated
+time step). "Start from a file…" opens a case file.
+What it offers is `get_catalog()`. **Create…**, at the end of the Create page, asks for the case's folder (chosen or
+made in the system's folder dialog): the case is written there as `<name>_case.toml`, its runs go there (`run.folder`:
+`execute!(setup(case))`), and the window returns the `Case` (errors block it, warnings ask for a second
+click). **Cancel**, closing the window or Ctrl-C returns `nothing`. It draws zones in x–z (polygons, blocks, balls as
+circles). To give the same geometry other values, see `assign_case`.
 """
-draw_case(case::Case) = drawing_window(case; step=2)
-draw_case(file::AbstractString) = draw_case(load_case(file))
-draw_case(; L=[10.0, 5.0], nel=[20, 10], ni::Integer=2) = drawing_window(Case(; L, nel, ni, run=(; folder="drawn")); step=1)
-
-"""
-    drawing_window(case; step) -> Case or nothing
-
-The window `draw_case` opens on `case` at `step` (1 domain … 4 run), defined by the QML extension; without
-it, an error saying how to get it (`drawing_window_help`).
-"""
-drawing_window(case; step) = error(drawing_window_help())
-
-# the Qt this session already loads (Plots/GR load Qt6Base_jll), which QML must be built for: "6.8.2", or nothing
-function session_qt()
-    m = [v for (k, v) ∈ Base.loaded_modules if k.name == "Qt6Base_jll"]
-    isempty(m) && return nothing
-    v = pkgversion(only(m))
-    return "$(v.major).$(v.minor).$(v.patch)"
+function draw_case(case::Case; kwargs...)
+    return EasyDraw.draw(case; catalog=get_catalog(), case_hooks()..., kwargs...)
+end
+function draw_case(file::AbstractString; kwargs...)
+    return draw_case(load_case(file); kwargs...)
+end
+function draw_case(; L=[10.0, 5.0], nel=[20, 10], ni::Integer=2, kwargs...)
+    return draw_case(Case(Layout(; L, nel, ni), case_settings(; run=(; folder="drawn"))); kwargs...)
 end
 
 """
-    drawing_window_help(; installed, qt) -> String
+    assign_case(case::Case) -> Case or nothing
+    assign_case(file)
 
-What to do when the drawing window is missing: install QML, or load it, with every Qt library pinned to
-`qt`, the version this session loads already. A QML built for another Qt fails at `using QML` with a missing
-`_qt_version_tag_…` symbol, before ElastoPlasm can say anything, hence the explanation here.
+Give a case's geometry other values in EasyDraw's window (`EasyDraw.assign`): its **Physics**, **Options** and
+**Create** pages, the layout shown but not edited, so that one geometry gets several settings. Create… writes the case
+as `draw_case` does; "Start from a file…" takes a case file's settings (its zones must be the layout's).
 """
-function drawing_window_help(; installed::Bool=!isnothing(Base.find_package("QML")), qt=session_qt())
-    v    = something(qt, "<the Qt version of Qt6Base_jll in the project's Manifest>")
-    pins = join(("$(p)@$(v)" for p ∈ ("Qt6Base_jll", "Qt6Declarative_jll", "Qt6ShaderTools_jll", "Qt6Svg_jll", "Qt6Wayland_jll")), " ")
-    fix  = "] activate; add QML $pins"
-    why  = "a missing `_qt_version_tag` symbol, QML was built for another Qt than the $v this session loads through Plots/GR"
-    msg  = installed ? "QML is installed but not loaded: run `using QML`. If it fails with $why; pin them together: $fix." :
-                       "install QML in your default environment, with Qt pinned to the $v this session loads through Plots/GR " *
-                       "(otherwise `using QML` fails with a missing `_qt_version_tag` symbol): $fix, then `using QML`."
-    return "draw_case needs the QML extension: " * msg * " Without the window, build a Case in code or write it as TOML."
+function assign_case(case::Case; kwargs...)
+    h = case_hooks()
+    load = file -> Case(case.layout, load_case(file).settings)
+    return EasyDraw.assign(case; catalog=get_catalog(), h..., load, kwargs...)
+end
+function assign_case(file::AbstractString; kwargs...)
+    return assign_case(load_case(file); kwargs...)
+end
+
+"""
+    case_hooks() -> NamedTuple
+
+What the drawing window calls back for a case: its checks (`check_case` with its solver), what **Create…** writes (the
+case, its run folder set to the chosen folder, as `<name>_case.toml` there; the window returns that case), what "Start
+from a file…" reads (a case file), and its title.
+"""
+function case_hooks()
+    check = c -> check_case(c, Solver(c))
+    save  = function (c, dir)
+        run = merge(c.settings.run, Dict{String,Any}("folder" => dir))             # its runs go to the chosen folder
+        s = c.settings
+        written = Case(c.layout, Settings(; zones=s.zones, defaults=s.defaults, sides=s.sides, options=s.options, run))
+        save_case(joinpath(dir, "$(basename(dir))_case.toml"), written)
+        return written
+    end
+    return (; title="ElastoPlasm — draw a case", check, save, load=load_case)
 end

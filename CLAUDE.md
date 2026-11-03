@@ -34,27 +34,59 @@ implements its concrete subtype(s) (no central `abstract.jl`) — see
 `types/` means adding it to that explicit list in `boot.jl`, in the right dependency
 position; it is NOT picked up automatically the way `home/` files are.
 
+`lib/EasyDraw/` is EasyDraw.jl (https://github.com/ewyser/EasyDraw.jl), a package and repository of its own,
+included here as a **git submodule**, usable without ElastoPlasm (a friend's finite-difference
+code, finite elements): the shapes and `Zone`, layouts, the drawing window (QML, a dependency loaded by the first window),
+sampling and the partition for Gmsh. A change to EasyDraw is committed and pushed in `lib/EasyDraw` (its repository),
+then ElastoPlasm commits the new submodule commit (`git add lib/EasyDraw`); see "Working with the submodules"
+in `.claude/docs/gotchas.md`. ElastoPlasm depends on it by path (`Pkg.develop`, recorded in
+the Manifest; Julia 1.10 has no `[sources]`) and is one host of its window (`get_catalog`, `case_hooks`); a
+`Case` is EasyDraw's (a `Layout` with its `Settings`), so a case file is EasyDraw's and a `Case` works wherever
+EasyDraw takes one, with the same points to the bit; its window (`draw`, `assign`) is built from separate pages
+(`lib/EasyDraw/src/pages/`); its tests run from `test/testset/test_easydraw.jl`. Changing
+EasyDraw's dependencies needs `Pkg.resolve()` in ElastoPlasm's environment. See "Drawing a case" in
+`.claude/docs/operations.md`.
+
+`lib/UnifiedBackend/` is UnifiedBackend.jl (https://github.com/ewyser/UnifiedBackend.jl), also a submodule developed by
+path: the registry of where kernels run, `Platform`s with their KernelAbstractions `backend` and `arraytype` (the host,
+any CPU, registered at load; GPUs registered by its CUDA/ROCm extensions when CUDA.jl/AMDGPU.jl loads and works).
+`build_solver` stores `UnifiedBackend.select_platform(backend.select)` (`"host"`/`"device"`, the first GPU or else the
+host) as `solver.backend.exec`, activated (`activate!`); `exec_backend(solver)` is its backend. ElastoPlasm does
+`import UnifiedBackend` and qualifies its names. It replaced ElastoPlasm's own, older copy of the same code
+(`src/boot/needs/backend.jl`, `ext/`); version 0.1.0 replaced the earlier API (`Host`/`Device`, `get_backend`,
+`select_execution_backend`, menus).
+
 ## Core method, at a glance
 
-- A problem starts from a `Case`, plain data (domain, zones, material, boundaries, solver overrides, run
-  settings), built by `setup_simulation` and stored as TOML (`save_case`/`load_case`); every example
-  is a case constructor (`slump_case`, …) and the drawing window (`ext/`) only edits one. See
-  "Describing a case" in `.claude/docs/operations.md`.
+- A problem starts from a `Case`, EasyDraw's: a `Layout` (the geometry: domain, grid, named zones) and its `Settings`
+  (the values: zones' constants by name, material defaults, sides, solver options, run settings), plain data drawn or
+  written, checked against each other; ElastoPlasm reads them (`case_physics(case)`, `Solver(case)`) and writes them in
+  its own terms (`Case(layout, case_settings(; …))`); set up by `setup` and stored as one
+  TOML (`save_case`/`load_case`; geometry and settings may be separate files); every example is a case constructor
+  (`slump`, …), and the drawing window (EasyDraw's) edits both. See "Describing a case" in
+  `.claude/docs/operations.md`.
 - Construction order is always **mesh → material points → basis** (basis depends on
   both). Function argument order is always **`(mpts, mesh, basis, ...)`**.
 - Three core types: `Mesh` (Eulerian grid), `Point` (Lagrangian material points),
-  `Basis` (owns all connectivity + shape-function kind + transfer-scheme dispatch); a `Problem`
-  bundles them with `Time` and the solver, built from a `Case` by `Problem(case)`, and a
-  `Simulation` is a problem ready to run (workflow, folder): `Case` → `Problem` → `Simulation`,
-  run by `execute!`.
-  Full field-by-field detail, transfer-scheme dispatch, and the explicit vs.
+  `Basis` (owns all connectivity + shape-function kind + transfer-scheme dispatch). What is solved, a `Case`
+  (geometry with its physics), and how, a `Solver` (`Solver(case; overrides…)` from a case's settings, or
+  `Solver(; dim, …)`: numerics, run settings, kernels; it keeps nothing of a case), meet in
+  `Problem(case, solver)` (the three, with `Time` and the solver); a `Simulation` is a problem ready to run in a
+  folder (the case's), run by `execute!`. One solver solves several cases of its dimension.
+  The type diagram, field-by-field detail, transfer-scheme dispatch, and the explicit vs.
   dynamic_relaxation solver split: `.claude/docs/architecture.md`.
 - Config/behavior knobs (`basis.which`, `material.elastic`, `material.plastic`, `stab.locking`,
-  `nonloc.*`, ...) live on one `NamedTuple` built by `get_default()`/`get_solver` and
-  merged per field (`merge_config`). Full reference and the standard end-to-end run:
+  `nonloc.*`, ...) live on one `NamedTuple` built by `get_default()` and
+  merged per field (`merge_config`); the physics sections (`material`, `grf`, `bcs`) are a case's, the rest the
+  solver's. Full reference and the standard end-to-end run:
   `.claude/docs/operations.md`.
 - Persistence layout (one `"simulation"` key, the whole `Simulation`, in JLD2):
   `.claude/docs/persistence.md`.
+- GPUs: the explicit path runs on a device (`backend = (; select = "device")`, a GPU UnifiedBackend registered): the
+  containers' array types are type parameters, the kernels are built on the solver's backend, the workflows move
+  the problem to the device and back (`core/device.jl`). Tested on JLArrays (`test_device.jl`), validated on an
+  NVIDIA machine by `test/cuda/validate_cuda.jl`; dynamic relaxation and thermal still host only. See "Running on a
+  GPU" in `.claude/docs/operations.md`.
 - 32-bit precision and StaticArrays allocation-elision gotchas:
   `.claude/docs/gotchas.md`.
 - House rules (unicode subscript tensor-rank convention, refactor-verification

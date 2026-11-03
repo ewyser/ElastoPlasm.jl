@@ -6,7 +6,7 @@ follow its domain update (`kind.domain`, `basis.domain`: `StretchDomain`, `Undef
 have none to update and keep `ℓ`. Called where `F` is updated: the explicit `deform` and the dynamic
 relaxation's end of a load step (`update`). A further domain update is one `AbstractDomain` type and one method.
 """
-@inline function particle_domain(kind::AbstractBasis, F, ℓ₀, ℓ)
+@inline function particle_domain(kind::AbstractBasisKind, F, ℓ₀, ℓ)
     return ℓ
 end
 @inline function particle_domain(kind::GimpBasis, F, ℓ₀, ℓ)

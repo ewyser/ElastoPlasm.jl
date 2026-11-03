@@ -10,7 +10,7 @@ Finite-strain elastic predictor, linear-Hencky law: push the stored logarithmic
 strain forward through `ΔFᵢⱼ` and evaluate the trial Kirchhoff stress from it. Writes
 a `LogarithmicStrain` into `mpts.s.ϵᵢ[p]` and a `KirchhoffStress` into
 `mpts.s.τᵢ[p]`. Which of this method / the `EL<:ImprovedHenckySolid` method below
-runs is picked by `Point`'s own `EL` type parameter (`solver.material.elastic`, see
+runs is picked by `Point`'s own `EL` type parameter (the case's `material.elastic`, see
 `AbstractElasticLaw` in `lagrangian.jl`) — no branch anywhere, same pattern `retmap`
 already uses for `Point`'s `CM` type parameter.
 """

@@ -1,5 +1,3 @@
-export load_case, save_case
-
 # ---- solver options on disk: values in memory, labels or plain numbers in files
 
 # the `(prompt, values)` entry of `get_option()` at `path` (e.g. ["basis", "which"]), or nothing
@@ -51,7 +49,7 @@ function option_value(path, x)
         y isa AbstractVector{<:Real} || throw(ArgumentError("solver option $name = $x is not a list of numbers"))
         return Float64.(y)
     end
-    y isa Real && !(y isa Bool) || throw(ArgumentError("solver option $name = $x is not a number"))
+    y isa Real && !(y isa Bool) && isfinite(y) || throw(ArgumentError("solver option $name = $x is not a (finite) number"))
     d isa Integer && !isinteger(y) && throw(ArgumentError("solver option $name = $x is not an integer"))
     return d isa Integer ? typeof(d)(y) : Float64(y)
 end
@@ -65,90 +63,33 @@ end
 # a NamedTuple (or Dict) of option sections as a Dict with string keys, and back
 config_dict(x) = x isa NamedTuple || x isa AbstractDict ? Dict{String,Any}(string(k) => config_dict(v) for (k, v) ∈ pairs(x)) : x
 
-# ---- the case on disk
+# ---- the case on disk: its layout's and settings' file
 
-const SHAPES = ("polygon", "block", "ball")
-deg(k, v) = k == :phi ? round(rad2deg(v); sigdigits=12) : v   # angles: degrees in files (12 digits: 30, not 29.999999999999996)
-rad(k, v) = k == :phi ? deg2rad(v) : v
+"""
+    save_case(file, case, solver; folder=case_folder(case)) -> file
 
-function shape_dict(s::AbstractShape)
-    if s isa Polygon                                         # one outline as `vertices`; several as `rings`
-        rs = polygon_rings(s)
-        return Dict{String,Any}("shape" => "polygon", length(rs) == 1 ? "vertices" => only(rs) : "rings" => rs)
-    end
-    s isa Block     && return Dict{String,Any}("shape" => "block", "lo" => s.lo, "hi" => s.hi)
-    s isa Ball    && return Dict{String,Any}("shape" => "ball", "centre" => s.centre, "radius" => s.radius)
-    throw(ArgumentError("a $(nameof(typeof(s))) zone (a Julia predicate) cannot be written to TOML"))
+Write a case as `solver` solves it (what `setup` writes beside a simulation): EasyDraw's `save_case`
+(the layout with its settings, SI throughout, φ in radians), with the settings' numerical options replaced by the
+solver's (those that differ from `get_default()`, as their `get_option()` labels, `option_labels`) and its run settings
+with `folder`, so that `Solver(load_case(file))` is the same solver. The physics options (`material`, `grf`) are the
+case's.
+
+A case file holds, under `[settings]`: `[settings.zones.<name>]` (each zone's material constants or velocity `v`),
+`[settings.defaults]` (the material constants set), `[settings.sides]` (a boundary condition per side, roller where
+not set), `[settings.options.<section>]`, `[settings.run]` (`folder`, `te`, `tg`, `tep`, `workflow`, `lstps`, and
+`thermal` when true). EasyDraw's `load_case` reads it back, and refuses a file of ElastoPlasm's older format (`bcs`,
+`[material]`, `[solver]`, φ in degrees): set such a case up again from its example.
+
+# Throws
+- `ArgumentError`: when a zone is a `Region` predicate, which a file cannot hold.
+"""
+function EasyDraw.save_case(file::AbstractString, case::Case, solver::Solver; folder::AbstractString=case_folder(case))
+    s = case.settings
+    c = solver_config(solver)
+    numerics = config_changes(Base.structdiff(c, NamedTuple{(:run,)}), get_default())
+    options = Dict{String,Any}(k => v for (k, v) ∈ s.options if Symbol(k) ∈ get_physics_sections())
+    merge!(options, option_labels(config_dict(numerics)))
+    run = merge(Dict{String,Any}(s.run), config_dict(c.run), Dict{String,Any}("folder" => folder))
+    settings = EasyDraw.Settings(; zones=s.zones, defaults=s.defaults, sides=s.sides, options, run)
+    return save_case(file, Case(case.layout, settings))
 end
-function parse_shape(z::AbstractDict, name)
-    kind = get(z, "shape", "")
-    kind == "polygon" && return Polygon(haskey(z, "rings") ? z["rings"] : z["vertices"])
-    kind == "block"     && return Block(z["lo"], z["hi"])
-    kind == "ball"    && return Ball(z["centre"], z["radius"])
-    throw(ArgumentError("zone \"$name\": shape = \"$kind\" is not one of $(SHAPES)"))
-end
-
-"""
-    case_dict(case) -> Dict
-
-The TOML form of a case (`save_case`): `[domain]`, the material constants differing from
-`MATERIAL`, `bcs`, `thermal`, `[solver.…]` overrides (`option_save`), `[run]` and one `[[zone]]` per
-zone; angles in degrees.
-"""
-function case_dict(s::Case)
-    dom = Dict{String,Any}("L" => s.L, "nel" => s.nel, "ni" => s.ni)
-    isnothing(s.width) || (dom["width"] = s.width; dom["nely"] = s.nely)
-    zones = map(s.zones) do z
-        d = shape_dict(z.shape)
-        d["name"] = z.name
-        for (k, v) ∈ z.props
-            d[string(k)] = deg(k, v)
-        end
-        d
-    end
-    return Dict{String,Any}("domain" => dom,
-        "material" => Dict{String,Any}(string(k) => deg(k, v) for (k, v) ∈ pairs(s.material) if v != getfield(MATERIAL, k)),
-        "bcs" => [string.(s.bcs[d, :]) for d ∈ axes(s.bcs, 1)], "thermal" => s.thermal,
-        "solver" => option_labels(config_dict(s.solver)), "run" => config_dict(s.run), "zone" => zones)
-end
-
-"""
-    parse_case(d) -> Case
-
-A problem from its TOML form (`case_dict`, `load_case`).
-"""
-function parse_case(d::AbstractDict)
-    haskey(d, "domain") || throw(ArgumentError("a case file needs a [domain] table (L, nel, ni)"))
-    dom   = d["domain"]
-    zones = map(enumerate(get(d, "zone", []))) do (i, z)
-        name = String(get(z, "name", "zone $i"))
-        known = ("name", "shape", "vertices", "rings", "lo", "hi", "centre", "radius")
-        Zone(name, parse_shape(z, name), Dict{Symbol,Any}(Symbol(k) => rad(Symbol(k), v) for (k, v) ∈ z if k ∉ known))
-    end
-    mat = Dict{Symbol,Any}(Symbol(k) => rad(Symbol(k), v) for (k, v) ∈ get(d, "material", Dict()))
-    bcs = haskey(d, "bcs") ? permutedims(reduce(hcat, [Symbol.(side) for side ∈ d["bcs"]])) : nothing
-    return Case(; L=dom["L"], nel=dom["nel"], ni=get(dom, "ni", 2), width=get(dom, "width", nothing),
-                  nely=get(dom, "nely", nothing), zones, material=mat, bcs, thermal=get(d, "thermal", false),
-                  solver=option_values(get(d, "solver", Dict())), run=get(d, "run", Dict()))
-end
-
-"""
-    save_case(file, case) -> file
-    load_case(file) -> Case
-
-Write a case to a TOML file, and read it back: `[domain]` (`L`, `nel`, `ni`, optionally `width` and
-`nely`), `[material]` (overrides of `MATERIAL`, `phi` in degrees), `bcs` (`[[lower, upper], …]` per
-axis), `thermal`, `[solver.<section>]` overrides (values as `get_option()` lists them, any number for
-a numeric option, variable names for `plot.what`), `[run]` (`folder`, `te`, `tg`, `tep`, `workflow`,
-`lstps`) and `[[zone]]` tables (`name`, `shape = "polygon"` with `vertices = [[x, z], …]`, or `rings = [[[x, z], …], …]`
-for several outlines, `"block"` with
-`lo`/`hi`, or `"ball"` with `centre`/`radius`, and any material constant or `v`). A zone given as a
-Julia predicate (`Region`) cannot be written.
-"""
-function save_case(file::AbstractString, s::Case)
-    d = case_dict(s)
-    mkpath(dirname(abspath(file)))
-    open(io -> TOML.print(io, d; sorted=true), file, "w")
-    return file
-end
-load_case(file::AbstractString) = parse_case(TOML.parsefile(file))

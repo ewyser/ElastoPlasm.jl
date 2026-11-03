@@ -1,37 +1,50 @@
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Problem: everything a run needs, built from a Case
+# Problem: what is solved (a Case) and how (a Solver), built
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 export Problem
 
 """
-    Problem(mpts, mesh, basis, time, solver)
-    Problem(case::Case) -> Problem
+    Problem(case, solver) -> Problem
 
-Everything a run needs: the material points `mpts`, the background `mesh`, the `basis` linking them
-(connectivity, shape functions, transfer scheme), the `time` stages and the `solver` (configuration
-and kernels). Workflows run on it (`elastodynamic!(problem)`), and a `Simulation` holds it, ready to run
-(`execute!`).
+What is solved and how, built: the material points `mpts`, the background `mesh`, the `basis` linking them
+(connectivity, shape functions, transfer scheme), the `time` stages and the `solver` (configuration, run settings and
+kernels). Workflows run on it (`elastodynamic!(problem)`), and a `Simulation` holds it, ready to run (`execute!`).
 
-`Problem(case)` builds it from a `Case`: the solver (`case_solver_options`), the mesh (`setup_mesh`),
-the material points (`case_points`, `setup_mpts`), the time stages (`case.run`) and the basis
-(`setup_basis`). The case itself is not kept: everything it describes is in the built objects, and
-`setup_simulation` writes it as TOML beside the `.jld2`.
+A problem is always built from a case and a solver: the mesh from the case's domain and boundary conditions
+(`setup_mesh`), the material points from its zones, constants, laws and random field (`case_points`, `setup_mpts`),
+in the solver's precision, the time stages from the solver's run settings and the basis from the solver's
+(`setup_basis`). The case is not kept: the built objects hold all it describes, and `setup` writes it as
+TOML beside the `.jld2`. For a case solved as its settings say, `Problem(case, Solver(case))`.
+
+# Fields
+- `mpts::P`: the material points, a `Point`.
+- `mesh::M`: the background grid, a `Mesh`.
+- `basis::B`: the connectivity, shape functions and transfer scheme, a `Basis`.
+- `time::Time{T1,T2}`: the time stages.
+- `solver::S`: how it is solved, a `Solver`.
+
+`T1`, `T2` and `D` are the index type, float type and dimension, shared by all its parts (the solver's); `P`, `M`, `B`
+and `S` are the parts' types, those of what `Problem(case, solver)` builds.
+
+# Throws
+- `ArgumentError`: when the solver's dimension is not the case's.
 """
-struct Problem{T1,T2,D,P<:Point{T1,T2,D},B<:Basis{T1,T2,D},S<:AbstractSolver{T1,T2,D}}
-    mpts   :: P
-    mesh   :: Mesh{T1,T2,D}
-    basis  :: B
-    time   :: Time{T1,T2}
-    solver :: S
+struct Problem{T1,T2,D,P,M,B,S}
+    mpts   ::P
+    mesh   ::M
+    basis  ::B
+    time   ::Time{T1,T2}
+    solver ::S
 end
-@adapt_struct Problem
 
-function Problem(case::Case)
-    L, nel = domain(case)
-    solver = get_solver(; dim=length(L), case_solver_options(case)...)
-    mesh   = setup_mesh(L, nel, solver; thermal=case.thermal)
-    mpts   = setup_mpts(mesh, solver, case_points(case, mesh, solver); thermal=case.thermal)
-    time   = setup_time(solver; te=case.run.te, tg=case.run.tg, tep=case.run.tep)
-    return Problem(mpts, mesh, setup_basis(mesh, mpts, solver), time, solver)
+function Problem(case::Case, solver::Solver{T1,T2,D}) where {T1,T2,D}
+    L, nel = case.layout.L, case.layout.nel
+    length(L) == D || throw(ArgumentError("a $(D)D solver cannot solve a $(length(L))D case: build one for it, Solver(case)"))
+    ph     = case_physics(case)
+    mesh   = setup_mesh(L, nel, ph.bcs, solver; thermal=ph.thermal)
+    mpts   = setup_mpts(mesh, case_points(case, mesh), ph.laws; thermal=ph.thermal)
+    time   = setup_time(solver; te=solver.run.te, tg=solver.run.tg, tep=solver.run.tep)
+    basis  = setup_basis(mesh, mpts, solver)
+    return Problem{T1,T2,D,typeof(mpts),typeof(mesh),typeof(basis),typeof(solver)}(mpts, mesh, basis, time, solver)
 end

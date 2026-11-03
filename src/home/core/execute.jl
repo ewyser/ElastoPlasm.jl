@@ -6,7 +6,7 @@ function save_workflow_plot(p::Problem, workflow!, folder)
     solver   = p.solver
     quantity = join([plot_entry(k).name for k ∈ solver.plot.what], "_")
     name     = "$(solver.solution)_$(length(p.mesh.prprt.L))d_$(solver.basis.which)_$(solver.basis.trsfr)_" *
-               "$(solver.material.elastic)_$(workflow!)_$(quantity).png"
+               "$(laws(p.mpts).elastic)_$(workflow!)_$(quantity).png"
     save_plot((; file=joinpath(mkpath(folder), replace(name, " " => "_"))))
 end
 
@@ -19,12 +19,12 @@ case_text(sim::Simulation) = (f = joinpath(sim.folder, "$(basename(sim.folder))_
     execute!(file; workflows=case_workflows(sim)) -> file
     execute(sim_or_file; workflows, output, append) -> Simulation
 
-Run a simulation's workflows in order, each on its problem (`workflow!(problem)`): its own
-(`sim.workflow`, in `sim.lstps` load steps) unless `workflows` are given. Built-in workflows:
+Run a simulation's workflows in order, each on its problem (`workflow!(problem)`): its solver's
+(`solver.run.workflow`, in `solver.run.lstps` load steps) unless `workflows` are given. Built-in workflows:
 `elastodynamic!`, `elastoplastic!`, `elastoquasistatic!`, `thermodynamic!`. When
 `solver.plot.status` is on, a plot is saved into the simulation's folder after each workflow.
 
-On a `.jld2` file (`setup_simulation`), the simulation is loaded, run, and written back after each
+On a `.jld2` file (`setup`), the simulation is loaded, run, and written back after each
 workflow; `load_simulation(file)` then holds the results. `execute` runs on a copy (of `sim`, or of
 the file's simulation), leaves its argument untouched and returns the run simulation (its plots and
 output are still written into the folder).
@@ -40,7 +40,7 @@ function execute!(sim::Simulation; workflows=case_workflows(sim), output=output_
     try
         task_local_storage(:output_recorder, rec) do
             for workflow! ∈ workflows
-                @info workflow_log(p.solver; msg="$workflow!")
+                @info workflow_log(p; msg="$workflow!")
                 task_local_storage(:output_workflow, string(workflow!))
                 workflow!(p)
                 record!(p.mpts, p.mesh, p.time, p.solver)             # the state the workflow ends on

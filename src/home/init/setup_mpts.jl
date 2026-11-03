@@ -1,6 +1,6 @@
 
 """
-    build_solid_phase(T1, T2, D, solver, pts::PointData, v0) -> PointSolidPhase
+    build_solid_phase(T1, T2, D, laws, pts::PointData, v0) -> PointSolidPhase
 
 Build the per-particle solid-phase state (`PointSolidPhase`) of the points `pts` with initial
 volumes `v0`: the per-particle constitutive-model bundle (`cmp`, via `setup_cmp`) and all mechanical
@@ -9,30 +9,24 @@ constant solid mass).
 
 `ST` (the typed strain storage of `ϵᵢ`/`ϵn`, see `tensor.jl`) and `EL`
 (`Point`'s elastic law, see `AbstractElasticLaw` in `lagrangian.jl`) are
-both picked here, together, purely from `solver.material.elastic` — there is no
+both picked here, together, from `laws.elastic` (`get_constitutive_laws().elastic`) — there is no
 separate strain-formulation config key. `"hypoelastic"` → `InfinitesimalStrain`+
 `HypoelasticSolid`; `"hencky"`/`"improved_hencky"` → `LogarithmicStrain`+
 (`HenckySolid`/`ImprovedHenckySolid`). `CM` (the constitutive-model type
-of `cmp`) is picked by `solver.material.plastic`: `DruckerPrager` for `"DP"`,
+of `cmp`) is picked by `laws.plastic` (`get_constitutive_laws().plastic`): `DruckerPrager` for `"DP"`,
 `VonMises` for `"VM"` — see `setup_cmp`.
 """
-function build_solid_phase(T1,T2,D,solver,pts::PointData,v0)
+function build_solid_phase(T1,T2,D,laws,pts::PointData,v0)
     L  = D*D
     nmp, ρ0, vp = length(pts.zone), pts.rho0, pts.vp
     ρ  = T2.((1.0 .- pts.n0) .* ρ0)
     TM = SMatrix{D,D,T2,L}
     TV = SVector{D,T2}
-    ST,EL = if solver.material.elastic == "hypoelastic"
-        InfinitesimalStrain{T2}, HypoelasticSolid
-    elseif solver.material.elastic == "hencky"
-        LogarithmicStrain{T2}, HenckySolid
-    elseif solver.material.elastic == "improved_hencky"
-        LogarithmicStrain{T2}, ImprovedHenckySolid
-    else
-        throw(error("InvalidElasticLaw: $(solver.material.elastic) (expected \"hypoelastic\", \"hencky\" or \"improved_hencky\")"))
-    end
+    elastic = table_value(get_constitutive_laws().elastic, laws.elastic, "material.elastic")
+    ST   = elastic.strain{T2}
+    EL   = elastic.law
     cmp = setup_cmp(nmp, T2.(pts.c0), T2.(pts.cr), T2.(pts.phi); E=T2.(pts.E), ν=T2.(pts.nu), Hp=T2.(pts.Hp), D=Int(D),
-                    constitutive=solver.material.plastic)
+                    constitutive=laws.plastic)
     CM  = eltype(cmp)
 
     s = PointSolidPhase{T1,T2,D,CM,ST,EL,L}(
@@ -80,20 +74,21 @@ function build_thermal_phase(T1,T2,D,pts::PointData; thermal::Bool=false)
 end
 
 """
-    setup_mpts(mesh, solver, pts::PointData; thermal=false) -> Point
+    setup_mpts(mesh, pts::PointData, laws; thermal=false) -> Point
 
-Construct the material point system of a simulation from its points (`case_points`):
+Construct the material point system of a simulation from its points (`case_points`) and constitutive laws
+(`(; elastic, plastic)`, a case's `laws`), in the mesh's precision:
 positions, domains (`ℓ₀`, from the element size and `pts.ni`), volumes `Ω₀`, porosity `n₀`, the
 solid phase (`build_solid_phase`) and, with `thermal=true`, the thermal phase. Connectivity is built
 separately by `setup_basis`, once both `Mesh` and `Point` exist.
 """
-function setup_mpts(mesh::Mesh{T1,T2,D},solver::S,pts::PointData; thermal::Bool=false) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function setup_mpts(mesh::Mesh{T1,T2,D},pts::PointData,laws::NamedTuple; thermal::Bool=false) where {T1,T2,D}
     props   = mesh.prprt
     ni,xp   = pts.ni,pts.xp
     nmp     = size(xp,2)
     l0      = ones(size(xp)).*0.5.*(props.h./ni)
     v0      = prod(2 .* l0; dims=1)
-    s       = build_solid_phase(T1,T2,D,solver,pts,v0)
+    s       = build_solid_phase(T1,T2,D,laws,pts,v0)
     t       = build_thermal_phase(T1,T2,D,pts; thermal=thermal)
     n0      = pts.n0
     mpts = Point(                              # type parameters inferred from `s`

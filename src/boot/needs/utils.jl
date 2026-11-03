@@ -34,7 +34,7 @@ export clean_dump
     clean_dump()
 
 Empty `dump/`, the default folder of simulations, their plots and outputs. Nothing else empties it:
-`setup_simulation` only overwrites the files of the simulation it writes (and removes its stale output).
+`setup` only overwrites the files of the simulation it writes (and removes its stale output).
 """
 function clean_dump()
     dir   = self.sys.dump
@@ -72,7 +72,7 @@ end
 """
     get_version() -> String
 
-Return the current project version as a string, as specified in the Julia project file.
+Return ElastoPlasm's own version (its Project.toml's, whichever project is active) as a string.
 
 # Returns
 - `String`: The project version.
@@ -84,5 +84,28 @@ println(v)
 ```
 """
 function get_version()
-    return string(Pkg.project().version)
+    return string(pkgversion(@__MODULE__))
+end
+
+"""
+    adapt_fields(to, x, P) -> P(...)
+
+`x` with each field adapted to `to` (Adapt.jl: a KernelAbstractions backend moves arrays to its device, `Array`
+brings them back), rebuilt by `P`: the container's partial type (`Point`, `Mesh{T1,T2,D}`, `Basis{T1,T2,D,NN}`, …),
+which pins the type parameters no field carries and takes the arrays' types from the adapted fields. The adapt rules
+of the mesh, point and basis containers call it. A plain-bits field (a scalar, `nothing`, an `SVector` such as
+`mesh.x₀`, `MeshProperties`) is kept as it is: Adapt would turn an `SVector` into an `Array`, or a device array.
+"""
+@inline function adapt_fields(to, x, ::Type{P}) where {P}
+    return P(ntuple(i -> adapt_field(to, getfield(x, i)), Val(fieldcount(typeof(x))))...)
+end
+@inline function adapt_field(to, f)
+    return isbits(f) ? f : Adapt.adapt(to, f)
+end
+
+# what an option's value stands for, in a table keyed by the option's values (`get_constitutive_laws()`'s);
+# `option` names it in the error
+function table_value(table::NamedTuple, name::AbstractString, option::AbstractString)
+    haskey(table, Symbol(name)) || throw(ArgumentError("$option = \"$name\" is not one of $(join(keys(table), ", "))"))
+    return getfield(table, Symbol(name))
 end

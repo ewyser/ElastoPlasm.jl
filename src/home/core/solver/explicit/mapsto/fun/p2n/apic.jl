@@ -2,7 +2,7 @@
 # APIC transfer scheme, see Nakamura etal, 2023, https://doi.org/10.1016/j.cma.2022.115720
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 """
-    p2n!(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, basis::Basis{...,TR}, g::Vector{T2}) where {T1,T2,TR<:ApicTransfer}
+    p2n!(mpts::Point{T1,T2}, mesh::Mesh{T1,T2}, basis::Basis{...,TR}, g::AbstractVector{T2}) where {T1,T2,TR<:ApicTransfer}
 
 Project material point data to mesh nodes (APIC scheme). Dispatched via `Basis`'s `TR`
 type parameter — see `Basis`'s docstring. Reads/writes the affine-velocity/inertia
@@ -12,12 +12,12 @@ accumulators from `basis.transfer.Bᵢⱼ`/`.Dᵢⱼ` (moved here from `Point`, 
 # Arguments
 - `mpts::Point{T1,T2}`: Material point data structure.
 - `mesh::Mesh{T1,T2}`: Mesh data structure.
-- `g::Vector{T2}`: Gravity vector.
+- `g::AbstractVector{T2}`: Gravity vector.
 
 # Returns
 - Updates mesh fields in-place.
 """
-@kernel inbounds = true function p2n!(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,T2,1,NN,K,TR},g::Vector{T2}) where {T1,T2,NN,K,TR<:ApicTransfer}
+@kernel inbounds = true function p2n!(mpts::Point{T1,T2,1},mesh::Mesh{T1,T2,1},basis::Basis{T1,T2,1,NN,K,TR},g::AbstractVector{T2}) where {T1,T2,NN,K,TR<:ApicTransfer}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -39,7 +39,7 @@ accumulators from `basis.transfer.Bᵢⱼ`/`.Dᵢⱼ` (moved here from `Point`, 
         end
     end
 end
-@kernel inbounds = true function p2n!(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2,NN,K,TR},g::Vector{T2}) where {T1,T2,NN,K,TR<:ApicTransfer}
+@kernel inbounds = true function p2n!(mpts::Point{T1,T2,2},mesh::Mesh{T1,T2,2},basis::Basis{T1,T2,2,NN,K,TR},g::AbstractVector{T2}) where {T1,T2,NN,K,TR<:ApicTransfer}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering
@@ -63,7 +63,7 @@ end
         end
     end
 end
-@kernel inbounds = true function p2n!(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3,NN,K,TR},g::Vector{T2}) where {T1,T2,NN,K,TR<:ApicTransfer}
+@kernel inbounds = true function p2n!(mpts::Point{T1,T2,3},mesh::Mesh{T1,T2,3},basis::Basis{T1,T2,3,NN,K,TR},g::AbstractVector{T2}) where {T1,T2,NN,K,TR<:ApicTransfer}
     p = @index(Global)
     if p ≤ mpts.nmp
         # buffering

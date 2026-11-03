@@ -27,13 +27,31 @@
 
 export MLSBasis
 
-struct MLSBasis{T,D,NN} <: AbstractBasis
-    stencils::NTuple{D,UnitRange{T}}
+"""
+    MLSBasis{T1,D,NN} <: AbstractBasisKind
+
+Moving least squares shape functions on the structured grid (Cao et al. 2025, §2.3.1): quadratic B-spline weights
+corrected by a per-point moment matrix, which restores consistency near the boundary without node types: a basis kind,
+what `Basis`'s `kind` holds.
+
+# Fields
+- `stencils::NTuple{D,UnitRange{T1}}`: per axis, the offsets of the nodes a point reaches from its element's first node
+  (`-1:2`, 4 nodes per axis).
+
+`T1` is the index type, `D` the dimension, `NN` the number of nodes a point reaches (`prod(length.(stencils))`).
+
+# Constructors
+    MLSBasis{T1,D}()
+
+`get_basis` builds it from the option `basis.which` (`"mlsmpm"`).
+"""
+struct MLSBasis{T1,D,NN} <: AbstractBasisKind
+    stencils::NTuple{D,UnitRange{T1}}
     #
-    function MLSBasis{T,D}() where {T,D}
-        stencils = ntuple(_ -> UnitRange{T}(-1:2), D)
+    function MLSBasis{T1,D}() where {T1,D}
+        stencils = ntuple(_ -> UnitRange{T1}(-1:2), D)
         NN       = prod(length.(stencils))
-        return new{T,D,NN}(stencils)
+        return new{T1,D,NN}(stencils)
     end
 end
 

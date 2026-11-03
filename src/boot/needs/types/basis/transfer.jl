@@ -21,30 +21,37 @@ velocity-gradient correction it uses (`mpts.s.∇vᵢⱼ`) already lives on `Poi
 struct TpicTransfer <: AbstractTransfer end
 
 """
-    ApicTransfer{T,D,L}
+    ApicTransfer{T2,D,L,VM} <: AbstractTransfer
 
-Affine PIC (APIC) transfer scheme. Unlike `StdTransfer`/`TpicTransfer`, APIC needs two
-per-particle `D×D` accumulators (`Bᵢⱼ`, the affine velocity matrix, and `Dᵢⱼ`, the
-inertia-like normalization matrix) — moved here from `Point` since they are 100%
-APIC-exclusive (see `shpfun.jl`'s `Dij_nd` and `mapsto/fun/Bij.jl`'s `Bij`, both only
-registered/called under `basis.trsfr=="apic"`). Needs `nmp` at construction time to
-size its vectors, unlike `StdTransfer`/`TpicTransfer`'s zero-arg constructors. `L=D*D`
-is a separate type parameter since
-`SMatrix{D,D,T,D*D}` — computing the length inline from `D` — isn't valid inside a
-struct's own field-type declaration (`D*D` on a bare `TypeVar`); `L` is only computed
-once `D` is a concrete value, inside the inner constructor.
+Affine PIC (APIC) transfer scheme (`basis.trsfr = "apic"`). Unlike `StdTransfer` and `TpicTransfer`, it carries a
+`D×D` matrix pair per point, used by APIC alone (`shpfun.jl`'s `Dij_nd`, `mapsto/fun/Bij.jl`'s `Bij`).
+
+# Fields
+- `Bᵢⱼ::VM`: the affine velocity matrix, an `SMatrix{D,D,T2,L}` per point.
+- `Dᵢⱼ::VM`: the inertia-like matrix that normalises it.
+
+`T2` is the float type, `D` the dimension, `L = D*D` (Julia cannot compute `D*D` in a field type, so it is a
+parameter, computed by the constructor), `VM` the vectors' type (host or device).
+
+# Constructors
+    ApicTransfer{T2,D}(nmp)
+    ApicTransfer{T2,D,L}(Bᵢⱼ, Dᵢⱼ)
+
+The first, zero matrices for `nmp` points (`get_transfer`).
 """
-struct ApicTransfer{T,D,L} <: AbstractTransfer
-    Bᵢⱼ::Vector{SMatrix{D,D,T,L}}
-    Dᵢⱼ::Vector{SMatrix{D,D,T,L}}
-    #
-    function ApicTransfer{T,D}(nmp::Integer) where {T,D}
-        L = D*D
-        return new{T,D,L}(
-            [zero(SMatrix{D,D,T,L}) for _ in 1:nmp],
-            [zero(SMatrix{D,D,T,L}) for _ in 1:nmp],
-        )
-    end
+struct ApicTransfer{T2,D,L,VM} <: AbstractTransfer
+    Bᵢⱼ::VM
+    Dᵢⱼ::VM
+end
+function ApicTransfer{T2,D}(nmp::Integer) where {T2,D}
+    L = D*D
+    return ApicTransfer{T2,D,L}([zero(SMatrix{D,D,T2,L}) for _ in 1:nmp], [zero(SMatrix{D,D,T2,L}) for _ in 1:nmp])
+end
+function ApicTransfer{T2,D,L}(Bᵢⱼ::VM, Dᵢⱼ::VM) where {T2,D,L,VM}
+    return ApicTransfer{T2,D,L,VM}(Bᵢⱼ, Dᵢⱼ)
+end
+function Adapt.adapt_structure(to, tr::ApicTransfer{T2,D,L}) where {T2,D,L}
+    return adapt_fields(to, tr, ApicTransfer{T2,D,L})
 end
 
 """

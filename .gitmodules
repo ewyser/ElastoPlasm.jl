@@ -1,0 +1,6 @@
+[submodule "lib/EasyDraw"]
+	path = lib/EasyDraw
+	url = https://github.com/ewyser/EasyDraw.jl.git
+[submodule "lib/UnifiedBackend"]
+	path = lib/UnifiedBackend
+	url = https://github.com/ewyser/UnifiedBackend.jl.git

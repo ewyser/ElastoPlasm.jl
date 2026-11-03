@@ -2,7 +2,7 @@
 
 julia_version = "1.10.10"
 manifest_format = "2.0"
-project_hash = "35c227b4311dc6d940a602d9192510f2174b6d03"
+project_hash = "7ac76e18aad3f5cfcc39b78126555fc7c771cd98"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -168,6 +168,12 @@ git-tree-sha1 = "439e35b0b36e2e5881738abc8857bd92ad6ff9a8"
 uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.6.3"
 
+[[deps.CxxWrap]]
+deps = ["Libdl", "MacroTools", "libcxxwrap_julia_jll"]
+git-tree-sha1 = "f7a997d3959648a818c45dda059a45844300b94d"
+uuid = "1f15a43c-97ca-5a2a-ae31-89f07a497df4"
+version = "0.17.5"
+
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
@@ -208,6 +214,12 @@ version = "0.9.5"
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.6.0"
+
+[[deps.EasyDraw]]
+deps = ["QML", "TOML"]
+path = "lib/EasyDraw"
+uuid = "09c6abe4-4b64-4d71-aef0-732a87e6de5c"
+version = "0.1.0"
 
 [[deps.EpollShim_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -669,6 +681,11 @@ version = "1.1.3"
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
 
+[[deps.Observables]]
+git-tree-sha1 = "7438a59546cf62428fc9d1bc94729146d37a7225"
+uuid = "510215fc-4207-5dde-b226-833fc4488ee2"
+version = "0.5.5"
+
 [[deps.Ogg_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "b6aa4566bb7ae78498a5e68943863fa8b5231b59"
@@ -805,6 +822,22 @@ git-tree-sha1 = "1d36ef11a9aaf1e8b74dacc6a731dd1de8fd493d"
 uuid = "43287f4e-b6f4-7ad1-bb20-aadabca52c3d"
 version = "1.3.0"
 
+[[deps.QML]]
+deps = ["ColorTypes", "CxxWrap", "Libdl", "MacroTools", "Observables", "Qt6Svg_jll", "Qt6Wayland_jll", "jlqml_jll"]
+git-tree-sha1 = "74fdf54b3f73063cb04f0f683df7d15a865b7b29"
+uuid = "2db162a6-7e43-52c3-8d84-290c1c42d82a"
+version = "0.12.1"
+
+    [deps.QML.extensions]
+    Qt65CompatExt = "Qt65Compat_jll"
+    Qt6GraphsExt = "Qt6Graphs_jll"
+    Qt6Quick3DExt = "Qt6Quick3D_jll"
+
+    [deps.QML.weakdeps]
+    Qt65Compat_jll = "f5784262-74e5-52be-b835-f3e8a3cf8710"
+    Qt6Graphs_jll = "7aac1016-a7e0-562a-8747-d0456fd6285f"
+    Qt6Quick3D_jll = "6dc365b9-5e99-58d6-8812-efce7277b6ef"
+
 [[deps.Qt6Base_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Vulkan_Loader_jll", "Xorg_libSM_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_cursor_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "libinput_jll", "xkbcommon_jll"]
 git-tree-sha1 = "34f7e5d2861083ec7596af8b8c092531facf2192"
@@ -822,6 +855,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Qt6Base_jll"]
 git-tree-sha1 = "9eca9fc3fe515d619ce004c83c31ffd3f85c7ccf"
 uuid = "ce943373-25bb-56aa-8eca-768745ed7b5a"
 version = "6.8.2+1"
+
+[[deps.Qt6Svg_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Qt6Base_jll"]
+git-tree-sha1 = "6c1ec6aa975980e4f8101410e2295509f56b23d3"
+uuid = "6de9746b-f93d-5813-b365-ba18ad4a9cf3"
+version = "6.8.2+0"
 
 [[deps.Qt6Wayland_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Qt6Base_jll", "Qt6Declarative_jll"]
@@ -1030,6 +1069,20 @@ git-tree-sha1 = "53915e50200959667e78a92a418594b428dffddf"
 uuid = "1cfade01-22cf-5700-b092-accc4b62d6e1"
 version = "0.4.1"
 
+[[deps.UnifiedBackend]]
+deps = ["KernelAbstractions"]
+path = "lib/UnifiedBackend"
+uuid = "53203a36-6468-4ce1-9d2a-5f04ad17d58e"
+version = "0.1.0"
+
+    [deps.UnifiedBackend.extensions]
+    CUDAExt = "CUDA"
+    ROCmExt = "AMDGPU"
+
+    [deps.UnifiedBackend.weakdeps]
+    AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+
 [[deps.UnsafeAtomics]]
 git-tree-sha1 = "b13c4edda90890e5b04ba24e20a310fbe6f249ff"
 uuid = "013be700-e6cd-48c3-b4a1-df204f14c38f"
@@ -1237,6 +1290,12 @@ git-tree-sha1 = "b6a34e0e0960190ac2a4363a1bd003504772d631"
 uuid = "214eeab7-80f7-51ab-84ad-2988db7cef09"
 version = "0.61.1+0"
 
+[[deps.jlqml_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Qt6Declarative_jll", "Qt6Svg_jll", "libcxxwrap_julia_jll"]
+git-tree-sha1 = "dd0994bcb75984d75c6ead112a948c19fa3f77db"
+uuid = "6b5019fb-a83d-5b4e-a9f7-678a36c28df7"
+version = "0.9.0+0"
+
 [[deps.libaec_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "13b760f97c6e753b47df30cb438d4dc3b50df282"
@@ -1259,6 +1318,12 @@ version = "0.17.4+0"
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
 version = "5.11.0+0"
+
+[[deps.libcxxwrap_julia_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "2eecfd1759a176424159c1993b66f012a230319f"
+uuid = "3eaa8342-bff7-56a5-9981-c04077f7cee7"
+version = "0.14.12+0"
 
 [[deps.libdecor_jll]]
 deps = ["Artifacts", "Dbus_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "Pango_jll", "Wayland_jll", "xkbcommon_jll"]

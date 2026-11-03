@@ -1,11 +1,11 @@
 ## Persistence (JLD2)
 
 A simulation's `.jld2` is a saved `Simulation`, one `"simulation"` key: the `Problem` (`mpts`,
-`mesh`, `basis`, `time`, `solver`), the workflow name and load steps, and the folder. It is written
+`mesh`, `basis`, `time`, `solver`, whose run settings hold the workflow and load steps) and the folder. It is written
 to `<folder>/<name>_simulation.jld2` by `save_simulation(sim)` (or to a given file,
 `save_simulation(sim, file)`, the one writer of the key) and read by `load_simulation(file)`
 (`src/home/api/io/simulation.jl`), whose folder is then the file's (a run folder can be moved or
-copied); `setup_simulation` saves it, and `execute!(jld2)` loads it and writes it back after each
+copied); `setup` saves it, and `execute!(jld2)` loads it and writes it back after each
 workflow. `mpts.s.cmp` (constitutive constants) and APIC's `Bᵢⱼ`/`Dᵢⱼ` (on
 `basis.transfer`) persist inside it. **Format change:** before the `Simulation` type the file held
 `"problem"`, `"paths"` and `"misc"` (`save_problem`/`load_problem`), and before
@@ -14,18 +14,44 @@ workflow. `mpts.s.cmp` (constitutive constants) and APIC's `Bᵢⱼ`/`Dᵢⱼ` (
 scripts, was never the key.) `test_column.jl` once lagged a layout change for a long stretch, see
 `.claude/bug/fixed/test-collapse-renamed-and-fixed.md`.
 
+**The solver is stored as its configuration** (`feat-gpu-explicit`): `save_simulation` writes `stored_solver(solver)`,
+the same solver type with `backend = (; select)` (no `exec`, the platform UnifiedBackend selected) and
+`cairn = nothing` (no kernel objects), and `load_simulation` rebuilds it with `build_solver(solver_config(…), D)`, the
+code both `Solver` constructors end with: the kernels are built again and the device picked on the machine that loads the file
+(a file written on a GPU machine opens on a laptop, which runs it on its host unless it has a GPU). Files written
+before still load (their kernels and `exec` are ignored).
+
+**Format change:** one `Solver` struct (`refactor-solver-split`) replaced `ExplicitSolver`/`ImplicitSolver`, its
+`solution` as text, holding no case and no physics (`material`, `grf`, `bcs` are the case's; the run settings lost the folder),
+and `Problem`'s type parameters follow its fields (`{T1,T2,D,P,M,B,S}`), so `.jld2` files written before don't load;
+set them up again from their case TOML. The case TOML is unchanged, and the one `setup(case, solver)`
+writes records the solver's numerical options and run settings, so `Solver(load_case(file))` rebuilds it.
+
 **Format change:** `solver.plot.what` holds quantity keys (`["p", "epII"]`) instead of NamedTuples of
 plot settings (`quantities()`), so a `.jld2` written before plots nothing it can resolve; set it up
 again from its case TOML (`plot.what` there was written by name, which still loads).
 
 **Format change:** stress/strain storage switched to a scalar plus a 3D Voigt deviator
 (`feat-refactor-tensor-storage`), and the 2D `mpts.s.ϵzz` field was removed. `.jld2` files written before that don't load;
-regenerate them with `setup_simulation(<example>_case(...))`.
+regenerate them with `setup(<example>_case(...))`.
 
-**The problem as TOML beside the `.jld2`:** `setup_simulation` also writes `<name>_case.toml`
+**The problem as TOML beside the `.jld2`:** `setup` also writes `<name>_case.toml`
 (`save_case`) next to `<name>_simulation.jld2`, so a run's setup can be read, edited, reloaded
 (`load_case`) and rebuilt without the `.jld2` (provenance; skipped with a warning when a zone is a
 `Region` predicate, which TOML cannot hold). The `.jld2` layout is unchanged.
+
+**Case files since `refactor-case-in-easydraw`:** the format is unchanged, but a roller side is no longer written
+(`case_settings`; roller is what a side not set is), so the examples' files lost their all-roller `[settings.sides]`;
+read back, every one builds the same problem (each array, bit for bit). EasyDraw's `load_case` refuses a file with
+top-level tables a case file does not have, which covers ElastoPlasm's older format (`bcs`, `[material]`, `[solver]`).
+
+**Format change (case TOML):** since `refactor-case-from-layout` a case file is its EasyDraw layout's file with its
+settings (geometry: `[domain]`, `[[zone]]` with name and shape; settings: `[settings.zones.<name>]`,
+`[settings.defaults]`, `[settings.sides]`, `[settings.options]`, `[settings.run]`; SI, φ in radians; see "Describing a
+case" in `operations.md`). Geometry and settings can also be separate files. Case files written before (`bcs`, `[material]`, `[solver]`, φ in degrees) are refused by `load_case`
+with a message (the user chose no converter): set them up again from their example. The advice below to set an old
+`.jld2` up again "from its case TOML" holds only for case files written since. `.jld2` files are not affected (they
+hold the `Simulation`, not the case).
 
 **Format change:** `GimpBasis` gained a `domain` field and type parameter (`basis.domain`), so GIMP `.jld2`
 files written before don't load (checked; other bases' files still load, the new `basis.domain` option is read only
@@ -34,7 +60,16 @@ at setup); set them up again from their case TOML, which still loads (a missing 
 **Format change:** `MeshSolidPhase` lost its unused `oobp` and `p` fields, `MeshProperties` and
 `Point` their `nn`, and the file moved to the one `"problem"` key (`refactor-init-problem-spec`), so
 `.jld2` files written before don't load; regenerate them with
-`setup_simulation(<example>_case(...))` or `setup_simulation(load_case(<name>_case.toml))`.
+`setup(<example>_case(...))` or `setup(load_case(<name>_case.toml))`.
+
+**Format change:** the mesh, point and basis containers hold their arrays through type parameters (`feat-gpu-explicit`,
+so that a device's arrays fit them), `MeshProperties` holds static vectors, and `basis.e2e` is an `Adjacency` (two index
+vectors) instead of a `SparseMatrixCSC`: `.jld2` files written before don't load, and `load_simulation` says so (a
+file whose stored types no longer match is not a `Simulation` once read); set them up again from their case TOML.
+
+**Format change:** the solver structs gained `run` (the run settings) and `case` (stored as `nothing`), and `Simulation`
+lost `workflow`/`lstps` (now `problem.solver.run`) (`refactor-solver-split`), so `.jld2` files written before don't
+load; `load_simulation` says so. Set them up again from their case TOML.
 
 **HDF5 output beside it:** with `output.status`, a run also writes `<name>_output.h5` in the simulation's
 folder (plain HDF5, one array per recorded field with frames last); see "Recording a run" in

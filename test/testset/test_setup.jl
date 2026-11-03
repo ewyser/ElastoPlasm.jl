@@ -11,6 +11,7 @@
     function flat(jld2)
         pb = load_simulation(jld2).problem; basis, solver = pb.basis, pb.solver
         m, c = pb.mpts, pb.mpts.s.cmp
+        case = load_case(replace(jld2, "_simulation.jld2" => "_case.toml"))   # its boundaries and laws, once the solver's
         return Dict{String,Any}(
             "x" => reduce(hcat, m.x), "Omega" => m.Ω₀, "n0" => m.n₀, "rho0" => m.s.ρ₀, "rho" => m.s.ρ, "m" => m.s.m,
             "Gc" => getfield.(c, :Gc), "Kc" => getfield.(c, :Kc), "Hp" => getfield.(c, :Hp), "c0" => getfield.(c, :c₀),
@@ -19,19 +20,19 @@
             "c" => isnothing(m.t) ? Float64[] : m.t.c, "k" => isnothing(m.t) ? Float64[] : m.t.k,
             "bcs" => Float64.(pb.mesh.s.bcs.status), "N" => basis.N,
             "time" => [pb.time.t; pb.time.te; pb.time.tg; pb.time.tep],
-            "solver" => string((solver.solution, solver.basis, solver.stab, solver.bcs, solver.material, solver.dtype)))
+            "solver" => string((solver.solution, solver.basis, solver.stab, (; dirichlet=case_physics(case).bcs), case_physics(case).laws, solver.dtype)))
     end
     # (problem, is the point order meaningful): the collision's disks may come in any order
     cases = [
-        ("slump 2D",   () -> setup_simulation(slump_case(L, [40, 10]; cli()..., noplot...))),
-        ("slump 3D",   () -> setup_simulation(slump_case([L; L[2]], [40, 10, 10]; cli()..., noplot...))),
-        ("slump GRF",  () -> (Random.seed!(1234); setup_simulation(slump_case(L, [40, 10]; cli()..., noplot..., grf=(; get_default().grf..., status=true))))),
-        ("slump fine", () -> setup_simulation(slump_case(L, [80, 20]; cli()..., noplot...))),
-        ("collapse",   () -> setup_simulation(collapse_case([40, 20]; noplot...))),
-        ("block",      () -> setup_simulation(block_case(; noplot...))),
-        ("column",     () -> setup_simulation(column_case([1, 20], 0.0, 1.0e4, 80.0, 50.0; noplot...))),
-        ("thermal",    () -> setup_simulation(thermal_case(L, [40, 10]; noplot...))),
-        ("collision",  () -> setup_simulation(collision_case([1.0, 1.0], [20, 20]; noplot...))),
+        ("slump 2D",   () -> setup(slump(L, [40, 10]; cli()..., noplot...))),
+        ("slump 3D",   () -> setup(slump([L; L[2]], [40, 10, 10]; cli()..., noplot...))),
+        ("slump GRF",  () -> (Random.seed!(1234); setup(slump(L, [40, 10]; cli()..., noplot..., grf=(; get_default().grf..., status=true))))),
+        ("slump fine", () -> setup(slump(L, [80, 20]; cli()..., noplot...))),
+        ("collapse",   () -> setup(collapse([40, 20]; noplot...))),
+        ("block",      () -> setup(block(; noplot...))),
+        ("column",     () -> setup(column([1, 20], 0.0, 1.0e4, 80.0, 50.0; noplot...))),
+        ("thermal",    () -> setup(thermal(L, [40, 10]; noplot...))),
+        ("collision",  () -> setup(collision([1.0, 1.0], [20, 20]; noplot...))),
     ]
     # FNV-1a over the bits of the values (strings: their bytes)
     fnv(words) = foldl((h, w) -> (h ⊻ w) * 0x00000100000001b3, words; init=0xcbf29ce484222325)

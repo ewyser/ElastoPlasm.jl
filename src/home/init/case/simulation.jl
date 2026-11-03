@@ -1,52 +1,116 @@
-export setup_simulation, case_workflows
+export setup, case_workflows
 
 """
-    case_solver_options(case) -> NamedTuple
+    Solver(case; run=(;), overrides…) -> Solver
 
-The `get_solver` keyword arguments of a case: its solver overrides (merged per field over the
-defaults by `get_solver`), its boundary conditions as `bcs.dirichlet` (roller on the sides along y of
-an extruded problem), and `solution` from the workflow (`"implicit"` for the quasi-static ones) unless
-the overrides set it.
+How a case is solved, as its settings say: the numerical options (the option sections that are not physics: `dtype`,
+`basis`, `stab`, `nonloc`, `solution`, `plot`, `output`, `backend`) and the run settings (`workflow`, `te`, `tg`,
+`tep`, `lstps`), with the kernels built on them; `solution` follows the workflow (`"implicit"` for the quasi-static
+ones) unless set. The solver keeps nothing of the case: `Problem(case, solver)` builds the two together, and the same
+solver solves other cases of its dimension (`Problem(other, solver)`).
+
+`overrides` replace numerical options field by field (`Solver(case; basis=(; which="gimpm"))`) and `run` run settings
+(`run=(; te=5.0)`), so one case is solved several ways.
+
+# Throws
+- `ArgumentError`: when an override is physics (a `get_physics_sections()` section, or `bcs`: set it in the case), or
+  the run folder (the case's, or `setup`'s `folder`), or an explicit workflow is asked of an implicit solver
+  (`solution = "implicit"`); and for an unknown or invalid option or run setting.
+
+# Examples
+```julia
+case = slump([64.16, 16.04], [40, 10])
+a = Solver(case)                                   # as its settings say
+b = Solver(case; basis=(; which="gimpm"), run=(; te=5.0))
+execute!(setup(case, b))
+```
 """
-function case_solver_options(s::Case)
-    dir = isnothing(s.width) ? s.bcs : vcat(s.bcs[1:1, :], [:roller :roller], s.bcs[2:2, :])
-    kw  = merge(s.solver, (; bcs=(; dirichlet=dir)))
-    haskey(kw, :solution) || (kw = merge(kw, (; solution=quasistatic(s.run.workflow) ? "implicit" : "explicit")))
-    return kw
+function Solver(case::Case; run=(;), overrides...)
+    o = named_tuple((; overrides...))
+    refuse_physics(o)
+    haskey(config_dict(run), "folder") &&
+        throw(ArgumentError("run.folder: a simulation's folder is its case's (its run settings) or setup's `folder`"))
+    s = case.settings
+    options = isempty(o) ? s.options : merge_dicts(s.options, option_labels(config_dict(o)))
+    settings = merge(Dict{String,Any}(s.run), config_dict(run))
+    delete!(settings, "thermal")                             # the case's
+    r = solver_run(settings)
+    config = (; (k => v for (k, v) ∈ pairs(case_options(options)) if k ∉ get_physics_sections())...)
+    haskey(config, :solution) || (config = merge(config, (; solution=quasistatic(r.workflow) ? "implicit" : "explicit")))
+    quasistatic(r.workflow) || config.solution == "explicit" ||
+        throw(ArgumentError("workflow \"$(r.workflow)\" needs an explicit solver (solution = \"explicit\")"))
+    D = length(case.layout.L)
+    return build_solver(merge(solver_instr(; dim=D, config...), (; run=r)), D)
+end
+# solver options that are a case's physics are refused: set them in the case
+function refuse_physics(options)
+    physics = [k for k ∈ keys(options) if k ∈ (get_physics_sections()..., :bcs)]
+    isempty(physics) || throw(ArgumentError("$(join(physics, ", ")): the case's physics; set it in the case (its settings)"))
+    return nothing
+end
+# `b`'s entries over `a`'s, nested tables merged entry by entry
+function merge_dicts(a::AbstractDict, b::AbstractDict)
+    out = Dict{String,Any}(a)
+    for (k, v) ∈ b
+        out[k] = haskey(out, k) && out[k] isa AbstractDict && v isa AbstractDict ? merge_dicts(out[k], v) : v
+    end
+    return out
+end
+# the fields of a configuration that differ from `ref`'s, sections recursively (unchanged sections left out)
+function config_changes(c::NamedTuple, ref::NamedTuple)
+    out = Pair{Symbol,Any}[]
+    for k ∈ keys(c)
+        v, r = getfield(c, k), get(ref, k, nothing)
+        if v isa NamedTuple && r isa NamedTuple
+            d = config_changes(v, r)
+            isempty(d) || push!(out, k => d)
+        elseif !isequal(v, r)
+            push!(out, k => v)
+        end
+    end
+    return (; out...)
 end
 
 """
-    setup_simulation(case) -> String
+    setup(case, solver; folder=case_folder(case)) -> String
+    setup(case) -> String
 
-Build a case's simulation, `Simulation(Problem(case); workflow, lstps, folder)` from its run settings,
-and save it (`save_simulation`) with the case's TOML (`save_case`) beside it in its folder, the initial
-fields plotted when `solver.plot.status`; removes an output (`output_file(sim)`) left there by an earlier
-simulation, and returns the `.jld2` path, for `execute!`.
+Build a case's simulation, `Simulation(Problem(case, solver); folder)`, and save it (`save_simulation`) with the case
+as it was solved beside it (`save_case(file, case, solver)`, `<name>_case.toml`), the initial fields plotted when
+`solver.plot.status`; removes an output (`output_file(sim)`) left there by an earlier simulation, and returns the
+`.jld2` path, for `execute!`. The folder is the case's (its run settings' `folder`, else its file's folder), a name
+under `dump/` or a path. `setup(case)` is `setup(case, Solver(case))`.
 """
-function setup_simulation(s::Case)
-    @info "Setting up mesh & material point system for a $(length(domain(s)[1]))d problem ($(length(s.zones)) zones)"
-    sim = Simulation(Problem(s); s.run.workflow, s.run.lstps, s.run.folder)
+function setup(case::Case, solver::Solver; folder::AbstractString=case_folder(case))
+    @info "Setting up mesh & material point system for a $(length(case.layout.L))d problem ($(length(case.layout.zones)) zones)"
+    sim = Simulation(Problem(case, solver); folder)
     p   = sim.problem
     @info ic_log(p.mesh, p.mpts, p.time, p.solver)
     mkpath(sim.folder)
     p.solver.plot.status && plot_initial_fields(p, sim.folder)
     try
-        save_case(joinpath(sim.folder, "$(basename(sim.folder))_case.toml"), s)
+        save_case(joinpath(sim.folder, "$(basename(sim.folder))_case.toml"), case, solver; folder)
     catch e
         @warn "Case not written as TOML: $(sprint(showerror, e))"
     end
     rm(output_file(sim); force=true)                         # a new simulation starts a new output
     return save_simulation(sim)
 end
+function setup(case::Case)
+    return setup(case, Solver(case))
+end
 
 """
     case_workflows(sim) -> Vector{Function}
     case_workflows(workflow, lstps) -> Vector{Function}
 
-The workflow functions of a workflow name (one of `WORKFLOWS`), the quasi-static ones in `lstps` load
-steps: what `execute!` runs by default.
+The workflow functions of a workflow name (one of `get_workflows()`), the quasi-static ones in `lstps` load
+steps: what `execute!` runs by default, for a simulation its solver's (`solver.run`).
 """
-case_workflows(sim::Simulation) = case_workflows(sim.workflow, sim.lstps)
+function case_workflows(sim::Simulation)
+    run = sim.problem.solver.run
+    return case_workflows(run.workflow, run.lstps)
+end
 function case_workflows(w::AbstractString, lstps::Integer)
     w == "elastodynamic! + elastoplastic!" && return Function[elastodynamic!, elastoplastic!]
     w == "elastodynamic!"                  && return Function[elastodynamic!]

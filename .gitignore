@@ -12,3 +12,7 @@ docs/src/function/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .claude/worktrees/
+
+# the CUDA validation script's own environment (test/cuda/validate_cuda.jl sets it up)
+test/cuda/Project.toml
+test/cuda/Manifest.toml

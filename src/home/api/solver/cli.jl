@@ -23,7 +23,7 @@ println(opts.material.elastic)  # ["hencky", "improved_hencky", "hypoelastic"]
 function get_option()
     return (
 
-            solution = ("Select solver formulation",["explicit","implicit"]),
+            solution = ("Select solver formulation",["explicit", "implicit"]),
             dtype = (
                 T0 = ("Select arithmetic types",[(Int64,Float64),(Int32,Float32)]),
                 bits = ("Select arithmetic precision",[Int64(64),Int32(32)]),
@@ -52,8 +52,8 @@ function get_option()
                 ),
             ),
             material = (
-                plastic = ("Select plastic constitutive model",["DP", "VM"]),
-                elastic = ("Select strain formulation / elastic law",["hencky", "improved_hencky", "hypoelastic"]),
+                plastic = ("Select plastic constitutive model",collect(string.(keys(get_constitutive_laws().plastic)))),
+                elastic = ("Select strain formulation / elastic law",collect(string.(keys(get_constitutive_laws().elastic)))),
             ),
             nonloc = (
                 status = ("Enable nonlocal effects",[true, false]),
@@ -71,8 +71,7 @@ function get_option()
                 what   = output_what_options(),
             ),
             backend = (
-                select = ("Select backend",["host", "cuda", "rocm"]),
-                distributed = ("Enable distributed computing",[true, false])
+                select = ("Select backend (device: a GPU, when one is registered)",["host", "device"]),
             ),
         )
 end
@@ -154,11 +153,11 @@ The function automatically:
 - Skips sub-options when `status = false` is selected
 
 # Returns
-- `Dict`: Configuration dictionary ready to be splatted as kwargs into `slump_case`/`get_solver`.
+- `Dict`: Configuration dictionary ready to be splatted as kwargs into `slump`/`Solver`.
 
 # Example
 ```julia
-jld2 = setup_simulation(slump_case(L, nel; cli(ui=true)...))
+jld2 = setup(slump(L, nel; cli(ui=true)...))
 # Presents interactive menus for:
 # - dtype (Float32/Float64)
 # - basis functions

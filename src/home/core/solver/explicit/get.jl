@@ -1,10 +1,10 @@
-@inline function _Ktan(::Type{<:AbstractElasticLaw}, strain::AbstractStrain, cmp::AbstractConstitutiveModel{T}, n₀::T) where {T}
+@inline function _Ktan(::Type{<:AbstractElasticLaw}, strain::AbstractStrain, cmp::AbstractConstitutiveModel{T2}, n₀::T2) where {T2}
     return cmp.Kc
 end
-@inline function _Ktan(::Type{<:ImprovedHenckySolid}, strain::LogarithmicStrain{T}, cmp::AbstractConstitutiveModel{T}, n₀::T) where {T}
+@inline function _Ktan(::Type{<:ImprovedHenckySolid}, strain::LogarithmicStrain{T2}, cmp::AbstractConstitutiveModel{T2}, n₀::T2) where {T2}
     ϵ = strain.vol
-    n = T(1.0) - (T(1.0) - n₀) / exp(ϵ)
-    return cmp.Kc / (T(2.0)*n^3) * (n^2*(ϵ^2 + T(4.0)*ϵ + T(2.0)) - ϵ*n*(T(3.0)*ϵ + T(4.0)) + T(2.0)*ϵ^2)
+    n = T2(1.0) - (T2(1.0) - n₀) / exp(ϵ)
+    return cmp.Kc / (T2(2.0)*n^3) * (n^2*(ϵ^2 + T2(4.0)*ϵ + T2(2.0)) - ϵ*n*(T2(3.0)*ϵ + T2(4.0)) + T2(2.0)*ϵ^2)
 end
 
 """
@@ -28,21 +28,22 @@ dt = get_dt(mpts, mesh, time, ΔT)
 ```
 """
 function get_dt(mpts::Point{T1,T2,D,CM,ST,EL},props::MeshProperties{T1,T2,D},time::Time{T1,T2},ΔT::T2) where {T1,T2,D,CM,ST,EL}
-    # per-particle elastic wave speed, max over particles (real correctness improvement
-    # over the old single global `cmpr.c` scalar if `cmp`/`ρ` ever become heterogeneous)
-    cwave = T2(0.0)
-    @inbounds for p ∈ 1:mpts.nmp
-        cmp   = mpts.s.cmp[p]
-        cwave = max(cwave, sqrt((_Ktan(EL,mpts.s.ϵᵢ[p],cmp,mpts.n₀[p])+T2(4.0/3.0)*cmp.Gc)/mpts.s.ρ[p]))
-    end
-    # dt: the CFL bound of the most restrictive axis, Courant number 0.5 (Nakamura et al. 2023, Eq 35)
-    cmax = props.h./(mpts.vmax.+cwave); mpts.vmax.=T2(0.0)
+    # per-particle elastic wave speed, max over particles: a reduction, so the arrays may live on any device (over a
+    # lazy broadcast: no temporary array, as fast as a loop)
+    c = Broadcast.instantiate(Broadcast.broadcasted(mpts.s.cmp, mpts.s.ϵᵢ, mpts.n₀, mpts.s.ρ) do cmp, ϵ, n₀, ρ
+        sqrt((_Ktan(EL,ϵ,cmp,n₀)+T2(4.0/3.0)*cmp.Gc)/ρ)
+    end)
+    cwave = reduce(max, c; init=T2(0.0))
+    # dt: the CFL bound of the most restrictive axis, Courant number 0.5 (Nakamura et al. 2023, Eq 35); vmax, the
+    # largest speed per axis (mapsto), read once and zeroed for the next step
+    vmax = SVector{D,T2}(Array(mpts.vmax)); fill!(mpts.vmax, T2(0.0))
+    cmax = props.h./(vmax.+cwave)
     dt   = min(T2(0.5)*minimum(cmax),ΔT-time.t[1])
     return dt::T2
 end
 
 """
-    get_g(mesh::Mesh{T1,T2,D}; G::T2=9.81) -> Vector{T2}
+    get_g(props::MeshProperties{T1,T2,D}; G::T2=9.81) -> SVector{D,T2}
 
 Calculate the gravity vector for the mesh, with magnitude `G` in the negative last direction.
 
@@ -58,15 +59,8 @@ Calculate the gravity vector for the mesh, with magnitude `G` in the negative la
 g = get_g(mesh)
 ```
 """
-function get_g(props::MeshProperties{T1,T2,D}; G::T2=9.81) where {T1,T2,D}
-    if D == 1
-        g = [-G]
-    elseif D == 2
-        g = [T2(0.0),-G]
-    elseif D == 3
-        g = [T2(0.0),T2(0.0),-G]
-    end
-    return g::Vector{T2}
+function get_g(props::MeshProperties{T1,T2,D}; G::T2=T2(9.81)) where {T1,T2,D}
+    return SVector{D,T2}(ntuple(d -> d == D ? -G : T2(0.0), Val(D)))   # a plain value: a kernel argument on any device
 end
 
 """
@@ -105,7 +99,7 @@ function get_spacetime(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},time::Time{T1
 end
 
 """
-    checkpoints(time, solver, stop) -> Vector{Tuple{T, Bool, Bool}}
+    checkpoints(time, solver, stop) -> Vector{Tuple{T2, Bool, Bool}}
 
 The stops of an explicit workflow from the current time to `stop`, as `(t, plot, record)`: the
 `plot.freq` grid (a live plot) and, with `output.status`, the `output.every` grid (an output frame),

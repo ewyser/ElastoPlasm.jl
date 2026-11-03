@@ -1,4 +1,33 @@
 """
+    column_norm(A, j, Val(N)) -> norm(A[1:N, j])
+
+The 2-norm of column `j` of `A`, by the very steps of LinearAlgebra's `generic_norm2` (the method `norm` takes for a
+vector under 32 entries): the largest magnitude first, then the sum of squares, or the scaled sum when squaring would
+overflow or underflow, either summed in `promote_type(Float64, T2)`. Written out because `norm` of the column view compiles a BLAS
+call (its path for 32 entries or more), which a GPU kernel cannot hold; the result is the same to the bit.
+"""
+@inline function column_norm(A::AbstractMatrix{T2}, j, ::Val{N}) where {T2,N}
+    maxabs = abs(A[1,j])
+    for i ∈ 2:N
+        maxabs = max(maxabs, abs(A[i,j]))
+    end
+    (iszero(maxabs) || isinf(maxabs)) && return maxabs
+    if isfinite(N*maxabs*maxabs) && !iszero(maxabs*maxabs)
+        s = convert(promote_type(Float64, T2), abs2(A[1,j]))
+        for i ∈ 2:N
+            s += abs2(A[i,j])
+        end
+        return convert(T2, sqrt(s))
+    else
+        s = convert(promote_type(Float64, T2), abs2(abs(A[1,j])/maxabs))   # also widened: generic_norm2 types its sum
+        for i ∈ 2:N
+            s += (abs(A[i,j])/maxabs)^2
+        end
+        return convert(T2, maxabs*sqrt(s))
+    end
+end
+
+"""
     euler(mesh::MeshSolidPhase{T1,T2},dt::T2,η::T2) where {T2}
 
 Solve the Eulerian momentum equation for solid phase on the mesh with viscous damping.
@@ -23,7 +52,7 @@ Solve the Eulerian momentum equation for solid phase on the mesh with viscous da
             # apply damping correction on oobf (Matrix, unchanged)
             for dim ∈ 1:N
                 if !mesh.s.bcs.status[dim,no]
-                    D  = η*norm(mesh.s.oobf[:,no])*sign(mesh.s.mv[dim,no]*m⁻¹)
+                    D  = η*column_norm(mesh.s.oobf,no,Val(N))*sign(mesh.s.mv[dim,no]*m⁻¹)
                     if (abs(mesh.s.mv[dim,no]*m⁻¹)) ≥ T2(1.0e-3)
                         mesh.s.oobf[dim,no] -= D
                     end

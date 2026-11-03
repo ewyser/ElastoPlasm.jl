@@ -44,9 +44,11 @@
 1. **Install Julia:** [Download here](https://julialang.org/downloads/) and follow the instructions.
 2. **Clone the repo:**
    ```sh
-   git clone https://github.com/ewyser/ElastoPlasm.jl.git
+   git clone --recursive https://github.com/ewyser/ElastoPlasm.jl.git
    cd ElastoPlasm.jl
    ```
+   `--recursive` also fetches [EasyDraw.jl](https://github.com/ewyser/EasyDraw.jl), the drawing window, into
+   `lib/EasyDraw`. Already cloned without it? Run `git submodule update --init`.
 3. **Start Julia** (on macOS, drag & drop `start_macOS.sh` in the terminal).
    ```sh
    julia --project=. 
@@ -59,23 +61,30 @@
     ┌ Welcome to ϵlastσPlasm 👻 v0.4.2
     │ New comer ? Try slumping out
     │   L,nel = [64.1584,64.1584/4.0],[40,10];
-    │   jld2  = setup_simulation(slump_case(L,nel;cli()...));
+    │   jld2  = setup(slump(L,nel;cli()...));
     └   execute!(jld2);
 
     julia> 
     # plasming begins here!
     ```
 5. **Your own problem:** describe it as data (domain, zones of material, boundaries, solver options,
-   run settings), or draw it in a window (needs QML in your default environment, see `?draw_case`):
+   run settings), or draw it in a window (see `?draw_case`):
     ```julia
-    case = Case(; L=[20.0, 10.0], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
-                  zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7)],
-                  run=(; folder="layers"))
-    check_case(case)          # points, time step, warnings
-    execute!(setup_simulation(case))   # results under dump/layers/ (kept until clean_dump())
-    save_case("layers.toml", case)
+    layout = Layout(; L=[20.0, 10.0], nel=[20, 10],                                       # the geometry
+                      zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))])
+    case = Case(layout, case_settings(; bcs=[:roller :roller; :fixed :free],              # its values
+                                        properties=Dict("rock" => (; E=5e7)), run=(; folder="layers")))
+    solver = Solver(case)     # how: the numerical options and run settings of the case's settings
+    check_case(case, solver)  # points, time step, warnings
+    execute!(setup(case, solver))   # results under dump/layers/ (kept until clean_dump())
+    gimp = Solver(case; basis=(; which="gimpm"))                                       # another solver, same case
+    execute!(setup(case, gimp; folder="layers_gimp"))
+    save_case("layers.toml", case)    # geometry and settings in one file: EasyDraw opens it too
+    case = load_case("layers.toml")   # and back
 
-    using QML
+    save_layout("slope.toml", case.layout)                       # or apart: one geometry …
+    case = load_case("slope.toml", "stiff.toml")                  # … with one of several settings files
+
     case = draw_case()        # draw the domain, zones, options and run settings
     ```
 

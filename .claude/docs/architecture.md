@@ -1,9 +1,97 @@
 ## Core types
 
+What is solved (a `Case`, EasyDraw's: a layout with its settings) and how (a `Solver`) meet in the `Problem`, which a
+`Simulation` runs. EasyDraw describes a model for any solver and gives its values no meaning; ElastoPlasm reads them
+(`case_physics`, `Solver(case)`). The solver holds nothing of a case, so one solver solves several cases of its
+dimension; the case's physics reaches the problem only through `Problem(case, solver)`, and after setup the problem's
+own types carry it (`laws(mpts)`).
+
+```
+EasyDraw: what a model is, for any solver; plain data, what a file holds
+┌─ Layout: where things are ───────────────────────────────┐   ┌─ Settings: the values, by zone name ─────────────────────┐
+│ Layout(; L, nel, ni, zones)                              │   │ Settings(; zones, defaults, sides, options, run)         │
+│                                                          │   │                                                          │
+│ L      ::Vector{Float64}  size [m]                       │   │ zones    ::Dict{String,Dict{String,Any}}                 │
+│ nel    ::Vector{Int}      cells per axis                 │   │ defaults ::Dict{String,Any}                              │
+│ ni     ::Int              points per cell, axis          │   │ sides    ::Dict{String,String}                           │
+│ zones  ::Vector{Zone}     a name, a shape each           │   │ options  ::Dict{String,Any}  physics, numerics           │
+│ folder ::String           its file's folder              │   │ run      ::Dict{String,Any}  stages, workflow, folder    │
+└──────────────────────────────────────────────────────────┘   └──────────────────────────────────────────────────────────┘
+                             │                                                              │
+                             └──────────────────────────────┬───────────────────────────────┘
+                                                            ▼ Case(layout, settings)
+                               ┌─ Case: a layout with its settings ───────────────────────┐
+                               │ Case(layout, settings=Settings())  copies, checked       │
+                               │                                                          │
+                               │ layout   ::Layout                                        │
+                               │ settings ::Settings                                      │
+                               │                                                          │
+                               │ save_case, load_case; zone_at, points, partition, …      │
+                               │ draw(case; catalog), assign(case; catalog): the window   │
+                               └──────────────────────────────────────────────────────────┘
+
+ElastoPlasm: how a case is read and solved
+┌─ Reading a case: functions, no type ─────────────────────┐   ┌─ Solver: how it is solved ───────────────────────────────┐
+│ case_settings(; properties, material, bcs, solver,       │   │ Solver(case; run, overrides…)  reads case.settings       │
+│                 thermal, run) -> Settings                │   │ Solver(; dim, sections…)                                 │
+│ case_physics(case) -> (; material, properties, bcs,      │   │                                                          │
+│                          laws, grf, thermal)             │   │ solution ::String      explicit | implicit               │
+│ case_folder(case), case_points(case, mesh)               │   │ dtype    ::NamedTuple  precision: T1, T2                 │
+└──────────────────────────────────────────────────────────┘   │ basis    ::NamedTuple  which, trsfr, C_pf, domain        │
+                                                               │ stab     ::NamedTuple  locking, damping, musl, sfrac     │
+                                                               │ nonloc   ::NamedTuple  status, ls                        │
+                                                               │ plot     ::NamedTuple                                    │
+                                                               │ output   ::NamedTuple                                    │
+                                                               │ backend  ::NamedTuple  select, exec                      │
+                                                               │ run      ::NamedTuple  te, tg, tep, workflow, lstps      │
+                                                               │ cairn    ::NamedTuple  the kernels                       │
+                                                               └──────────────────────────────────────────────────────────┘
+                             │                                                              │
+                             └──────────────────────────────┬───────────────────────────────┘
+                                                            ▼ Problem(case, solver)
+                  ┌─ Problem: what and how, built ───────────────────────────────────────────────────────┐
+                  │ Problem(case, solver)                    always both: Problem(case, Solver(case))    │
+                  │                                                                                      │
+                  │ mpts   ::Point   from case_physics (zones, constants, laws, grf) and solver.dtype    │
+                  │ mesh   ::Mesh    from the case (L, nel, bcs)                                         │
+                  │ basis  ::Basis   from mpts, mesh and solver.basis                                    │
+                  │ time   ::Time    from solver.run (te, tg, tep)                                       │
+                  │ solver ::Solver  as given                                                            │
+                  └──────────────────────────────────────────────────────────────────────────────────────┘
+                                                            ▼
+                  ┌─ Simulation: a problem ready to run ─────────────────────────────────────────────────┐
+                  │ Simulation(problem; folder)                                                          │
+                  │ setup(case, solver; folder): builds one, saves it                         │
+                  │                                                                                      │
+                  │ problem ::Problem                                                                    │
+                  │ folder  ::String   where its files go; by default the case's                         │
+                  └──────────────────────────────────────────────────────────────────────────────────────┘
+                    execute!(sim) runs solver.run.workflow; a .jld2 is a saved Simulation
+```
+
+Until `refactor-case-in-easydraw` ElastoPlasm had its own `Case` (the layout and settings with their typed reading as
+fields, `case.material`, `case.bcs`, …, and a keyword constructor `Case(; L, nel, …)`); the user asked for "Case,
+Layout and Setting [to] belong to EasyDraw, whereas Problem is from ElastoPlasm", towards one goal: "make things
+independent of each other wherever possible". Until `refactor-solver-split` the solver held its case (`solver.case`) and copies of the case's laws, random field and
+boundaries, and `Problem(solver)` built from it; the user chose the other direction ("Problem unifies what and how").
+Every type's docstring lists its fields (`# Fields`), in the house layout of `conventions.md`.
+
 - `Mesh{T1,T2,D}` — Eulerian background grid. Carries no connectivity (`e2n`/`e2e` live
   on `Basis`).
-- `Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L}`
-  — material points (Lagrangian). Every parameter but `L` is a real dispatch axis; `L == D*D`
+- **Host or device arrays: the containers' array types are type parameters.** `Point`, `PointSolidPhase`, `Mesh`,
+  `MeshSolidPhase`, the thermal phases, `Basis` and `ApicTransfer` take one parameter per distinct array type (`V`, `VV`,
+  `VM`, …), appended after the parameters code dispatches on, so `Point{T1,T2,D,CM,ST,EL}`, `Mesh{T1,T2,D}`,
+  `Basis{T1,T2,D,NN,K,TR}` still match every version and field syntax is unchanged. These parameters are unbounded:
+  bounds such as `V<:AbstractVector{T2}` refer to the other parameters and made subtype checks, hence compilation,
+  about three times slower (a first problem built 10 → 34 s, `test_case` 43 s → 9 min); partial constructors
+  (`Mesh{T1,T2,D}(…)`, `Basis{T1,T2,D,NN}(…)`, …) take the arrays' types from the arguments. Each container's
+  `Adapt.adapt_structure` rebuilds it through `adapt_fields` (`boot/needs/utils.jl`), keeping plain-bits fields, so
+  `adapt(backend, mpts)` holds that backend's arrays and `adapt(Array, ·)` brings them back with the same type.
+  `MeshProperties{T1,T2,D,N,M}` is a plain value (static vectors), read alike on the host and in kernels; `mpts.f`/`t`
+  and `mesh.t` are `Nothing` or the phase through parameters, not `Union` fields; `basis.e2e` is an `Adjacency`
+  (`ptr`/`idx`, `nzrange`/`rowvals` like a sparse matrix's). The CPU code is unchanged (bit-identical, single thread).
+- `Point{T1,T2,D,CM<:AbstractConstitutiveModel,ST<:AbstractStrain,EL<:AbstractElasticLaw,L,…}`
+  — material points (Lagrangian). Every parameter up to `EL` is a real dispatch axis; `L == D*D`
   only exists to keep the `D×D` kinematic fields (`SMatrix{D,D,T2,L}`: `F`, `ΔF`, `∇v`, ...)
   concrete, since Julia can't compute `D*D` in a field type —
   kernels never dispatch on it and recover a field's type via `eltype`. `ST` is the typed
@@ -25,24 +113,53 @@
   `InfinitesimalStrain`) and `EL<:AbstractElasticLaw` (`HenckySolid`/`ImprovedHenckySolid`/
   `HypoelasticSolid`, the elastic-law tag `elast.jl` and `get_dt`'s `_Ktan` dispatch on) are both
   picked together from `material.elastic` by `build_solid_phase`.
-- `Problem{T1,T2,D,P,B,S}` (`src/boot/needs/types/problem/problem.jl`) — what is solved: `mpts`,
-  `mesh`, `basis`, `time`, `solver`, built by `Problem(case)`; what workflows run on
-  (`elastodynamic!(problem)`). The `Case` it was built from is not a field (see "`Problem`" in
-  `planned-improvements.md`).
-- `Simulation{P}` (`src/boot/needs/types/problem/simulation.jl`) — a problem ready to run:
-  `problem`, `workflow` (a name, one of `WORKFLOWS`), `lstps`, `folder` (absolute; a name given is
-  under `dump/`), built by `Simulation(problem; workflow, lstps, folder)`; the default workflow follows the
-  solver (`"elastoquasistatic!"` for an `ImplicitSolver`), and an explicit workflow on an implicit solver is
-  refused there rather than as a `MethodError` at `execute!`. A `.jld2` is a saved one
-  (`save_simulation`/`load_simulation`); `execute!(sim)` / `execute!(jld2)` run it in place (`execute` on a copy). The chain is
-  `Case` → `Problem` → `Simulation`, each built from the one above.
-- `Case` (`src/boot/needs/types/problem/case.jl`) — the plain-data description a problem is built from: domain, zones
-  (`Zone` = shape `Polygon`/`Block`/`Ball`/`Region` + material overrides), default material
-  (`MATERIAL`), boundary conditions, solver overrides, thermal flag, run settings. `case_points`
-  turns it into `PointData`, the explicit per-point contract `setup_mpts` reads. One build path
-  (`setup_simulation`), one TOML format (`save_case`/`load_case`); the drawing window edits it. See
-  "Describing a case" in `operations.md`.
-- `Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}`
+- `Solver{T1,T2,D,…}` (`src/boot/needs/types/solver.jl`) — how a case is solved: one struct, its `solution` the
+  option's text, `"explicit"` or `"implicit"` (checked in `build_solver` against `get_option()`), which the explicit
+  workflows check (`explicit_only`: an `ArgumentError` for an implicit solver). Fields: the numerical option sections, `run` (`solver_run`: te, tg, tep, workflow, lstps; no folder) and the kernels (`cairn`).
+  `Solver(case; run=(;), overrides…)` (`src/home/init/case/simulation.jl`) reads a case's settings (the option sections
+  that are not `get_physics_sections()`, the run settings), overridable per field, and keeps nothing of the case;
+  `Solver(; dim, sections…)` (`src/home/api/solver/build.jl`) is one written in code, `get_default()` with the
+  sections merged. Both refuse physics (`material`, `grf`, `bcs`: `refuse_physics`) and end with `build_solver`.
+  `solution` follows the workflow unless set; an explicit workflow on an implicit solver is refused.
+- `Problem{T1,T2,D,P,M,B,S}` (`src/boot/needs/types/problem/problem.jl`) — what is solved and how, built: `mpts`,
+  `mesh`, `basis`, `time`, `solver`, built by `Problem(case, solver)`: the mesh from the case's domain and `bcs`
+  (`setup_mesh(L, nel, bcs, solver)`), the points from its zones, constants, `laws` and `grf` (`case_points(case,
+  mesh)`, `setup_mpts(mesh, pts, laws)`), in the solver's precision, the time stages from `solver.run`, the basis from
+  `solver.basis`. A solver of another dimension is refused. It is the one constructor (the user's decision: "A Problem
+  constructor always need a Case and a Solver"); a case solved as its settings say is `Problem(case, Solver(case))`.
+  The parts' types are unbounded parameters, set by `Problem(case, solver)` from what it builds, all of the solver's
+  `T1`, `T2`, `D` (no bounds naming other parameters, as in every container); `save_simulation`/`load_simulation` swap
+  the solver of a built problem through `with_solver`. What workflows run on (`elastodynamic!(problem)`).
+- `Simulation{P}` (`src/boot/needs/types/problem/simulation.jl`) — a problem ready to run in a folder: `problem`,
+  `folder` (absolute; a name given is under `dump/`), built by `Simulation(problem; folder)`; its workflow and load
+  steps are its solver's (`problem.solver.run`). `setup(case, solver; folder=case_folder(case))` builds,
+  saves and returns one's `.jld2` (`setup(case)` with the case's own solver), and writes beside it the case
+  as solved (`save_case(file, case, solver)`: the solver's numerical options that differ from `get_default()` and its
+  run settings, so `Solver(load_case(file))` is the same solver). A `.jld2` is a saved one
+  (`save_simulation`/`load_simulation`); `execute!(sim)` / `execute!(jld2)` run it in place (`execute` on a copy).
+- `Case` (EasyDraw's, `lib/EasyDraw/src/case.jl`, imported and re-exported) — what is solved: a `Layout`, the
+  geometry (`case.layout`: domain, grid, zones, each a name and a shape `Polygon`/`Block`/`Ball`/`Region`), and its
+  `Settings`, the values (`case.settings`: zones' values by name, defaults, sides, options, run), its own copies,
+  checked against each other (`check_settings`); EasyDraw gives the values no meaning. Its file is
+  `save_case`/`load_case` (EasyDraw's; geometry and settings may also be separate files, `load_case(geometry,
+  settings)`; a file with top-level tables a case file does not have, such as ElastoPlasm's older `bcs`/`material`/
+  `solver`, is refused). **ElastoPlasm reads it** (`src/boot/needs/types/problem/case.jl`): `case_physics(case)`, the
+  typed reading of its physics, checked (`material`: `get_material()` with the defaults; `properties`: each zone's
+  constants by name, against `get_zone_properties()`; `bcs`: the sides, `side_axes`; `laws`: `(; elastic, plastic)`, the
+  options' `material` section over `get_default()`'s; `grf`, likewise; `thermal`; it checks the numerical options and
+  run settings too, which `Solver(case)` reads); `case_settings(; properties, material, bcs, solver, thermal, run)`,
+  settings written in ElastoPlasm's terms (`Case(Layout(…), case_settings(…))`, what `Case(; …)` was); `case_folder(case)`
+  (the run settings' `folder`, else the layout's file's folder, else `get_run().folder`); `case_points`, its
+  `PointData`, the explicit per-point contract `setup_mpts` reads; `save_case(file, case, solver)`, a method of
+  EasyDraw's. 2D or 3D (no extruded form: x–z shapes extend along y). The drawing window (EasyDraw's) edits it. See
+  "Describing a case" and "Drawing a case" in `operations.md`.
+- **The constitutive laws, by name and by type.** `get_constitutive_laws()` (`lagrangian.jl`, shaped like the `material` section) maps the option
+  values (`"hencky"`, `"improved_hencky"`, `"hypoelastic"`; `"DP"`, `"VM"`) to the points' types (`ST`/`EL`; `CM`):
+  `build_solid_phase`/`setup_cmp` read them one way (`table_value`), `laws(mpts)` the other, and `get_option`'s lists
+  derive from them. After setup nothing reads the laws from the solver or the case: the run-time readers (the `σᵢ!`
+  skip for hypoelastic in `mapsto`, plot file names, logs, HDF5 attributes, the initial plot, `sfrac.jl`) use
+  `laws(mpts)`, and `init_mapsto` registers `σᵢ!` always.
+- `Basis{T1,T2,D,NN,K<:AbstractBasisKind,TR<:AbstractTransfer}`
   (`src/boot/needs/types/basis/basis.jl`) — independent struct owning ALL
   mesh/point connectivity (`e2n`, `e2e`, `p2n`, `p2e` — `e2e` also doubles as the
   neighbor-search structure for nonlocal plastic-strain regularization, see
@@ -88,7 +205,7 @@ to `StdTransfer()`/`TpicTransfer()`/`ApicTransfer{T2,D,L}(nmp)`; `init_mapsto` r
 unconditionally too. Unrecognized `basis.trsfr` strings fail fast in `get_transfer` at
 `setup_basis` time.
 
-`ApicTransfer{T,D,L}` carries `Bᵢⱼ`/`Dᵢⱼ` (`Vector{SMatrix{D,D,T,L}}` — `L` is a separate
+`ApicTransfer{T2,D,L}` carries `Bᵢⱼ`/`Dᵢⱼ` (`Vector{SMatrix{D,D,T2,L}}` — `L` is a separate
 type parameter, computed as `D*D` only once `D` is concrete inside the inner
 constructor, since `D*D` on a bare `TypeVar` isn't valid in a struct's own field-type
 declaration). These fields used to live on `Point` unconditionally (`Δnp`/`Bᵢⱼ`/`Dᵢⱼ`,
@@ -123,16 +240,24 @@ commit to be the *only* behavior change from this refactor; not a regression.
   update is the `GimpBasis`'s `domain` field (`StretchDomain`/`UndeformedDomain`, from `basis.domain` by
   `get_domain`, `types/basis/gimpm.jl`), dispatched on in `particle_domain`; another update is one
   `AbstractDomain` type and one method. Both `elastodynamic!`/`elastoplastic!` *and*
-  `elastoquasistatic!` call the same `ignite(mpts,mesh,basis,solver::AbstractSolver)`
-  wrapper, dispatching on the *abstract* solver type since `dynamic_relaxation` doesn't
-  require a particular concrete `solution` value (unlike `elastodynamic!`/
-  `elastoplastic!`, typed to `ExplicitSolver` specifically — see `solution` in
-  `operations.md`).
+  `elastoquasistatic!` call the same `ignite(mpts,mesh,basis,solver::Solver)`
+  wrapper, taking any solution (unlike `elastodynamic!`/`elastoplastic!`, which refuse an implicit
+  solver, `explicit_only` — see `solution` in `operations.md`).
+- **Running on a device (explicit path).** `elastodynamic!`/`elastoplastic!` move the points, mesh and basis to the
+  solver's device once (`to_device`, `src/home/core/device.jl`: the same objects on the host, no copy; otherwise
+  `adapt(exec_backend(solver), ·)`), step there, and copy the arrays back into the host problem (`to_host!`) at each
+  checkpoint that plots or records and at the end: the host problem stays what a `Simulation` holds, saves and plots.
+  A step touches the device arrays only through kernels and whole-array operations (`mapreduce`, `map!`, `fill!`,
+  `copyto!`): `get_dt`'s wave speed and `mapsto`'s `vmax` are reductions, the nonlocal element buckets are built by
+  kernels (`element_particles`). `elastoquasistatic!` and `thermodynamic!` refuse a device (`host_only`).
 - `src/home/core/solver/explicit/` — the primary, actively-used path
   (`elastodynamic!`, `elastoplastic!`). Kernel dispatch table lives on
   `solver.cairn` (a `NamedTuple`, dot-accessed: `solver.cairn.ignite.tplgy!`,
   `solver.cairn.mapsto.map.p2n!`, `solver.cairn.update.deform!`, ...), built by
-  `init_ignite`/`init_mapsto`/`init_update`/`init_implicit` in `get_solver.jl`. Every
+  `init_ignite`/`init_mapsto`/`init_update`/`init_implicit` in `api/solver/build.jl`, on the solver's backend
+  (`exec_backend(instr)`, the device `backend.exec` selected; `CPU()` for the host); each launch is followed by
+  `sync(bk)`, `bk = exec_backend(solver)`: the solver owns the backend, and the kernels, the syncs and `to_device`
+  all take it from there (not from the arrays, `get_backend(mpts.x)`, as at first). Every
   kernel/function in this path takes `basis::Basis` as its 3rd positional arg after
   `(mpts, mesh, ...)`.
 - `src/home/core/solver/dynamic_relaxation/` — implicit quasi-static path

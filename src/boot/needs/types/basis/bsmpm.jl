@@ -4,13 +4,30 @@
 
 export BSplineBasis
 
-struct BSplineBasis{T,D,NN} <: AbstractBasis
-    stencils::NTuple{D,UnitRange{T}}
+"""
+    BSplineBasis{T1,D,NN} <: AbstractBasisKind
+
+Cubic B-spline shape functions, modified near the grid's boundary by the nodes' boundary layer (`basis.type`): a
+basis kind, what `Basis`'s `kind` holds.
+
+# Fields
+- `stencils::NTuple{D,UnitRange{T1}}`: per axis, the offsets of the nodes a point reaches from its element's first node
+  (`-1:2`, 4 nodes per axis).
+
+`T1` is the index type, `D` the dimension, `NN` the number of nodes a point reaches (`prod(length.(stencils))`).
+
+# Constructors
+    BSplineBasis{T1,D}()
+
+`get_basis` builds it from the option `basis.which` (`"bsmpm"`).
+"""
+struct BSplineBasis{T1,D,NN} <: AbstractBasisKind
+    stencils::NTuple{D,UnitRange{T1}}
     #
-    function BSplineBasis{T,D}() where {T,D}
-        stencils = ntuple(_ -> UnitRange{T}(-1:2), D)
+    function BSplineBasis{T1,D}() where {T1,D}
+        stencils = ntuple(_ -> UnitRange{T1}(-1:2), D)
         NN       = prod(length.(stencils))
-        return new{T,D,NN}(stencils)
+        return new{T1,D,NN}(stencils)
     end
 end
 
@@ -87,7 +104,7 @@ end
     elseif node_type == T1(4)
         ϕ,∂ϕ = t4_ϕ∂ϕ(ξ*Δx⁻¹)
     else
-        error("Invalid type: $(node_type)")
+        error("invalid B-spline node type")   # constant text: a GPU kernel cannot build a string
     end   
     return ϕ,∂ϕ*Δx⁻¹ 
 end

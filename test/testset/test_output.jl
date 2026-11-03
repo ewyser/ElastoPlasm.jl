@@ -1,23 +1,29 @@
 @testset "+ $(basename(@__FILE__))" verbose = true begin
+    # a case written in code: the layout, then its settings in ElastoPlasm's terms, read at once (its errors here)
+    function mkcase(; L, nel, ni=2, zones=Zone[], kwargs...)
+        c = Case(Layout(; L, nel, ni, zones), case_settings(; kwargs...))
+        case_physics(c)
+        return c
+    end
     # the HDF5 time series of a run (output.jl, output_plots.jl), on a small layered case
     import HDF5
     EP   = ElastoPlasm
     out(; kw...) = (; status=true, every=0.5, kw...)
     case(name; output=out(), te=1.0, tep=0.5, workflow="elastodynamic! + elastoplastic!", solver=(;)) =
-        Case(; L=[20, 10], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
-               zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]); E=5e7)],
+        mkcase(; L=[20, 10], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
+               zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))], properties=Dict("rock" => (; E=5e7)),
                solver=(; plot=(; status=false), output, solver...), run=(; folder="test/$name", te, tg=te, tep, workflow))
     output_of(j) = replace(j, "_simulation.jld2" => "_output.h5")
 
     @testset "configuration" begin
-        s = get_solver(; output=(; status=true, what=(; point=(; solid=["p"]))))
+        s = Solver(; output=(; status=true, what=(; point=(; solid=["p"]))))
         @test s.output.what.point.solid == ["p"] && s.output.what.point.base == get_default().output.what.point.base   # per-field merge
         @test_throws ArgumentError EP.option_value(["output", "what", "point", "solid"], ["pp"])
         c = case("out_cfg"; output=out(what=(; point=(; solid=["p", "q"]))))
-        @test load_case(save_case(joinpath(mktempdir(), "c.toml"), c)).solver.output.what.point.solid == ["p", "q"]
+        @test Solver(load_case(save_case(joinpath(mktempdir(), "c.toml"), c))).output.what.point.solid == ["p", "q"]
     end
     @testset "a run recorded" begin
-        j = setup_simulation(case("out_run"))
+        j = setup(case("out_run"))
         execute!(j; workflows=[elastodynamic!])
         f = output_of(j)
         @test output_series(f, "point/solid/p"; point=1).t == [0.0, 0.5, 1.0]
@@ -46,23 +52,24 @@
     end
     @testset "selection, phases" begin
         c = case("out_sel"; output=out(what=(; point=(; solid=["p"], thermal=["T"]), mesh=(; solid=["v"]))))
-        j = setup_simulation(c)
+        j = setup(c)
         @test_logs (:warn, r"skipped fields") match_mode=:any execute!(j; workflows=[elastodynamic!])
         HDF5.h5open(output_of(j), "r") do h
             @test !haskey(h, "point/thermal") && keys(h["point/solid"]) == ["p"]
             @test size(h["mesh/solid/v"]) == (2, load_simulation(j).problem.mesh.prprt.nno[end], length(h["frames/t"]))
         end
-        p = execute!(Simulation(Problem(case("out_mem"))); workflows=[elastodynamic!], output=(f = joinpath(mktempdir(), "o.h5"))).problem   # in memory
+        m = case("out_mem")
+        p = execute!(Simulation(Problem(m, Solver(m))); workflows=[elastodynamic!], output=(f = joinpath(mktempdir(), "o.h5"))).problem   # in memory
         @test isfile(f) && output_series(f, "point/solid/p"; point=1).t[end] == p.time.t[1]
     end
     @testset "load steps" begin
-        b = setup_simulation(EP.block_case([16, 9]; plot=(; status=false), output=out(), folder="test/out_block"))
+        b = setup(EP.block([16, 9]; plot=(; status=false), output=out(), folder="test/out_block"))
         execute!(b; workflows=[(a...) -> elastoquasistatic!(a...; lstps=2, G=10.0)])
         s = output_series(output_of(b), "point/solid/p"; point=1)
         @test s.t == [0.0, 1.0, 2.0] && s.loadstep
     end
     @testset "visualise after the run" begin
-        j = setup_simulation(case("out_plot"))
+        j = setup(case("out_plot"))
         execute!(j; workflows=[elastodynamic!, elastoplastic!])
         f, d = output_of(j), mktempdir()
         @test plot_output(f, "point/solid/p"; frame=2, file_out=joinpath(d, "p.png")) isa EP.Plots.Plot && isfile(joinpath(d, "p.png"))

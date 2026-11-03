@@ -3,12 +3,16 @@ export record!
 """
     Recorder
 
-An open HDF5 output: the file and the recorded fields (`(field, object, dataset)`, stored as Float64).
-Made by `open_output`, written by `record!`, closed by `close`.
+An open HDF5 output. Made by `open_output`, written by `record!`, closed by `close`.
+
+# Fields
+- `file::HDF5.File`: the open file.
+- `fields::Vector{Tuple{Function,String,HDF5.Dataset}}`: the recorded fields, each as its extractor, the object it
+  reads (`"point"` or `"mesh"`) and its dataset (Float64, frames last).
 """
 struct Recorder
-    file   :: HDF5.File
-    fields :: Vector{Tuple{Function,String,HDF5.Dataset}}
+    file   ::HDF5.File
+    fields ::Vector{Tuple{Function,String,HDF5.Dataset}}
 end
 Base.close(r::Recorder) = isopen(r.file) && close(r.file)
 nframes(r::Recorder) = length(r.file["frames/t"])
@@ -51,7 +55,7 @@ function create_output(file, p::Problem; case_text=nothing)
     a["ElastoPlasm"] = string(get_version())
     a["D"], a["nmp"], a["nno"] = length(g.prprt.L), Int(m.nmp), Int(g.prprt.nno[end])
     a["solution"], a["basis"], a["transfer"] = p.solver.solution, p.solver.basis.which, p.solver.basis.trsfr
-    a["elastic"], a["plastic"] = p.solver.material.elastic, p.solver.material.plastic
+    a["elastic"], a["plastic"] = laws(m).elastic, laws(m).plastic
     isnothing(case_text) || (a["case"] = case_text)
     attributes(frames_dataset(f, "frames/t", Float64, ()))["unit"] = "s"
     frames_dataset(f, "frames/step", Int, ())

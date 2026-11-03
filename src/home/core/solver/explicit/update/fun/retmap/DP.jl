@@ -12,7 +12,7 @@
 end
 
 """
-    _druckerprager_return_map(σ::AbstractStress, ϵpII::MVector{2,T}, cmp) -> (Δλ, p, dev)
+    _druckerprager_return_map(σ::AbstractStress, ϵpII::MVector{2,T2}, cmp) -> (Δλ, p, dev)
 
 Closed-form Drucker-Prager return mapping on the stored pressure/deviator split — shared by both
 `drucker_prager` methods below, since the yield-surface algebra doesn't care whether the stress is
@@ -21,9 +21,9 @@ pressure is returned along the flow direction and the deviator scaled radially o
 `ϵpII` (the non-local-regularized hardening history) is mutated in place, matching the
 pre-existing `MVector` scratch convention.
 """
-@inline function _druckerprager_return_map(σ::AbstractStress{T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel{T,D}) where {T,D}
-    Δλ       = T(0.0)
-    ψ        = T(0.0*π/180.0)
+@inline function _druckerprager_return_map(σ::AbstractStress{T2},ϵpII::MVector{2,T2},cmp::AbstractConstitutiveModel{T2,D}) where {T2,D}
+    Δλ       = T2(0.0)
+    ψ        = T2(0.0*π/180.0)
     ϕ₀,c₀,cᵣ = cmp.ϕ₀,cmp.c₀,cmp.cᵣ
 
     # closed-form solution return-mapping for D-P
@@ -36,11 +36,11 @@ pre-existing `MVector` scratch convention.
     σm       = ξ/η
     fs       = τII+η*P-ξ
     p,dev    = σ.p,σ.dev
-    if fs>T(0.0) && P<σm
+    if fs>T2(0.0) && P<σm
         Δλ       = fs/(cmp.Gc+cmp.Kc*η*ηB)
         Pn,τn    = P-cmp.Kc*ηB*Δλ,ξ-η*(P-cmp.Kc*ηB*Δλ)
         p,dev    = -Pn,σ.dev*(τn/τII)
-        ϵpII[1] += Δλ*sqrt(T(1/3)+T(2/9)*ηB^2)
+        ϵpII[1] += Δλ*sqrt(T2(1/3)+T2(2/9)*ηB^2)
     end
     # tension cutoff sits at the apex (σt = σm = ξ/η, Huang et al. 2015 Eq. 19 with σt = σt_max),
     # so the apex σm·I is the only admissible state for P ≥ σm (fs ≤ 0 forces τ = 0, ft ≤ 0 forces
@@ -48,7 +48,7 @@ pre-existing `MVector` scratch convention.
     if P≥σm
         Δλ       = (P-σm)/cmp.Kc
         p,dev    = -σm,zero(σ.dev)
-        ϵpII[1] += sqrt(T(2.0))*Δλ/T(3.0)
+        ϵpII[1] += sqrt(T2(2.0))*Δλ/T2(3.0)
     end
     return Δλ,p,dev
 end
@@ -66,25 +66,25 @@ elastic strain when yielding, with `_elastic_strain` (`elasticity.jl`). The infi
 updates the strain — infinitesimal strain is tracked incrementally by `elast!` itself,
 not re-derived from the return-mapped stress.
 """
-@inline function drucker_prager(τᵢ::KirchhoffStress{T},ϵᵢ::LogarithmicStrain{T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel) where {T}
+@inline function drucker_prager(τᵢ::KirchhoffStress{T2},ϵᵢ::LogarithmicStrain{T2},ϵpII::MVector{2,T2},cmp::AbstractConstitutiveModel) where {T2}
     Δλ,p,dev = _druckerprager_return_map(τᵢ,ϵpII,cmp)
-    if Δλ > T(0.0)
+    if Δλ > T2(0.0)
         τᵢ = KirchhoffStress(p,dev)
         ϵᵢ = _elastic_strain(τᵢ,cmp)
     end
     return ϵᵢ,τᵢ,Δλ,ϵpII
 end
-@inline function drucker_prager(σᵢ::CauchyStress{T},ϵᵢ::InfinitesimalStrain{T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel) where {T}
+@inline function drucker_prager(σᵢ::CauchyStress{T2},ϵᵢ::InfinitesimalStrain{T2},ϵpII::MVector{2,T2},cmp::AbstractConstitutiveModel) where {T2}
     Δλ,p,dev = _druckerprager_return_map(σᵢ,ϵpII,cmp)
-    if Δλ > T(0.0)
+    if Δλ > T2(0.0)
         σᵢ = CauchyStress(p,dev)
     end
     return ϵᵢ,σᵢ,Δλ,ϵpII
 end
 
 """
-    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:DruckerPrager, ST<:LogarithmicStrain}
-    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:DruckerPrager, ST<:InfinitesimalStrain}
+    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:DruckerPrager,ST<:LogarithmicStrain}
+    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:DruckerPrager,ST<:InfinitesimalStrain}
 
 Drucker-Prager plastic corrector, dispatched on both `CM` and `ST` — mirrors `elast!`'s
 existing `ST`-only dispatch pattern, extended to a second axis so `DP.jl`/`J2.jl` can

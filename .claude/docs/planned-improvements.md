@@ -1,27 +1,50 @@
 ## Planned improvements (not bugs, just known follow-up work)
 
 - **`Problem` — done: one object holding a run.** `Problem` (`types/problem/problem.jl`) bundles
-  `mpts`, `mesh`, `basis`, `time`, `solver`, built by `Problem(case)` from a `Case`; it replaced
+  `mpts`, `mesh`, `basis`, `time`, `solver`, built by `Problem(case, solver)`; it replaced
   `MechanicalProblem` (`mesh`/`mpts`/`time` only, whose docstring kept `Basis`/`Solver` out because
   `basis.which`/`basis.trsfr` vary independently, which does not argue against bundling them for a
   run). The `Case` is deliberately not a field: the built objects already hold all it describes, it
   would drift once `mpts` evolves, and a `Region` closure does not serialise; its TOML beside the
   `.jld2` is the provenance. Kernels keep their `(mpts, mesh, basis, …)` arguments; workflows are
   functions of a `Problem`, and a `Simulation` (problem + workflow + folder) is what runs and what a
-  `.jld2` holds (see `architecture.md`). Possible follow-up: the
-  solver mixes configuration (part of the problem) with the kernel table `cairn` (machinery,
-  rebuilt from the configuration); rebuilding `cairn` on load would make the stored `Problem` pure
-  data. `types/problem/` files load in `boot.jl`'s explicit order, `problem.jl` last (it needs
+  `.jld2` holds (see `architecture.md`). The stored solver is its configuration only: the kernel table `cairn` and
+  the selected devices are rebuilt on load (`build_solver`, `persistence.md`), so the stored `Problem` is pure data. `types/problem/` files load in `boot.jl`'s explicit order, `problem.jl` last (it needs
   `Point`, `Mesh`, `Basis`, `Time`, `Case`).
-- **Next: a `Solver` level, Case → Problem → Solver → Simulation** (separating what is solved from
-  how). Split the solver options into *build* options, which decide the `Problem`'s types and contents
-  (`dtype`, `basis` which/trsfr, `material` laws, `bcs`, `grf`), and *run* options (`solution` and the
-  kernel table `cairn`, `stab`, `nonloc`, `plot`/`output`, `backend`, the time stages, the workflow,
-  `lstps`). `Problem` keeps `mpts`, `mesh`, `basis` (no `solver`, no `time`); `Solver` holds the run
-  options; `Simulation` becomes problem + solver + folder (its `workflow`/`lstps` move into the
-  solver); workflows take `(problem, solver)`. Gain: one `Problem` solved several ways without
-  rebuilding. Cost: `get_default`/`get_solver`/`cli`, the case's solver overrides and their TOML
-  sections, every `problem.solver` reader (18); everything bit-identical. Own branch.
+- **A `Solver` level — done: Case + Solver → Problem → Simulation** (`refactor-solver-split`). A `Case` is the
+  geometry with its physics assigned (materials, boundary conditions, constitutive laws, `grf`, thermal); a `Solver`
+  holds the numerics (the other option sections), the run settings and the kernels, and nothing of a case;
+  `Problem(case, solver)` unifies them ("Problem unifies What and How", the user's wording); `Simulation(problem;
+  folder)` runs. The first version (`ecfa4602`) kept the case inside the solver (`solver.case`, `Problem(solver)`) with
+  copies of its physics; the next commits made the solver independent: the physics reaches the problem only through
+  `Problem(case, solver)` and is read afterwards from the points' types (`laws(mpts)`, `get_constitutive_laws()`),
+  the run folder became the case's (`case_folder`, so one solver can run several cases), and `ExplicitSolver`/
+  `ImplicitSolver` became one `Solver` struct, its `solution` as text (a marker type was tried and dropped: nothing
+  dispatched on it but one guard, now `explicit_only`). Everything bit-identical (setups 188/188, short
+  runs at `-t 1` against `ecfa4602`). Possible next steps: give `check_case(case, solver)` a cheaper path than building
+  the kernels (the window calls it per edit); a solver without `D`, so that one solver serves 2D and 3D cases (`D` is
+  a type parameter of `Solver` read by 27 signatures).
+- **Type writing — done, one way** (`refactor-solver-split`, asked for after the type diagram showed inconsistencies;
+  see `conventions.md`): `T1`/`T2` always the index/float type, bounds only on kind parameters, `name ::T` fields,
+  `Problem`'s parameters in field order, `AbstractBasisKind`, unused abstract types and `PerfectlyElastic` removed,
+  every type documented field by field. Follow-ups it found:
+  - Fields never read: `PointSolidPhase.σn` and `.∇uᵢⱼ`, `Point.ndim`, `Self`'s `ui.ui`/`bckd`/`logs`, `mpi`,
+    `sys.ncell`. `PointSolidPhase.ϵpV` is never updated, though recordable (`epV` in `quantities()`, always 0).
+    Removing them changes the stored arrays (`.jld2` format) and `runcmp`-style digests; one step, checked.
+  - `KirchhoffStress` has no 3×3 constructor, so the carry constructor `S(M, t)` fails for it (unused today).
+  - `get_basis`, `get_transfer` and `get_domain` branch on strings, and `get_option` lists the same names by hand:
+    deliberately left as branching functions (one way, with arguments; `conventions.md`), the names still written
+    twice.
+  - ElastoPlasm's Documenter site (`docs/make.jl`) has pages for `home/api`, `home/core` and `home/script` only, none
+    for the types under `src/boot/needs/types/`, so their docstrings show only in the REPL (`?Point`).
+- **`Case` in EasyDraw and the window from separate pages — done** (`refactor-case-in-easydraw`; see "Describing a
+  case" and "Drawing a case" in `operations.md`). Setups, short runs, the full slump and the examples' case files read
+  back were bit-identical. Follow-ups: the hooks of `draw(layout)` take a layout and those of `draw(case)` a case, while
+  the window runs on a case inside (`draw` wraps them): a host wanting both kinds of window passes two sets;
+  `Editor`'s `status` is a `Ref` shared with `Geometry` and `Values` (their message channel), a field tests read as
+  `e.status[]`; a page's QML calls are checked to be registered, not exercised (only the screenshots and the picture's
+  size report run them offscreen), so a click-level QML test is still missing; ElastoPlasm's `check_case(case)` throws
+  on invalid physics (`case_physics`) instead of listing it as an error.
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task, rather than one monolithic kernel body.
   `update.jl`'s `elastoplast`/`elasto` dispatch functions (branch on
@@ -34,9 +57,9 @@
   `cmp`, as flat mutable vectors on `PointSolidPhase`, since it's written every
   timestep and bundling it into an immutable per-particle struct would force a
   full-struct reconstruction on every write.
-  - `PerfectlyElastic` is defined but has **no construction path** — dead scaffolding.
-    `DruckerPrager`/`VonMises` both **do** have construction paths, branched on
-    `material.plastic` — see "DP/J2 retmap kernel unification" below.
+  - `PerfectlyElastic`, defined with **no construction path**, was removed (type-writing pass).
+    `DruckerPrager`/`VonMises` both have construction paths, picked by
+    `material.plastic` (`get_constitutive_laws()`) — see "DP/J2 retmap kernel unification" below.
   - `PointSolidPhase.rheo::R`/`AbstractRheology` — a parallel, never-read earlier
     attempt at the same per-particle constitutive-data problem — was retired entirely,
     since `cmp` already supersedes it.
@@ -185,10 +208,8 @@
   `max|Σᵢ∂Nᵢ|` off by exactly `1.0` at one sweep point for `LinearBasis`, unlike
   `gimpm`'s broadly-degraded boundary PoU. Never root-caused — an error of exactly
   `1.0` smells like a real (if narrow) bug rather than float noise.
-- **`DynamicRelaxationSolver`'s fate**: now that `solution` picks between
-  `ExplicitSolver`/`ImplicitSolver` only, this third struct is orphaned scaffolding.
-  Decide: wire it in as a third `solution` value, or state plainly that it's
-  intentionally dormant.
+- ~~`DynamicRelaxationSolver`'s fate~~ — **removed** with the one `Solver` struct: the implicit path is a
+  `Solver` with `solution = "implicit"`.
 - **Staged path to a poro-hydro-mechanical solution: mechanical solver (exists) →
   standalone fluid-only (hydro) solver → fuse the two.** Validate the hydro solver
   independently before coupling. `PointFluidPhase` (`lagrangian.jl`) needs real fields
@@ -213,7 +234,7 @@
   `.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`; 1D APIC has a
   similar unfixed inconsistency (1D is essentially never exercised in this codebase).
 - **Consider a persistent Julia session for iteration (Kaimon/Revise pattern, seen in
-  sibling repo FEMTools.jl).** A `setup_simulation(slump_case(…))`→`execute!` smoke test costs full
+  sibling repo FEMTools.jl).** A `setup(slump(…))`→`execute!` smoke test costs full
   Julia startup+precompile every invocation today (~30-40s), and
   a finely meshed `elastoquasistatic!` run adds more — exactly the kind of loop a persistent
   `Revise`-backed session amortizes. FEMTools.jl's `.agents/`-documented setup
@@ -246,8 +267,8 @@
   apex return (`.claude/bug/fixed/dp-apex-return-wrong-pressure.md`). Needs a corner-return
   source (de Souza Neto, Perić & Owen 2008 §8.3) added to `refs/` first.
 - **Dead or drifting code worth removing, one small verified step at a time:** no `#= … =#` blocks
-  are left under `src/`, and `MeshSolidPhase.oobp`/`.p` (the removed u–P path) are removed. Still
-  open: `PerfectlyElastic` and `DynamicRelaxationSolver` above.
+  are left under `src/`, and `MeshSolidPhase.oobp`/`.p` (the removed u–P path), `PerfectlyElastic` and
+  `DynamicRelaxationSolver` are removed. Still open: the unread fields under "Type writing" above.
 - **`_fast` kernels and the `perf` config section — removed.** `deform_fast`/`elast_fast`
   (hand-unrolled 2D/3D scalar versions, a legacy port of the original C code) were only
   selected by `perf.status`, which also forced `material.elastic="hypoelastic"` and
@@ -260,30 +281,34 @@
   The removal also silently dropped the hypoelastic Jaumann rotation, which only the `_fast`
   kernels applied (the generic term was identically zero); see
   `.claude/bug/fixed/hypoelastic-jaumann-rotation-is-zero.md`.
-- **GPU execution is unwired — decide whether it's a goal.** `get_solver` resolves
-  `backend.exec` from `backend.select`, but nothing reads it: every kernel factory in
-  `init_ignite`/`init_mapsto`/`init_update` and every `sync(...)` call is a literal `CPU()`
-  (61 occurrences under `explicit/` and `common/`). `get_dt` also reduces over particles in a
-  host loop with scalar indexing, which device arrays don't allow. Wiring it is broad,
-  mechanical work (thread one backend object through the factories and syncs, verified
-  bit-identical on `CPU()` first), only worth doing if GPU runs are actually wanted.
-- **`@adapt_struct PointSolidPhase` likely can't rebuild the struct on GPU, unverified.**
-  `Adapt` reconstructs a struct from its adapted field values, which needs every type parameter
-  to be inferable from the fields. `PointSolidPhase`'s `T1` and `EL` appear in no field.
-  (`Point` had the same problem through the phantom `TS` parameter until the type-parameter
-  cleanup removed it.) Not testable on the CPU-only setup used so far.
-- **`ExplicitSolver`/`ImplicitSolver` are two identical 15-parameter structs kept in lockstep
-  by hand**, one parameter per config section. A single solver struct holding the config
-  `NamedTuple` as one field plus an explicit/implicit tag would remove most of that, at the
-  cost of touching every `solver.xxx` access.
+- **GPU execution — explicit path wired, not yet run on a GPU** (branch `feat-gpu-explicit`; see "Running on a GPU" in
+  `operations.md`). Done, each bit-identical on the CPU: UnifiedBackend (`lib/UnifiedBackend`) selects the device;
+  the containers hold host or device arrays; the kernels are built and synchronized on the solver's backend
+  (`exec_backend`); the time step has no host loop (`get_dt` and `vmax` are reductions, the `ϵpII` resets a
+  `map!`, the nonlocal element buckets built by kernels, `norm` of a column written out); `elastodynamic!`/
+  `elastoplastic!` run on a device and copy back at checkpoints; saved simulations hold no kernels or devices. Tested on
+  JLArrays (`test_device.jl`). Left, in order:
+  1. Run `test/cuda/validate_cuda.jl` on an NVIDIA machine and fix what its compile check lists. Likely candidates,
+     each with a bit-identical rewrite ready: `MMatrix` scratch in `deform.jl` (accumulate an `SMatrix` instead), in
+     MLS's moment matrix (`mlsmpm.jl`) and in the return maps (`DP.jl`/`J2.jl`: `ϵpII` as an `SVector{2}`, `ftol`/`ηmax`
+     positional); `eigen(Symmetric(SMatrix))` (analytic in StaticArrays, should compile).
+  2. Performance: `basis.N`/`∂N` are `(NN, nmp)`/`(NN, D, nmp)`, so neighbouring threads read strided memory: `(nmp, NN)`
+     would coalesce; each step copies `vmax` and the element counts to the host (two small syncs).
+  3. Dynamic relaxation and thermal on a device (they refuse it today, `host_only`): `relax!` reduces and updates nodes in
+     host loops (`fictitious_mass`, the damping, the midpoint update), `nodal_volume` scatters on the host.
+- ~~`@adapt_struct PointSolidPhase` likely can't rebuild the struct on GPU~~ — **fixed**: every container has an
+  explicit adapt rule through `adapt_fields`, pinning the parameters no field carries (`architecture.md`).
+- ~~`ExplicitSolver`/`ImplicitSolver` are two identical structs kept in lockstep by hand~~ — **done**: one
+  `Solver{T1,T2,D,…}` with `solution::String`; the explicit workflows check it (`explicit_only`). The fields stayed
+  one per section, so no `solver.xxx` access changed.
 - **`test_workflow.jl` doesn't cover `material.elastic="improved_hencky"`** — add it once
   `.claude/bug/known/improved-hencky-explicit-admissibility-crossing.md` is fixed.
 - **Lighter `src/home/init/` — done** (branches `refactor-lighter-init` → `fix-grf-point-evaluation`
-  → `refactor-init-problem-spec`). Every problem is a `Case` built by `setup_simulation`; the
+  → `refactor-init-problem-spec`). Every problem is a `Case` built by `setup`; the
   six hand-written pipelines and the `get_*` generators are gone (see "Describing a case" in
-  `operations.md`). Material constants live in `MATERIAL` (`setup_material_constants` removed, `n₀`
+  `operations.md`). Material constants live in `get_material()` (`setup_material_constants` removed, `n₀`
   a material constant), `PointData` replaced the implicit generator NamedTuple and
-  `build_solid_phase`'s 11 positional arguments, `get_solver` merges per field, a 3D column works.
+  `build_solid_phase`'s 11 positional arguments, the solver options merge per field, a 3D column works.
   Verified bit-identical setup by setup with `test_setup.jl` (a stored digest reference, which
   replaced the scratch harness used for the earlier steps). The `Geometry` type is gone too:
   `setup_mesh(L, nel, solver)` builds the node grid once, for any dimension (`mesh_coords`, which
@@ -317,6 +342,26 @@
   one is drawn (`cut_earlier!`): a vertex dragged into another zone overlaps it again (shown dashed, later wins),
   and a later zone deleted or moved leaves a gap; a "cut again"/"merge back" action would cover both. Trackpad pinch
   and the middle button were checked only through the Julia logic (`wheel!`, `press!(…; pan)`), not on hardware.
+- **EasyDraw (`lib/EasyDraw`), possible follow-ups:** its own repository is done (EasyDraw.jl, a submodule here),
+  with a documentation site (`docs/`, published from `main` once GitHub Pages serves its `gh-pages` branch);
+  a `Field`'s `show_if` hides zone properties and run settings but not option rows (the README said every field; the
+  docs now say what the code does): decide whether options should follow it;
+  registration once the interface settles (then ElastoPlasm could add it by version instead of the submodule; with
+  Julia ≥ 1.11 a `[sources]` entry could replace the Manifest's path); make public what ElastoPlasm uses of it
+  (`subcell_centres`, `shape_dict`, `parse_shape`, `outside`, unexported; `test_draw` drives the editor's internals),
+  since a change there now lands in another repository;
+  for finite differences, the fraction of each zone per cell (sub-cell accuracy at interfaces, e.g. averaged
+  viscosities), since `zone_index`/`property` sample one point per grid node; for finite elements, `Physical Curve`s
+  for the interfaces between zones (`write_geo` writes the domain's sides only), and circles as Gmsh arcs where nothing
+  cuts them (an inscribed `ngon`-gon today, for the regions to fit); 3D beyond x–z shapes (a layout may be 3D since
+  `refactor-case-from-layout`, but the window and the x–z functions work in its x–z plane); the window's checks for a
+  layout without a host are minimal (`default_check`); a session's first window takes ~20 s, ~12 s of it compiling the
+  window's code, which a PrecompileTools workload over the Qt-free editor (`Editor`, edits, `panel_json`,
+  `background_json`) could move to precompilation. EasyDraw's compat holds QML at 0.12 (0.12.1, on Qt 6.8.2 like
+  Plots/GR); QML 0.13.2 exists: moving to it means checking the window on it, and in ElastoPlasm's environment it needs
+  a Qt that Plots/GR accept. The native macOS screenshots taken in the background show the
+  tab labels dimmer than when the window has focus; not checked in a focused window since the tabs became a
+  `Repeater`.
 - **Mesh quantities can't be plotted.** `plot.what` picks plottable *point* quantities only
   (`plottable()`); the mesh entries of `quantities()` can be recorded but have no plot label, and
   `what_plot_field(mesh, opts)` (the `opts.what == "v"` branches in `display.jl`) is not reached. (The old

@@ -35,7 +35,7 @@ Accumulate the out-of-balance force `fᵉˣᵗ − fⁱⁿᵗ` into `mesh.s.oobf
 Eqs 19-22): `fⁱⁿᵗ = Σ ∇ₓS·τ/det(F)·V_p` with `∂S/∂x = ∂S/∂X̂·ΔF⁻¹` (Eq 21) and
 `V_p = Vₙ·det(ΔF)` (Eq 20), and `fᵉˣᵗ = Σ S·m_p·g`.
 """
-@kernel inbounds = true function dr_fint(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::Vector{T2}) where {T1,T2,D}
+@kernel inbounds = true function dr_fint(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},g::AbstractVector{T2}) where {T1,T2,D}
     p = @index(Global)
     if p ≤ mpts.nmp
         ΔFᵢⱼ = mpts.s.ΔFᵢⱼ[p]

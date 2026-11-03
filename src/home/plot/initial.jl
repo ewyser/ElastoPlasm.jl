@@ -4,7 +4,7 @@ export plot_initial_fields
     plot_initial_fields(problem, folder)
 
 Plot the initial cohesion (and, for Drucker–Prager, friction angle) of the material points into
-`folder`, as `setup_simulation` does when `solver.plot.status` is on.
+`folder`, as `setup` does when `solver.plot.status` is on.
 """
 function plot_initial_fields(problem::Problem, folder)
     solver = problem.solver
@@ -16,7 +16,7 @@ function plot_initial_fields(problem::Problem, folder)
     # VonMises (material.plastic=="VM") has no friction angle at all (J2 yield has
     # no pressure dependence, see VonMises's docstring), so plotting it there would
     # either crash (no .ϕ₀ field) or fake a value that doesn't mean anything.
-    what  = solver.material.plastic == "DP" ? ["c0", "phi0"] : ["c0"]
+    what  = laws(problem.mpts).plastic == "DP" ? ["c0", "phi0"] : ["c0"]
     opts = (;
         dims    = solver.plot.dpi.*(problem.mesh.prprt.L./problem.mesh.prprt.L[1]),
         what    = what,

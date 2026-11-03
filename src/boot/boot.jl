@@ -4,7 +4,11 @@ using Plots,LaTeXStrings,ProgressMeter,REPL.TerminalMenus
 using LinearAlgebra,StaticArrays,SparseArrays,Random
 using JLD2,HDF5
 using TOML
+using EasyDraw: EasyDraw, AbstractShape, Polygon, Block, Ball, Region, Zone, inside, inpolygon, polygon_rings, shape_dict, parse_shape, outside,
+                zone_at, zone_index, property, points, partition, write_geo, save_layout, write_catalog, Layout, load_layout, Settings, load_settings, save_settings,
+                Case, save_case, load_case
 using KernelAbstractions,Adapt,Base.Threads
+import UnifiedBackend    # the execution backends; qualified: KernelAbstractions also exports Backend, get_backend
 import KernelAbstractions.@atomic as @atom
 import KernelAbstractions.Kernel as Cairn
 import KernelAbstractions.synchronize as sync
@@ -35,9 +39,8 @@ for f ∈ [
     include(joinpath(SRC,"boot/needs/types",f))
 end
 
-# Include utility and backend files
+# Include utility files
 include(joinpath(SRC,"boot/needs/utils.jl"))
-include(joinpath(SRC,"boot/needs/backend.jl"))
 include(joinpath(SRC,"boot/needs/distributed.jl"))
 
 # Create self object
@@ -48,15 +51,11 @@ self = Self(
 	    test = joinpath(dirname(SRC),"test"),
     ), 
     ui = UI(), 
-    bckd = Execution(), 
     mpi = Distributed()
 )  
 
 # the default output folder (not tracked by git), emptied only on request: clean_dump()
 mkpath(self.sys.dump)
-
-# Find & printout active backend(s)
-add_backend!(self.bckd, Val(:x86_64))
 
 # Automatically include .jl files
 lists = ["home/api","home/init","home/plot","home/utils","home/script","home/core"]

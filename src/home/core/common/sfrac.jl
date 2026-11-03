@@ -13,10 +13,10 @@ Nodal volume `V_I = Σ_gp S_I,gp V_gp` (Eq 37): the node's share of a completely
 integrated with quadrature points laid out like the material points (`ni` per direction, taken
 from the particles' initial domain) and the problem's own basis functions.
 """
-function nodal_volume(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function nodal_volume(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},solver::S) where {T1,T2,D,S<:Solver{T1,T2,D}}
     ni    = round(Int, mesh.prprt.h[1] / (T2(2.0) * mpts.ℓ₀[1][1]))
     x     = mpts_populate(mesh.prprt; ni=ni)
-    gps   = setup_mpts(mesh, solver, PointData(x, ni))
+    gps   = setup_mpts(mesh, PointData(x, ni), laws(mpts))
     basis = setup_basis(mesh, gps, solver)
     ignite(gps, mesh, basis, solver)
     V = zeros(T2, mesh.prprt.nno[end])
@@ -35,7 +35,7 @@ Accumulate `Σ_p S_Ip V_p (1 − n_p)/(1 − n₀_p)` into `r`: the solid volume
 each material point's initial solid fraction, so that `r_I / V_I` is 1 inside the material and
 falls to 0 across a free surface.
 """
-@kernel inbounds = true function solid_fraction(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},r::Vector{T2}) where {T1,T2,D}
+@kernel inbounds = true function solid_fraction(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},r::AbstractVector{T2}) where {T1,T2,D}
     p = @index(Global)
     if p ≤ mpts.nmp
         vs = mpts.Ω[p] * (T2(1.0) - mpts.n[p]) / (T2(1.0) - mpts.n₀[p])
@@ -54,9 +54,11 @@ Mark the nodes that carry material but whose relative solid fraction `r_I / V_I`
 `solver.stab.sfrac`. `r` is scratch space of the nodal length. Shape functions must be cached
 (`ignite`) for the current configuration.
 """
-function inactive_nodes!(inactive::Vector{Bool},r::Vector{T2},mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},V::Vector{T2},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function inactive_nodes!(inactive::Vector{Bool},r::Vector{T2},mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},V::Vector{T2},solver::S) where {T1,T2,D,S<:Solver{T1,T2,D}}
+    bk = exec_backend(solver)
     fill!(r, T2(0.0))
-    solver.cairn.ignite.sfrac!(mpts,mesh,basis,r; ndrange=mpts.nmp);sync(CPU())
+    solver.cairn.ignite.sfrac!(mpts, mesh, basis, r; ndrange=mpts.nmp)
+    sync(bk)
     ε = T2(solver.stab.sfrac)
     @. inactive = (r > T2(0.0)) & (r < ε * V)
     return inactive
@@ -68,7 +70,7 @@ end
 Workspace for excluding ill-conditioned nodes: the nodal volume `V` (Eq 37, computed once for
 the fixed background grid) and scratch buffers; `nothing` when `solver.stab.sfrac == 0`.
 """
-function node_exclusion(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},solver::S) where {T1,T2,D,S<:AbstractSolver{T1,T2,D}}
+function node_exclusion(mpts::Point{T1,T2,D},mesh::Mesh{T1,T2,D},solver::S) where {T1,T2,D,S<:Solver{T1,T2,D}}
     iszero(solver.stab.sfrac) && return nothing
     nno = mesh.prprt.nno[end]
     return (; V=nodal_volume(mpts, mesh, solver), r=zeros(T2, nno), inactive=zeros(Bool, nno))

@@ -16,6 +16,6 @@ the basis's limit rather than a defect; deciding needs a run with GIMP + explici
 a wider column.
 
 Rechecked on `feat-qml-window` after the `get_dt` fix (`.claude/bug/fixed/get-dt-maximum-over-axes.md`),
-in the current API: `execute!(Simulation(Problem(column_case([1, 20], 0.0, 1.0e4, 80.0, 50.0));
+in the current API: `execute!(Simulation(Problem(column([1, 20], 0.0, 1.0e4, 80.0, 50.0));
 workflow="elastodynamic!"))` still throws `InexactError: trunc(Int64, NaN)`. Its cells are square
 (3.125 × 3.125 m), so the time-step fix could not have changed it: not a CFL issue of that kind.

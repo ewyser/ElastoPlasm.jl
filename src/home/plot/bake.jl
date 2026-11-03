@@ -5,7 +5,7 @@ Plot and display the fields of `solver.plot.what` when `solver.plot.status`; eac
 "<field>, at <title>", by default the time `t` (a workflow without physical time, such as the
 load steps of `elastoquasistatic!`, passes its own `title`).
 """
-@views function bake(mpts::Point{T1,T2},mesh::Mesh{T1,T2},t::T2,solver::S; title=L" t = "*string(round(t,digits=1))*" [s]") where {T1,T2,S<:AbstractSolver{T1,T2}}
+@views function bake(mpts::Point{T1,T2},mesh::Mesh{T1,T2},t::T2,solver::S; title=L" t = "*string(round(t,digits=1))*" [s]") where {T1,T2,S<:Solver{T1,T2}}
     if solver.plot.status
         opts = (;
             dims    = solver.plot.dpi.*(mesh.prprt.L./mesh.prprt.L[1]),

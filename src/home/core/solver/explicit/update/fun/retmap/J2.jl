@@ -1,18 +1,18 @@
 # `_yield_normal` returns `(‖ξ‖, n̂)` for a stress deviator `ξ` (Voigt, shear stored once):
 # ‖ξ‖ = √(2J₂) and the unit deviator n̂ = ξ/‖ξ‖. Not to be confused with `get_J2` (`tensor.jl`),
 # the scalar invariant.
-@inline function _yield_normal(ξ::SVector{6,T}) where {T}
-    J2 = T(0.5)*(ξ[1]^2+ξ[2]^2+ξ[3]^2+T(2.0)*ξ[4]^2+T(2.0)*ξ[5]^2+T(2.0)*ξ[6]^2) # Borja (2013), p.33
-    ξn = sqrt(T(2.0)*J2)
+@inline function _yield_normal(ξ::SVector{6,T2}) where {T2}
+    J2 = T2(0.5)*(ξ[1]^2+ξ[2]^2+ξ[3]^2+T2(2.0)*ξ[4]^2+T2(2.0)*ξ[5]^2+T2(2.0)*ξ[6]^2) # Borja (2013), p.33
+    ξn = sqrt(T2(2.0)*J2)
     return ξn,ξ./ξn
 end
-@inline function yield_J2(ξ,κ::T) where {T}
+@inline function yield_J2(ξ,κ::T2) where {T2}
     ξn,n = _yield_normal(ξ)
     return ξn-κ,n
 end
 
 """
-    _vonmises_return_map(σ::AbstractStress, ϵpII::MVector{2,T}, cmp, ftol, ηmax) -> (Δλ, dev)
+    _vonmises_return_map(σ::AbstractStress, ϵpII::MVector{2,T2}, cmp, ftol, ηmax) -> (Δλ, dev)
 
 CPA (closest-point-projection) J2/von Mises return mapping on the stored deviator — shared by
 both `von_mises` methods below, mirroring `DP.jl`'s `_druckerprager_return_map`. The flow
@@ -23,16 +23,16 @@ multiplier. On yield, `ϵpII[1]` is set to the accumulated hardening variable `�
 `ϵpII[2]`, the non-local-regularized value — NOT incremented from `ϵpII[1]`, unlike `DP.jl`'s
 convention); `ϵpII[2]` itself is never written here.
 """
-@inline function _vonmises_return_map(σ::AbstractStress{T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel,ftol::T,ηmax::Int) where {T}
+@inline function _vonmises_return_map(σ::AbstractStress{T2},ϵpII::MVector{2,T2},cmp::AbstractConstitutiveModel,ftol::T2,ηmax::Int) where {T2}
     κ     = max(cmp.cᵣ,cmp.c₀+cmp.Hp*ϵpII[2])
     dev   = σ.dev
     f,n   = yield_J2(dev,κ)
-    Δλacc = T(0.0)
-    if f>T(0.0)
+    Δλacc = T2(0.0)
+    if f>T2(0.0)
         γ0,ηit = ϵpII[2],1
         while abs(f)>ftol && ηit<ηmax
-            Δλ     = f/(T(2.0)*cmp.Gc)
-            dev    = dev .- (T(2.0)*cmp.Gc*Δλ) .* n
+            Δλ     = f/(T2(2.0)*cmp.Gc)
+            dev    = dev .- (T2(2.0)*cmp.Gc*Δλ) .* n
             γ0    += Δλ
             Δλacc += Δλ
             κ      = max(cmp.cᵣ,cmp.c₀+cmp.Hp*γ0)
@@ -55,25 +55,25 @@ Souza Neto (2008)). The finite-strain method additionally rebuilds the elastic s
 with `_elastic_strain` (`elasticity.jl`); the infinitesimal-strain method never touches strain,
 matching `elast!`'s incremental infinitesimal-strain tracking.
 """
-@inline function von_mises(τᵢ::KirchhoffStress{T},ϵᵢ::LogarithmicStrain{T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel;ftol::Real=1e-9,ηmax::Int=20) where {T}
-    Δλ,dev = _vonmises_return_map(τᵢ,ϵpII,cmp,T(ftol),ηmax)
-    if Δλ > T(0.0)
+@inline function von_mises(τᵢ::KirchhoffStress{T2},ϵᵢ::LogarithmicStrain{T2},ϵpII::MVector{2,T2},cmp::AbstractConstitutiveModel;ftol::Real=1e-9,ηmax::Int=20) where {T2}
+    Δλ,dev = _vonmises_return_map(τᵢ,ϵpII,cmp,T2(ftol),ηmax)
+    if Δλ > T2(0.0)
         τᵢ = KirchhoffStress(τᵢ.p,dev)
         ϵᵢ = _elastic_strain(τᵢ,cmp)
     end
     return ϵᵢ,τᵢ,Δλ,ϵpII
 end
-@inline function von_mises(σᵢ::CauchyStress{T},ϵᵢ::InfinitesimalStrain{T},ϵpII::MVector{2,T},cmp::AbstractConstitutiveModel;ftol::Real=1e-9,ηmax::Int=20) where {T}
-    Δλ,dev = _vonmises_return_map(σᵢ,ϵpII,cmp,T(ftol),ηmax)
-    if Δλ > T(0.0)
+@inline function von_mises(σᵢ::CauchyStress{T2},ϵᵢ::InfinitesimalStrain{T2},ϵpII::MVector{2,T2},cmp::AbstractConstitutiveModel;ftol::Real=1e-9,ηmax::Int=20) where {T2}
+    Δλ,dev = _vonmises_return_map(σᵢ,ϵpII,cmp,T2(ftol),ηmax)
+    if Δλ > T2(0.0)
         σᵢ = CauchyStress(σᵢ.p,dev)
     end
     return ϵᵢ,σᵢ,Δλ,ϵpII
 end
 
 """
-    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:VonMises, ST<:LogarithmicStrain}
-    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:VonMises, ST<:InfinitesimalStrain}
+    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:VonMises,ST<:LogarithmicStrain}
+    retmap(mpts::Point{T1,T2,D,CM,ST}) where {CM<:VonMises,ST<:InfinitesimalStrain}
 
 J2/von Mises plastic corrector — contributes the `CM<:VonMises` methods to the shared
 `retmap` kernel name (see `DP.jl`'s `retmap` docstring for the `CM`+`ST` dispatch

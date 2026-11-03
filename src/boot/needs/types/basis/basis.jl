@@ -2,7 +2,7 @@
 # Concrete Basis types
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-abstract type AbstractBasis end
+abstract type AbstractBasisKind end
 abstract type AbstractTransfer end
 
 export get_basis, Basis, ∂Nrow
@@ -18,9 +18,9 @@ per-read construction stays a zero-allocation stack value.
 @inline ∂Nrow(∂N::AbstractArray{T2,3}, nn, p, ::Val{D}) where {T2,D} = SVector{D,T2}(ntuple(d -> ∂N[nn,d,p], Val(D)))
 
 """
-    get_basis(which::String, ::Type{T1}, dim::Integer; domain="stretch") -> AbstractBasis
+    get_basis(which::String, ::Type{T1}, dim::Integer; domain="stretch") -> AbstractBasisKind
 
-Map a solver's `basis.which` string to its concrete `AbstractBasis` instance, parametrized
+Map a solver's `basis.which` string to its concrete `AbstractBasisKind` instance, parametrized
 by index type `T1` and problem dimension `dim`; GIMP's carries its domain update (`basis.domain`,
 `get_domain`).
 """
@@ -39,45 +39,87 @@ function get_basis(which::String, ::Type{T1}, D::Integer; domain::String="stretc
 end
 
 """
-    Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}
+    Basis{T1,T2,D,NN,K,TR,…}
 
-Owns the topology that links a `Mesh` and a `Point` container: which nodes neighbor each element
-(`e2n`) and each material point (`p2n`), and which elements neighbor each other (`e2e`, also used
-by nonlocal plastic-strain regularization to bound its neighbor search — see `nonlocal.jl`).
-Also owns `type`, the per-axis node boundary-layer classification consumed by `BSplineBasis`'s
-`eval_basis` — basis-kind-specific data, not mesh/point state.
-`N`/`∂N` cache each particle's shape values/gradients for all `NN` neighbor nodes, computed once
-per particle per timestep by the `shpfun!` ignite kernel (via the kind-specific `eval_basis`) and
-then just read by every P2G/G2P/update kernel, instead of recomputing per call site. They're plain
-`(NN,nmp)`/`(NN,D,nmp)` arrays, not `Vector{SVector}`/`Vector{SMatrix}` — bundling all `NN`
-per-particle values into one `SVector`/`SMatrix` object defeats Julia's escape analysis for
-`NN` much above a handful, causing real per-particle heap allocation; scalar writes into a
-pre-allocated plain `Array` do not.
-`kind::K` dispatches `eval_basis`/`shpfun!` onto the concrete basis kind
-(`BSplineBasis`/`GimpBasis`/`LinearBasis`/`MLSBasis`); `transfer::TR` does the same for
-the P2G/G2P transfer scheme (`StdTransfer`/`TpicTransfer`/`ApicTransfer`) — both fields
-follow the identical pattern: a config string (`solver.basis.which`/`solver.basis.trsfr`
-— both live under the same `basis` config section, mirroring this struct owning both
-`kind` and `transfer`) mapped once at setup time (`get_basis`/`get_transfer`) to a
-concrete marker instance, then dispatched on via ordinary Julia multiple dispatch
-instead of a runtime string branch.
-`ApicTransfer` additionally carries `Bᵢⱼ`/`Dᵢⱼ` (`Vector{SMatrix}` per-particle
-accumulators, 100% APIC-exclusive — see its own docstring), the same kind-specific-data-
-lives-on-the-kind-struct pattern `GimpBasis`'s `stencils` already uses.
-Threaded through the solver as a third argument alongside `mpts`/`mesh`, e.g. `p2e2n(mpts,mesh,basis)`.
+What links a `Mesh` and a `Point`: all the connectivity, the shape functions' kind and cached values, and the transfer
+scheme. Kernels take it after the points and the mesh, `(mpts, mesh, basis, …)`.
+
+# Fields
+- `kind::K`: the basis kind, `BSplineBasis`, `GimpBasis`, `LinearBasis` or `MLSBasis` (`basis.which`, `get_basis`):
+  `eval_basis`, hence `shpfun!`, dispatch on it.
+- `transfer::TR`: the transfer scheme, `StdTransfer`, `TpicTransfer` or `ApicTransfer` (`basis.trsfr`,
+  `get_transfer`): `p2n!` and `Bij` dispatch on it; APIC's carries its per-point matrices.
+- `e2n::VN`: each element's nodes, an `SVector{NN,T1}` per element.
+- `e2e::A`: the elements near each element, an `Adjacency` (also the non-local regularisation's neighbour search).
+- `p2n::VN`: each point's `NN` nodes (0 where a node is outside the grid), updated every step (`p2e2n`).
+- `p2e::VI`: each point's element.
+- `type::MI`: the nodes' boundary layer per axis (`D × nno`), which `BSplineBasis`'s functions depend on.
+- `N::M`: the shape values, `NN × nmp`, computed once per step (`shpfun!`) and read by every transfer.
+- `∂N::A3`: the shape gradients, `NN × D × nmp`; read a row with `∂Nrow`.
+
+`T1`, `T2` and `D` are the index type, float type and dimension; `NN` is the number of nodes a point reaches
+(`stencil_size`), known once the mesh and the kind are; `K` and `TR` are the kind's and the scheme's types, what code
+dispatches on. The rest are the arrays' types, host or device alike.
+
+`N` and `∂N` are plain arrays, not vectors of `SVector`s or `SMatrix`es: bundling a point's `NN` values into one static
+object defeats Julia's escape analysis for `NN` above a handful and allocates per point (see `gotchas.md`).
+
+# Constructors
+    Basis{T1,T2,D,NN}(kind, transfer, e2n, e2e, p2n, p2e, type, N, ∂N)
+
+`setup_basis` builds the basis of a mesh and its points, from the solver's `basis` options.
+
+See also: `Mesh`, `Point`, `get_basis`, `get_transfer`.
 """
-struct Basis{T1,T2,D,NN,K<:AbstractBasis,TR<:AbstractTransfer}
+struct Basis{T1,T2,D,NN,K<:AbstractBasisKind,TR<:AbstractTransfer,VN,A,VI,MI,M,A3}
     kind    ::K                              # BSplineBasis()/GimpBasis()/LinearBasis()/MLSBasis()
     transfer::TR                             # StdTransfer()/TpicTransfer()/ApicTransfer()
-    e2n  ::Vector{SVector{NN,T1}}
-    e2e  ::SparseMatrixCSC{T1,T1}
-    p2n  ::Vector{SVector{NN,T1}}
-    p2e  ::Vector{T1}
-    type ::Matrix{T1}
-    N    ::Matrix{T2}
-    ∂N   ::Array{T2,3}
+    e2n  ::VN
+    e2e  ::A                                 # an Adjacency{T1}
+    p2n  ::VN
+    p2e  ::VI
+    type ::MI
+    N    ::M
+    ∂N   ::A3
 end
-@adapt_struct Basis
+function Basis{T1,T2,D,NN}(kind::K, transfer::TR, e2n::VN, e2e::A, p2n::VN, p2e::VI, type::MI, N::M,
+                           ∂N::A3) where {T1,T2,D,NN,K,TR,VN,A,VI,MI,M,A3}
+    return Basis{T1,T2,D,NN,K,TR,VN,A,VI,MI,M,A3}(kind, transfer, e2n, e2e, p2n, p2e, type, N, ∂N)
+end
+function Adapt.adapt_structure(to, basis::Basis{T1,T2,D,NN}) where {T1,T2,D,NN}
+    return adapt_fields(to, basis, Basis{T1,T2,D,NN})
+end
+
+"""
+    Adjacency{T1,V}
+
+A sparse adjacency list in compressed-column form, as a `SparseMatrixCSC`'s pattern without its values: two plain
+index vectors, so it lives on a device as well as on the host. `basis.e2e` is one (the elements near each element).
+
+# Fields
+- `ptr::V`: where each column starts in `idx`: the entries of column `j` are `idx[ptr[j]:ptr[j+1]-1]`.
+- `idx::V`: the entries, column after column.
+
+`T1` is the index type, `V` the vectors' type. Read it as a sparse matrix's pattern, with `nzrange(a, j)` and
+`rowvals(a)`.
+
+# Constructors
+    Adjacency(ptr, idx)
+"""
+struct Adjacency{T1,V}
+    ptr ::V
+    idx ::V
+end
+function Adjacency(ptr::V, idx::V) where {T1,V<:AbstractVector{T1}}
+    return Adjacency{T1,V}(ptr, idx)
+end
+@adapt_struct Adjacency
+@inline function SparseArrays.nzrange(a::Adjacency, j::Integer)
+    return a.ptr[j]:(a.ptr[j+1]-1)
+end
+@inline function SparseArrays.rowvals(a::Adjacency)
+    return a.idx
+end
 
 """
     stencil_size(basis) -> Int
