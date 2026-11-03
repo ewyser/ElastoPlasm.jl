@@ -9,7 +9,8 @@
     # catalog, a case's layout in the window and back, and a case drawn through the editor, driven as a user would (its options,
     # run settings, checks and files); then draw_case's window, offscreen
     EP, ED = ElastoPlasm, ElastoPlasm.EasyDraw
-    editor(case) = ED.Editor(case.layout, case.settings, get_catalog(); EP.case_hooks()...)
+    PAGES = [ED.LayoutPage(), ED.PhysicsPage(), ED.OptionsPage(), ED.CreatePage()]          # draw_case's
+    editor(case) = ED.Editor(case; pages=PAGES, catalog=get_catalog(), EP.case_hooks()...)
     click!(e, x, z) = (ED.move!(e, x, z); ED.press!(e, x, z); ED.release!(e))
     opts(c) = EP.config_dict(EP.case_options(c.settings.options))                          # a case's options, as values
 
@@ -67,11 +68,11 @@
               (case.layout.L, case.layout.nel, case.layout.ni, case_physics(case).bcs, case_physics(case).thermal, case_physics(case).material, Solver(case).run, case_physics(case).properties)
         @test opts(back) == opts(case)
         @test_logs ED.load_layout(save_case(joinpath(d, "x_case.toml"), case))              # a case file is a layout file
-        e = ED.Editor(ED.Layout(; L=[10, 5], nel=[10, 5]), ED.Settings(), get_catalog())   # drawn with EasyDraw alone, ElastoPlasm's catalog
-        ED.new_zone!(e, :rectangle); click!(e, 0.0, 0.0); click!(e, 10.0, 2.0)
-        ED.set_prop!(e, "phi", "30"); ED.set_bc!(e, "bottom", "fixed"); ED.set_option!(e, "basis.which", 2)
-        @test ED.create!(e, joinpath(d, "drawn"))                                           # EasyDraw's Create…: a layout file
-        c = load_case(joinpath(d, "drawn", "drawn_layout.toml"))                            # a case
+        e = ED.Editor(Case(ED.Layout(; L=[10, 5], nel=[10, 5])); pages=PAGES, catalog=get_catalog())   # drawn with EasyDraw alone, ElastoPlasm's catalog
+        ED.new_zone!(e.geometry, :rectangle); click!(e, 0.0, 0.0); click!(e, 10.0, 2.0)
+        ED.set_prop!(e.values, ED.zone_id(e.geometry), "phi", "30"); ED.set_bc!(e.values, "bottom", "fixed"); ED.set_option!(e.values, "basis.which", 2)
+        @test ED.create!(e, joinpath(d, "drawn"))                                           # EasyDraw's Create…: its case file
+        c = load_case(joinpath(d, "drawn", "drawn_case.toml"))                              # a case
         @test case_physics(c).properties["zone 1"].phi ≈ 30π/180 && case_physics(c).bcs[2, 1] == :fixed && Solver(c).basis.which == "gimpm"
         @test EP.case_folder(c) == joinpath(d, "drawn")                                     # no run folder: the file's
         @test isempty(check_case(c).errors)
@@ -101,35 +102,35 @@
     end
     @testset "a case drawn: zone constants, options, run, checks, files" begin
         e = editor(mkcase(; L=[13.0, 7.0], nel=[13, 7], bcs=[:roller :roller; :fixed :free]))
-        @test e.sides == Dict("left" => "roller", "right" => "roller", "bottom" => "fixed", "top" => "free")
-        ED.set_bc!(e, "top", "fixed"); ED.set_domain_field!(e, "width", "4")
-        ED.new_zone!(e); foreach(p -> click!(e, p...), [(0, 0), (13, 0), (13, 3), (0, 3)]); ED.key!(e, "enter")
-        ED.set_prop!(e, "E", "50"); ED.set_prop!(e, "nu", "0.2"); ED.set_prop!(e, "phi", "30")
-        @test e.regions[1].props == Dict("E" => 5e7, "nu" => 0.2, "phi" => 30π/180)
-        @test occursin("default 20.0", ED.panel_json(e))                                    # c₀'s default, get_material()'s, in kPa
-        ED.set_option!(e, "basis.which", findfirst(==("gimpm"), ED.field(e.catalog.options, "basis.which").values))
-        @test e.options["basis"]["which"] == "gimpm"
-        ED.type_option!(e, "grf.param.σ", "7500"); @test e.options["grf"]["param"]["σ"] == 7500.0
-        ED.tick_value!(e, "plot.what", findfirst(==("epII"), ED.field(e.catalog.options, "plot.what").values), true)
-        @test e.options["plot"]["what"] == ["p", "epII"]
-        e.section = "plot"; @test occursin("\"plastic strain\"", ED.panel_json(e))           # shown by its readable name
-        ED.set_option!(e, "material.plastic", 2); @test !occursin("φ [°]", ED.panel_json(e))  # von Mises: no friction angle
-        ED.pick_run!(e, "workflow", findfirst(==("elastoquasistatic!"), collect(EP.get_workflows())))
-        ED.set_run!(e, "lstps", "20"); ED.set_run!(e, "lstps", "-1")
-        @test e.run["workflow"] == "elastoquasistatic!" && e.run["lstps"] == 20
+        @test e.values.sides == Dict("left" => "roller", "right" => "roller", "bottom" => "fixed", "top" => "free")
+        ED.set_bc!(e.values, "top", "fixed"); ED.set_domain_field!(e.geometry, "width", "4")
+        ED.new_zone!(e.geometry); foreach(p -> click!(e, p...), [(0, 0), (13, 0), (13, 3), (0, 3)]); ED.key!(e, "enter")
+        ED.set_prop!(e.values, ED.zone_id(e.geometry), "E", "50"); ED.set_prop!(e.values, ED.zone_id(e.geometry), "nu", "0.2"); ED.set_prop!(e.values, ED.zone_id(e.geometry), "phi", "30")
+        @test ED.zone_values(e.values, e.geometry.regions[1].id) == Dict("E" => 5e7, "nu" => 0.2, "phi" => 30π/180)
+        ED.set_page!(e, :physics); @test occursin("default 20.0", ED.panel_json(e))                                    # c₀'s default, get_material()'s, in kPa
+        ED.set_option!(e.values, "basis.which", findfirst(==("gimpm"), ED.field(e.values.catalog.options, "basis.which").values))
+        @test e.values.options["basis"]["which"] == "gimpm"
+        ED.type_option!(e.values, "grf.param.σ", "7500"); @test e.values.options["grf"]["param"]["σ"] == 7500.0
+        ED.tick_value!(e.values, "plot.what", findfirst(==("epII"), ED.field(e.values.catalog.options, "plot.what").values), true)
+        @test e.values.options["plot"]["what"] == ["p", "epII"]
+        e.values.section = "plot"; ED.set_page!(e, :options); @test occursin("\"plastic strain\"", ED.panel_json(e))           # shown by its readable name
+        ED.set_option!(e.values, "material.plastic", 2); ED.set_page!(e, :physics); @test !occursin("φ [°]", ED.panel_json(e))  # von Mises: no friction angle
+        ED.pick_run!(e.values, "workflow", findfirst(==("elastoquasistatic!"), collect(EP.get_workflows())))
+        ED.set_run!(e.values, "lstps", "20"); ED.set_run!(e.values, "lstps", "-1")
+        @test e.values.run["workflow"] == "elastoquasistatic!" && e.values.run["lstps"] == 20
         @test occursin("20 load steps", join(ED.checks(e).info))                              # check_case's
-        ED.setoption!(e.options, "dtype", ["precision"], "32-bit precision (or single precision)")   # a warning: Create… twice
-        @test !ED.ready!(e) && occursin("again", e.status) && ED.ready!(e)
+        ED.setoption!(e.values.options, "dtype", ["precision"], "32-bit precision (or single precision)")   # a warning: Create… twice
+        @test !ED.ready!(e) && occursin("again", e.status[]) && ED.ready!(e)
         folder = joinpath(mktempdir(), "layers")
         @test ED.create!(e, folder * "/") && e.finished && isfile(joinpath(folder, "layers_case.toml"))   # made, the case in it
-        c = Case(e.result.layout, e.result.settings)
+        c = e.result
         sc = Solver(c)
         @test EP.case_folder(c) == folder && c.layout.L == [13.0, 4.0, 7.0] && sc.run.lstps == 20 && sc.basis.which == "gimpm"   # its runs go there
         @test case_physics(c).bcs == [:roller :roller; :roller :roller; :fixed :fixed] && case_physics(c).properties["zone 1"].E == 5e7
         @test Solver(load_case(joinpath(folder, "layers_case.toml"))).run == sc.run          # the file is the case
         e2 = editor(mkcase(; L=[1, 1], nel=[2, 2]))
         ED.load!(e2, joinpath(folder, "layers_case.toml"))                                  # Start from a (case) file
-        @test length(e2.regions) == 1 && e2.width == 4.0 && e2.run["lstps"] == 20 && e2.folder == folder
+        @test length(e2.geometry.regions) == 1 && e2.geometry.width == 4.0 && e2.values.run["lstps"] == 20 && e2.geometry.folder == folder
         @test opts(Case(ED.current_layout(e2), ED.current_settings(e2))) == opts(c)
     end
     ENV["QT_QPA_PLATFORM"] = get(ENV, "QT_QPA_PLATFORM", "offscreen"); ENV["QT_QUICK_BACKEND"] = "software"
@@ -137,7 +138,9 @@
         d = mktempdir()
         case = mkcase(; L=[20.0, 10.0], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
                      zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))], properties=Dict("rock" => (; E=5e7)))
-        @test isnothing(draw_case(case; shots=(d, [1, 2, 3, 4])))                               # closes itself; no Create…: nothing
-        @test all(k -> isfile(joinpath(d, "step$k.png")), 1:4)
+        all4 = [:layout, :physics, :options, :create]
+        @test isnothing(draw_case(case; shots=(d, all4)))                                      # closes itself; no Create…: nothing
+        @test all(k -> isfile(joinpath(d, "$k.png")), all4)
+        @test isnothing(assign_case(case; shots=(d, [:physics]))) && isfile(joinpath(d, "physics.png"))   # the values only
     end
 end
