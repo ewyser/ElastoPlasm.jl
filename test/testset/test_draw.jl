@@ -131,7 +131,7 @@
         d = mktempdir()
         case = Case(; L=[20.0, 10.0], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
                      zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))], properties=Dict("rock" => (; E=5e7)))
-        @test isnothing(draw_case(case; shots=(d, [1, 2, 3])))                               # closes itself; no Create…: nothing
-        @test all(k -> isfile(joinpath(d, "step$k.png")), 1:3)
+        @test isnothing(draw_case(case; shots=(d, [1, 2, 3, 4])))                               # closes itself; no Create…: nothing
+        @test all(k -> isfile(joinpath(d, "step$k.png")), 1:4)
     end
 end

@@ -262,24 +262,27 @@ execute!(setup_simulation(case))
   problem is refused. The preview uses each zone's own `inside` rule (`shape_of`), so it equals
   `case_points` (checked on the collision case). Zone properties it does not
   show (`v`, `Hp`, `n0`, `cp`, `k`), the problem's material and its thermal flag are carried through.
-- Three tabs (asked for: "would it not be better to have both domain and zone on the same
-  page?"; it had four, Domain and Zones apart, the canvas doing only one of them on each): **Layout**, the domain and
-  the zones on one page and one canvas mode. It holds "Start from a file…", then the **Domain** section (always
+- Four tabs, the geometry then the physics, as the model's `Layout` and `Settings` (asked for: "would it not be better
+  to have both domain and zone on the same page?", then "the point was also to decouple geometry from physics"; it had
+  Domain and Zones apart, the canvas doing only one of them on each, and each mixing geometry and values): **Layout**,
+  the geometry, the domain and the zones' shapes on one page and one canvas mode. It holds "Start from a file…", then the **Domain** section (always
   shown; a fold was tried and dropped, the user: "no need to make Domain collapsing"): first a choice, *Domain* or *Picture to draw on*, the latter with its own panel, below; drag the handle, which
   sits off the domain's upper-right corner (`handle_point`, 1.2 `tol` along each axis, picked within 0.5 `tol`, so a
   zone's vertex at the corner, picked within `tol`, stays the zone's; hidden while a zone is drawn; `fit!` leaves a 4%
   margin so that it is in view), snapped to a tenth of the order of
   magnitude, `nice_step`, or type `Lx`, `Lz` and the cell size `h`, square cells, `nel_for`; a
-  width along y for 3D, `nely` from `h`; points per cell; one drop-down per side, its kinds and colours the
-  catalog's. Undo covers the domain too (a `Snapshot` holds the zones and the domain; domain edits are undo steps). Then
-  the zones (the
-  editor below; the catalog's zone properties, for ElastoPlasm c₀, cᵣ [kPa], φ [°], T, E [MPa], ν, ρ₀; φ hidden when the options pick
-  `material.plastic = "VM"` (its `show_if`); "+ New zone ▾" opens a menu of shapes, `new_zone!(e, shape)`: Draw (a polygon,
+  width along y for 3D, `nely` from `h`; points per cell. Undo covers everything the Layout and Physics steps edit (a
+  `Snapshot` holds the zones, the domain, the defaults and the sides). Then the zones (the editor below: the list, the
+  name, "+ New zone ▾", which opens a menu of shapes, `new_zone!(e, shape)`: Draw (a polygon,
   vertex by vertex), Rectangle (two opposite corners; every corner lying on another zone's edge splits
   it), Triangle (three corners, closes by itself), Circle (centre, then a point on it); the vertex last
   clicked or dragged (`picked`, outlined on the canvas) has one row, x and z typed exactly and "×"
   deleting it, `set_picked!`/`remove_picked!`, which move or delete it in every zone sharing it, through
-  undo; the vertices are not listed), **Options**, always shown (**Load catalog…** first, moved there from the domain:
+  undo; the vertices are not listed), **Physics** (the settings' `zones`, `defaults` and `sides`: the selected zone's
+  values, the catalog's zone properties, for ElastoPlasm c₀, cᵣ [kPa], φ [°], T, E [MPa], ν, ρ₀, φ hidden when the options
+  pick `material.plastic = "VM"` (its `show_if`); the defaults, editable (`set_default!`, the case's material; blank:
+  the catalog's); one drop-down per side, its kinds and colours the catalog's; on the canvas a click selects a zone
+  and a drag pans, no shape is edited), **Options**, always shown (**Load catalog…** first, moved there from the domain:
   the user's decision; "This catalog has no options." when it has none; then one row per catalog option, pages by the
   first part of its key:
   checkbox, name, drop-down; numeric fields take any typed value plus presets; picking or typing a
