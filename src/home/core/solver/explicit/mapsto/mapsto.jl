@@ -43,7 +43,7 @@ Resolution of mechanical problem: project material points to nodes, solve, and m
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::AbstractVector{T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::AbstractVector{T2},dt::T2,solver::Solver{T1,T2}) where {T1,T2}
     bk = exec_backend(solver)
     # get cauchy stress
     if laws(mpts).elastic != "hypoelastic"
@@ -89,7 +89,7 @@ function mapsto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},g::Abst
 end
 
 """
-    mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+    mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},dt::T2,solver::Solver{T1,T2}) where {T1,T2}
 
 Resolution of the thermal (heat-conduction) problem: project material-point heat
 capacity/temperature to nodes, solve the nodal heat-balance equation, and map the
@@ -102,12 +102,12 @@ minus the gravity/finite-strain/APIC concerns that don't apply to the thermal ph
 - `mesh::MeshThermalPhase{T1,T2}`: Mesh data structure for the thermal phase.
 - `basis::Basis{T1,T2}`: Topology container linking `mesh`/`mpts`.
 - `dt::T2`: Time step.
-- `solver::ExplicitSolver{T1,T2}`: Solver instance.
+- `solver::Solver{T1,T2}`: Solver instance.
 
 # Returns
 - `nothing`. Updates fields in-place.
 """
-function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function mapsto(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},dt::T2,solver::Solver{T1,T2}) where {T1,T2}
     bk = exec_backend(solver)
     # reset nodal quantities
     fill!(mesh.cᵢ  ,T2(0.0))

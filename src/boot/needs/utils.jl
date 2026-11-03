@@ -103,8 +103,8 @@ end
     return isbits(f) ? f : Adapt.adapt(to, f)
 end
 
-# what an option's value stands for, in a table keyed by the option's values (`get_constitutive_laws()`'s,
-# `get_solutions()`); `option` names it in the error
+# what an option's value stands for, in a table keyed by the option's values (`get_constitutive_laws()`'s);
+# `option` names it in the error
 function table_value(table::NamedTuple, name::AbstractString, option::AbstractString)
     haskey(table, Symbol(name)) || throw(ArgumentError("$option = \"$name\" is not one of $(join(keys(table), ", "))"))
     return getfield(table, Symbol(name))

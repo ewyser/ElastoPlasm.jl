@@ -1,6 +1,18 @@
 export elastoplastic!,elastodynamic!,thermodynamic!              
 
 """
+    explicit_only(solver, name)
+
+Refuse to run `name`, an explicit workflow, with a solver of another solution (`solution = "implicit"`), with an
+`ArgumentError`, rather than stepping a problem set up for dynamic relaxation.
+"""
+function explicit_only(solver::Solver, name::AbstractString)
+    solver.solution == "explicit" && return nothing
+    throw(ArgumentError("$name is an explicit workflow, and this solver's solution is \"$(solver.solution)\": " *
+                        "build one with solution = \"explicit\""))
+end
+
+"""
     elastodynamic!(mpts::Point{T1,T2,CM}, mesh, time::NamedTuple, instr::NamedTuple)
 
 Run the explicit elastodynamic workflow for the given mesh, material points, constitutive model, and simulation configuration.
@@ -19,7 +31,8 @@ Run the explicit elastodynamic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elastodynamic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},time::Time{T1,T2},solver::Solver{T1,T2}) where {T1,T2}
+    explicit_only(solver, "elastodynamic!")
     it,stops = T1(0), checkpoints(time,solver,time.te)     # (t, plot, record): get.jl
     # the arrays on the solver's device (the same objects on the host: device.jl)
     dm,dg,db = to_device((mpts,mesh,basis),solver)
@@ -68,7 +81,8 @@ Run the explicit elastoplastic workflow for the given mesh, material points, con
 # Returns
 - `nothing`
 """
-function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},time::Time{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elastoplastic!(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},time::Time{T1,T2},solver::Solver{T1,T2}) where {T1,T2}
+    explicit_only(solver, "elastoplastic!")
     it,stops = T1(0), checkpoints(time,solver,time.t[2])     # (t, plot, record): get.jl
     g         = get_g(mesh.prprt; G = T2(9.81))
     # the arrays on the solver's device (the same objects on the host: device.jl)
@@ -109,7 +123,7 @@ Run the explicit thermodynamic workflow for the given mesh, material points, con
 - `mesh::Mesh{T1,T2,D}`: Mesh data structure.
 - `basis::Basis{T1,T2,D}`: Topology container linking `mesh` and `mpts`.
 - `time::Time{T1,T2}`: Time stepping configuration.
-- `instr::S`: Solver instance (e.g. `ExplicitSolver`) with matching `T1,T2,D`.
+- `instr::S`: Solver instance, explicit (`solution = "explicit"`), with matching `T1,T2,D`.
 
 # Behavior
 - Advances the simulation in time using an explicit MPM cycle with thermodynamic update.
@@ -120,6 +134,7 @@ Run the explicit thermodynamic workflow for the given mesh, material points, con
 - `nothing`
 """
 function thermodynamic!(mpts::Point{T1,T2,D,CM},mesh::Mesh{T1,T2,D},basis::Basis{T1,T2,D},time::Time{T1,T2},instr::S) where {T1,T2,D,CM,S<:Solver{T1,T2,D}}
+    explicit_only(instr, "thermodynamic!")
     host_only(instr, "thermodynamic!")
     it,stops = T1(0), checkpoints(time,instr,time.t[2])     # (t, plot, record): get.jl
     # action

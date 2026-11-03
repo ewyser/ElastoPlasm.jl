@@ -10,26 +10,28 @@
   - `T1` is always the index type and `T2` the float type, in type parameters and in methods' `where` clauses (no
     plain `T` for either); `D` the dimension.
   - Bound only the parameters code dispatches on as kinds (`CM<:AbstractConstitutiveModel`, `ST`, `EL`, `K`, `TR`,
-    GIMP's domain, the solver's `SL<:AbstractSolution`); leave number, array and part types unbounded (bounds referring
+    GIMP's domain); leave number, array and part types unbounded (bounds referring
     to other parameters made compilation three times slower, `architecture.md`). Array and part parameters come after
     the dispatched ones, in field order, with a constructor taking them from the arguments and checking what must agree
     (`Mesh{T1,T2,D}(…)`; `Problem(case, solver)` builds its parts in the solver's `T1`, `T2`, `D`; `Point(…)` takes
     its dispatched parameters from its solid phase).
   - Parameter lists without spaces (`{T1,T2,D}`); fields as `name ::T`, aligned.
   - An abstract type only when code dispatches on it, named after the role of the field it types
-    (`AbstractBasisKind` for `Basis`'s `kind`, `AbstractTransfer`, `AbstractDomain`, `AbstractSolution`); its concrete
-    markers named `<Name><Role>` (`StdTransfer`, `StretchDomain`, `ExplicitSolution`). Where an option's values name
-    types, one function returns the table of both, a NamedTuple keyed by the option's values in their listed order
-    (`get_constitutive_laws()`, `get_solutions()`): a marker is read from it, `get_solutions().implicit`, or
-    `table_value(get_solutions(), name, "solution")` for a name given as text (no per-name `get_solution(name)`, which
-    the user called deprecated); a NamedTuple, not a `Dict`, for the order and like the other in-memory tables (`Dict`s
-    are the file form). `get_option`'s lists derive from it. `get_basis`, `get_transfer` and `get_domain` still build
-    their markers from a name (`planned-improvements.md`).
+    (`AbstractBasisKind` for `Basis`'s `kind`, `AbstractTransfer`, `AbstractDomain`); its concrete markers named
+    `<Name><Role>` (`StdTransfer`, `StretchDomain`). A marker type only when something dispatches on it: the solver's
+    `solution` stays text with one check (`explicit_only`), since nothing dispatched on its markers (the user's
+    decision). Where an option's values name types needed both ways (name → type to build, type → name to report), one
+    function returns the table of both, a NamedTuple keyed by the option's values in their listed order
+    (`get_constitutive_laws()`, read by `table_value`, `laws(mpts)` the other way; no per-name lookup function); a
+    NamedTuple, not a `Dict`, for the order and like the other in-memory tables (`Dict`s are the file form).
+    `get_option`'s lists derive from it. `get_basis`, `get_transfer` and `get_domain` build their markers from a name
+    with arguments, one way only, as branching functions.
 - **Every table is a function, never a `const`** (agreed with the user, like `get_default()`, `get_option()`):
   `get_<what>()`, plural for a collection (`get_workflows()`, `get_boundary_kinds()`, `get_zone_properties()`,
-  `get_physics_sections()`, `get_solutions()`, `get_constitutive_laws()`), singular for one record (`get_material()`,
-  `get_run()`). A table read in one function only is a local there (the catalog's page order). `const` stays for what
-  is not a table: type aliases (`ExplicitSolver`), the source path (`SRC`).
+  `get_physics_sections()`, `get_constitutive_laws()`), singular for one record (`get_material()`, `get_run()`). A table
+  read in one function only is a local there (the catalog's page order). `const` stays for what is not a table: the
+  source path (`SRC`); in EasyDraw, the open window's editor (`EDITOR`, a `Ref`) and its QML file. EasyDraw follows
+  the rule in its own naming (nouns: `side_names(D)`, `canvas_padding()`, `qml_calls()`).
   - Every type's docstring in the house layout: the signature with its parameters, a summary, `# Fields` (each field's
     type, values and units; then what the type parameters are), `# Constructors`, `# Throws`, `# Examples`,
     `See also`, only the sections that apply. A field nothing reads says so.

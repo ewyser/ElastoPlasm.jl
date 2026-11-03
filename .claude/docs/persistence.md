@@ -21,8 +21,8 @@ code both `Solver` constructors end with: the kernels are built again and the de
 (a file written on a GPU machine opens on a laptop, which runs it on its host unless it has a GPU). Files written
 before still load (their kernels and `exec` are ignored).
 
-**Format change:** one `Solver` struct (`refactor-solver-split`) replaced `ExplicitSolver`/`ImplicitSolver` (now its
-aliases), holding no case and no physics (`material`, `grf`, `bcs` are the case's; the run settings lost the folder),
+**Format change:** one `Solver` struct (`refactor-solver-split`) replaced `ExplicitSolver`/`ImplicitSolver`, its
+`solution` as text, holding no case and no physics (`material`, `grf`, `bcs` are the case's; the run settings lost the folder),
 and `Problem`'s type parameters follow its fields (`{T1,T2,D,P,M,B,S}`), so `.jld2` files written before don't load;
 set them up again from their case TOML. The case TOML is unchanged, and the one `setup_simulation(case, solver)`
 writes records the solver's numerical options and run settings, so `Solver(load_case(file))` rebuilds it.

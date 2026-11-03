@@ -64,7 +64,7 @@ function check_case(s::Case, solver::Solver)
     run = solver.run
     qs  = quasistatic(run.workflow)
     L, nel = s.layout.L, s.layout.nel
-    (solver isa ImplicitSolver) != qs && push!(errors, "The option solution = $(solution_name(solver)) contradicts the workflow $(run.workflow).")
+    (solver.solution == "implicit") != qs && push!(errors, "The option solution = $(solver.solution) contradicts the workflow $(run.workflow).")
     qs && s.laws.elastic == "hypoelastic" &&
         push!(errors, "elastoquasistatic! is finite strain only: material.elastic = hypoelastic is not supported.")
     h = L ./ nel

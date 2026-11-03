@@ -20,7 +20,7 @@
             "c" => isnothing(m.t) ? Float64[] : m.t.c, "k" => isnothing(m.t) ? Float64[] : m.t.k,
             "bcs" => Float64.(pb.mesh.s.bcs.status), "N" => basis.N,
             "time" => [pb.time.t; pb.time.te; pb.time.tg; pb.time.tep],
-            "solver" => string((EP.solution_name(solver), solver.basis, solver.stab, (; dirichlet=case.bcs), case.laws, solver.dtype)))
+            "solver" => string((solver.solution, solver.basis, solver.stab, (; dirichlet=case.bcs), case.laws, solver.dtype)))
     end
     # (problem, is the point order meaningful): the collision's disks may come in any order
     cases = [

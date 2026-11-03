@@ -19,7 +19,8 @@
   copies of its physics; the next commits made the solver independent: the physics reaches the problem only through
   `Problem(case, solver)` and is read afterwards from the points' types (`laws(mpts)`, `get_constitutive_laws()`),
   the run folder became the case's (`case_folder`, so one solver can run several cases), and `ExplicitSolver`/
-  `ImplicitSolver` became one `Solver` struct with a solution marker. Everything bit-identical (setups 188/188, short
+  `ImplicitSolver` became one `Solver` struct, its `solution` as text (a marker type was tried and dropped: nothing
+  dispatched on it but one guard, now `explicit_only`). Everything bit-identical (setups 188/188, short
   runs at `-t 1` against `ecfa4602`). Possible next steps: give `check_case(case, solver)` a cheaper path than building
   the kernels (the window calls it per edit); a solver without `D`, so that one solver serves 2D and 3D cases (`D` is
   a type parameter of `Solver` read by 27 signatures).
@@ -32,7 +33,8 @@
     Removing them changes the stored arrays (`.jld2` format) and `runcmp`-style digests; one step, checked.
   - `KirchhoffStress` has no 3×3 constructor, so the carry constructor `S(M, t)` fails for it (unused today).
   - `get_basis`, `get_transfer` and `get_domain` branch on strings, and `get_option` lists the same names by hand:
-    a table function like `get_constitutive_laws()`/`get_solutions()` (`table_value`) would make them one source.
+    deliberately left as branching functions (one way, with arguments; `conventions.md`), the names still written
+    twice.
   - ElastoPlasm's Documenter site (`docs/make.jl`) has pages for `home/api`, `home/core` and `home/script` only, none
     for the types under `src/boot/needs/types/`, so their docstrings show only in the REPL (`?Point`).
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
@@ -198,8 +200,8 @@
   `max|Σᵢ∂Nᵢ|` off by exactly `1.0` at one sweep point for `LinearBasis`, unlike
   `gimpm`'s broadly-degraded boundary PoU. Never root-caused — an error of exactly
   `1.0` smells like a real (if narrow) bug rather than float noise.
-- ~~`DynamicRelaxationSolver`'s fate~~ — **removed** with the one `Solver` struct: the implicit path is
-  `ImplicitSolver` (`ImplicitSolution()`).
+- ~~`DynamicRelaxationSolver`'s fate~~ — **removed** with the one `Solver` struct: the implicit path is a
+  `Solver` with `solution = "implicit"`.
 - **Staged path to a poro-hydro-mechanical solution: mechanical solver (exists) →
   standalone fluid-only (hydro) solver → fuse the two.** Validate the hydro solver
   independently before coupling. `PointFluidPhase` (`lagrangian.jl`) needs real fields
@@ -289,8 +291,8 @@
 - ~~`@adapt_struct PointSolidPhase` likely can't rebuild the struct on GPU~~ — **fixed**: every container has an
   explicit adapt rule through `adapt_fields`, pinning the parameters no field carries (`architecture.md`).
 - ~~`ExplicitSolver`/`ImplicitSolver` are two identical structs kept in lockstep by hand~~ — **done**: one
-  `Solver{T1,T2,D,SL,…}` whose `solution` is a marker (`ExplicitSolution`/`ImplicitSolution`), the two names its
-  aliases; the fields stayed one per section, so no `solver.xxx` access changed.
+  `Solver{T1,T2,D,…}` with `solution::String`; the explicit workflows check it (`explicit_only`). The fields stayed
+  one per section, so no `solver.xxx` access changed.
 - **`test_workflow.jl` doesn't cover `material.elastic="improved_hencky"`** — add it once
   `.claude/bug/known/improved-hencky-explicit-admissibility-crossing.md` is fixed.
 - **Lighter `src/home/init/` — done** (branches `refactor-lighter-init` → `fix-grf-point-evaluation`

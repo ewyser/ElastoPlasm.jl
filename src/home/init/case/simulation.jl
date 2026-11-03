@@ -1,7 +1,7 @@
 export setup_simulation, case_workflows
 
 """
-    Solver(case; run=(;), overrides…) -> ExplicitSolver or ImplicitSolver
+    Solver(case; run=(;), overrides…) -> Solver
 
 How a case is solved, as its settings say: the numerical options (the option sections that are not physics: `dtype`,
 `basis`, `stab`, `nonloc`, `solution`, `plot`, `output`, `backend`) and the run settings (`workflow`, `te`, `tg`,

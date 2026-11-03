@@ -23,7 +23,7 @@ ElastoPlasm
 │ Case(layout, settings)                                  │   │ Solver(case; run, overrides…)  reads case.settings        │
 │ Case(; L, nel, ni, zones, …)                            │   │ Solver(; dim, sections…)                                  │
 │                                                         │   │                                                           │
-│ layout     ::Layout                                     │   │ solution ::ExplicitSolution | ImplicitSolution            │
+│ layout     ::Layout                                     │   │ solution ::String      explicit | implicit                │
 │ settings   ::Settings                                   │   │ dtype    ::NamedTuple  precision: T1, T2                  │
 │ material   ::NamedTuple               E, nu, rho0, …    │   │ basis    ::NamedTuple  which, trsfr, C_pf, domain         │
 │ properties ::Dict{String,NamedTuple}  per zone          │   │ stab     ::NamedTuple  locking, damping, musl, sfrac      │
@@ -98,11 +98,9 @@ Every type's docstring lists its fields (`# Fields`), in the house layout of `co
   `InfinitesimalStrain`) and `EL<:AbstractElasticLaw` (`HenckySolid`/`ImprovedHenckySolid`/
   `HypoelasticSolid`, the elastic-law tag `elast.jl` and `get_dt`'s `_Ktan` dispatch on) are both
   picked together from `material.elastic` by `build_solid_phase`.
-- `Solver{T1,T2,D,SL,…}` (`src/boot/needs/types/solver.jl`) — how a case is solved: one struct, its `solution`
-  a marker (`ExplicitSolution()`/`ImplicitSolution()`, read from the option's table `get_solutions()`), with
-  `ExplicitSolver{T1,T2,D}`/`ImplicitSolver` the aliases the workflows dispatch on (`elastodynamic!` takes an
-  `ExplicitSolver`); `solution_name(solver)` is the option value, for logs, file names, the HDF5 attribute. Fields: the
-  numerical option sections, `run` (`solver_run`: te, tg, tep, workflow, lstps; no folder) and the kernels (`cairn`).
+- `Solver{T1,T2,D,…}` (`src/boot/needs/types/solver.jl`) — how a case is solved: one struct, its `solution` the
+  option's text, `"explicit"` or `"implicit"` (checked in `build_solver` against `get_option()`), which the explicit
+  workflows check (`explicit_only`: an `ArgumentError` for an implicit solver). Fields: the numerical option sections, `run` (`solver_run`: te, tg, tep, workflow, lstps; no folder) and the kernels (`cairn`).
   `Solver(case; run=(;), overrides…)` (`src/home/init/case/simulation.jl`) reads a case's settings (the option sections
   that are not `get_physics_sections()`, the run settings), overridable per field, and keeps nothing of the case;
   `Solver(; dim, sections…)` (`src/home/api/solver/build.jl`) is one written in code, `get_default()` with the
@@ -224,9 +222,8 @@ commit to be the *only* behavior change from this refactor; not a regression.
   `get_domain`, `types/basis/gimpm.jl`), dispatched on in `particle_domain`; another update is one
   `AbstractDomain` type and one method. Both `elastodynamic!`/`elastoplastic!` *and*
   `elastoquasistatic!` call the same `ignite(mpts,mesh,basis,solver::Solver)`
-  wrapper, taking any solution (unlike `elastodynamic!`/`elastoplastic!`, which take an
-  `ExplicitSolver`, the alias of `Solver{T1,T2,D,ExplicitSolution}` — see `solution` in
-  `operations.md`).
+  wrapper, taking any solution (unlike `elastodynamic!`/`elastoplastic!`, which refuse an implicit
+  solver, `explicit_only` — see `solution` in `operations.md`).
 - **Running on a device (explicit path).** `elastodynamic!`/`elastoplastic!` move the points, mesh and basis to the
   solver's device once (`to_device`, `src/home/core/device.jl`: the same objects on the host, no copy; otherwise
   `adapt(exec_backend(solver), ·)`), step there, and copy the arrays back into the host problem (`to_host!`) at each

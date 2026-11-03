@@ -29,7 +29,7 @@ function init_update(instr::NamedTuple; update::Dict{Symbol,Cairn} = Dict{Symbol
     return (;update...)
 end
 
-function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,solver::Solver{T1,T2}) where {T1,T2}
     bk = exec_backend(solver)
     # update {logarithmic|infinitesimal} strains
     solver.cairn.update.deform!(mpts, mesh, basis, dt; ndrange=mpts.nmp)
@@ -56,7 +56,7 @@ function elasto(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,
     return nothing
 end
 
-function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt::T2,solver::Solver{T1,T2}) where {T1,T2}
     bk = exec_backend(solver)
     # update {logarithmic|infinitesimal} strains
     solver.cairn.update.deform!(mpts, mesh, basis, dt; ndrange=mpts.nmp)
@@ -100,7 +100,7 @@ function elastoplast(mpts::Point{T1,T2},mesh::Mesh{T1,T2},basis::Basis{T1,T2},dt
     return nothing
 end
 
-function thermo(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},solver::ExplicitSolver{T1,T2}) where {T1,T2}
+function thermo(mpts::Point{T1,T2},mesh::MeshThermalPhase{T1,T2},basis::Basis{T1,T2},solver::Solver{T1,T2}) where {T1,T2}
     bk = exec_backend(solver)
     # update temperature
     solver.cairn.update.heat!(mpts, mesh, basis; ndrange=mpts.nmp)

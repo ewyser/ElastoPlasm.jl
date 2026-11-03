@@ -5,9 +5,9 @@
                    solver=(; basis=(; which="gimpm"), bcs=(; dirichlet=[:fixed :fixed; :fixed :free])))
         @test s.material.c0 == 1.0e3 && s.material.E == get_material().E && s.bcs == [:fixed :fixed; :fixed :free] && !haskey(s.settings.options, "bcs")
         @test (s.laws, s.grf) == (get_default().material, get_default().grf)                # the physics: defaults
-        @test Solver(s).run == EP.solver_run((;)) && Solver(s) isa ExplicitSolver
+        @test Solver(s).run == EP.solver_run((;)) && Solver(s).solution == "explicit"
         q = Case(; L=[4, 1, 2], nel=[4, 2, 2], run=(; workflow="elastoquasistatic!"))
-        @test (q.layout.L, q.layout.nel) == ([4.0, 1.0, 2.0], [4, 2, 2]) && Solver(q) isa ImplicitSolver      # follows the workflow
+        @test (q.layout.L, q.layout.nel) == ([4.0, 1.0, 2.0], [4, 2, 2]) && Solver(q).solution == "implicit"   # follows the workflow
         @test q.bcs == fill(:roller, 3, 2)
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], material=(; Ee=1.0))
         @test_throws ArgumentError Case(; L=[1, 1], nel=[1, 1], solver=(; basis=(; whch="x")))
@@ -46,7 +46,7 @@
         @test s.laws == (; plastic="VM", elastic=get_default().material.elastic)
         @test fieldnames(Case) == (:layout, :settings, :material, :properties, :bcs, :laws, :grf, :thermal)
         a = Solver(s)                                                                        # its numerics: from the settings
-        @test a isa Solver && a isa ExplicitSolver{Int64,Float64,2} && isempty(intersect(fieldnames(typeof(a)), (:case, :material, :grf, :bcs)))
+        @test a isa Solver{Int64,Float64,2} && isempty(intersect(fieldnames(typeof(a)), (:case, :material, :grf, :bcs)))
         @test a.stab.damping == 0.2 && a.run.te == 1.0
         b = Solver(s; basis=(; which="gimpm"), stab=(; locking=false), run=(; te=2.0))      # overridden, field by field
         @test (b.basis.which, b.stab.locking, b.stab.damping, b.run.te) == ("gimpm", false, 0.2, 2.0)
@@ -198,7 +198,8 @@
         old = joinpath(mktempdir(), "old.jld2"); jldsave(old; problem=sim.problem)
         @test_throws ArgumentError load_simulation(old)                                     # an older file
         bc = EP.block_case([8, 4]; plot=(; status=false, freq=1.0, dpi=100, what=[]))     # quasi-static: implicit
-        @test Solver(bc) isa ImplicitSolver && Solver(bc).run.workflow == "elastoquasistatic!"
+        @test Solver(bc).solution == "implicit" && Solver(bc).run.workflow == "elastoquasistatic!"
+        @test_throws ArgumentError elastodynamic!(Problem(bc, Solver(bc)))                   # explicit: refuses it
         @test_throws ArgumentError Solver(bc; solution="implicit", run=(; workflow="elastodynamic!"))   # an explicit one: refused
         qs = Simulation(Problem(bc, Solver(bc; run=(; lstps=3))))
         @test length(only(case_workflows(qs))(qs.problem)) == 3                                   # 3 load steps

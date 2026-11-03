@@ -19,7 +19,7 @@ solver, without the selected platform (`backend.exec`) or the kernels (`cairn`),
 the file is loaded. `stored_solver(solver)` is the solver holding only it (`cairn = nothing`).
 """
 function solver_config(s::Solver)
-    return (; solution=solution_name(s), dtype=s.dtype, basis=s.basis, stab=s.stab, nonloc=s.nonloc, plot=s.plot,
+    return (; solution=s.solution, dtype=s.dtype, basis=s.basis, stab=s.stab, nonloc=s.nonloc, plot=s.plot,
               output=s.output, backend=(; select=s.backend.select), run=s.run)
 end
 function stored_solver(s::Solver{T1,T2,D}) where {T1,T2,D}
@@ -121,8 +121,10 @@ function build_solver(instr::NamedTuple, dim::Integer)
         implicit = init_implicit(instr),
     )
     instr = merge(instr, (; cairn = cairn,))
+    solutions = get_option().solution[2]
+    instr[:solution] ∈ solutions || throw(ArgumentError("solution = \"$(instr[:solution])\" is not one of $(solutions)"))
     return Solver{instr[:dtype][:T0]...,dim}(
-        table_value(get_solutions(), instr[:solution], "solution"),   # its marker, what the workflows dispatch on
+        String(instr[:solution]),
         instr[:dtype],
         instr[:basis],
         instr[:stab],

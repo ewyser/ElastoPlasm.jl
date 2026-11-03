@@ -507,13 +507,12 @@ config merged by `solver_instr` — this is the single place that defines every 
 knob and its out-of-the-box value. Its physics sections (`material`, `grf`, `bcs`) are a case's (`case.laws`,
 `case.grf`, `case.bcs`): `Solver` refuses them, and the solver holds the others.
 
-- `solution` — `"explicit"`/`"implicit"`, the solver's `solution` marker (`ExplicitSolution()`/`ImplicitSolution()`,
-  from the table `get_solutions()`): one `Solver` struct, `ExplicitSolver`/`ImplicitSolver` its aliases. Printed (as
-  `solution_name(solver)`) in `execute.jl`'s generated filenames and `logs.jl`'s startup banner. Picking `solution=
-  "explicit"` then calling an implicit-only workflow fails with `MethodError` at the
-  workflow call, not silently — `elastodynamic!`/`elastoplastic!` take an
-  `ExplicitSolver` specifically. `ignite()` is the one place taking any `Solver`
-  instead, since both paths call it regardless of `solution`.
+- `solution` — `"explicit"`/`"implicit"`, kept as text in the solver (`solver.solution`), printed in `execute.jl`'s
+  generated filenames, `logs.jl`'s startup banner and the HDF5 attributes. The explicit workflows (`elastodynamic!`,
+  `elastoplastic!`, `thermodynamic!`) refuse an implicit solver with an `ArgumentError` (`explicit_only`), not
+  silently; `elastoquasistatic!` and `ignite()` take any solver. (A marker type, `ExplicitSolution`/`ImplicitSolution`
+  with `ExplicitSolver`/`ImplicitSolver` aliases, did this by dispatch for a while; nothing else dispatched on it, so
+  the user chose the text and one check.)
 - `dtype` — arithmetic precision (`bits`, element types `T0`)
 - `basis` — `which` (`"bsmpm"`/`"gimpm"`/`"smpm"`/`"mlsmpm"`, see `get_basis`), `trsfr` (P2G/G2P transfer scheme: `"std"`/`"tpic"`/
   `"apic"`, see `get_transfer`), `C_pf` (PIC/FLIP blend), `domain` (GIMP's particle-domain update, read by

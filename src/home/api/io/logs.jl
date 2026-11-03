@@ -77,7 +77,7 @@ function workflow_log(p::Problem; msg::String="elastodynamic")
     logs = [
         "Launching ϵlastσPlasm 👻 v$(get_version()):",
         "└ $(nthreads()) active thread(s)",
-        "- solver: $(solution_name(solver))",
+        "- solver: $(solver.solution)",
         "- $(laws(p.mpts).elastic) material",
         "- $(solver.basis.trsfr) mapping scheme",
         "- $(solver.basis.which) calculation cycle",
