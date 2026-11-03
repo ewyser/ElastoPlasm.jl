@@ -219,7 +219,7 @@ execute!(setup_simulation(case))
     `set_run!`/`pick_run!`, `ready!`/`create!`, `load!`, …); `helpers.jl`, GUI-independent pieces (the preview points
     `drawn_points`, `snap_point`, `insert_on_edge!`, `delete_vertex!`, the options' nested storage); `view.jl`, the
     JSON the window reads (`background_json`, `overlay_json`, `panel_json`). `src/window/window.jl` (beside
-    `EasyDraw.qml`) keeps only the QML glue: one table, `CALLS`, of what QML may call by
+    `EasyDraw.qml`) keeps only the QML glue: one table, `qml_calls()`, of what QML may call by
     name, mostly `act(f)` (the open editor, QML strings as Julia strings, returns nothing), so a call cannot
     be defined and left unregistered; any parsing or logic lives in `editor.jl`, tested without Qt. QML counts from 0, Julia from 1: every index crosses through `qml_index`/`julia_index`
     (`view.jl`), and the QML file does no index arithmetic: it gets the tabs and the current one (`panel.tabs`,
@@ -241,7 +241,7 @@ execute!(setup_simulation(case))
     `JSON.parse` of 0.8 MB, 35 ms drawing); with the overlay, a move costs ~1 ms at any size (<0.5 kB).
   - `EasyDraw.qml` is only a view: two `Canvas` layers draw `Julia.background()`/`Julia.overlay()`, the panel reads
     `Julia.panel()`, both JSON strings (nested vectors don't convert through QML.jl, and property-map
-    updates arrive asynchronously), and each widget calls one of `CALLS` through `win.act(() => Julia.…)`,
+    updates arrive asynchronously), and each widget calls one of `qml_calls()` through `win.act(() => Julia.…)`,
     which refreshes the panel and canvas after it. The calls are registered (`QML.qmlfunction`) by
     `EasyDraw.window` for each window (`register_functions`), not in
     `__init__`: QML.jl forgets them when a window's application ends, so a second `draw_case` in the
