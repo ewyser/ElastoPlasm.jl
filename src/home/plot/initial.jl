@@ -4,7 +4,7 @@ export plot_initial_fields
     plot_initial_fields(problem, folder)
 
 Plot the initial cohesion (and, for Drucker–Prager, friction angle) of the material points into
-`folder`, as `setup_simulation` does when `solver.plot.status` is on.
+`folder`, as `setup` does when `solver.plot.status` is on.
 """
 function plot_initial_fields(problem::Problem, folder)
     solver = problem.solver

@@ -24,7 +24,7 @@ Run a simulation's workflows in order, each on its problem (`workflow!(problem)`
 `elastodynamic!`, `elastoplastic!`, `elastoquasistatic!`, `thermodynamic!`. When
 `solver.plot.status` is on, a plot is saved into the simulation's folder after each workflow.
 
-On a `.jld2` file (`setup_simulation`), the simulation is loaded, run, and written back after each
+On a `.jld2` file (`setup`), the simulation is loaded, run, and written back after each
 workflow; `load_simulation(file)` then holds the results. `execute` runs on a copy (of `sim`, or of
 the file's simulation), leaves its argument untouched and returns the run simulation (its plots and
 output are still written into the folder).

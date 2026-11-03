@@ -34,7 +34,7 @@ export clean_dump
     clean_dump()
 
 Empty `dump/`, the default folder of simulations, their plots and outputs. Nothing else empties it:
-`setup_simulation` only overwrites the files of the simulation it writes (and removes its stale output).
+`setup` only overwrites the files of the simulation it writes (and removes its stale output).
 """
 function clean_dump()
     dir   = self.sys.dump

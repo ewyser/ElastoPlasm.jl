@@ -61,7 +61,7 @@
     ┌ Welcome to ϵlastσPlasm 👻 v0.4.2
     │ New comer ? Try slumping out
     │   L,nel = [64.1584,64.1584/4.0],[40,10];
-    │   jld2  = setup_simulation(slump_case(L,nel;cli()...));
+    │   jld2  = setup(slump(L,nel;cli()...));
     └   execute!(jld2);
 
     julia> 
@@ -76,9 +76,9 @@
                                         properties=Dict("rock" => (; E=5e7)), run=(; folder="layers")))
     solver = Solver(case)     # how: the numerical options and run settings of the case's settings
     check_case(case, solver)  # points, time step, warnings
-    execute!(setup_simulation(case, solver))   # results under dump/layers/ (kept until clean_dump())
+    execute!(setup(case, solver))   # results under dump/layers/ (kept until clean_dump())
     gimp = Solver(case; basis=(; which="gimpm"))                                       # another solver, same case
-    execute!(setup_simulation(case, gimp; folder="layers_gimp"))
+    execute!(setup(case, gimp; folder="layers_gimp"))
     save_case("layers.toml", case)    # geometry and settings in one file: EasyDraw opens it too
     case = load_case("layers.toml")   # and back
 

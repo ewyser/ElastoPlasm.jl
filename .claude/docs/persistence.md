@@ -5,7 +5,7 @@ A simulation's `.jld2` is a saved `Simulation`, one `"simulation"` key: the `Pro
 to `<folder>/<name>_simulation.jld2` by `save_simulation(sim)` (or to a given file,
 `save_simulation(sim, file)`, the one writer of the key) and read by `load_simulation(file)`
 (`src/home/api/io/simulation.jl`), whose folder is then the file's (a run folder can be moved or
-copied); `setup_simulation` saves it, and `execute!(jld2)` loads it and writes it back after each
+copied); `setup` saves it, and `execute!(jld2)` loads it and writes it back after each
 workflow. `mpts.s.cmp` (constitutive constants) and APIC's `Bᵢⱼ`/`Dᵢⱼ` (on
 `basis.transfer`) persist inside it. **Format change:** before the `Simulation` type the file held
 `"problem"`, `"paths"` and `"misc"` (`save_problem`/`load_problem`), and before
@@ -24,7 +24,7 @@ before still load (their kernels and `exec` are ignored).
 **Format change:** one `Solver` struct (`refactor-solver-split`) replaced `ExplicitSolver`/`ImplicitSolver`, its
 `solution` as text, holding no case and no physics (`material`, `grf`, `bcs` are the case's; the run settings lost the folder),
 and `Problem`'s type parameters follow its fields (`{T1,T2,D,P,M,B,S}`), so `.jld2` files written before don't load;
-set them up again from their case TOML. The case TOML is unchanged, and the one `setup_simulation(case, solver)`
+set them up again from their case TOML. The case TOML is unchanged, and the one `setup(case, solver)`
 writes records the solver's numerical options and run settings, so `Solver(load_case(file))` rebuilds it.
 
 **Format change:** `solver.plot.what` holds quantity keys (`["p", "epII"]`) instead of NamedTuples of
@@ -33,9 +33,9 @@ again from its case TOML (`plot.what` there was written by name, which still loa
 
 **Format change:** stress/strain storage switched to a scalar plus a 3D Voigt deviator
 (`feat-refactor-tensor-storage`), and the 2D `mpts.s.ϵzz` field was removed. `.jld2` files written before that don't load;
-regenerate them with `setup_simulation(<example>_case(...))`.
+regenerate them with `setup(<example>_case(...))`.
 
-**The problem as TOML beside the `.jld2`:** `setup_simulation` also writes `<name>_case.toml`
+**The problem as TOML beside the `.jld2`:** `setup` also writes `<name>_case.toml`
 (`save_case`) next to `<name>_simulation.jld2`, so a run's setup can be read, edited, reloaded
 (`load_case`) and rebuilt without the `.jld2` (provenance; skipped with a warning when a zone is a
 `Region` predicate, which TOML cannot hold). The `.jld2` layout is unchanged.
@@ -60,7 +60,7 @@ at setup); set them up again from their case TOML, which still loads (a missing 
 **Format change:** `MeshSolidPhase` lost its unused `oobp` and `p` fields, `MeshProperties` and
 `Point` their `nn`, and the file moved to the one `"problem"` key (`refactor-init-problem-spec`), so
 `.jld2` files written before don't load; regenerate them with
-`setup_simulation(<example>_case(...))` or `setup_simulation(load_case(<name>_case.toml))`.
+`setup(<example>_case(...))` or `setup(load_case(<name>_case.toml))`.
 
 **Format change:** the mesh, point and basis containers hold their arrays through type parameters (`feat-gpu-explicit`,
 so that a device's arrays fit them), `MeshProperties` holds static vectors, and `basis.e2e` is an `Adjacency` (two index

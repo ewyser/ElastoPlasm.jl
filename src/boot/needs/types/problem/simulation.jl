@@ -9,7 +9,7 @@ A problem ready to run, and the folder its files go to: its workflow and load st
 # Fields
 - `problem::P`: the `Problem`, which `execute!` runs in place.
 - `folder::String`: where its files go (the `.jld2`, the case's TOML, plots, the HDF5 output), an absolute path: a name
-  given is under `dump/`. `setup_simulation` gives it the case's (`case_folder`); a loaded simulation's is its file's.
+  given is under `dump/`. `setup` gives it the case's (`case_folder`); a loaded simulation's is its file's.
 
 `P` is the problem's type.
 """

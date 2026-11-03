@@ -53,7 +53,7 @@
   pattern already validated on the sibling path (explicit ↔ dynamic_relaxation) rather
   than reinventing it — these two solver directories are meant to stay structurally
   parallel.
-- Verify refactors by actually running the `setup_simulation(slump_case(...))` → `execute!(jld2)`
+- Verify refactors by actually running the `setup(slump(...))` → `execute!(jld2)`
   pipeline end-to-end and inspecting real post-run field values (`load_simulation(jld2).problem`),
   not just a clean load — a file can `include` cleanly and a run can finish and still be
   functionally broken (wrong kwarg name, stale dict key, matrix-style indexing into what's now a
@@ -69,7 +69,7 @@
   precompiled: the first `using` after a source change deleted every output, also those of another
   session still running; the user chose no automatic emptying over a prompt in `__init__`, which
   would hang scripts, tests and CI.) `boot.jl` only creates it, since git does not track it.
-  `setup_simulation` overwrites the files of its own simulation and removes its stale output, so
+  `setup` overwrites the files of its own simulation and removes its stale output, so
   older simulations' folders stay until `clean_dump()`.
 - When doing a mechanical rename across a codebase (e.g. via sed/substring match),
   verify each occurrence semantically before trusting it — a blind rename can catch

@@ -57,8 +57,8 @@ HAS_JLARRAYS && @eval using JLArrays
             ]
             for (name, opts) ∈ configs
                 @testset "$name: device run ≈ host run" begin
-                    hc = short(slump_case(L, [16, 4]; noplot..., opts...))
-                    dc = short(slump_case(L, [16, 4]; noplot..., opts..., backend=(; select="device")))
+                    hc = short(slump(L, [16, 4]; noplot..., opts...))
+                    dc = short(slump(L, [16, 4]; noplot..., opts..., backend=(; select="device")))
                     host, dev = Problem(hc, Solver(hc)), Problem(dc, Solver(dc))
                     @test EP.exec_backend(dev.solver) isa JLBackend && EP.exec_backend(host.solver) isa CPU
                     for w ∈ (elastodynamic!, elastoplastic!)
@@ -72,14 +72,14 @@ HAS_JLARRAYS && @eval using JLArrays
                 end
             end
             @testset "3D" begin
-                hc = short(slump_case([L; L[2]], [8, 2, 2]; noplot...); te=0.1)
-                dc = short(slump_case([L; L[2]], [8, 2, 2]; noplot..., backend=(; select="device")); te=0.1)
+                hc = short(slump([L; L[2]], [8, 2, 2]; noplot...); te=0.1)
+                dc = short(slump([L; L[2]], [8, 2, 2]; noplot..., backend=(; select="device")); te=0.1)
                 host, dev = Problem(hc, Solver(hc)), Problem(dc, Solver(dc))
                 foreach(w -> (w(host); w(dev)), (elastodynamic!, elastoplastic!))
                 @test all((((_, x), (_, y)),) -> same(x, y), zip(arrays((host.mpts, host.mesh)), arrays((dev.mpts, dev.mesh))))
             end
             @testset "the device copy: device arrays only, back to the same types" begin
-                c = slump_case(L, [16, 4]; noplot..., basis=(; which="gimpm", trsfr="apic"), backend=(; select="device"))
+                c = slump(L, [16, 4]; noplot..., basis=(; which="gimpm", trsfr="apic"), backend=(; select="device"))
                 p = Problem(c, Solver(c))
                 d = EP.to_device((p.mpts, p.mesh, p.basis), p.solver)
                 @test all(((_, x),) -> x isa JLArray, arrays(d))                           # no host array left in a kernel argument
@@ -88,10 +88,10 @@ HAS_JLARRAYS && @eval using JLArrays
                 @test_throws Exception d[1].x[1]                                           # element access from the host refused
             end
             @testset "dynamic relaxation and thermal refuse a device" begin
-                bc = block_case([8, 4]; noplot..., backend=(; select="device"))
+                bc = block([8, 4]; noplot..., backend=(; select="device"))
                 q  = Problem(bc, Solver(bc))
                 @test_throws ArgumentError elastoquasistatic!(q; lstps=1)
-                tc = short(thermal_case(L, [8, 2]; noplot..., backend=(; select="device")))
+                tc = short(thermal(L, [8, 2]; noplot..., backend=(; select="device")))
                 t  = Problem(tc, Solver(tc))
                 @test_throws ArgumentError thermodynamic!(t)
             end

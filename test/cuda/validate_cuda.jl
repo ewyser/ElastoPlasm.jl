@@ -59,7 +59,7 @@ for (dims, nel) ∈ (("2D", [16, 4]), ("3D", [8, 2, 2])), (name, opts) ∈ confi
     key = "$dims, $name"
     t = @elapsed compile[key] = try
         L = dims == "2D" ? L2 : [L2; L2[2]]
-        c = with_run(slump_case(L, nel; noplot..., opts..., DEVICE...); te=0.02)
+        c = with_run(slump(L, nel; noplot..., opts..., DEVICE...); te=0.02)
         p = Problem(c, Solver(c))
         elastodynamic!(p); elastoplastic!(p)
         all(v -> all(isfinite, v), p.mpts.x) && all(isfinite, p.mpts.J) ? "ok" : "ok (ran; non-finite values)"
@@ -87,8 +87,8 @@ for (name, opts, workflows, te) ∈ (("elastic, Float64", (;), (elastodynamic!,)
                                    ("plastic, von Mises, Float64", (; material=(; plastic="VM")), (elastodynamic!, elastoplastic!), 1.0),
                                    ("plastic, DP, Float32", (; dtype=(; precision="32-bit precision (or single precision)")), (elastodynamic!, elastoplastic!), 1.0))
     try
-        hc = with_run(slump_case(L2, [40, 10]; noplot..., opts...); te)
-        dc = with_run(slump_case(L2, [40, 10]; noplot..., opts..., DEVICE...); te)
+        hc = with_run(slump(L2, [40, 10]; noplot..., opts...); te)
+        dc = with_run(slump(L2, [40, 10]; noplot..., opts..., DEVICE...); te)
         host, dev = Problem(hc, Solver(hc)), Problem(dc, Solver(dc))
         foreach(w -> (w(host); w(dev)), workflows)
         a, b = fields(host), fields(dev)
@@ -121,7 +121,7 @@ for nel ∈ sizes, (prec, dt) ∈ (("Float64", (;)), ("Float32", (; dtype=(; pre
     key = "$(join(nel, "x")), $prec"
     try
         L = length(nel) == 2 ? L2 : [L2; L2[2]]
-        hc, dc = slump_case(L, nel; noplot..., dt...), slump_case(L, nel; noplot..., dt..., DEVICE...)
+        hc, dc = slump(L, nel; noplot..., dt...), slump(L, nel; noplot..., dt..., DEVICE...)
         h = step_time(Problem(hc, Solver(hc)))
         d = step_time(Problem(dc, Solver(dc)))
         n = Problem(hc, Solver(hc)).mpts.nmp
@@ -135,7 +135,7 @@ report["timing"] = timing
 
 # ---- 5. a simulation saved with a device solver loads where CUDA is not loaded (ElastoPlasm's own environment)
 file = joinpath(mktempdir(), "device_simulation.jld2")
-sc = slump_case(L2, [16, 4]; noplot..., DEVICE...)
+sc = slump(L2, [16, 4]; noplot..., DEVICE...)
 save_simulation(Simulation(Problem(sc, Solver(sc))), file)
 cmd = `$(Base.julia_cmd()) --project=$ROOT -e 'using Pkg; Pkg.instantiate(; io=devnull); using ElastoPlasm; s = load_simulation(ARGS[1]); print(nameof(typeof(ElastoPlasm.exec_backend(s.problem.solver))))' $file`
 report["roundtrip"] = try

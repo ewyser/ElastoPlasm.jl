@@ -1,7 +1,7 @@
-export collision_case
+export collision
 
 """
-    collision_case(L, nel; r=0.1, v=10.5, folder="collision", kwargs...) -> Case
+    collision(L, nel; r=0.1, v=10.5, folder="collision", kwargs...) -> Case
 
 Two elastic disks (2D) or spheres (3D) of radius `r·Lz`, at a quarter and three quarters of the
 domain (3D: 0.4 and 0.6 along x and z, mid-width along y), moving towards each other at speed `v`
@@ -9,11 +9,11 @@ along the line between their centres: an SPH benchmark for momentum conservation
 solver options.
 
 ```julia
-jld2 = setup_simulation(collision_case([1.0, 1.0], [20, 20]))
+jld2 = setup(collision([1.0, 1.0], [20, 20]))
 execute!(jld2; workflows=[elastodynamic!])
 ```
 """
-function collision_case(L, nel; r=0.1, v=10.5, folder::String="collision", kwargs...)
+function collision(L, nel; r=0.1, v=10.5, folder::String="collision", kwargs...)
     D, lz = length(L), L[end]
     c0, c1 = D == 2 ? ([0.25*L[1], 0.25*lz], [0.75*L[1], 0.75*lz]) : ([0.4*L[1], 0.5*L[2], 0.4*lz], [0.6*L[1], 0.5*L[2], 0.6*lz])
     d    = c1 .- c0

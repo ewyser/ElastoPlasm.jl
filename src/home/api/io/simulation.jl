@@ -17,11 +17,11 @@ end
 function load_simulation(file::AbstractString)
     s = jldopen(file, "r") do f
         haskey(f, "simulation") || throw(ArgumentError("$file was written before Simulation: set it up again, " *
-                                                       "setup_simulation(load_case(<name>_case.toml))"))
+                                                       "setup(load_case(<name>_case.toml))"))
         f["simulation"]
     end
     s isa Simulation || throw(ArgumentError("$file was written by an earlier ElastoPlasm whose types differ: set it up " *
-                                            "again, setup_simulation(load_case(<name>_case.toml))"))
+                                            "again, setup(load_case(<name>_case.toml))"))
     p      = s.problem
     solver = build_solver(solver_config(p.solver), length(p.mesh.x₀))   # its kernels and device, on this machine
     return Simulation(with_solver(p, solver), dirname(abspath(file)))

@@ -61,9 +61,9 @@ host) as `solver.backend.exec`, activated (`activate!`); `exec_backend(solver)` 
 - A problem starts from a `Case`, EasyDraw's: a `Layout` (the geometry: domain, grid, named zones) and its `Settings`
   (the values: zones' constants by name, material defaults, sides, solver options, run settings), plain data drawn or
   written, checked against each other; ElastoPlasm reads them (`case_physics(case)`, `Solver(case)`) and writes them in
-  its own terms (`Case(layout, case_settings(; …))`); set up by `setup_simulation` and stored as one
+  its own terms (`Case(layout, case_settings(; …))`); set up by `setup` and stored as one
   TOML (`save_case`/`load_case`; geometry and settings may be separate files); every example is a case constructor
-  (`slump_case`, …), and the drawing window (EasyDraw's) edits both. See "Describing a case" in
+  (`slump`, …), and the drawing window (EasyDraw's) edits both. See "Describing a case" in
   `.claude/docs/operations.md`.
 - Construction order is always **mesh → material points → basis** (basis depends on
   both). Function argument order is always **`(mpts, mesh, basis, ...)`**.

@@ -90,7 +90,7 @@ end
                             try
                                 @suppress begin
                                     basiscfg = merge(basis, transfer)
-                                    jld2     = setup_simulation(slump_case(geom.L, geom.nel; folder="test/$(name)", grf=cfg_grf, basis=basiscfg, material=material, stab=stab, nonloc=nonloc))
+                                    jld2     = setup(slump(geom.L, geom.nel; folder="test/$(name)", grf=cfg_grf, basis=basiscfg, material=material, stab=stab, nonloc=nonloc))
                                     status   = execute!(jld2; workflows=[elastodynamic!, elastoplastic!]) == jld2
                                 end
                             catch e

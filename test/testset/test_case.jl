@@ -122,15 +122,15 @@
         s = layered(; solver=(; plot=(; status=false)), run=(; folder="test/spec_dt"))
         c = check_case(s)
         @test isempty(c.errors) && isempty(c.warnings) && startswith(c.info[1], "480 material points, 200 elements (2D)")
-        pb = load_simulation(setup_simulation(s)).problem
+        pb = load_simulation(setup(s)).problem
         @test pb.mpts.nmp == 480
         @test estimate_dt(s)[1] ≈ EP.get_dt(pb.mpts, pb.mesh.prprt, pb.time, Inf) rtol=1e-12   # = the solver's
         ex = layered(; L=[20, 4, 10], nel=[20, 4, 10], solver=(; plot=(; status=false)), run=(; folder="test/spec_dt3"))
-        pb3 = load_simulation(setup_simulation(ex)).problem
+        pb3 = load_simulation(setup(ex)).problem
         @test startswith(check_case(ex).info[1], "$(pb3.mpts.nmp) material points, 800 elements (3D)") && pb3.mpts.nmp == 480*8
         @test estimate_dt(ex)[1] ≈ EP.get_dt(pb3.mpts, pb3.mesh.prprt, pb3.time, Inf) rtol=1e-12
         el = layered(; nel=[40, 10], solver=(; plot=(; status=false)), run=(; folder="test/spec_dt_el"))   # cells 0.5 × 1 m
-        pe = load_simulation(setup_simulation(el)).problem; dt, c = estimate_dt(el)
+        pe = load_simulation(setup(el)).problem; dt, c = estimate_dt(el)
         @test isapprox(dt, EP.get_dt(pe.mpts, pe.mesh.prprt, pe.time, Inf); rtol=1e-12) && dt ≈ 0.5*0.5/c   # the smallest cell sets it
         none = mkcase(; L=[20, 10], nel=[20, 10], zones=[Zone("away", Polygon([[30, 0], [40, 0], [40, 5]]))])
         @test length(check_case(none).errors) == 1 && length(check_case(none).warnings) == 2   # no points; outside; empty zone
@@ -151,7 +151,7 @@
                    properties=Dict("rock" => (; E=5e7, nu=0.2, rho0=2900.0)),
                    solver=(; basis=(; which="gimpm", C_pf=0.37, domain="undeformed"), stab=(; locking=false), material=(; plastic="VM"), plot=(; status=false)),
                    run=(; folder="test/case_zones"))
-        pb = load_simulation(setup_simulation(s)).problem; solver = pb.solver
+        pb = load_simulation(setup(s)).problem; solver = pb.solver
         m = pb.mpts
         @test solver.basis == (; which="gimpm", trsfr=get_default().basis.trsfr, C_pf=0.37, domain="undeformed") && !solver.stab.locking &&
               solver.stab.damping == get_default().stab.damping && EP.laws(m).plastic == "VM"
@@ -183,7 +183,7 @@
         @test Simulation(sim.problem; folder="a/b").folder == joinpath(EP.self.sys.dump, "a", "b")   # a name: under dump/
         @test_throws ArgumentError Solver(c; run=(; workflow="nope"))
         @test_throws ArgumentError Solver(c; run=(; lstps=0))
-        jld2 = setup_simulation(c)
+        jld2 = setup(c)
         @test jld2 == joinpath(dir, "mycase_simulation.jld2") && isfile(joinpath(dir, "mycase_case.toml"))
         l = load_simulation(jld2); @test (l.problem.solver.run, l.folder) == (sim.problem.solver.run, sim.folder)
         saved = jldopen(f -> f["simulation"].problem.solver, jld2)
@@ -203,7 +203,7 @@
         @test EP.case_run((; fid="x")).folder == "x" && EP.case_run(Dict("fid" => "x", "dir" => "/a")).folder == "/a"   # older cases
         old = joinpath(mktempdir(), "old.jld2"); jldsave(old; problem=sim.problem)
         @test_throws ArgumentError load_simulation(old)                                     # an older file
-        bc = EP.block_case([8, 4]; plot=(; status=false, freq=1.0, dpi=100, what=[]))     # quasi-static: implicit
+        bc = EP.block([8, 4]; plot=(; status=false, freq=1.0, dpi=100, what=[]))     # quasi-static: implicit
         @test Solver(bc).solution == "implicit" && Solver(bc).run.workflow == "elastoquasistatic!"
         @test_throws ArgumentError elastodynamic!(Problem(bc, Solver(bc)))                   # explicit: refuses it
         @test_throws ArgumentError Solver(bc; solution="implicit", run=(; workflow="elastodynamic!"))   # an explicit one: refused
@@ -212,12 +212,12 @@
         @test_throws ArgumentError Solver(c; run=(; folder="elsewhere"))                    # the folder: the case's
         gimp  = Solver(c; basis=(; which="gimpm"), run=(; te=0.1))
         other = Case(c.layout, (t = deepcopy(c.settings); t.run["folder"] = dir * "_other"; t))
-        j1, j2 = setup_simulation(c, gimp), setup_simulation(other, gimp)                    # one solver, two cases
+        j1, j2 = setup(c, gimp), setup(other, gimp)                    # one solver, two cases
         @test (dirname(j1), dirname(j2)) == (dir, dir * "_other")                                 # each in its own folder
         @test EP.solver_config(Solver(load_case(joinpath(dir, "mycase_case.toml")))) == EP.solver_config(gimp)   # as solved
     end
     @testset "containers adapt: host arrays and back, unchanged" begin
-        c = EP.slump_case([64.1584, 16.0396], [16, 4]; plot=(; status=false), basis=(; which="gimpm", trsfr="apic"))
+        c = EP.slump([64.1584, 16.0396], [16, 4]; plot=(; status=false), basis=(; which="gimpm", trsfr="apic"))
         p = Problem(c, Solver(c))
         for x ∈ (p.mpts, p.mesh, p.basis)                                                  # the array types are parameters
             y = EP.Adapt.adapt(Array, x)
@@ -233,6 +233,6 @@
         @test case_workflows(Solver(s).run.workflow, Solver(s).run.lstps) == Function[elastodynamic!]
         @test case_workflows(EP.get_run().workflow, 1) == Function[elastodynamic!, elastoplastic!]
         @test length(case_workflows("elastoquasistatic! (plastic)", 10)) == 1
-        @test isfile(execute!(setup_simulation(s)))                                               # 3D, its own times
+        @test isfile(execute!(setup(s)))                                               # 3D, its own times
     end
 end

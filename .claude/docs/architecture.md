@@ -61,7 +61,7 @@ ElastoPlasm: how a case is read and solved
                                                             ▼
                   ┌─ Simulation: a problem ready to run ─────────────────────────────────────────────────┐
                   │ Simulation(problem; folder)                                                          │
-                  │ setup_simulation(case, solver; folder): builds one, saves it                         │
+                  │ setup(case, solver; folder): builds one, saves it                         │
                   │                                                                                      │
                   │ problem ::Problem                                                                    │
                   │ folder  ::String   where its files go; by default the case's                         │
@@ -132,8 +132,8 @@ Every type's docstring lists its fields (`# Fields`), in the house layout of `co
   the solver of a built problem through `with_solver`. What workflows run on (`elastodynamic!(problem)`).
 - `Simulation{P}` (`src/boot/needs/types/problem/simulation.jl`) — a problem ready to run in a folder: `problem`,
   `folder` (absolute; a name given is under `dump/`), built by `Simulation(problem; folder)`; its workflow and load
-  steps are its solver's (`problem.solver.run`). `setup_simulation(case, solver; folder=case_folder(case))` builds,
-  saves and returns one's `.jld2` (`setup_simulation(case)` with the case's own solver), and writes beside it the case
+  steps are its solver's (`problem.solver.run`). `setup(case, solver; folder=case_folder(case))` builds,
+  saves and returns one's `.jld2` (`setup(case)` with the case's own solver), and writes beside it the case
   as solved (`save_case(file, case, solver)`: the solver's numerical options that differ from `get_default()` and its
   run settings, so `Solver(load_case(file))` is the same solver). A `.jld2` is a saved one
   (`save_simulation`/`load_simulation`); `execute!(sim)` / `execute!(jld2)` run it in place (`execute` on a copy).

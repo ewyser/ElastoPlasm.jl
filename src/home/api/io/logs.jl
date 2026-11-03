@@ -20,15 +20,15 @@ function welcome_log(; greeting::String="Welcome to ϵlastσPlasm 👻 v$(get_ve
     printstyled("│", color=:green, bold=true); println(" New comer ? Try $(showcase) out")
     if showcase == "slumping"
         printstyled("│", color=:green, bold=true); println("   L,nel = [64.1584,64.1584/4.0],[40,10];")
-        printstyled("│", color=:green, bold=true); println("   jld2  = setup_simulation(slump_case(L,nel;cli()...));")
+        printstyled("│", color=:green, bold=true); println("   jld2  = setup(slump(L,nel;cli()...));")
         printstyled("└", color=:green, bold=true); println("   execute!(jld2);")
     elseif showcase == "heating"
         printstyled("│", color=:green, bold=true); println("   L,nel = [16.0,16.0],[80,80];")
-        printstyled("│", color=:green, bold=true); println("   jld2  = setup_simulation(thermal_case(L,nel));")
+        printstyled("│", color=:green, bold=true); println("   jld2  = setup(thermal(L,nel));")
         printstyled("└", color=:green, bold=true); println("   execute!(jld2; workflows = [thermodynamic!]);")
     elseif showcase == "collapsing"
         printstyled("│", color=:green, bold=true); println("   nel  = [92,22];")
-        printstyled("│", color=:green, bold=true); println("   jld2 = setup_simulation(collapse_case(nel));")
+        printstyled("│", color=:green, bold=true); println("   jld2 = setup(collapse(nel));")
         printstyled("└", color=:green, bold=true); println("   execute!(jld2);")
     else
         printstyled("└", color=:green, bold=true); println("   ...$(showcase) ?!? \e[5m¯\\_(ツ)_/¯\e[0m")
@@ -40,7 +40,7 @@ end
 """
     ic_log(mesh, mpts, time, solver) -> String
 
-The summary `setup_simulation` logs: precision, elements, material points and the time stages
+The summary `setup` logs: precision, elements, material points and the time stages
 (`time.t`, gravity ramp `tg`, elastic stage `te`, plastic stage `tep`).
 """
 function ic_log(mesh::Mesh,mpts::Point,time::Time,solver::S) where {T1,T2,D,S<:Solver{T1,T2,D}}

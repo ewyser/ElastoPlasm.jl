@@ -68,7 +68,7 @@ config_dict(x) = x isa NamedTuple || x isa AbstractDict ? Dict{String,Any}(strin
 """
     save_case(file, case, solver; folder=case_folder(case)) -> file
 
-Write a case as `solver` solves it (what `setup_simulation` writes beside a simulation): EasyDraw's `save_case`
+Write a case as `solver` solves it (what `setup` writes beside a simulation): EasyDraw's `save_case`
 (the layout with its settings, SI throughout, φ in radians), with the settings' numerical options replaced by the
 solver's (those that differ from `get_default()`, as their `get_option()` labels, `option_labels`) and its run settings
 with `folder`, so that `Solver(load_case(file))` is the same solver. The physics options (`material`, `grf`) are the

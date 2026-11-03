@@ -234,7 +234,7 @@
   `.claude/bug/known/test-workflow-smpm-gimpm-grid-crossing-instabilities.md`; 1D APIC has a
   similar unfixed inconsistency (1D is essentially never exercised in this codebase).
 - **Consider a persistent Julia session for iteration (Kaimon/Revise pattern, seen in
-  sibling repo FEMTools.jl).** A `setup_simulation(slump_case(…))`→`execute!` smoke test costs full
+  sibling repo FEMTools.jl).** A `setup(slump(…))`→`execute!` smoke test costs full
   Julia startup+precompile every invocation today (~30-40s), and
   a finely meshed `elastoquasistatic!` run adds more — exactly the kind of loop a persistent
   `Revise`-backed session amortizes. FEMTools.jl's `.agents/`-documented setup
@@ -304,7 +304,7 @@
 - **`test_workflow.jl` doesn't cover `material.elastic="improved_hencky"`** — add it once
   `.claude/bug/known/improved-hencky-explicit-admissibility-crossing.md` is fixed.
 - **Lighter `src/home/init/` — done** (branches `refactor-lighter-init` → `fix-grf-point-evaluation`
-  → `refactor-init-problem-spec`). Every problem is a `Case` built by `setup_simulation`; the
+  → `refactor-init-problem-spec`). Every problem is a `Case` built by `setup`; the
   six hand-written pipelines and the `get_*` generators are gone (see "Describing a case" in
   `operations.md`). Material constants live in `get_material()` (`setup_material_constants` removed, `n₀`
   a material constant), `PointData` replaced the implicit generator NamedTuple and

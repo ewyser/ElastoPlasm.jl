@@ -14,7 +14,7 @@ kernels). Workflows run on it (`elastodynamic!(problem)`), and a `Simulation` ho
 A problem is always built from a case and a solver: the mesh from the case's domain and boundary conditions
 (`setup_mesh`), the material points from its zones, constants, laws and random field (`case_points`, `setup_mpts`),
 in the solver's precision, the time stages from the solver's run settings and the basis from the solver's
-(`setup_basis`). The case is not kept: the built objects hold all it describes, and `setup_simulation` writes it as
+(`setup_basis`). The case is not kept: the built objects hold all it describes, and `setup` writes it as
 TOML beside the `.jld2`. For a case solved as its settings say, `Problem(case, Solver(case))`.
 
 # Fields

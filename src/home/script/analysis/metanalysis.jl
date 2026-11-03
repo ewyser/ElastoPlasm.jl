@@ -42,7 +42,7 @@ function prepare_simulations!(L, nel, fid, paths)
                     what = ["epII"],
                 )
                 @suppress begin
-                    _ = setup_simulation(slump_case(L, nel; folder="$fid/sim_$sim", basis=basis, material=material, stab=stab, plot=plot))
+                    _ = setup(slump(L, nel; folder="$fid/sim_$sim", basis=basis, material=material, stab=stab, plot=plot))
                 end
                 next!(prog; desc="Preparing simulation(s) $sim/$nsim...")
                 sim += 1

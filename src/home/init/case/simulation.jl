@@ -1,4 +1,4 @@
-export setup_simulation, case_workflows
+export setup, case_workflows
 
 """
     Solver(case; run=(;), overrides…) -> Solver
@@ -14,22 +14,22 @@ solver solves other cases of its dimension (`Problem(other, solver)`).
 
 # Throws
 - `ArgumentError`: when an override is physics (a `get_physics_sections()` section, or `bcs`: set it in the case), or
-  the run folder (the case's, or `setup_simulation`'s `folder`), or an explicit workflow is asked of an implicit solver
+  the run folder (the case's, or `setup`'s `folder`), or an explicit workflow is asked of an implicit solver
   (`solution = "implicit"`); and for an unknown or invalid option or run setting.
 
 # Examples
 ```julia
-case = slump_case([64.16, 16.04], [40, 10])
+case = slump([64.16, 16.04], [40, 10])
 a = Solver(case)                                   # as its settings say
 b = Solver(case; basis=(; which="gimpm"), run=(; te=5.0))
-execute!(setup_simulation(case, b))
+execute!(setup(case, b))
 ```
 """
 function Solver(case::Case; run=(;), overrides...)
     o = named_tuple((; overrides...))
     refuse_physics(o)
     haskey(config_dict(run), "folder") &&
-        throw(ArgumentError("run.folder: a simulation's folder is its case's (its run settings) or setup_simulation's `folder`"))
+        throw(ArgumentError("run.folder: a simulation's folder is its case's (its run settings) or setup's `folder`"))
     s = case.settings
     options = isempty(o) ? s.options : merge_dicts(s.options, option_labels(config_dict(o)))
     settings = merge(Dict{String,Any}(s.run), config_dict(run))
@@ -72,16 +72,16 @@ function config_changes(c::NamedTuple, ref::NamedTuple)
 end
 
 """
-    setup_simulation(case, solver; folder=case_folder(case)) -> String
-    setup_simulation(case) -> String
+    setup(case, solver; folder=case_folder(case)) -> String
+    setup(case) -> String
 
 Build a case's simulation, `Simulation(Problem(case, solver); folder)`, and save it (`save_simulation`) with the case
 as it was solved beside it (`save_case(file, case, solver)`, `<name>_case.toml`), the initial fields plotted when
 `solver.plot.status`; removes an output (`output_file(sim)`) left there by an earlier simulation, and returns the
 `.jld2` path, for `execute!`. The folder is the case's (its run settings' `folder`, else its file's folder), a name
-under `dump/` or a path. `setup_simulation(case)` is `setup_simulation(case, Solver(case))`.
+under `dump/` or a path. `setup(case)` is `setup(case, Solver(case))`.
 """
-function setup_simulation(case::Case, solver::Solver; folder::AbstractString=case_folder(case))
+function setup(case::Case, solver::Solver; folder::AbstractString=case_folder(case))
     @info "Setting up mesh & material point system for a $(length(case.layout.L))d problem ($(length(case.layout.zones)) zones)"
     sim = Simulation(Problem(case, solver); folder)
     p   = sim.problem
@@ -96,8 +96,8 @@ function setup_simulation(case::Case, solver::Solver; folder::AbstractString=cas
     rm(output_file(sim); force=true)                         # a new simulation starts a new output
     return save_simulation(sim)
 end
-function setup_simulation(case::Case)
-    return setup_simulation(case, Solver(case))
+function setup(case::Case)
+    return setup(case, Solver(case))
 end
 
 """

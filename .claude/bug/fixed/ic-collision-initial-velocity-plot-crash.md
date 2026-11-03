@@ -1,7 +1,7 @@
 # `ic_collision`'s initial-velocity plot crashes
 
 **Status: resolved by removal** (branch `refactor-init-problem-spec`). `ic_collision` is now a
-`collision_case` built by `setup_simulation`, which plots the initial fields (`plot_initial_fields`)
+`collision` built by `setup`, which plots the initial fields (`plot_initial_fields`)
 like every other example; the hand-built velocity plot is gone, and `ic_collision` with plotting on
 sets up and saves its figure. A velocity plot, if wanted again, should go through
 `get_mpts_variable_config()` (`"v"`).

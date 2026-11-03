@@ -16,7 +16,7 @@ plotted variables) and **Create** (the run settings: workflow, times or load ste
 time step). "Start from a file…" opens a case file.
 What it offers is `get_catalog()`. **Create…**, at the end of the Create page, asks for the case's folder (chosen or
 made in the system's folder dialog): the case is written there as `<name>_case.toml`, its runs go there (`run.folder`:
-`execute!(setup_simulation(case))`), and the window returns the `Case` (errors block it, warnings ask for a second
+`execute!(setup(case))`), and the window returns the `Case` (errors block it, warnings ask for a second
 click). **Cancel**, closing the window or Ctrl-C returns `nothing`. It draws zones in x–z (polygons, blocks, balls as
 circles). To give the same geometry other values, see `assign_case`.
 """

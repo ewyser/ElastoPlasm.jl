@@ -33,9 +33,9 @@ Compute error between numeric and analytic solution for the elastic column test.
 """
 function compute_column_error(jld2, l0, solver)
     # Load setup to get initial material point positions
-    setup = load_simulation_setup(jld2)
-    idx   = length(setup.mesh.prprt.nel)-1
-    z0    = getindex.(setup.mpts.x, idx)
+    initial = load_simulation_setup(jld2)
+    idx   = length(initial.mesh.prprt.nel)-1
+    z0    = getindex.(initial.mpts.x, idx)
 
     # Run simulation
     execute!(jld2; workflows=[solver])
@@ -76,13 +76,13 @@ function run_column_convergence_tests(solver, fwrk)
             material = (; plastic = get_default().material.plastic, elastic = fwrk.elastic)
             basis    = merge(get_default().basis, (; which = "gimpm", trsfr = fwrk.trsfr, C_pf = fwrk.C_pf))
             stab     = merge(get_default().stab, (; locking = fwrk.locking, damping = fwrk.damping, musl = fwrk.musl))
-            sim = setup_simulation(column_case(nel, 0.0, 1.0e4, 80.0, l0; folder = "test/column", material=material, basis=basis, stab=stab))
+            sim = setup(column(nel, 0.0, 1.0e4, 80.0, l0; folder = "test/column", material=material, basis=basis, stab=stab))
 
-            setup = load_simulation_setup(sim)
+            initial = load_simulation_setup(sim)
             err = compute_column_error(sim, l0, solver)
             errors[k+1] = err
-            hs[k+1] = setup.mesh.prprt.h[end]
-            plot_path = setup.folder
+            hs[k+1] = initial.mesh.prprt.h[end]
+            plot_path = initial.folder
             @test errors[k+1] < errors[k]
         end
     end

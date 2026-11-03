@@ -23,7 +23,7 @@
         @test Solver(load_case(save_case(joinpath(mktempdir(), "c.toml"), c))).output.what.point.solid == ["p", "q"]
     end
     @testset "a run recorded" begin
-        j = setup_simulation(case("out_run"))
+        j = setup(case("out_run"))
         execute!(j; workflows=[elastodynamic!])
         f = output_of(j)
         @test output_series(f, "point/solid/p"; point=1).t == [0.0, 0.5, 1.0]
@@ -52,7 +52,7 @@
     end
     @testset "selection, phases" begin
         c = case("out_sel"; output=out(what=(; point=(; solid=["p"], thermal=["T"]), mesh=(; solid=["v"]))))
-        j = setup_simulation(c)
+        j = setup(c)
         @test_logs (:warn, r"skipped fields") match_mode=:any execute!(j; workflows=[elastodynamic!])
         HDF5.h5open(output_of(j), "r") do h
             @test !haskey(h, "point/thermal") && keys(h["point/solid"]) == ["p"]
@@ -63,13 +63,13 @@
         @test isfile(f) && output_series(f, "point/solid/p"; point=1).t[end] == p.time.t[1]
     end
     @testset "load steps" begin
-        b = setup_simulation(EP.block_case([16, 9]; plot=(; status=false), output=out(), folder="test/out_block"))
+        b = setup(EP.block([16, 9]; plot=(; status=false), output=out(), folder="test/out_block"))
         execute!(b; workflows=[(a...) -> elastoquasistatic!(a...; lstps=2, G=10.0)])
         s = output_series(output_of(b), "point/solid/p"; point=1)
         @test s.t == [0.0, 1.0, 2.0] && s.loadstep
     end
     @testset "visualise after the run" begin
-        j = setup_simulation(case("out_plot"))
+        j = setup(case("out_plot"))
         execute!(j; workflows=[elastodynamic!, elastoplastic!])
         f, d = output_of(j), mktempdir()
         @test plot_output(f, "point/solid/p"; frame=2, file_out=joinpath(d, "p.png")) isa EP.Plots.Plot && isfile(joinpath(d, "p.png"))

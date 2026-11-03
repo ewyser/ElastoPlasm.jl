@@ -5,16 +5,16 @@ Typical end-to-end run (this is also the standard smoke test after any refactor)
 ```julia
 using ElastoPlasm
 L,nel = [64.1584, 64.1584/4.0], [40,10]          # domain size, element counts (2D here; 3 entries = 3D)
-jld2  = setup_simulation(slump_case(L, nel; cli()...))   # Case + Solver → Problem → Simulation, saved; the .jld2 path
+jld2  = setup(slump(L, nel; cli()...))   # Case + Solver → Problem → Simulation, saved; the .jld2 path
 execute!(jld2)                                       # runs its workflows, written back after each
                                                      # (execute(jld2) runs a copy, returns it, leaves the file)
 p     = load_simulation(jld2).problem              # the post-run Problem: p.mpts, p.mesh, ...
 # or entirely in memory, no .jld2:
-case  = slump_case(L, nel; cli()...)
+case  = slump(L, nel; cli()...)
 sim   = execute!(Simulation(Problem(case, Solver(case))); workflows=[elastodynamic!, elastoplastic!])
 # one case, another solver: its numerics overridden, the physics as it is
-case  = slump_case(L, nel)
-jld2  = setup_simulation(case, Solver(case; basis=(; which="gimpm"), run=(; te=5.0)); folder="slump_gimp")
+case  = slump(L, nel)
+jld2  = setup(case, Solver(case; basis=(; which="gimpm"), run=(; te=5.0)); folder="slump_gimp")
 ```
 
 **Four types:** a `Case` (what is solved: the geometry with its physics) and a `Solver` (how: numerical options, run
@@ -23,36 +23,36 @@ code) meet in `Problem(case, solver)` (mpts, mesh, basis, time, solver), which `
 its files go). The solver keeps nothing of the case: one solver solves several cases of its dimension, each written to
 its own folder (`case_folder`). A `.jld2` is a saved `Simulation`. See the diagram in `architecture.md`.
 
-- Every example is a **case constructor**: `slump_case(L, nel; kwargs...)` returns a `Case` (see
-  "Describing a case" below), and `setup_simulation(slump_case(...))` builds and saves it
+- Every example is a **case constructor**: `slump(L, nel; kwargs...)` returns a `Case` (see
+  "Describing a case" below), and `setup(slump(...))` builds and saves it
   (`src/home/script/example/*.jl`; the `*_problem` wrappers are gone). `kwargs` are solver options, passed over each example's own
   defaults (a section given replaces the example's section, then `solver_instr` merges it per field over
   `get_default()`). Write a new example as a case constructor too.
-- `slump_case`: two polygons, the slope (`z = 0.625 Lx − 1.25 x`, up to the highest sub-cell boundary
+- `slump`: two polygons, the slope (`z = 0.625 Lx − 1.25 x`, up to the highest sub-cell boundary
   below `lz = 12.8`, i.e. whole sub-cells, as the old `get_slump` kept them) and the base layer below
   `0.3 lz` (`phi = 7.5°`, three times warmer); 2D or 3D (extruded along y).
-- `collapse_case(nel; kwargs...)`: a dry granular Drucker–Prager block `[0, w0] × [0, h0]` released
+- `collapse(nel; kwargs...)`: a dry granular Drucker–Prager block `[0, w0] × [0, h0]` released
   under gravity, as MaterialPointSolver.jl's `2d_collapse.jl` reference
   (`LandslideSIM/Archive_MaterialPointSolver.jl_paper`): domain, block and material (`ρ0`, `E`, `ν`,
   `ϕ`, `c0 = cr`) match it, `nel` is what normally varies; `:fixed` (no-slip) base, needed for the
-  material to pile up. **Not to be confused with `column_case`**, the elastic self-weight column
+  material to pile up. **Not to be confused with `column`**, the elastic self-weight column
   convergence test (`test_column.jl`); see `.claude/bug/fixed/test-collapse-renamed-and-fixed.md`.
-- `block_case(nel=[64,36]; kwargs...)` is the 8 × 8 m self-weight block of Sutcliffe et al. (2026)
-  §4.3, a `collapse_case` with the paper's values as overridable defaults (von Mises `c0 = 20 kPa` Lode
+- `block(nel=[64,36]; kwargs...)` is the 8 × 8 m self-weight block of Sutcliffe et al. (2026)
+  §4.3, a `collapse` with the paper's values as overridable defaults (von Mises `c0 = 20 kPa` Lode
   reading, smooth base, GIMP). Its run workflow is `"elastoquasistatic!"` (so an implicit solver;
-  `collapse_case` takes a `workflow` keyword): `execute!(jld2)` runs it elastic with `g = 9.81`; with the
+  `collapse` takes a `workflow` keyword): `execute!(jld2)` runs it elastic with `g = 9.81`; with the
   paper's gravity, `elastoquasistatic!(a...; lstps=10, G=10.0, plastic=false|true)`; elastic, the base
   pressure is 37.7 kPa (~16 s).
-- `column_case(nel, ν, E, ρ0, l0)`: one `Block` up to `l0` in a `1.25 l0` domain one element wide,
+- `column(nel, ν, E, ρ0, l0)`: one `Block` up to `l0` in a `1.25 l0` domain one element wide,
   gravity ramped over `tg = ⌈40 · 2l0/c⌉`; 2D, or 3D with `nel = [1, 1, nz]` (impossible before `Case`).
-  `thermal_case`: the whole domain, `thermal = true`, fixed sides. `collision_case`:
+  `thermal`: the whole domain, `thermal = true`, fixed sides. `collision`:
   two `Ball`s moving towards each other.
 - The old `get_slump`/`get_collapse`/`get_column`/`get_thermal`/`get_collision` generators,
   `material_fields`, `setup_problem` and `setup_material_constants` are gone: a shape no polygon,
   block or ball describes is a `Region(x -> …)` zone, so there is one construction path.
 - `cli()` (`src/home/api/solver/cli.jl`) parses interactive/CLI overrides for solver
   config; `cli(; ui=true)` prompts interactively, `cli()` with no args picks defaults
-  non-interactively — pass its result as `kwargs...` into `slump_case` (not into `Solver(; …)`, which refuses its
+  non-interactively — pass its result as `kwargs...` into `slump` (not into `Solver(; …)`, which refuses its
   physics sections).
 - `Solver(; dim=2, kwargs...)` (`src/home/api/solver/build.jl`) merges
   user kwargs over `get_default()` (`solver_instr`), resolves the execution backend, and builds the
@@ -75,7 +75,7 @@ its own folder (`case_folder`). A `.jld2` is a saved `Simulation`. See the diagr
 ### Describing a case (`Case`)
 
 A problem starts from a `Case` (EasyDraw's: a layout with its settings), plain data, stored as TOML, solved by a
-`Solver` (`setup_simulation`, `src/home/init/case/`). No GUI package needed for any of it.
+`Solver` (`setup`, `src/home/init/case/`). No GUI package needed for any of it.
 
 ```julia
 layout = Layout(; L=[20, 10], nel=[20, 10], ni=2,
@@ -85,7 +85,7 @@ case = Case(layout, case_settings(; bcs=[:roller :roller; :fixed :free], propert
 case_physics(case)                    # what ElastoPlasm reads from it: material, properties, bcs, laws, grf, thermal
 solver = Solver(case)                 # how: the settings' numerical options and run settings
 check_case(case, solver)              # errors, warnings, points/elements, estimated time step
-jld2 = setup_simulation(case, solver) # dump/layers/layers_simulation.jld2, with layers_case.toml beside it
+jld2 = setup(case, solver) # dump/layers/layers_simulation.jld2, with layers_case.toml beside it
 execute!(jld2)                         # its workflow (case_workflows)
 save_case("layers.toml", case); case = load_case("layers.toml")
 ```
@@ -123,11 +123,11 @@ save_case("layers.toml", case); case = load_case("layers.toml")
     `Solver(case)` the numerics). Every example's options round-trip exactly;
   - `thermal`, `run`: the settings' `run`, every `get_run()` setting (`folder`, `te`, `tg`, `tep`, `workflow` ∈ `get_workflows()`,
     `lstps`) and `thermal` when true; `Solver(case)` reads all but the folder as `solver.run` (`solver_run`). The
-    folder is the case's, `case_folder(case)`: where `setup_simulation` writes the simulation and the case TOML, named
+    folder is the case's, `case_folder(case)`: where `setup` writes the simulation and the case TOML, named
     after its last part, a name under `dump/` or a path; without one in `run`, the layout's own folder (a file's). It
     is not the solver's, or one solver used on two cases would write both into one folder.
   - `Solver(case; run=(;), overrides…)`: numerical overrides field by field (a physics section, `bcs` or `run.folder`
-    is refused), run settings with `run`. `setup_simulation(case, solver; folder)` writes beside the simulation the
+    is refused), run settings with `run`. `setup(case, solver; folder)` writes beside the simulation the
     case as solved, `save_case(file, case, solver)`: its settings with the solver's numerical options (those differing
     from `get_default()`) and run settings, so `Solver(load_case(file))` is the same solver.
   - No `width`/`nely`: a 2D model extruded along y is a 3D case of x–z shapes (they extend along y), its y sides roller
@@ -173,9 +173,9 @@ save_case("layers.toml", case); case = load_case("layers.toml")
 ```julia
 using ElastoPlasm
 case = draw_case()                       # opens on the Layout step, blocks until Create…; returns a Case
-case = draw_case(slump_case([64.16, 16.04], [40, 10]))   # edit a case
+case = draw_case(slump([64.16, 16.04], [40, 10]))   # edit a case
 case = draw_case("layers.toml")          # or a case file
-execute!(setup_simulation(case))
+execute!(setup(case))
 ```
 
 - **The window is EasyDraw's** (`lib/EasyDraw/`, EasyDraw.jl, a package and repository of its own included as a git
@@ -212,7 +212,7 @@ execute!(setup_simulation(case))
     same to the bit: one lattice, `EasyDraw.subcell_centres` (the range arithmetic of `mpts_populate`; the preview's own
     `(i - 0.5)h` formula differed by up to 7e-15 m, so a point on a zone's edge could change zone), and one membership
     rule, `EasyDraw.zone_at(zones, x)`, which `case_points` calls (setups bit-identical, `test_setup`). *Files:* a case
-    file is a layout file, so `draw_case`, "Start from a file…" and `setup_simulation(load_case(…))` take a layout drawn
+    file is a layout file, so `draw_case`, "Start from a file…" and `setup(load_case(…))` take a layout drawn
     with `get_catalog()` in EasyDraw alone, and EasyDraw opens a case file as it is. *Functions:* a `Case` works wherever
     EasyDraw takes a layout, through `case.layout` and `case.settings` (`zone_at`, also 3D, `zone_index`, `property` with the case's
     material as defaults, `points`, `partition`, `write_geo`, `save_layout`), exported by `using ElastoPlasm`; on a 3D
@@ -355,7 +355,7 @@ execute!(setup_simulation(case))
   Create step) runs `check_case` first (`ready!`: errors block it, warnings need a second click), then opens
   Qt's folder dialog (choose, or make with its New Folder button): `create!` sets the run's folder
   (`run.folder`), writes `<name>_case.toml` there and closes with the case;
-  `setup_simulation` then writes the simulation (`.jld2`, plots, outputs) into that folder instead of
+  `setup` then writes the simulation (`.jld2`, plots, outputs) into that folder instead of
   `dump/<name>/` (a plain name, as for cases made in code). There is no Save…: the case file is written by
   Create…. The dialogs start in the current directory (`draw(…; startdir=pwd())`), not in `dump/`,
   the solver's scratch folder (`clean_dump()` empties it).
@@ -407,9 +407,9 @@ execute!(setup_simulation(case))
 ### Recording a run (HDF5 output)
 
 ```julia
-case = slump_case(L, nel; cli()..., plot=(; status=false),
+case = slump(L, nel; cli()..., plot=(; status=false),
                   output=(; status=true, every=0.5, what=(; point=(; solid=["u", "p", "epII"]))))
-jld2 = setup_simulation(case)
+jld2 = setup(case)
 execute!(jld2; workflows=[elastodynamic!, elastoplastic!])         # writes <name>_output.h5 beside the .jld2
 f    = replace(jld2, "_simulation.jld2" => "_output.h5")
 output_series(f, "point/solid/p"; point=30)                         # (; t, values, loadstep)
@@ -442,7 +442,7 @@ plot_output(f, "point/solid/p"; frame=7); animate_output(f, "point/solid/p"); pl
   `task_local_storage` for the run (`record!` does nothing without one), so workflow signatures and
   closures are unchanged. The file is `output` (default `<folder>/<name>_output.h5`, `output_file(sim)`):
   `execute!(jld2)` appends (it continues the saved state), `execute` and an in-memory
-  `execute!(sim; output, append=false)` start a new one, `setup_simulation` removes a stale one. Adding stops changes the time-step sequence
+  `execute!(sim; output, append=false)` start a new one, `setup` removes a stale one. Adding stops changes the time-step sequence
   (`get_dt` clips at each stop), so a run with a finer `every` than `plot.freq` differs slightly
   from one without output.
 - **After the run:** `output_series`, `output_frame`, `load_output` read it; `plot_output`,
@@ -455,8 +455,8 @@ plot_output(f, "point/solid/p"; frame=7); animate_output(f, "point/solid/p"); pl
 
 ```julia
 using CUDA, ElastoPlasm               # CUDA in the environment: UnifiedBackend's CUDA extension registers the GPU
-case = slump_case(L, nel; backend=(; select="device"))
-execute!(setup_simulation(case))      # elastodynamic!/elastoplastic! on the GPU; results back on the host
+case = slump(L, nel; backend=(; select="device"))
+execute!(setup(case))      # elastodynamic!/elastoplastic! on the GPU; results back on the host
 ```
 
 - `backend.select = "device"` picks the first GPU UnifiedBackend registered (CUDA, ROCm); without one, the host, with
@@ -587,7 +587,7 @@ knob and its out-of-the-box value. Its physics sections (`material`, `grf`, `bcs
 Two ways to change solver behaviour:
 
 1. **Per-run override (preferred, no code change)** — pass any of these keys as
-   keyword arguments to a case constructor (`slump_case`, every section) or to `Solver(case; …)`/`Solver(; dim, …)`
+   keyword arguments to a case constructor (`slump`, every section) or to `Solver(case; …)`/`Solver(; dim, …)`
    (the numerical sections); `solver_instr` only keeps
    kwargs whose top-level keys exist in `default` (unrecognized ones get a `@warn`, not
    an error), then merges them over `default` field by field (`merge_config`): a partial
@@ -600,7 +600,7 @@ Two ways to change solver behaviour:
    `thermal_problem`'s and `test_basis.jl`'s `basis=(;which=...)` lost `trsfr`/`C_pf`;
    full sections, as most callers still pass, merge exactly as before.) Example:
    ```julia
-   setup_simulation(slump_case(L, nel; basis=(; which="gimpm", trsfr="apic"), stab=(; damping=0.1)))
+   setup(slump(L, nel; basis=(; which="gimpm", trsfr="apic"), stab=(; damping=0.1)))
    ```
 2. **Change the package-wide default** — edit the literal value in `get_default()`
    directly. Do this only for a genuine change of the shipped default behaviour, not
@@ -619,7 +619,7 @@ holds, like the laws) goes into `get_physics_sections()` and a `Case` field inst
 ### Using `cli()`
 
 `cli(; ui::Bool=false)` turns `get_default()`'s config tree into a `Dict{Any,Any}` of
-kwargs suitable for splatting into `slump_case` as `cli()...` (not into `Solver(; …)`, which refuses its physics
+kwargs suitable for splatting into `slump` as `cli()...` (not into `Solver(; …)`, which refuses its physics
 sections).
 
 - `cli()` (default, `ui=false`) — **non-interactive**, returns `get_default()`'s values

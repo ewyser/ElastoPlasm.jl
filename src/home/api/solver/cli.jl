@@ -153,11 +153,11 @@ The function automatically:
 - Skips sub-options when `status = false` is selected
 
 # Returns
-- `Dict`: Configuration dictionary ready to be splatted as kwargs into `slump_case`/`Solver`.
+- `Dict`: Configuration dictionary ready to be splatted as kwargs into `slump`/`Solver`.
 
 # Example
 ```julia
-jld2 = setup_simulation(slump_case(L, nel; cli(ui=true)...))
+jld2 = setup(slump(L, nel; cli(ui=true)...))
 # Presents interactive menus for:
 # - dtype (Float32/Float64)
 # - basis functions
