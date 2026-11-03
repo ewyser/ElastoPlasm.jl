@@ -1,15 +1,16 @@
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Simulation case: the declarative description a problem is built from (domain, zones, materials,
-# boundaries, solver overrides, run settings), built with a `Solver` into a `Problem` (`Problem(case, solver)`)
+# What ElastoPlasm reads from a case (EasyDraw's `Case`: a layout with its settings): its tables (the material, the zone
+# properties, the run settings, the boundary kinds, the workflows), its physics (`case_physics`), its settings written
+# in ElastoPlasm's terms (`case_settings`), and the material points a problem starts from (`PointData`)
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 export AbstractShape, Polygon, Block, Ball, Region, Zone, Layout, Settings, load_layout, load_settings, save_settings,
-       Case, PointData, get_material, inpolygon
+       Case, save_case, load_case, case_settings, case_physics, PointData, get_material, inpolygon
 
 """
     get_material() -> NamedTuple
 
-The default material of a `Case`, in SI units with angles in radians: Young's modulus `E` [Pa], Poisson's ratio `nu`,
+The default material of a case, in SI units with angles in radians: Young's modulus `E` [Pa], Poisson's ratio `nu`,
 grain density `rho0` [kg/m³], cohesion `c0` and residual cohesion `cr` [Pa], friction angle `phi` [rad], softening
 modulus `Hp` [Pa], initial porosity `n0`, temperature `T` [K], specific heat capacity `cp` [J/(kg·K)], thermal
 conductivity `k` [W/(m·K)]. A case's settings override it (`defaults`, then each zone's values).
@@ -31,94 +32,82 @@ end
 function get_boundary_kinds()
     return (:free, :roller, :fixed)
 end
-# the shapes (`Polygon`, `Block`, `Ball`, `Region`, their `inside` rule) and `Zone` are EasyDraw's (lib/EasyDraw),
-# imported in boot.jl; a case's zones may set only `get_zone_properties()`, checked by `Case`
+# the shapes (`Polygon`, `Block`, `Ball`, `Region`, their `inside` rule), `Zone`, `Layout`, `Settings` and `Case` are
+# EasyDraw's (lib/EasyDraw), imported in boot.jl; a case's zones may set only `get_zone_properties()`, checked by
+# `case_physics`
 
 """
-    Case
+    case_settings(; properties=Dict(), material=(;), bcs=nothing, solver=(;), thermal=false, run=(;)) -> Settings
 
-A simulation case: a geometry (an EasyDraw `Layout`) with its physical properties assigned, from its settings (an
-EasyDraw `Settings`): what is solved. The layout is where things are (domain, grid, zones by name); the settings hold
-what they are (each zone's material, the material's defaults, a boundary kind per side, the constitutive laws) and how
-a solver built on the case solves it (the numerical options, the run settings). The case checks all of them and holds
-the typed reading of its physics; `Solver(case)` reads the numerics, `Problem(case, solver)` builds what both
-describe. A case keeps its own copy of both: to change a model, change a layout or settings and build a new case. One
-geometry can take several settings, `Case(layout, settings_a)` and `Case(layout, settings_b)`.
-
-# Fields
-- `layout::EasyDraw.Layout`: the geometry: `L` [m] and `nel` (2D x–z, or 3D x, y, z; the lower corner at the
-  origin), `ni`×`ni` material points per element, the `zones` (a name and a shape each; a point belongs to the last
-  zone containing it).
-- `settings::EasyDraw.Settings`: the values, as plain data: `zones` (by zone name), `defaults`, `sides`, `options`,
-  `run`. The case reads the physics below and its folder (`case_folder`); `Solver(case)` the numerical options and
-  the run settings. With the layout, the case's file (`save_case`, `load_case`).
-- `material::NamedTuple`: the material constants: `get_material()`, with the settings' `defaults`.
-- `properties::Dict{String,NamedTuple}`: each zone's own constants, by zone name: `get_material()` keys, or an initial
-  velocity `v`; where a zone does not set one, the material's.
-- `bcs::Matrix{Symbol}`: the boundary condition of each side, one `[lower upper]` row per axis (x, then y in 3D,
-  then z): the settings' `sides`, `"left"`/`"right"`, `"front"`/`"back"`, `"bottom"`/`"top"`, each `:free`,
-  `:roller` (a side not set) or `:fixed`.
-- `laws::NamedTuple`: the constitutive laws, `(; elastic, plastic)`: the settings' options `material.elastic`
-  (`"hencky"`, `"improved_hencky"` or `"hypoelastic"`) and `material.plastic` (`"DP"` or `"VM"`), `get_default()`'s
-  where not set.
-- `grf::NamedTuple`: the random field of the cohesion, `(; status, covariance, param)`: the settings' options `grf`,
-  `get_default()`'s where not set.
-- `thermal::Bool`: whether to build the thermal phase: the run setting `thermal`, false when absent.
-
-# Constructors
-    Case(layout, settings)
-    Case(; L, nel, ni=2, zones=[], properties=Dict(), material=(;), bcs=nothing, solver=(;), thermal=false, run=(;))
-
-The keyword form builds both, then reads them: `zones` (a name and a shape each) as the layout; `properties` (by zone
-name, e.g. `Dict("rock" => (; E=5e7))`) as the zones' values; `material` (overrides of `get_material()`) as the
-defaults; `bcs` (or `solver.bcs.dirichlet`, as the solver options give them; a row per axis, extra rows ignored) as the
-sides; `solver` (overrides of `get_default()`) as the options in their file form (`option_labels`); and every run
-setting, with `thermal`.
+A case's settings written in ElastoPlasm's terms, for `Case(layout, case_settings(; …))` (EasyDraw's `Case`: the
+layout is the geometry, these are its values):
+- `properties`: each zone's constants, by zone name: `Dict("rock" => (; E=5e7, phi=30π/180))`, any `get_material()`
+  key or an initial velocity `v`;
+- `material`: overrides of `get_material()` (SI, angles in radians), the settings' `defaults`;
+- `bcs`: the boundary conditions, one `[lower upper]` row per axis (x, z; or x, y, z), each `:free`, `:roller` or
+  `:fixed`, or `solver.bcs.dirichlet` as the solver options give them; the settings' `sides`, a roller side left out
+  (a side not set is roller);
+- `solver`: overrides of `get_default()`, the physics (`material`, `grf`) and the numerics alike, written in their
+  file form (`option_labels`);
+- `thermal`, `run`: the run settings, every `get_run()` one (`case_run`), with `thermal` when true.
 
 # Throws
-- `ArgumentError`: when a zone sets something other than a material constant or a velocity `v`, a default is not a
-  material constant, a side's kind is not one of `get_boundary_kinds()`, an option or a run setting is unknown or
-  invalid (all are checked here, also the numerical ones), or the layout and settings are invalid or do not agree
-  (`EasyDraw.check_settings`).
+- `ArgumentError`: for an unknown or invalid option or run setting, or a `bcs` that is not 2×2 or 3×2.
 """
-struct Case
-    layout     ::EasyDraw.Layout
-    settings   ::EasyDraw.Settings
-    material   ::NamedTuple
-    properties ::Dict{String,NamedTuple}
-    bcs        ::Matrix{Symbol}
-    laws       ::NamedTuple
-    grf        ::NamedTuple
-    thermal    ::Bool
-end
-function Case(layout::EasyDraw.Layout, settings::EasyDraw.Settings)
-    l, s = deepcopy(layout), deepcopy(settings)              # the case's own: nothing outside can change them
-    EasyDraw.check_settings(l, s)
-    options = case_options(s.options)                        # every option, checked; the case keeps its physics
-    case_run(l, s)                                           # every run setting, checked; the solver reads them
-    d = get_default()
-    laws = haskey(options, :material) ? merge_config(d.material, options.material; path="material.") : d.material
-    grf  = haskey(options, :grf) ? merge_config(d.grf, options.grf; path="grf.") : d.grf
-    return Case(l, s, case_material(s.defaults), case_properties(s.zones), case_bcs(s.sides, length(l.L)), laws, grf,
-                Bool(get(s.run, "thermal", false)))
-end
-function Case(; L, nel, ni::Integer=2, zones=Zone[], properties=Dict(), material=(;), bcs=nothing, solver=(;),
-                thermal::Bool=false, run=(;))
-    D = length(L)
+function case_settings(; properties=Dict(), material=(;), bcs=nothing, solver=(;), thermal::Bool=false, run=(;))
     s = named_tuple(solver)
     if haskey(s, :bcs)                                       # boundary conditions passed with the solver options
         isnothing(bcs) && (bcs = s.bcs.dirichlet)
         s = Base.structdiff(s, NamedTuple{(:bcs,)})
     end
-    b = isnothing(bcs) ? fill(:roller, D, 2) : Symbol.(bcs)
-    size(b, 1) > D && size(b, 2) == 2 && (b = b[1:D, :])    # more rows than axes (the solver default has three)
-    size(b) == (D, 2) || throw(ArgumentError("bcs is one [lower upper] row per axis ($(D)×2)"))
-    sides    = Dict(side => string(b[axis, k]) for (side, (axis, k)) ∈ side_axes(D))
+    sides    = isnothing(bcs) ? Dict{String,String}() : case_sides(Symbol.(bcs))
     defaults = Dict{String,Any}(string(k) => v for (k, v) ∈ pairs(named_tuple(material)))
-    settings = config_dict(case_run(run))
-    thermal && (settings["thermal"] = true)
-    layout = EasyDraw.Layout(; L, nel, ni, zones)
-    return Case(layout, EasyDraw.Settings(; zones=properties, defaults, sides, options=option_labels(config_dict(s)), run=settings))
+    options  = option_labels(config_dict(s))
+    case_options(options)                                    # checked: an unknown option errors here, not at setup
+    r = config_dict(case_run(run))
+    thermal && (r["thermal"] = true)
+    return EasyDraw.Settings(; zones=properties, defaults, sides, options, run=r)
+end
+# the sides of a `bcs` matrix, one [lower upper] row per axis (its rows give the dimension), a roller side left out:
+# what a side not set is (`case_bcs`)
+function case_sides(bcs::AbstractMatrix)
+    size(bcs, 1) ∈ (2, 3) && size(bcs, 2) == 2 || throw(ArgumentError("bcs is one [lower upper] row per axis (2×2 or 3×2)"))
+    return Dict(side => string(bcs[axis, k]) for (side, (axis, k)) ∈ side_axes(size(bcs, 1)) if bcs[axis, k] != :roller)
+end
+
+"""
+    case_physics(case) -> NamedTuple
+
+What ElastoPlasm reads from a case's settings as its physics, checked: what `Problem(case, solver)` builds the points
+and the mesh from. A case (EasyDraw's `Case`: a layout with its settings) gives its values no meaning; this does.
+
+# Fields
+- `material::NamedTuple`: the material constants: `get_material()`, with the settings' `defaults`.
+- `properties::Dict{String,NamedTuple}`: each zone's own constants, by zone name: `get_material()` keys, or an
+  initial velocity `v`; where a zone does not set one, the material's.
+- `bcs::Matrix{Symbol}`: the boundary condition of each side, one `[lower upper]` row per axis (x, then y in 3D,
+  then z): the settings' `sides`, `"left"`/`"right"`, `"front"`/`"back"`, `"bottom"`/`"top"`, each `:free`,
+  `:roller` (a side not set) or `:fixed`.
+- `laws::NamedTuple`: the constitutive laws, `(; elastic, plastic)`: the options `material.elastic` (`"hencky"`,
+  `"improved_hencky"` or `"hypoelastic"`) and `material.plastic` (`"DP"` or `"VM"`), `get_default()`'s where not set.
+- `grf::NamedTuple`: the random field of the cohesion, `(; status, covariance, param)`: the options `grf`,
+  `get_default()`'s where not set.
+- `thermal::Bool`: whether to build the thermal phase: the run setting `thermal`, false when absent.
+
+# Throws
+- `ArgumentError`: when a zone sets something other than a material constant or a velocity `v`, a default is not a
+  material constant, a side's kind is not one of `get_boundary_kinds()`, or an option or a run setting is unknown or
+  invalid (all are checked, the numerical ones too, which `Solver(case)` reads).
+"""
+function case_physics(case::Case)
+    l, s = case.layout, case.settings
+    options = case_options(s.options)                        # every option, checked
+    case_run(l, s)                                           # every run setting, checked
+    d = get_default()
+    laws = haskey(options, :material) ? merge_config(d.material, options.material; path="material.") : d.material
+    grf  = haskey(options, :grf) ? merge_config(d.grf, options.grf; path="grf.") : d.grf
+    return (; material=case_material(s.defaults), properties=case_properties(s.zones), bcs=case_bcs(s.sides, length(l.L)),
+              laws, grf, thermal=Bool(get(s.run, "thermal", false)))
 end
 
 # the sides of a D-dimensional domain, each as its axis and end (1: lower, 2: upper) in `bcs`

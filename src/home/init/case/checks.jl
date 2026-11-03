@@ -21,9 +21,10 @@ cell size over the axes.
 function estimate_dt(s::Case; zone=case_zones(s))
     used = filter(>(0), unique(zone))
     isempty(used) && return (Inf, 0.0)
-    elastic = s.laws.elastic
+    ph      = case_physics(s)
+    elastic = ph.laws.elastic
     function speed(k)
-        p(x) = get(get(s.properties, s.layout.zones[k].name, (;)), x, getfield(s.material, x))
+        p(x) = get(get(ph.properties, s.layout.zones[k].name, (;)), x, getfield(ph.material, x))
         K, G = get_elastic_moduli(p(:E), p(:nu))
         Kt   = elastic == "improved_hencky" ? K/p(:n0) : K
         return sqrt((Kt + 4G/3)/((1 - p(:n0))*p(:rho0)))
@@ -47,6 +48,7 @@ for an option contradicting the workflow (`solution`, or the quasi-static workfl
 (`estimate_dt`). The drawing window shows a solver's (`draw_case`).
 """
 function check_case(s::Case)
+    case_physics(s)                                          # its values read, checked
     errors, warnings, info = String[], String[], String[]
     zone = case_zones(s)
     L, nel = s.layout.L, s.layout.nel
@@ -65,7 +67,7 @@ function check_case(s::Case, solver::Solver)
     qs  = quasistatic(run.workflow)
     L, nel = s.layout.L, s.layout.nel
     (solver.solution == "implicit") != qs && push!(errors, "The option solution = $(solver.solution) contradicts the workflow $(run.workflow).")
-    qs && s.laws.elastic == "hypoelastic" &&
+    qs && case_physics(s).laws.elastic == "hypoelastic" &&
         push!(errors, "elastoquasistatic! is finite strain only: material.elastic = hypoelastic is not supported.")
     h = L ./ nel
     qs && maximum(h) > 1.01*minimum(h) && push!(warnings, "Cells are not square: dynamic relaxation converges slowly on elongated cells.")

@@ -1,4 +1,4 @@
-export draw_case, zone_at, zone_index, property, points, partition, write_geo, save_layout
+export draw_case, zone_at, zone_index, property, points, partition, write_geo, save_layout   # EasyDraw's, on a case too
 
 """
     draw_case(; L=[10, 5], nel=[20, 10], ni=2) -> Case or nothing
@@ -28,7 +28,7 @@ function draw_case(file::AbstractString; kwargs...)
     return draw_case(load_case(file); kwargs...)
 end
 function draw_case(; L=[10.0, 5.0], nel=[20, 10], ni::Integer=2, kwargs...)
-    return draw_case(Case(; L, nel, ni, run=(; folder="drawn")); kwargs...)
+    return draw_case(Case(Layout(; L, nel, ni), case_settings(; run=(; folder="drawn"))); kwargs...)
 end
 
 """
@@ -44,31 +44,4 @@ function case_hooks()
     save  = (l, s, dir) -> (s.run["folder"] = dir; save_case(joinpath(dir, "$(basename(dir))_case.toml"), Case(l, s)))
     load  = file -> (c = load_case(file); (c.layout, c.settings))
     return (; title="ElastoPlasm — draw a case", check, save, load)
-end
-
-# ---- a case wherever EasyDraw takes a layout, through its own (and its settings): its zone at a point, on a grid, its
-# points (those of the simulation, to the bit, in 2D), its partition, its Gmsh script, its file. Exported with
-# `using ElastoPlasm`.
-
-function EasyDraw.zone_at(c::Case, x)
-    return zone_at(c.layout, x)
-end
-function EasyDraw.zone_index(c::Case, xs, zs)
-    return zone_index(c.layout, xs, zs)
-end
-# a zone's constant, from the settings; where a zone does not set it, the case's material constant
-function EasyDraw.property(c::Case, key, xs, zs; default=get(c.material, Symbol(key), NaN))
-    return property(c.layout, c.settings, key, xs, zs; default)
-end
-function EasyDraw.points(c::Case)
-    return points(c.layout)
-end
-function EasyDraw.partition(c::Case; kwargs...)
-    return partition(c.layout; kwargs...)
-end
-function EasyDraw.write_geo(file::AbstractString, c::Case; kwargs...)
-    return write_geo(file, c.layout; kwargs...)
-end
-function EasyDraw.save_layout(file::AbstractString, c::Case)
-    return save_layout(file, c.layout, c.settings)
 end

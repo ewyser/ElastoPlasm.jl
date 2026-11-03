@@ -21,6 +21,6 @@ function column_case(nel, ν, E, ρ0, l0; folder::String="column", kwargs...)
     L  = D == 2 ? [lx, ly] : [lx, lx, ly]
     K, G = get_elastic_moduli(Float64(E), Float64(ν))
     tg = ceil((1.0/sqrt((K + 4.0/3.0*G)/Float64(ρ0)))*(2.0*l0)*40.0)
-    return Case(; L, nel, ni=2, zones=[Zone("column", Block(zeros(D), [L[1:end-1]; l0]))],
-                  material=(; E, nu=ν, rho0=ρ0), solver=(; kwargs...), run=(; folder, te=tg, tg=tg, tep=0.0))
+    layout = Layout(; L, nel, ni=2, zones=[Zone("column", Block(zeros(D), [L[1:end-1]; l0]))])
+    return Case(layout, case_settings(; material=(; E, nu=ν, rho0=ρ0), solver=(; kwargs...), run=(; folder, te=tg, tg=tg, tep=0.0)))
 end

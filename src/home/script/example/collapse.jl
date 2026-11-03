@@ -19,6 +19,7 @@ execute!(jld2; workflows=[elastodynamic!, elastoplastic!])
 function collapse_case(nel; L=[0.92, 0.22], w0=0.2, h0=0.1, ρ0=2650.0, E=7.0e5*3.0*(1.0-2.0*0.3), ν=0.3, ϕ=deg2rad(19.8), c0=0.0,
                        folder::String="collapse", workflow::String=get_run().workflow, kwargs...)
     solver = merge((; material=(; plastic="DP", elastic="hencky"), bcs=(; dirichlet=[:roller :roller; :fixed :roller])), (; kwargs...))
-    return Case(; L, nel, ni=2, zones=[Zone("block", Block([0.0, 0.0], [w0, h0]))],
-                  material=(; E, nu=ν, rho0=ρ0, c0, cr=c0, phi=ϕ), solver, run=(; folder, workflow, te=10.0, tg=10.0, tep=5.0))
+    layout = Layout(; L, nel, ni=2, zones=[Zone("block", Block([0.0, 0.0], [w0, h0]))])
+    return Case(layout, case_settings(; material=(; E, nu=ν, rho0=ρ0, c0, cr=c0, phi=ϕ), solver,
+                                        run=(; folder, workflow, te=10.0, tg=10.0, tep=5.0)))
 end

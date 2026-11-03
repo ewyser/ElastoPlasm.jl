@@ -41,8 +41,9 @@ end
 function Problem(case::Case, solver::Solver{T1,T2,D}) where {T1,T2,D}
     L, nel = case.layout.L, case.layout.nel
     length(L) == D || throw(ArgumentError("a $(D)D solver cannot solve a $(length(L))D case: build one for it, Solver(case)"))
-    mesh   = setup_mesh(L, nel, case.bcs, solver; thermal=case.thermal)
-    mpts   = setup_mpts(mesh, case_points(case, mesh), case.laws; thermal=case.thermal)
+    ph     = case_physics(case)
+    mesh   = setup_mesh(L, nel, ph.bcs, solver; thermal=ph.thermal)
+    mpts   = setup_mpts(mesh, case_points(case, mesh), ph.laws; thermal=ph.thermal)
     time   = setup_time(solver; te=solver.run.te, tg=solver.run.tg, tep=solver.run.tep)
     basis  = setup_basis(mesh, mpts, solver)
     return Problem{T1,T2,D,typeof(mpts),typeof(mesh),typeof(basis),typeof(solver)}(mpts, mesh, basis, time, solver)

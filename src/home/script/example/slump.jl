@@ -24,5 +24,5 @@ function slump_case(L, nel; lz=12.80, ni::Integer=2, folder::String="slump", kwa
     base  = Polygon([[0.0, 0.0], [Lx, 0.0], [Lx, wl], [xs(wl), wl], [xs(2wl), 2wl], [0.0, 2wl]])
     zones = [Zone("slope", slope), Zone("base", base)]
     properties = Dict("base" => (; phi=7.5*π/180, T=3.0*get_material().T))
-    return Case(; L, nel, ni, zones, properties, solver=(; kwargs...), run=(; folder, te=10.0, tg=10.0, tep=5.0))
+    return Case(Layout(; L, nel, ni, zones), case_settings(; properties, solver=(; kwargs...), run=(; folder, te=10.0, tg=10.0, tep=5.0)))
 end

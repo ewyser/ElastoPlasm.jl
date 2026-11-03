@@ -1,5 +1,3 @@
-export load_case, save_case
-
 # ---- solver options on disk: values in memory, labels or plain numbers in files
 
 # the `(prompt, values)` entry of `get_option()` at `path` (e.g. ["basis", "which"]), or nothing
@@ -68,30 +66,24 @@ config_dict(x) = x isa NamedTuple || x isa AbstractDict ? Dict{String,Any}(strin
 # ---- the case on disk: its layout's and settings' file
 
 """
-    save_case(file, case) -> file
     save_case(file, case, solver; folder=case_folder(case)) -> file
 
-Write a case to a TOML file: its layout with its settings (EasyDraw's `save_layout`), SI throughout (φ in radians):
+Write a case as `solver` solves it (what `setup_simulation` writes beside a simulation): EasyDraw's `save_case`
+(the layout with its settings, SI throughout, φ in radians), with the settings' numerical options replaced by the
+solver's (those that differ from `get_default()`, as their `get_option()` labels, `option_labels`) and its run settings
+with `folder`, so that `Solver(load_case(file))` is the same solver. The physics options (`material`, `grf`) are the
+case's.
 
-- the geometry: `[domain]` (`L`, `nel`, `ni`) and one `[[zone]]` per zone (its name and shape: `shape = "polygon"`
-  with `vertices`, or `rings` for several outlines; `"block"` with `lo`/`hi`; `"ball"` with `centre`/`radius`);
-- the settings: `[settings.zones.<name>]` (each zone's material constants or velocity `v`), `[settings.defaults]` (the
-  material constants set), `[settings.sides]` (a boundary condition per side: `left`, `right`, `bottom`, `top`, and in
-  3D `front`, `back`), `[settings.options.<section>]` (the solver overrides: numbers and booleans as such, other
-  values as their `get_option()` label, `option_labels`; quantities by key), `[settings.run]` (`folder`, `te`, `tg`,
-  `tep`, `workflow`, `lstps`, and `thermal` when true).
+A case file holds, under `[settings]`: `[settings.zones.<name>]` (each zone's material constants or velocity `v`),
+`[settings.defaults]` (the material constants set), `[settings.sides]` (a boundary condition per side, roller where
+not set), `[settings.options.<section>]`, `[settings.run]` (`folder`, `te`, `tg`, `tep`, `workflow`, `lstps`, and
+`thermal` when true). EasyDraw's `load_case` reads it back, and refuses a file of ElastoPlasm's older format (`bcs`,
+`[material]`, `[solver]`, φ in degrees): set such a case up again from its example.
 
-With a solver, the case as that solver solves it (what `setup_simulation` writes beside a simulation): the numerical
-options are the solver's (those that differ from `get_default()`), the run settings its own and `folder`, so that
-`Solver(load_case(file))` is the same solver.
-
-A zone given as a Julia predicate (`Region`) cannot be written: an `ArgumentError`. To keep geometry and settings
-apart, write them with `save_layout(file, case.layout)` and `save_settings(file, case.settings)`.
+# Throws
+- `ArgumentError`: when a zone is a `Region` predicate, which a file cannot hold.
 """
-function save_case(file::AbstractString, case::Case)
-    return save_layout(file, case.layout, case.settings)
-end
-function save_case(file::AbstractString, case::Case, solver::Solver; folder::AbstractString=case_folder(case))
+function EasyDraw.save_case(file::AbstractString, case::Case, solver::Solver; folder::AbstractString=case_folder(case))
     s = case.settings
     c = solver_config(solver)
     numerics = config_changes(Base.structdiff(c, NamedTuple{(:run,)}), get_default())
@@ -99,28 +91,5 @@ function save_case(file::AbstractString, case::Case, solver::Solver; folder::Abs
     merge!(options, option_labels(config_dict(numerics)))
     run = merge(Dict{String,Any}(s.run), config_dict(c.run), Dict{String,Any}("folder" => folder))
     settings = EasyDraw.Settings(; zones=s.zones, defaults=s.defaults, sides=s.sides, options, run)
-    return save_layout(file, case.layout, settings)
-end
-
-"""
-    load_case(file) -> Case
-    load_case(geometry, settings) -> Case
-
-Read a case from its file (`save_case`): any layout file with settings whose values ElastoPlasm knows, so also one
-drawn in EasyDraw's window with `get_catalog()`; or from a geometry file and a settings file, so that one geometry
-serves several settings. The run folder is the settings' `[run]` folder, else the geometry file's own folder.
-
-A case file of ElastoPlasm's older format (with `bcs`, `[material]`, `[solver]`, and φ in degrees) is refused, with an
-`ArgumentError`: set the case up again from its example, or as `Case(; …)`, and save it again.
-"""
-function load_case(file::AbstractString)
-    return load_case(file, file)
-end
-function load_case(geometry::AbstractString, settings::AbstractString)
-    for file ∈ unique([geometry, settings])
-        old = intersect(keys(TOML.parsefile(file)), ("bcs", "material", "solver"))
-        isempty(old) || throw(ArgumentError("$(basename(file)) is a case file of the older format ($(join(sort(collect(old)), ", "))): " *
-                                            "set the case up again from its example, or as Case(; …), and save it again"))
-    end
-    return Case(load_layout(geometry), load_settings(settings))
+    return save_case(file, Case(case.layout, settings))
 end
