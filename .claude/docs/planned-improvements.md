@@ -37,6 +37,14 @@
     twice.
   - ElastoPlasm's Documenter site (`docs/make.jl`) has pages for `home/api`, `home/core` and `home/script` only, none
     for the types under `src/boot/needs/types/`, so their docstrings show only in the REPL (`?Point`).
+- **`Case` in EasyDraw and the window from separate pages — done** (`refactor-case-in-easydraw`; see "Describing a
+  case" and "Drawing a case" in `operations.md`). Setups, short runs, the full slump and the examples' case files read
+  back were bit-identical. Follow-ups: the hooks of `draw(layout)` take a layout and those of `draw(case)` a case, while
+  the window runs on a case inside (`draw` wraps them): a host wanting both kinds of window passes two sets;
+  `Editor`'s `status` is a `Ref` shared with `Geometry` and `Values` (their message channel), a field tests read as
+  `e.status[]`; a page's QML calls are checked to be registered, not exercised (only the screenshots and the picture's
+  size report run them offscreen), so a click-level QML test is still missing; ElastoPlasm's `check_case(case)` throws
+  on invalid physics (`case_physics`) instead of listing it as an error.
 - **Kernel granularity**: `elast!` is the model to follow — decomposed into small
   functions each doing one specific task, rather than one monolithic kernel body.
   `update.jl`'s `elastoplast`/`elasto` dispatch functions (branch on

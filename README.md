@@ -70,10 +70,10 @@
 5. **Your own problem:** describe it as data (domain, zones of material, boundaries, solver options,
    run settings), or draw it in a window (see `?draw_case`):
     ```julia
-    case = Case(; L=[20.0, 10.0], nel=[20, 10], bcs=[:roller :roller; :fixed :free],
-                  zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))],   # geometry
-                  properties=Dict("rock" => (; E=5e7)),                                                # the rock's own E
-                  run=(; folder="layers"))
+    layout = Layout(; L=[20.0, 10.0], nel=[20, 10],                                       # the geometry
+                      zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Block([0, 0], [20, 2]))])
+    case = Case(layout, case_settings(; bcs=[:roller :roller; :fixed :free],              # its values
+                                        properties=Dict("rock" => (; E=5e7)), run=(; folder="layers")))
     solver = Solver(case)     # how: the numerical options and run settings of the case's settings
     check_case(case, solver)  # points, time step, warnings
     execute!(setup_simulation(case, solver))   # results under dump/layers/ (kept until clean_dump())

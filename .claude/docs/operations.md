@@ -74,14 +74,15 @@ its own folder (`case_folder`). A `.jld2` is a saved `Simulation`. See the diagr
 
 ### Describing a case (`Case`)
 
-A problem starts from a `Case` (`src/boot/needs/types/problem/case.jl`), plain data, stored as TOML, solved by a
+A problem starts from a `Case` (EasyDraw's: a layout with its settings), plain data, stored as TOML, solved by a
 `Solver` (`setup_simulation`, `src/home/init/case/`). No GUI package needed for any of it.
 
 ```julia
-case = Case(; L=[20, 10], nel=[20, 10], ni=2, bcs=[:roller :roller; :fixed :free],
-              zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Polygon([[0, 0], [20, 0], [20, 2], [0, 2]]))],
-              properties=Dict("rock" => (; E=5e7, nu=0.2, rho0=2900.0, phi=30*π/180)),
-              material=(; c0=10.0e3), solver=(; basis=(; which="gimpm")), run=(; folder="layers", te=10.0, tep=5.0))
+layout = Layout(; L=[20, 10], nel=[20, 10], ni=2,
+                  zones=[Zone("soil", Block([0, 0], [20, 6])), Zone("rock", Polygon([[0, 0], [20, 0], [20, 2], [0, 2]]))])
+case = Case(layout, case_settings(; bcs=[:roller :roller; :fixed :free], properties=Dict("rock" => (; E=5e7, nu=0.2, rho0=2900.0, phi=30*π/180)),
+                                    material=(; c0=10.0e3), solver=(; basis=(; which="gimpm")), run=(; folder="layers", te=10.0, tep=5.0)))
+case_physics(case)                    # what ElastoPlasm reads from it: material, properties, bcs, laws, grf, thermal
 solver = Solver(case)                 # how: the settings' numerical options and run settings
 check_case(case, solver)              # errors, warnings, points/elements, estimated time step
 jld2 = setup_simulation(case, solver) # dump/layers/layers_simulation.jld2, with layers_case.toml beside it
@@ -94,27 +95,32 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   physics and solver"). The layout is the geometry: `L`, `nel` (2D x–z, or 3D x, y, z; lower corner at the origin),
   `ni` points per element and axis, `zones` (a name and a shape each, names unique). The settings are the values, as
   plain data: `zones` (each zone's values by zone name), `defaults`, `sides`, `options`, `run`. `Case(layout,
-  settings)` checks a copy of both (`EasyDraw.check_settings`: values only for the layout's zones, sides its domain
-  has) and holds the typed reading of its physics: `case.material`, `case.properties` (name → NamedTuple),
-  `case.bcs`, `case.laws` (`(; elastic, plastic)`) and `case.grf` (both complete, over `get_default()`'s),
-  `case.thermal`; the geometry is read from `case.layout`. The numerics (the other option sections, the run settings)
+  settings)`, EasyDraw's since `refactor-case-in-easydraw` (the user: "Case, Layout and Setting should belong to
+  EasyDraw, whereas Problem is from ElastoPlasm"), holds a copy of both, checked against each other
+  (`EasyDraw.check_settings`: values only for the layout's zones, sides its domain has); ElastoPlasm reads its physics
+  with `case_physics(case)`: `material`, `properties` (name → NamedTuple), `bcs`, `laws` (`(; elastic, plastic)`) and
+  `grf` (both complete, over `get_default()`'s), `thermal`, all checked (until then these were fields of ElastoPlasm's
+  own `Case`, checked when it was built). The numerics (the other option sections, the run settings)
   are read by `Solver(case)` (branch `refactor-solver-split`: "Case is the combination between a geometry with physical
   properties assigned to it"), which keeps nothing of the case: `Problem(case, solver)` unifies them ("Problem
   unifies What and How"). A case keeps its own copies: to
   change a model, change a layout or settings and build a new case. One geometry takes several settings:
   `Case(layout, settings_a)`, `load_case(geometry_file, settings_file)`. `Layout`, `Settings`, `load_layout`,
-  `load_settings`, `save_settings` are re-exported by `using ElastoPlasm`. `Case(; L, nel, ni, zones, properties,
-  material, bcs, solver, thermal, run)` builds both, so the examples kept their shape (`slump` and `collision` moved
-  their zone keywords into `properties`):
+  `load_settings`, `save_settings`, `Case`, `save_case`, `load_case` are re-exported by `using ElastoPlasm`. In code,
+  a case is `Case(Layout(; L, nel, ni, zones), case_settings(; properties, material, bcs, solver, thermal, run))`
+  (`Case(; …)` until `refactor-case-in-easydraw`; ElastoPlasm cannot add a keyword constructor to EasyDraw's type);
+  `case_settings` writes ElastoPlasm's typed keywords as plain settings and checks the options and run settings:
   - `properties`: by zone name, `Dict("base" => (; phi=…, T=…))`, any `get_material()` key or `v`; the settings' `zones`;
   - `material`: overrides of `get_material()` (E, nu, rho0, c0, cr, phi, Hp, n0, T, cp, k; SI, angles in radians), the
     settings' `defaults`;
-  - `bcs`: D×2 `:free`/`:roller`/`:fixed` (extra rows ignored; `bcs` passed among the solver options moves here), the
-    settings' `sides` through `side_axes(D)`: x `left`/`right`, z `bottom`/`top`, and in 3D y `front`/`back`, roller
-    when a side is not set;
+  - `bcs`: one `[lower upper]` row per axis, `:free`/`:roller`/`:fixed` (`bcs` passed among the solver options moves
+    here), the settings' `sides` through `side_axes`: x `left`/`right`, z `bottom`/`top`, and with 3 rows y
+    `front`/`back`; **a roller side is not written** (roller is what a side not set is), so no dimension is needed and
+    `cli()`'s 3-row all-roller default writes nothing in 2D; a 3-row matrix that is not all roller on a 2D layout is
+    refused (`check_settings`: no front/back in 2D);
   - `solver`: option overrides, physics and numerics alike, the settings' `options` in their file form
-    (`option_labels`; `Case` validates them all against `get_default()`, keeps the physics as `case.laws` and
-    `case.grf`; `Solver(case)` reads the numerics). Every example's options round-trip exactly;
+    (`option_labels`; checked against `get_default()`; `case_physics` reads the physics as `laws` and `grf`,
+    `Solver(case)` the numerics). Every example's options round-trip exactly;
   - `thermal`, `run`: the settings' `run`, every `get_run()` setting (`folder`, `te`, `tg`, `tep`, `workflow` ∈ `get_workflows()`,
     `lstps`) and `thermal` when true; `Solver(case)` reads all but the folder as `solver.run` (`solver_run`). The
     folder is the case's, `case_folder(case)`: where `setup_simulation` writes the simulation and the case TOML, named
@@ -134,7 +140,7 @@ save_case("layers.toml", case); case = load_case("layers.toml")
   included; D coordinates, or two for an extruded block), `Ball(centre, r)` (disk, sphere, or cylinder
   along y), `Region(f)` (a predicate on the point, code only, not writable to TOML). `Block` is not named
   `Box` because GLMakie exports `Box` (ambiguous when both are loaded). A point belongs to the **last** zone containing its sub-cell
-  centre (`case_points`); unset constants come from `case.material`; the random field `case.grf`
+  centre (`case_points`); unset constants come from the case's material (`case_physics`); the random field (its `grf`)
   perturbs the cohesion of points whose zone does not set `c0`, evaluated over all points at once (the
   RNG sequence of the old generators).
 - **`PointData`** is the explicit per-point contract (`xp`, `vp`, `zone`, `c0`, `cr`, `phi`, `Hp`, `E`,
@@ -182,11 +188,12 @@ execute!(setup_simulation(case))
   like the catalog's TOML, which EasyDraw reads (`EasyDraw.Catalog(dict)`; `draw` and `write_catalog` take either), so
   ElastoPlasm builds no EasyDraw type for it (the user's request: it first built `EasyDraw.Field`s, tying ElastoPlasm to
   EasyDraw's API rather than to the file format); EasyDraw stays a dependency for the shapes and `draw_case`.
-  The window edits the case's layout and settings (`src/home/script/draw/draw_case.jl`): `draw_case(case)` is
-  `Case(EasyDraw.draw(case.layout, case.settings; catalog=get_catalog(), case_hooks()...)...)`, no conversion.
-  `case_hooks()` gives what a file cannot: the checks (`check_case(c, Solver(c))`, `c = Case(l, s)`), what Create… writes
-  (`<name>_case.toml`, the chosen folder set as the run folder first: EasyDraw returns those same settings, so the case
-  drawn has it too), what "Start from a file…" reads (a case file's layout and settings), the title.
+  The window edits a case (`src/home/script/draw/draw_case.jl`): `draw_case(case)` is `EasyDraw.draw(case;
+  catalog=get_catalog(), case_hooks()...)`, all four pages; `assign_case(case)` is `EasyDraw.assign(case; …)`, the
+  Physics, Options and Create pages on the same geometry (another set of values; "Start from a file…" takes a case
+  file's settings). `case_hooks()` gives what a file cannot, on a case: the checks (`check_case(c, Solver(c))`), what
+  Create… writes (the case with the chosen folder as its run folder, as `<name>_case.toml`; it returns that case, which
+  the window returns), what "Start from a file…" reads (`load_case`), the title.
   - **The window is not optional** (the user's decision: EasyDraw exists to draw interactively): QML is one of
     EasyDraw's dependencies, so `draw`/`draw_case` work without `using QML`. It was an extension (`EasyDrawQMLExt`, QML a
     weakdep the user installed in the default environment with Qt pins) until then. **QML loads with the first window, not
@@ -214,6 +221,26 @@ execute!(setup_simulation(case))
     inputs (438 cases); it found `option_value` accepting `Inf`/`NaN`, now refused as the window does.
   - Until `feat-easydraw-package` the window was ElastoPlasm's extension `ext/DrawQMLExt/`, editing a `Case` with
     ElastoPlasm's tables built in.
+  - **The window is built from separate pages** (branch `refactor-case-in-easydraw`; the user: "only define one page at a
+    time, but the window dynamically construct panels accordingly to the context", with the goal "make things
+    independent of each other wherever possible"). Each page is a type and a folder, `lib/EasyDraw/src/pages/<page>/`, one
+    Julia file and one QML file (`LayoutPage`, `PhysicsPage`, `OptionsPage`, `CreatePage <: AbstractPage`, `page.jl`):
+    its panel data (`page_json`, the panel carries the page shown only), its calls (`page_calls`, registered for the
+    window's pages only, names unique across pages, tested together with every `Julia.…` call in its QML file being
+    registered), its canvas behaviour (`press!`/`move!`/`release!`/`key!`, `page_overlay`; defaults: pan, select a zone,
+    undo the page's part). The frame (`window/EasyDraw.qml`, `frame_calls`) is the canvas, the tabs, "Start from a
+    file…", the status line, the points toggle and Fit view; it loads the page shown with a `Loader`
+    (`setSource(url, { frame })`; each page imports `jlqml` for the `Julia` object) and knows no page. **Which pages: the
+    function opening the window**, so EasyDraw's API follows the types: `draw(layout) → Layout` (Layout, Create; no
+    catalog), `draw(case; catalog) → Case` (all four), `assign(case; catalog) → Case` (Physics, Options, Create, the
+    layout shown, a click selects, no shape edits). The state is split the same way (`src/editor/`): `Geometry`
+    (`geometry.jl`, the layout drawn, its tools, the picture, its own undo; it knows no values), `Values` (`values.jl`,
+    the settings, each zone's values by the zone's **id**, so that they follow a rename and come back with an undo; their
+    own undo), and the `Editor` composing them with the pages, the view and the host's hooks (on a case: `check(case)`,
+    `save(case, folder)` returning the case written, `load(file)`). Screenshots are taken by page name
+    (`shots=(dir, [:layout, :physics])`, `layout.png`, …). It replaced one `Editor` holding every concern, one QML file
+    with four fixed tabs and a panel carrying every page's data (where Physics showed nothing without a catalog, the
+    user's report that started this).
   - EasyDraw's `src/editor/` is everything that needs no Qt (tested without a window): `editor.jl`, the
     state and every edit as a plain Julia `Editor` (`press!`/`move!`/`release!`/`key!`, `set_domain!`, `set_option!`,
     `set_run!`/`pick_run!`, `ready!`/`create!`, `load!`, …); `helpers.jl`, GUI-independent pieces (the preview points
@@ -262,7 +289,7 @@ execute!(setup_simulation(case))
   problem is refused. The preview uses each zone's own `inside` rule (`shape_of`), so it equals
   `case_points` (checked on the collision case). Zone properties it does not
   show (`v`, `Hp`, `n0`, `cp`, `k`), the problem's material and its thermal flag are carried through.
-- Four tabs, the geometry then the physics, as the model's `Layout` and `Settings` (asked for: "would it not be better
+- The four pages (`draw(case)`'s; `draw(layout)` has Layout and Create, `assign` all but Layout), the geometry then the physics, as the model's `Layout` and `Settings` (asked for: "would it not be better
   to have both domain and zone on the same page?", then "the point was also to decouple geometry from physics"; it had
   Domain and Zones apart, the canvas doing only one of them on each, and each mixing geometry and values): **Layout**,
   the geometry, the domain and the zones' shapes on one page and one canvas mode. It holds "Start from a file…", then the **Domain** section (always
@@ -515,8 +542,8 @@ default GR backend.
 
 `get_default()` (`src/home/api/solver/defaults.jl`) returns the base `NamedTuple`
 config merged by `solver_instr` — this is the single place that defines every tunable
-knob and its out-of-the-box value. Its physics sections (`material`, `grf`, `bcs`) are a case's (`case.laws`,
-`case.grf`, `case.bcs`): `Solver` refuses them, and the solver holds the others.
+knob and its out-of-the-box value. Its physics sections (`material`, `grf`, `bcs`) are a case's (`case_physics`:
+`laws`, `grf`, `bcs`): `Solver` refuses them, and the solver holds the others.
 
 - `solution` — `"explicit"`/`"implicit"`, kept as text in the solver (`solver.solution`), printed in `execute.jl`'s
   generated filenames, `logs.jl`'s startup banner and the HDF5 attributes. The explicit workflows (`elastodynamic!`,

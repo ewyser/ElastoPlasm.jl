@@ -26,6 +26,13 @@
     NamedTuple, not a `Dict`, for the order and like the other in-memory tables (`Dict`s are the file form).
     `get_option`'s lists derive from it. `get_basis`, `get_transfer` and `get_domain` build their markers from a name
     with arguments, one way only, as branching functions.
+- **Keep things independent of each other wherever possible** (the user's standing goal): a part knows only what it
+  needs, and the direction of what may know what is explicit. EasyDraw knows nothing of ElastoPlasm; a `Layout` knows
+  no values; `Settings` hold values by zone name with no meaning given to them; a `Case` (EasyDraw's) checks only that
+  the two agree; ElastoPlasm gives the values their meaning (`case_physics`, `Solver(case)`); a `Solver` holds nothing
+  of a case. In EasyDraw's window, `Geometry` knows no values and `Values` know zones only by id; a page knows the
+  parts it edits or shows; the frame knows no page; which pages a window has is the opening function's choice. A new
+  page is a type, its methods and a QML file in `src/pages/<page>/`, nothing elsewhere.
 - **Every table is a function, never a `const`** (agreed with the user, like `get_default()`, `get_option()`):
   `get_<what>()`, plural for a collection (`get_workflows()`, `get_boundary_kinds()`, `get_zone_properties()`,
   `get_physics_sections()`, `get_constitutive_laws()`), singular for one record (`get_material()`, `get_run()`). A table

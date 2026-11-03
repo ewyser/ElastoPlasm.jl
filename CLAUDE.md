@@ -41,8 +41,9 @@ sampling and the partition for Gmsh. A change to EasyDraw is committed and pushe
 then ElastoPlasm commits the new submodule commit (`git add lib/EasyDraw`); see "Working with the submodules"
 in `.claude/docs/gotchas.md`. ElastoPlasm depends on it by path (`Pkg.develop`, recorded in
 the Manifest; Julia 1.10 has no `[sources]`) and is one host of its window (`get_catalog`, `case_hooks`); a
-`Case` is built from an EasyDraw `Layout` and its `Settings` (`Case(layout, settings)`), so a case file is a layout
-file with settings and a `Case` works wherever EasyDraw takes a layout, with the same points to the bit; its tests run from `test/testset/test_easydraw.jl`. Changing
+`Case` is EasyDraw's (a `Layout` with its `Settings`), so a case file is EasyDraw's and a `Case` works wherever
+EasyDraw takes one, with the same points to the bit; its window (`draw`, `assign`) is built from separate pages
+(`lib/EasyDraw/src/pages/`); its tests run from `test/testset/test_easydraw.jl`. Changing
 EasyDraw's dependencies needs `Pkg.resolve()` in ElastoPlasm's environment. See "Drawing a case" in
 `.claude/docs/operations.md`.
 
@@ -57,9 +58,10 @@ host) as `solver.backend.exec`, activated (`activate!`); `exec_backend(solver)` 
 
 ## Core method, at a glance
 
-- A problem starts from a `Case`: an EasyDraw `Layout` (the geometry: domain, grid, named zones) and its `Settings`
+- A problem starts from a `Case`, EasyDraw's: a `Layout` (the geometry: domain, grid, named zones) and its `Settings`
   (the values: zones' constants by name, material defaults, sides, solver options, run settings), plain data drawn or
-  written, that `Case(layout, settings)` checks and reads as typed values; set up by `setup_simulation` and stored as one
+  written, checked against each other; ElastoPlasm reads them (`case_physics(case)`, `Solver(case)`) and writes them in
+  its own terms (`Case(layout, case_settings(; …))`); set up by `setup_simulation` and stored as one
   TOML (`save_case`/`load_case`; geometry and settings may be separate files); every example is a case constructor
   (`slump_case`, …), and the drawing window (EasyDraw's) edits both. See "Describing a case" in
   `.claude/docs/operations.md`.

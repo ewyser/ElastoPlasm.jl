@@ -1,63 +1,78 @@
 ## Core types
 
-What is solved (a `Case`) and how (a `Solver`) meet in the `Problem`, which a `Simulation` runs. The solver holds
-nothing of a case, so one solver solves several cases of its dimension; the case's physics reaches the problem only
-through `Problem(case, solver)`, and after setup the problem's own types carry it (`laws(mpts)`).
+What is solved (a `Case`, EasyDraw's: a layout with its settings) and how (a `Solver`) meet in the `Problem`, which a
+`Simulation` runs. EasyDraw describes a model for any solver and gives its values no meaning; ElastoPlasm reads them
+(`case_physics`, `Solver(case)`). The solver holds nothing of a case, so one solver solves several cases of its
+dimension; the case's physics reaches the problem only through `Problem(case, solver)`, and after setup the problem's
+own types carry it (`laws(mpts)`).
 
 ```
-EasyDraw: plain data, what a file holds
-┌─ Layout: where things are ───────────────────────────┐   ┌─ Settings: the values, by name ──────────────────────────┐
-│ Layout(; L, nel, ni, zones)                          │   │ Settings(; zones, defaults, sides, options, run)         │
-│                                                      │   │                                                          │
-│ L      ::Vector{Float64}  size [m]                   │   │ zones    ::Dict{String,Dict{String,Any}}                 │
-│ nel    ::Vector{Int}      cells per axis             │   │ defaults ::Dict{String,Any}                              │
-│ ni     ::Int              points per cell, axis      │   │ sides    ::Dict{String,String}                           │
-│ zones  ::Vector{Zone}     a name, a shape each       │   │ options  ::Dict{String,Any}  physics, numerics           │
-│ folder ::String           its file's folder          │   │ run      ::Dict{String,Any}  stages, workflow, folder    │
-└──────────────────────────────────────────────────────┘   └──────────────────────────────────────────────────────────┘
-                            │                                                            │
-                            └─────────────────────────────┬──────────────────────────────┘
-                                                          ▼ Case(layout, settings)
-ElastoPlasm
-┌─ Case: what is solved ──────────────────────────────────┐   ┌─ Solver: how it is solved ────────────────────────────────┐
-│ Case(layout, settings)                                  │   │ Solver(case; run, overrides…)  reads case.settings        │
-│ Case(; L, nel, ni, zones, …)                            │   │ Solver(; dim, sections…)                                  │
-│                                                         │   │                                                           │
-│ layout     ::Layout                                     │   │ solution ::String      explicit | implicit                │
-│ settings   ::Settings                                   │   │ dtype    ::NamedTuple  precision: T1, T2                  │
-│ material   ::NamedTuple               E, nu, rho0, …    │   │ basis    ::NamedTuple  which, trsfr, C_pf, domain         │
-│ properties ::Dict{String,NamedTuple}  per zone          │   │ stab     ::NamedTuple  locking, damping, musl, sfrac      │
-│ bcs        ::Matrix{Symbol}           per side          │   │ nonloc   ::NamedTuple  status, ls                         │
-│ laws       ::NamedTuple               elastic, plastic  │   │ plot     ::NamedTuple                                     │
-│ grf        ::NamedTuple               random cohesion   │   │ output   ::NamedTuple                                     │
-│ thermal    ::Bool                                       │   │ backend  ::NamedTuple  select, exec                       │
-└─────────────────────────────────────────────────────────┘   │ run      ::NamedTuple  te, tg, tep, workflow, lstps       │
-                                                              │ cairn    ::NamedTuple  the kernels                        │
-                                                              └───────────────────────────────────────────────────────────┘
+EasyDraw: what a model is, for any solver; plain data, what a file holds
+┌─ Layout: where things are ───────────────────────────────┐   ┌─ Settings: the values, by zone name ─────────────────────┐
+│ Layout(; L, nel, ni, zones)                              │   │ Settings(; zones, defaults, sides, options, run)         │
+│                                                          │   │                                                          │
+│ L      ::Vector{Float64}  size [m]                       │   │ zones    ::Dict{String,Dict{String,Any}}                 │
+│ nel    ::Vector{Int}      cells per axis                 │   │ defaults ::Dict{String,Any}                              │
+│ ni     ::Int              points per cell, axis          │   │ sides    ::Dict{String,String}                           │
+│ zones  ::Vector{Zone}     a name, a shape each           │   │ options  ::Dict{String,Any}  physics, numerics           │
+│ folder ::String           its file's folder              │   │ run      ::Dict{String,Any}  stages, workflow, folder    │
+└──────────────────────────────────────────────────────────┘   └──────────────────────────────────────────────────────────┘
+                             │                                                              │
+                             └──────────────────────────────┬───────────────────────────────┘
+                                                            ▼ Case(layout, settings)
+                               ┌─ Case: a layout with its settings ───────────────────────┐
+                               │ Case(layout, settings=Settings())  copies, checked       │
+                               │                                                          │
+                               │ layout   ::Layout                                        │
+                               │ settings ::Settings                                      │
+                               │                                                          │
+                               │ save_case, load_case; zone_at, points, partition, …      │
+                               │ draw(case; catalog), assign(case; catalog): the window   │
+                               └──────────────────────────────────────────────────────────┘
+
+ElastoPlasm: how a case is read and solved
+┌─ Reading a case: functions, no type ─────────────────────┐   ┌─ Solver: how it is solved ───────────────────────────────┐
+│ case_settings(; properties, material, bcs, solver,       │   │ Solver(case; run, overrides…)  reads case.settings       │
+│                 thermal, run) -> Settings                │   │ Solver(; dim, sections…)                                 │
+│ case_physics(case) -> (; material, properties, bcs,      │   │                                                          │
+│                          laws, grf, thermal)             │   │ solution ::String      explicit | implicit               │
+│ case_folder(case), case_points(case, mesh)               │   │ dtype    ::NamedTuple  precision: T1, T2                 │
+└──────────────────────────────────────────────────────────┘   │ basis    ::NamedTuple  which, trsfr, C_pf, domain        │
+                                                               │ stab     ::NamedTuple  locking, damping, musl, sfrac     │
+                                                               │ nonloc   ::NamedTuple  status, ls                        │
+                                                               │ plot     ::NamedTuple                                    │
+                                                               │ output   ::NamedTuple                                    │
+                                                               │ backend  ::NamedTuple  select, exec                      │
+                                                               │ run      ::NamedTuple  te, tg, tep, workflow, lstps      │
+                                                               │ cairn    ::NamedTuple  the kernels                       │
+                                                               └──────────────────────────────────────────────────────────┘
                              │                                                              │
                              └──────────────────────────────┬───────────────────────────────┘
                                                             ▼ Problem(case, solver)
-                 ┌─ Problem: what and how, built ─────────────────────────────────────────────────────┐
-                 │ Problem(case, solver)                    always both: Problem(case, Solver(case))  │
-                 │                                                                                    │
-                 │ mpts   ::Point   from the case (zones, constants, laws, grf) and solver.dtype      │
-                 │ mesh   ::Mesh    from the case (L, nel, bcs)                                       │
-                 │ basis  ::Basis   from mpts, mesh and solver.basis                                  │
-                 │ time   ::Time    from solver.run (te, tg, tep)                                     │
-                 │ solver ::Solver  as given                                                          │
-                 └────────────────────────────────────────────────────────────────────────────────────┘
+                  ┌─ Problem: what and how, built ───────────────────────────────────────────────────────┐
+                  │ Problem(case, solver)                    always both: Problem(case, Solver(case))    │
+                  │                                                                                      │
+                  │ mpts   ::Point   from case_physics (zones, constants, laws, grf) and solver.dtype    │
+                  │ mesh   ::Mesh    from the case (L, nel, bcs)                                         │
+                  │ basis  ::Basis   from mpts, mesh and solver.basis                                    │
+                  │ time   ::Time    from solver.run (te, tg, tep)                                       │
+                  │ solver ::Solver  as given                                                            │
+                  └──────────────────────────────────────────────────────────────────────────────────────┘
                                                             ▼
-                 ┌─ Simulation: a problem ready to run ───────────────────────────────────────────────┐
-                 │ Simulation(problem; folder)                                                        │
-                 │ setup_simulation(case, solver; folder): builds one, saves it                       │
-                 │                                                                                    │
-                 │ problem ::Problem                                                                  │
-                 │ folder  ::String   where its files go; by default the case's                       │
-                 └────────────────────────────────────────────────────────────────────────────────────┘
-                   execute!(sim) runs solver.run.workflow; a .jld2 is a saved Simulation
+                  ┌─ Simulation: a problem ready to run ─────────────────────────────────────────────────┐
+                  │ Simulation(problem; folder)                                                          │
+                  │ setup_simulation(case, solver; folder): builds one, saves it                         │
+                  │                                                                                      │
+                  │ problem ::Problem                                                                    │
+                  │ folder  ::String   where its files go; by default the case's                         │
+                  └──────────────────────────────────────────────────────────────────────────────────────┘
+                    execute!(sim) runs solver.run.workflow; a .jld2 is a saved Simulation
 ```
 
-Until `refactor-solver-split` the solver held its case (`solver.case`) and copies of the case's laws, random field and
+Until `refactor-case-in-easydraw` ElastoPlasm had its own `Case` (the layout and settings with their typed reading as
+fields, `case.material`, `case.bcs`, …, and a keyword constructor `Case(; L, nel, …)`); the user asked for "Case,
+Layout and Setting [to] belong to EasyDraw, whereas Problem is from ElastoPlasm", towards one goal: "make things
+independent of each other wherever possible". Until `refactor-solver-split` the solver held its case (`solver.case`) and copies of the case's laws, random field and
 boundaries, and `Problem(solver)` built from it; the user chose the other direction ("Problem unifies what and how").
 Every type's docstring lists its fields (`# Fields`), in the house layout of `conventions.md`.
 
@@ -122,18 +137,22 @@ Every type's docstring lists its fields (`# Fields`), in the house layout of `co
   as solved (`save_case(file, case, solver)`: the solver's numerical options that differ from `get_default()` and its
   run settings, so `Solver(load_case(file))` is the same solver). A `.jld2` is a saved one
   (`save_simulation`/`load_simulation`); `execute!(sim)` / `execute!(jld2)` run it in place (`execute` on a copy).
-- `Case` (`src/boot/needs/types/problem/case.jl`) — what is solved: an EasyDraw `Layout`, the geometry (`case.layout`:
-  domain, grid, zones, each a name and a shape `Polygon`/`Block`/`Ball`/`Region`), and its EasyDraw `Settings`, the
-  values (`case.settings`: zones' values by name, defaults, sides, options, run), the case's own copies; and the typed
-  reading of its physics: `material` (`get_material()` with the defaults), `properties` (each zone's constants by name,
-  checked against `get_zone_properties()`), `bcs` (the sides, `side_axes`), `laws` (`(; elastic, plastic)`, the options'
-  `material` section over `get_default()`'s) and `grf` (the random cohesion field, likewise), `thermal`; its folder is
-  `case_folder(case)` (the run settings' `folder`, else the layout's file's folder, else `get_run().folder`). It checks the
-  numerical options and run settings too, which `Solver(case)` reads. `Case(layout, settings)` is the one constructor
-  that reads; `Case(; …)` builds both. 2D or 3D (no extruded form: x–z shapes extend along y). `case_points` turns it
-  into `PointData`, the explicit per-point contract `setup_mpts` reads. One file format, the layout's
-  (`save_case`/`load_case`; geometry and settings may also be separate files); the drawing window (EasyDraw's) edits
-  `case.layout` and `case.settings`. See "Describing a case" and "Drawing a case" in `operations.md`.
+- `Case` (EasyDraw's, `lib/EasyDraw/src/case.jl`, imported and re-exported) — what is solved: a `Layout`, the
+  geometry (`case.layout`: domain, grid, zones, each a name and a shape `Polygon`/`Block`/`Ball`/`Region`), and its
+  `Settings`, the values (`case.settings`: zones' values by name, defaults, sides, options, run), its own copies,
+  checked against each other (`check_settings`); EasyDraw gives the values no meaning. Its file is
+  `save_case`/`load_case` (EasyDraw's; geometry and settings may also be separate files, `load_case(geometry,
+  settings)`; a file with top-level tables a case file does not have, such as ElastoPlasm's older `bcs`/`material`/
+  `solver`, is refused). **ElastoPlasm reads it** (`src/boot/needs/types/problem/case.jl`): `case_physics(case)`, the
+  typed reading of its physics, checked (`material`: `get_material()` with the defaults; `properties`: each zone's
+  constants by name, against `get_zone_properties()`; `bcs`: the sides, `side_axes`; `laws`: `(; elastic, plastic)`, the
+  options' `material` section over `get_default()`'s; `grf`, likewise; `thermal`; it checks the numerical options and
+  run settings too, which `Solver(case)` reads); `case_settings(; properties, material, bcs, solver, thermal, run)`,
+  settings written in ElastoPlasm's terms (`Case(Layout(…), case_settings(…))`, what `Case(; …)` was); `case_folder(case)`
+  (the run settings' `folder`, else the layout's file's folder, else `get_run().folder`); `case_points`, its
+  `PointData`, the explicit per-point contract `setup_mpts` reads; `save_case(file, case, solver)`, a method of
+  EasyDraw's. 2D or 3D (no extruded form: x–z shapes extend along y). The drawing window (EasyDraw's) edits it. See
+  "Describing a case" and "Drawing a case" in `operations.md`.
 - **The constitutive laws, by name and by type.** `get_constitutive_laws()` (`lagrangian.jl`, shaped like the `material` section) maps the option
   values (`"hencky"`, `"improved_hencky"`, `"hypoelastic"`; `"DP"`, `"VM"`) to the points' types (`ST`/`EL`; `CM`):
   `build_solid_phase`/`setup_cmp` read them one way (`table_value`), `laws(mpts)` the other, and `get_option`'s lists

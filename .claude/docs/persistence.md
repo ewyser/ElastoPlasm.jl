@@ -40,6 +40,11 @@ regenerate them with `setup_simulation(<example>_case(...))`.
 (`load_case`) and rebuilt without the `.jld2` (provenance; skipped with a warning when a zone is a
 `Region` predicate, which TOML cannot hold). The `.jld2` layout is unchanged.
 
+**Case files since `refactor-case-in-easydraw`:** the format is unchanged, but a roller side is no longer written
+(`case_settings`; roller is what a side not set is), so the examples' files lost their all-roller `[settings.sides]`;
+read back, every one builds the same problem (each array, bit for bit). EasyDraw's `load_case` refuses a file with
+top-level tables a case file does not have, which covers ElastoPlasm's older format (`bcs`, `[material]`, `[solver]`).
+
 **Format change (case TOML):** since `refactor-case-from-layout` a case file is its EasyDraw layout's file with its
 settings (geometry: `[domain]`, `[[zone]]` with name and shape; settings: `[settings.zones.<name>]`,
 `[settings.defaults]`, `[settings.sides]`, `[settings.options]`, `[settings.run]`; SI, φ in radians; see "Describing a
